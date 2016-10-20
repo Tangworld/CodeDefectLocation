@@ -29,18 +29,19 @@ def getAllLinks():
         if count!=0:
             #进入具体页面
             url = prefix+url["href"].encode("utf-8")
-            BUGID = url[url.index('=')+1:]
+            BUGID = url[url.index('=')+1:].strip()
             print url
             page = urllib.urlopen(url).read()
             soup2 = BeautifulSoup(page, 'html.parser')
-            STATUS = soup2.find(name='span', attrs={"id": re.compile(r'^static_bug_status')}).string
-            ORIGINAL = soup2.find(name='span', attrs={"class": re.compile(r'^fn')}).string
+            STATUS = soup2.find(name='span', attrs={"id": re.compile(r'^static_bug_status')}).string.encode("utf-8").strip()
+            ORIGINAL = soup2.find(name='span', attrs={"class": re.compile(r'^fn')}).string.encode("utf-8").strip()
             # DESCRIPTION = soup2.find(name='span', attrs={"ID": re.compile(r'^short_desc_nonedit_display')}).string
-            DESCRIPTION = soup2.find(name='span', attrs={"id": re.compile(r'^short_desc_nonedit_display')}).string
+            DESCRIPTION = soup2.find(name='span', attrs={"id": re.compile(r'^short_desc_nonedit_display')}).string.encode("utf-8").strip()
             print type(DESCRIPTION)
-            print BUGID+"     ", STATUS, "     ", ORIGINAL
             ASSIGNEES = []
             ASSIGNEES = getHistory(BUGID)
+            STATUS = STATUS.replace("\n", "")
+            print BUGID + "   " + STATUS + "    " + ORIGINAL + "      " + DESCRIPTION
             save(BUGID, STATUS, ORIGINAL, ASSIGNEES, None, DESCRIPTION)
         count += 1
     print count
@@ -70,6 +71,7 @@ def getHistory(bugid):
     return assignees
 
 def save(bugid,status,original,current,path,description):
+    # print bugid+"   "+status+"    "+original+"   "+current+"   "+description
     """
     爬取到所需的信息后则调用该函数将数据插入到数据库中
     :param bugid: bug编号
@@ -85,11 +87,9 @@ def save(bugid,status,original,current,path,description):
 
     # 插入数据
     if current.__len__() > 0:
-        cursor.execute("INSERT INTO aspectj(bugid,original,current1,status,description) "
-                       "VALUES ('%s','%s','%s','%s','%s')" % (bugid, original, "yes", status, description))
+        cursor.execute("INSERT INTO aspectj(bugid,original,current1,status,description) VALUES ('%s', '%s', '%s', '%s', '%s')" % (bugid, original, "yes", status, description))
     else:
-        cursor.execute("INSERT INTO aspectj(bugid,original,status,description) "
-                       "VALUES ('%s','%s','%s','%s')" % (bugid, original, status, description))
+        cursor.execute("INSERT INTO aspectj(bugid, original, status, description) VALUES ('%s', '%s', '%s', '%s')" % (bugid, original, status, description))
     # data = cursor.fetchall()
     # for da in data:
     #     print da
