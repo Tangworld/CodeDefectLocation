@@ -1,9 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project version="4">
   <component name="ChangeListManager">
-    <list default="true" id="33cfeda7-3181-4d5e-a7ff-12787469554c" name="Default" comment="">
-      <change type="MOVED" beforePath="$PROJECT_DIR$/getdata/crawler.py" afterPath="$PROJECT_DIR$/getdata/Aspectj/CrawlerForBugs.py" />
-    </list>
+    <list default="true" id="33cfeda7-3181-4d5e-a7ff-12787469554c" name="Default" comment="" />
     <ignored path="CodeDefectLocation.iws" />
     <ignored path=".idea/workspace.xml" />
     <ignored path=".idea/dataSources.local.xml" />
@@ -39,11 +37,11 @@
           </provider>
         </entry>
       </file>
-      <file leaf-file-name="CrawlerForBugs.py" pinned="false" current-in-tab="true">
+      <file leaf-file-name="CrawlerForBugs.py" pinned="false" current-in-tab="false">
         <entry file="file://$PROJECT_DIR$/getdata/Aspectj/CrawlerForBugs.py">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="126">
-              <caret line="7" column="29" selection-start-line="7" selection-start-column="29" selection-end-line="7" selection-end-column="29" />
+            <state relative-caret-position="-648">
+              <caret line="18" column="0" selection-start-line="18" selection-start-column="0" selection-end-line="18" selection-end-column="0" />
               <folding>
                 <element signature="e#105#118#0" expanded="true" />
                 <marker date="1477034520772" expanded="true" signature="3762:3863" ph="INSERT INTO aspectj... " />
@@ -56,11 +54,21 @@
       <file leaf-file-name="CrawlerForGit.py" pinned="false" current-in-tab="false">
         <entry file="file://$PROJECT_DIR$/getdata/Aspectj/CrawlerForGit.py">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="0">
-              <caret line="0" column="0" selection-start-line="0" selection-start-column="0" selection-end-line="3" selection-end-column="0" />
+            <state relative-caret-position="290">
+              <caret line="26" column="31" selection-start-line="26" selection-start-column="31" selection-end-line="26" selection-end-column="31" />
               <folding>
                 <element signature="e#105#118#0" expanded="true" />
               </folding>
+            </state>
+          </provider>
+        </entry>
+      </file>
+      <file leaf-file-name="git.py" pinned="false" current-in-tab="true">
+        <entry file="file://$PROJECT_DIR$/getdata/Aspectj/git.py">
+          <provider selected="true" editor-type-id="text-editor">
+            <state relative-caret-position="198">
+              <caret line="16" column="34" selection-start-line="16" selection-start-column="34" selection-end-line="16" selection-end-column="34" />
+              <folding />
             </state>
           </provider>
         </entry>
@@ -82,6 +90,7 @@
       <list>
         <option value="$PROJECT_DIR$/getdata/Aspectj/CrawlerForGit.py" />
         <option value="$PROJECT_DIR$/getdata/Aspectj/CrawlerForBugs.py" />
+        <option value="$PROJECT_DIR$/getdata/Aspectj/git.py" />
       </list>
     </option>
   </component>
@@ -182,6 +191,9 @@
     <property name="WebServerToolWindowFactoryState" value="false" />
   </component>
   <component name="RecentsManager">
+    <key name="CopyFile.RECENT_KEYS">
+      <recent name="$PROJECT_DIR$/getdata/Aspectj" />
+    </key>
     <key name="MoveFile.RECENT_KEYS">
       <recent name="$PROJECT_DIR$/getdata/Aspectj" />
     </key>
@@ -496,25 +508,33 @@
         </state>
       </provider>
     </entry>
+    <entry file="file://$PROJECT_DIR$/getdata/Aspectj/CrawlerForBugs.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="-648">
+          <caret line="18" column="0" selection-start-line="18" selection-start-column="0" selection-end-line="18" selection-end-column="0" />
+          <folding>
+            <element signature="e#105#118#0" expanded="true" />
+            <marker date="1477034520772" expanded="true" signature="3762:3863" ph="INSERT INTO aspectj... " />
+            <marker date="1477034520772" expanded="true" signature="3948:4037" ph="INSERT INTO aspectj... " />
+          </folding>
+        </state>
+      </provider>
+    </entry>
     <entry file="file://$PROJECT_DIR$/getdata/Aspectj/CrawlerForGit.py">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="0">
-          <caret line="0" column="0" selection-start-line="0" selection-start-column="0" selection-end-line="3" selection-end-column="0" />
+        <state relative-caret-position="290">
+          <caret line="26" column="31" selection-start-line="26" selection-start-column="31" selection-end-line="26" selection-end-column="31" />
           <folding>
             <element signature="e#105#118#0" expanded="true" />
           </folding>
         </state>
       </provider>
     </entry>
-    <entry file="file://$PROJECT_DIR$/getdata/Aspectj/CrawlerForBugs.py">
+    <entry file="file://$PROJECT_DIR$/getdata/Aspectj/git.py">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="126">
-          <caret line="7" column="29" selection-start-line="7" selection-start-column="29" selection-end-line="7" selection-end-column="29" />
-          <folding>
-            <element signature="e#105#118#0" expanded="true" />
-            <marker date="1477034520772" expanded="true" signature="3762:3863" ph="INSERT INTO aspectj... " />
-            <marker date="1477034520772" expanded="true" signature="3948:4037" ph="INSERT INTO aspectj... " />
-          </folding>
+        <state relative-caret-position="198">
+          <caret line="16" column="34" selection-start-line="16" selection-start-column="34" selection-end-line="16" selection-end-column="34" />
+          <folding />
         </state>
       </provider>
     </entry>
