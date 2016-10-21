@@ -1,6 +1,7 @@
-#!/usr/local/python
+#!/home/tsj/PycharmProjects/CodeDefectLocation/getdata/Aspectj
 # -*- coding: utf-8 -*-
 # encoding=utf-8
+
 import urllib
 import re
 import MySQLdb
@@ -25,12 +26,15 @@ def getAllLinks():
     urls = soup.findAll(name='a', attrs={"href": re.compile(r'^show_bug.cgi')})
     count = 0
     print type(urls)
+    print urls.__len__()
     db = MySQLdb.connect("localhost", "root", "root", "CodeDefectLocation")
     cursor = db.cursor()
     for url in urls:
+        print "count:"+count
         if count!=0:
             #进入具体页面
             try:
+                print "enter"
                 url = prefix+url["href"].encode("utf-8")
                 BUGID = url[url.index('=')+1:].strip()
                 print url
@@ -54,8 +58,12 @@ def getAllLinks():
             except Exception, ex:
                 continue
         count += 1
-    cursor.close()
-    db.close()
+        if count == 15:
+            cursor.close()
+            db.close()
+            db = MySQLdb.connect("localhost", "root", "root", "CodeDefectLocation")
+            cursor = db.cursor()
+
     print count
 
 def getHistory(bugid):
