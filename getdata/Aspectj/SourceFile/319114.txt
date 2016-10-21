@@ -1,0 +1,692 @@
+@@ -997,11 +997,11 @@ public class AjBuildManager implements IOutputClassFileNameProvider, IBinarySour
+ 		}
+ 
+ 		if (environment == null || environmentNeedsRebuilding) {
+-			List cps = buildConfig.getFullClasspath();
++			List<String> cps = buildConfig.getFullClasspath();
+ 			Dump.saveFullClasspath(cps);
+ 			String[] classpaths = new String[cps.size()];
+ 			for (int i = 0; i < cps.size(); i++) {
+-				classpaths[i] = (String) cps.get(i);
++				classpaths[i] = cps.get(i);
+ 			}
+ 			environment = new StatefulNameEnvironment(getLibraryAccess(classpaths, filenames), state.getClassNameToFileMap(), state);
+ 			state.setNameEnvironment(environment);
+@@ -1,5 +1,5 @@
+ /* *******************************************************************
+- * Copyright (c) 2004 IBM Corporation
++ * Copyright (c) 2004,2010 Contributors
+  * All rights reserved. 
+  * This program and the accompanying materials are made available 
+  * under the terms of the Eclipse Public License v1.0 
+@@ -7,23 +7,19 @@
+  * http://www.eclipse.org/legal/epl-v10.html 
+  *  
+  * Contributors: 
+- *     Matthew Webster 
++ *     Matthew Webster, IBM
+  * ******************************************************************/
+ package org.aspectj.weaver;
+ 
+ import java.io.File;
+ import java.io.FileOutputStream;
+ import java.io.PrintStream;
+-import java.lang.ref.WeakReference;
+ import java.net.URL;
+ import java.text.SimpleDateFormat;
+ import java.util.Date;
+ import java.util.Iterator;
+ import java.util.List;
+-import java.util.Map;
+ import java.util.Properties;
+-import java.util.Set;
+-import java.util.WeakHashMap;
+ 
+ import org.aspectj.bridge.IMessage;
+ import org.aspectj.bridge.IMessageHolder;
+@@ -33,9 +29,7 @@ import org.aspectj.weaver.tools.TraceFactory;
+ import org.aspectj.weaver.tools.Traceable;
+ 
+ /**
+- * @author websterm
+- * 
+- *         To change the template for this generated type comment go to Window>Preferences>Java>Code Generation>Code and Comments
++ * @author Matthew Webster
+  */
+ public class Dump {
+ 
+@@ -61,10 +55,11 @@ public class Dump {
+ 	private PrintStream print;
+ 
+ 	private static String[] savedCommandLine;
+-	private static List savedFullClasspath;
++	private static List<String> savedFullClasspath;
+ 	private static IMessageHolder savedMessageHolder;
+ 
+-	private static Map nodes = new WeakHashMap();
++	// private static Map<INode, WeakReference<INode>> nodes = Collections
++	// .synchronizedMap(new WeakHashMap<INode, WeakReference<INode>>());
+ 	private static String lastDumpFileName = UNKNOWN_FILENAME;
+ 
+ 	private static boolean preserveOnNextReset = false;
+@@ -83,7 +78,7 @@ public class Dump {
+ 			preserveOnNextReset = false;
+ 			return;
+ 		} else {
+-			nodes.clear();
++			// nodes.clear();
+ 			savedMessageHolder = null;
+ 		}
+ 	}
+@@ -99,8 +94,9 @@ public class Dump {
+ 			fileName = dump.getFileName();
+ 			dump.dumpDefault();
+ 		} finally {
+-			if (dump != null)
++			if (dump != null) {
+ 				dump.close();
++			}
+ 		}
+ 		return fileName;
+ 	}
+@@ -110,8 +106,9 @@ public class Dump {
+ 	}
+ 
+ 	public static String dumpWithException(IMessageHolder messageHolder, Throwable th) {
+-		if (trace.isTraceEnabled())
++		if (trace.isTraceEnabled()) {
+ 			trace.enter("dumpWithException", null, new Object[] { messageHolder, th });
++		}
+ 
+ 		String fileName = UNKNOWN_FILENAME;
+ 		Dump dump = null;
+@@ -120,12 +117,14 @@ public class Dump {
+ 			fileName = dump.getFileName();
+ 			dump.dumpException(messageHolder, th);
+ 		} finally {
+-			if (dump != null)
++			if (dump != null) {
+ 				dump.close();
++			}
+ 		}
+ 
+-		if (trace.isTraceEnabled())
++		if (trace.isTraceEnabled()) {
+ 			trace.exit("dumpWithException", fileName);
++		}
+ 		return fileName;
+ 	}
+ 
+@@ -134,8 +133,9 @@ public class Dump {
+ 	}
+ 
+ 	public static String dumpOnExit(IMessageHolder messageHolder, boolean reset) {
+-		if (trace.isTraceEnabled())
++		if (trace.isTraceEnabled()) {
+ 			trace.enter("dumpOnExit", null, messageHolder);
++		}
+ 		String fileName = UNKNOWN_FILENAME;
+ 
+ 		if (!shouldDumpOnExit(messageHolder)) {
+@@ -147,28 +147,34 @@ public class Dump {
+ 				fileName = dump.getFileName();
+ 				dump.dumpDefault(messageHolder);
+ 			} finally {
+-				if (dump != null)
++				if (dump != null) {
+ 					dump.close();
++				}
+ 			}
+ 		}
+ 
+-		if (reset)
++		if (reset) {
+ 			messageHolder.clearMessages();
++		}
+ 
+-		if (trace.isTraceEnabled())
++		if (trace.isTraceEnabled()) {
+ 			trace.exit("dumpOnExit", fileName);
++		}
+ 		return fileName;
+ 	}
+ 
+ 	private static boolean shouldDumpOnExit(IMessageHolder messageHolder) {
+-		if (trace.isTraceEnabled())
++		if (trace.isTraceEnabled()) {
+ 			trace.enter("shouldDumpOnExit", null, messageHolder);
+-		if (trace.isTraceEnabled())
++		}
++		if (trace.isTraceEnabled()) {
+ 			trace.event("shouldDumpOnExit", null, conditionKind);
++		}
+ 		boolean result = (messageHolder == null) || messageHolder.hasAnyMessage(conditionKind, true);
+ 
+-		if (trace.isTraceEnabled())
++		if (trace.isTraceEnabled()) {
+ 			trace.exit("shouldDumpOnExit", result);
++		}
+ 		return result;
+ 	}
+ 
+@@ -184,8 +190,9 @@ public class Dump {
+ 	}
+ 
+ 	public static boolean setDumpDirectory(String directoryName) {
+-		if (trace.isTraceEnabled())
++		if (trace.isTraceEnabled()) {
+ 			trace.enter("setDumpDirectory", null, directoryName);
++		}
+ 		boolean success = false;
+ 
+ 		File newDirectory = new File(directoryName);
+@@ -194,8 +201,9 @@ public class Dump {
+ 			success = true;
+ 		}
+ 
+-		if (trace.isTraceEnabled())
++		if (trace.isTraceEnabled()) {
+ 			trace.exit("setDumpDirectory", success);
++		}
+ 		return success;
+ 
+ 	}
+@@ -205,16 +213,16 @@ public class Dump {
+ 	}
+ 
+ 	public static boolean setDumpOnExit(IMessage.Kind condition) {
+-		if (trace.isTraceEnabled())
++		if (trace.isTraceEnabled()) {
+ 			trace.event("setDumpOnExit", null, condition);
++		}
+ 
+ 		conditionKind = condition;
+ 		return true;
+ 	}
+ 
+ 	public static boolean setDumpOnExit(String condition) {
+-		for (Iterator i = IMessage.KINDS.iterator(); i.hasNext();) {
+-			IMessage.Kind kind = (IMessage.Kind) i.next();
++		for (IMessage.Kind kind : IMessage.KINDS) {
+ 			if (kind.toString().equals(condition)) {
+ 				return setDumpOnExit(kind);
+ 			}
+@@ -230,15 +238,12 @@ public class Dump {
+ 		return lastDumpFileName;
+ 	}
+ 
+-	/*
+-	 * Dump registration
+-	 */
+ 	public static void saveCommandLine(String[] args) {
+ 		savedCommandLine = new String[args.length];
+ 		System.arraycopy(args, 0, savedCommandLine, 0, args.length);
+ 	}
+ 
+-	public static void saveFullClasspath(List list) {
++	public static void saveFullClasspath(List<String> list) {
+ 		savedFullClasspath = list;
+ 	}
+ 
+@@ -246,22 +251,23 @@ public class Dump {
+ 		savedMessageHolder = holder;
+ 	}
+ 
+-	public static void registerNode(Class module, INode newNode) {
+-		if (trace.isTraceEnabled())
+-			trace.enter("registerNode", null, new Object[] { module, newNode });
+-
+-		nodes.put(newNode, new WeakReference(newNode));
+-
+-		if (trace.isTraceEnabled())
+-			trace.exit("registerNode", nodes.size());
+-	}
++	// public static void registerNode(Class<?> module, INode newNode) {
++	// if (trace.isTraceEnabled()) {
++	// trace.enter("registerNode", null, new Object[] { module, newNode });
++	// }
++	//
++	// // TODO surely this should preserve the module???? it never has....
++	// nodes.put(newNode, new WeakReference<INode>(newNode));
++	//
++	// if (trace.isTraceEnabled()) {
++	// trace.exit("registerNode", nodes.size());
++	// }
++	// }
+ 
+-	/*
+-	 * Dump methods
+-	 */
+ 	private Dump(String reason) {
+-		if (trace.isTraceEnabled())
++		if (trace.isTraceEnabled()) {
+ 			trace.enter("<init>", this, reason);
++		}
+ 
+ 		this.reason = reason;
+ 
+@@ -269,8 +275,9 @@ public class Dump {
+ 		dumpAspectJProperties();
+ 		dumpDumpConfiguration();
+ 
+-		if (trace.isTraceEnabled())
++		if (trace.isTraceEnabled()) {
+ 			trace.exit("<init>", this);
++		}
+ 	}
+ 
+ 	public String getFileName() {
+@@ -287,37 +294,32 @@ public class Dump {
+ 		dumpFullClasspath();
+ 		dumpCompilerMessages(holder);
+ 
+-		dumpNodes();
+-	}
+-
+-	private void dumpNodes() {
+-
+-		/*
+-		 * Dump registered nodes
+-		 */
+-		IVisitor dumpVisitor = new IVisitor() {
+-
+-			public void visitObject(Object obj) {
+-				println(formatObj(obj));
+-			}
+-
+-			public void visitList(List list) {
+-				println(list);
+-			}
+-		};
+-		Set keys = nodes.keySet();
+-		for (Iterator i = keys.iterator(); i.hasNext();) {
+-			Object module = i.next();
+-			// INode dumpNode = (INode)nodes.get(module);
+-			INode dumpNode = (INode) module;
+-			println("---- " + formatObj(dumpNode) + " ----");
+-			try {
+-				dumpNode.accept(dumpVisitor);
+-			} catch (Exception ex) {
+-				trace.error(formatObj(dumpNode).toString(), ex);
+-			}
+-		}
+-	}
++		// dumpNodes();
++	}
++
++	// private void dumpNodes() {
++	//
++	// IVisitor dumpVisitor = new IVisitor() {
++	//
++	// public void visitObject(Object obj) {
++	// println(formatObj(obj));
++	// }
++	//
++	// public void visitList(List list) {
++	// println(list);
++	// }
++	// };
++	//
++	// Set<INode> keys = nodes.keySet();
++	// for (INode dumpNode : keys) {
++	// println("---- " + formatObj(dumpNode) + " ----");
++	// try {
++	// dumpNode.accept(dumpVisitor);
++	// } catch (Exception ex) {
++	// trace.error(formatObj(dumpNode).toString(), ex);
++	// }
++	// }
++	// }
+ 
+ 	private void dumpException(IMessageHolder messageHolder, Throwable th) {
+ 		println("---- Exception Information ---");
+@@ -341,8 +343,7 @@ public class Dump {
+ 	private void dumpFullClasspath() {
+ 		println("---- Full Classpath ---");
+ 		if (savedFullClasspath != null && savedFullClasspath.size() > 0) {
+-			for (Iterator iter = savedFullClasspath.iterator(); iter.hasNext();) {
+-				String fileName = (String) iter.next();
++			for (String fileName : savedFullClasspath) {
+ 				File file = new File(fileName);
+ 				println(file);
+ 			}
+@@ -364,12 +365,12 @@ public class Dump {
+ 
+ 	private void dumpCompilerMessages(IMessageHolder messageHolder) {
+ 		println("---- Compiler Messages ---");
+-		if (messageHolder != null)
+-			for (Iterator i = messageHolder.getUnmodifiableListView().iterator(); i.hasNext();) {
+-				IMessage message = (IMessage) i.next();
++		if (messageHolder != null) {
++			for (Iterator<IMessage> i = messageHolder.getUnmodifiableListView().iterator(); i.hasNext();) {
++				IMessage message = i.next();
+ 				println(message.toString());
+ 			}
+-		else {
++		} else {
+ 			println(NULL_OR_EMPTY);
+ 		}
+ 	}
+@@ -378,8 +379,9 @@ public class Dump {
+ 	 * Dump output
+ 	 */
+ 	private void openDump() {
+-		if (print != null)
++		if (print != null) {
+ 			return;
++		}
+ 
+ 		Date now = new Date();
+ 		fileName = FILENAME_PREFIX + "." + new SimpleDateFormat("yyyyMMdd").format(now) + "."
+@@ -441,10 +443,11 @@ public class Dump {
+ 		}
+ 	}
+ 
++	@SuppressWarnings("rawtypes")
+ 	private void println(List list) {
+-		if (list == null || list.isEmpty())
++		if (list == null || list.isEmpty()) {
+ 			println(NULL_OR_EMPTY);
+-		else
++		} else {
+ 			for (Iterator i = list.iterator(); i.hasNext();) {
+ 				Object o = i.next();
+ 				if (o instanceof Exception) {
+@@ -453,6 +456,7 @@ public class Dump {
+ 					println(o.toString());
+ 				}
+ 			}
++		}
+ 	}
+ 
+ 	private static Object formatObj(Object obj) {
+@@ -460,39 +464,41 @@ public class Dump {
+ 		/* These classes have a safe implementation of toString() */
+ 		if (obj == null || obj instanceof String || obj instanceof Number || obj instanceof Boolean || obj instanceof Exception
+ 				|| obj instanceof Character || obj instanceof Class || obj instanceof File || obj instanceof StringBuffer
+-				|| obj instanceof URL)
++				|| obj instanceof URL) {
+ 			return obj;
+-		else
++		} else {
+ 			try {
+ 
+ 				/* Classes can provide an alternative implementation of toString() */
+ 				if (obj instanceof Traceable) {
+ 					Traceable t = (Traceable) obj;
+ 					return t.toTraceString();
+-				}
+-
+-				/* Use classname@hashcode */
+-				else
++				} else {
+ 					return obj.getClass().getName() + "@" + Integer.toHexString(System.identityHashCode(obj));
++				}
+ 
+ 				/* Object.hashCode() can be override and may thow an exception */
+ 			} catch (Exception ex) {
+ 				return obj.getClass().getName() + "@FFFFFFFF";
+ 			}
++		}
+ 	}
+ 
+ 	static {
+ 		String exceptionName = System.getProperty("org.aspectj.weaver.Dump.exception", "true");
+-		if (!exceptionName.equals("false"))
++		if (!exceptionName.equals("false")) {
+ 			setDumpOnException(true);
++		}
+ 
+ 		String conditionName = System.getProperty(DUMP_CONDITION_PROPERTY);
+-		if (conditionName != null)
++		if (conditionName != null) {
+ 			setDumpOnExit(conditionName);
++		}
+ 
+ 		String directoryName = System.getProperty(DUMP_DIRECTORY_PROPERTY);
+-		if (directoryName != null)
++		if (directoryName != null) {
+ 			setDumpDirectory(directoryName);
++		}
+ 	}
+ 
+ 	public interface INode {
+@@ -29,11 +29,11 @@ import java.util.Set;
+ import java.util.WeakHashMap;
+ 
+ import org.aspectj.bridge.IMessage;
++import org.aspectj.bridge.IMessage.Kind;
+ import org.aspectj.bridge.IMessageHandler;
+ import org.aspectj.bridge.ISourceLocation;
+ import org.aspectj.bridge.Message;
+ import org.aspectj.bridge.MessageUtil;
+-import org.aspectj.bridge.IMessage.Kind;
+ import org.aspectj.bridge.context.PinpointingMessageHandler;
+ import org.aspectj.util.IStructureModel;
+ import org.aspectj.weaver.UnresolvedType.TypeKind;
+@@ -163,7 +163,7 @@ public abstract class World implements Dump.INode {
+ 		if (trace.isTraceEnabled()) {
+ 			trace.enter("<init>", this);
+ 		}
+-		Dump.registerNode(this.getClass(), this);
++		// Dump.registerNode(this.getClass(), this);
+ 		typeMap.put("B", ResolvedType.BYTE);
+ 		typeMap.put("S", ResolvedType.SHORT);
+ 		typeMap.put("I", ResolvedType.INT);
+@@ -529,8 +529,8 @@ public abstract class World implements Dump.INode {
+ 	private ReferenceType makeGenericTypeFrom(ReferenceTypeDelegate delegate, ReferenceType rawType) {
+ 		String genericSig = delegate.getDeclaredGenericSignature();
+ 		if (genericSig != null) {
+-			return new ReferenceType(UnresolvedType.forGenericTypeSignature(rawType.getSignature(), delegate
+-					.getDeclaredGenericSignature()), this);
++			return new ReferenceType(UnresolvedType.forGenericTypeSignature(rawType.getSignature(),
++					delegate.getDeclaredGenericSignature()), this);
+ 		} else {
+ 			return new ReferenceType(UnresolvedType.forGenericTypeVariables(rawType.getSignature(), delegate.getTypeVariables()),
+ 					this);
+@@ -646,8 +646,8 @@ public abstract class World implements Dump.INode {
+ 	 */
+ 	public final Advice createAdviceMunger(AdviceKind kind, Pointcut p, Member signature, int extraParameterFlags,
+ 			IHasSourceLocation loc, ResolvedType declaringAspect) {
+-		AjAttribute.AdviceAttribute attribute = new AjAttribute.AdviceAttribute(kind, p, extraParameterFlags, loc.getStart(), loc
+-				.getEnd(), loc.getSourceContext());
++		AjAttribute.AdviceAttribute attribute = new AjAttribute.AdviceAttribute(kind, p, extraParameterFlags, loc.getStart(),
++				loc.getEnd(), loc.getSourceContext());
+ 		return getWeavingSupport().createAdviceMunger(attribute, p, signature, declaringAspect);
+ 	}
+ 
+@@ -1562,12 +1562,12 @@ public abstract class World implements Dump.INode {
+ 		return true;
+ 	}
+ 
+-    /**
+-     * Determine if the named aspect requires a particular type around in order to
+-     * be useful.  The type is named in the aop.xml file against the aspect.
+-     *
+-     * @return true if there is a type missing that this aspect really needed around
+-     */
++	/**
++	 * Determine if the named aspect requires a particular type around in order to be useful. The type is named in the aop.xml file
++	 * against the aspect.
++	 * 
++	 * @return true if there is a type missing that this aspect really needed around
++	 */
+ 	public boolean hasUnsatisfiedDependency(ResolvedType aspectType) {
+ 		return false;
+ 	}
+@@ -36,8 +36,7 @@ import org.aspectj.weaver.tools.PointcutParameter;
+ import org.aspectj.weaver.tools.ShadowMatch;
+ 
+ /**
+- * @author colyer
+- * Implementation of ShadowMatch for reflection based worlds.
++ * @author colyer Implementation of ShadowMatch for reflection based worlds.
+  */
+ public class ShadowMatchImpl implements ShadowMatch {
+ 
+@@ -47,20 +46,28 @@ public class ShadowMatchImpl implements ShadowMatch {
+ 	private PointcutParameter[] params;
+ 	private Member withinCode;
+ 	private Member subject;
+-	private Class withinType;
++	private Class<?> withinType;
+ 	private MatchingContext matchContext = new DefaultMatchingContext();
+-	
++
+ 	public ShadowMatchImpl(FuzzyBoolean match, Test test, ExposedState state, PointcutParameter[] params) {
+ 		this.match = match;
+ 		this.residualTest = test;
+ 		this.state = state;
+ 		this.params = params;
+ 	}
+-	
+-	public void setWithinCode(Member aMember) { this.withinCode = aMember; }
+-	public void setSubject(Member aMember) { this.subject = aMember; }
+-	public void setWithinType(Class aClass) { this.withinType = aClass; }
+-		
++
++	public void setWithinCode(Member aMember) {
++		this.withinCode = aMember;
++	}
++
++	public void setSubject(Member aMember) {
++		this.subject = aMember;
++	}
++
++	public void setWithinType(Class<?> aClass) {
++		this.withinType = aClass;
++	}
++
+ 	public boolean alwaysMatches() {
+ 		return match.alwaysTrue();
+ 	}
+@@ -74,15 +81,19 @@ public class ShadowMatchImpl implements ShadowMatch {
+ 	}
+ 
+ 	public JoinPointMatch matchesJoinPoint(Object thisObject, Object targetObject, Object[] args) {
+-		if (neverMatches()) return JoinPointMatchImpl.NO_MATCH;
+-		if (new RuntimeTestEvaluator(residualTest,thisObject,targetObject,args,this.matchContext).matches()) {
+-			return new JoinPointMatchImpl(getPointcutParameters(thisObject,targetObject,args));
++		if (neverMatches()) {
++			return JoinPointMatchImpl.NO_MATCH;
++		}
++		if (new RuntimeTestEvaluator(residualTest, thisObject, targetObject, args, this.matchContext).matches()) {
++			return new JoinPointMatchImpl(getPointcutParameters(thisObject, targetObject, args));
+ 		} else {
+ 			return JoinPointMatchImpl.NO_MATCH;
+ 		}
+ 	}
+-	
+-	/* (non-Javadoc)
++
++	/*
++	 * (non-Javadoc)
++	 * 
+ 	 * @see org.aspectj.weaver.tools.ShadowMatch#setMatchingContext(org.aspectj.weaver.tools.MatchingContext)
+ 	 */
+ 	public void setMatchingContext(MatchingContext aMatchContext) {
+@@ -93,8 +104,9 @@ public class ShadowMatchImpl implements ShadowMatch {
+ 		Var[] vars = state.vars;
+ 		PointcutParameterImpl[] bindings = new PointcutParameterImpl[params.length];
+ 		for (int i = 0; i < bindings.length; i++) {
+-			bindings[i] = new PointcutParameterImpl(params[i].getName(),params[i].getType());
+-			bindings[i].setBinding(((ReflectionVar)vars[i]).getBindingAtJoinPoint(thisObject, targetObject, args,subject,withinCode,withinType));
++			bindings[i] = new PointcutParameterImpl(params[i].getName(), params[i].getType());
++			bindings[i].setBinding(((ReflectionVar) vars[i]).getBindingAtJoinPoint(thisObject, targetObject, args, subject,
++					withinCode, withinType));
+ 		}
+ 		return bindings;
+ 	}
+@@ -107,55 +119,52 @@ public class ShadowMatchImpl implements ShadowMatch {
+ 		private final Object targetObject;
+ 		private final Object[] args;
+ 		private final MatchingContext matchContext;
+-		
+-		
+-		public RuntimeTestEvaluator(Test aTest,Object thisObject, Object targetObject, Object[] args, MatchingContext context) {
++
++		public RuntimeTestEvaluator(Test aTest, Object thisObject, Object targetObject, Object[] args, MatchingContext context) {
+ 			this.test = aTest;
+ 			this.thisObject = thisObject;
+ 			this.targetObject = targetObject;
+ 			this.args = args;
+ 			this.matchContext = context;
+ 		}
+-		
++
+ 		public boolean matches() {
+ 			test.accept(this);
+ 			return matches;
+ 		}
+-		
++
+ 		public void visit(And e) {
+-			boolean leftMatches = 
+-				new RuntimeTestEvaluator(e.getLeft(),thisObject,targetObject,args,matchContext).matches();
++			boolean leftMatches = new RuntimeTestEvaluator(e.getLeft(), thisObject, targetObject, args, matchContext).matches();
+ 			if (!leftMatches) {
+ 				matches = false;
+ 			} else {
+-				matches = new RuntimeTestEvaluator(e.getRight(),thisObject,targetObject,args,matchContext).matches();
+-			}			
++				matches = new RuntimeTestEvaluator(e.getRight(), thisObject, targetObject, args, matchContext).matches();
++			}
+ 		}
+ 
+-		public void visit(Instanceof i) {
+-			ReflectionVar v = (ReflectionVar) i.getVar();
+-			Object value = v.getBindingAtJoinPoint(thisObject,targetObject, args);
++		public void visit(Instanceof instanceofTest) {
++			ReflectionVar v = (ReflectionVar) instanceofTest.getVar();
++			Object value = v.getBindingAtJoinPoint(thisObject, targetObject, args);
+ 			World world = v.getType().getWorld();
+-			ResolvedType desiredType = i.getType().resolve(world);
++			ResolvedType desiredType = instanceofTest.getType().resolve(world);
+ 			ResolvedType actualType = world.resolve(value.getClass().getName());
+ 			matches = desiredType.isAssignableFrom(actualType);
+ 		}
+-		
++
+ 		public void visit(MatchingContextBasedTest matchingContextTest) {
+ 			matches = matchingContextTest.matches(this.matchContext);
+ 		}
+ 
+ 		public void visit(Not not) {
+-			matches = ! new RuntimeTestEvaluator(not.getBody(),thisObject,targetObject,args,matchContext).matches();
++			matches = !new RuntimeTestEvaluator(not.getBody(), thisObject, targetObject, args, matchContext).matches();
+ 		}
+ 
+ 		public void visit(Or or) {
+-			boolean leftMatches = 
+-				new RuntimeTestEvaluator(or.getLeft(),thisObject,targetObject,args,matchContext).matches();
++			boolean leftMatches = new RuntimeTestEvaluator(or.getLeft(), thisObject, targetObject, args, matchContext).matches();
+ 			if (leftMatches) {
+ 				matches = true;
+ 			} else {
+-				matches = new RuntimeTestEvaluator(or.getRight(),thisObject,targetObject,args,matchContext).matches();
++				matches = new RuntimeTestEvaluator(or.getRight(), thisObject, targetObject, args, matchContext).matches();
+ 			}
+ 		}
+ 
+@@ -172,18 +181,18 @@ public class ShadowMatchImpl implements ShadowMatch {
+ 		}
+ 
+ 		public void visit(FieldGetCall fieldGetCall) {
+-			throw new UnsupportedOperationException("Can't evaluate fieldGetCall test at runtime");			
++			throw new UnsupportedOperationException("Can't evaluate fieldGetCall test at runtime");
+ 		}
+ 
+ 		public void visit(HasAnnotation hasAnnotation) {
+ 			ReflectionVar v = (ReflectionVar) hasAnnotation.getVar();
+-			Object value = v.getBindingAtJoinPoint(thisObject,targetObject, args);
++			Object value = v.getBindingAtJoinPoint(thisObject, targetObject, args);
+ 			World world = v.getType().getWorld();
+ 			ResolvedType actualVarType = world.resolve(value.getClass().getName());
+ 			ResolvedType requiredAnnotationType = hasAnnotation.getAnnotationType().resolve(world);
+ 			matches = actualVarType.hasAnnotation(requiredAnnotationType);
+ 		}
+-		
++
+ 	}
+ 
+ }

@@ -1,0 +1,246 @@
+@@ -40,6 +40,7 @@ import org.aspectj.org.eclipse.jdt.internal.compiler.lookup.BlockScope;
+ import org.aspectj.org.eclipse.jdt.internal.compiler.lookup.FieldBinding;
+ import org.aspectj.org.eclipse.jdt.internal.compiler.lookup.MethodBinding;
+ import org.aspectj.org.eclipse.jdt.internal.compiler.lookup.ParameterizedMethodBinding;
++import org.aspectj.org.eclipse.jdt.internal.compiler.lookup.ParameterizedTypeBinding;
+ import org.aspectj.org.eclipse.jdt.internal.compiler.lookup.ProblemFieldBinding;
+ import org.aspectj.org.eclipse.jdt.internal.compiler.lookup.ReferenceBinding;
+ import org.aspectj.org.eclipse.jdt.internal.compiler.lookup.TypeBinding;
+@@ -259,8 +260,16 @@ public class AccessForInlineVisitor extends ASTVisitor {
+ 			return; // has already produced an error
+ 		if (binding instanceof ReferenceBinding) {
+ 			ReferenceBinding rb = (ReferenceBinding) binding;
+-			if (!rb.isPublic())
++			if (!rb.isPublic()) {
++				try {
++					if (rb instanceof ParameterizedTypeBinding) {
++						rb = (ReferenceBinding) rb.erasure();
++					}
++				} catch (Throwable t) { // TODO remove post 1.7.0
++					t.printStackTrace();
++				}
+ 				handler.notePrivilegedTypeAccess(rb, null); // ???
++			}
+ 		} else if (binding instanceof ArrayBinding) {
+ 			makePublic(((ArrayBinding) binding).leafComponentType);
+ 		} else {
+@@ -0,0 +1,44 @@
++import java.util.AbstractList;
++import java.util.LinkedList;
++import java.util.List;
++
++abstract aspect FooAspectParent<T extends List> {
++    protected int getNumber(int k) {
++        return -1*k;
++    }
++}
++
++abstract privileged aspect FooAspect<T extends AbstractList> extends FooAspectParent<T> {
++    pointcut pc():  call(T.new()) && !within(Bar); 
++
++    T around():pc() {
++        System.out.println("superaspect getNumber returns "+getNumber(2)); 
++        System.out.println("abstract method returns "+method());
++		localMethod();
++        Math.random(); //<-- works
++        hashCode(); //<-- works
++        return null;
++    }    
++
++    private void localMethod(){}
++
++    protected abstract T method();
++}
++
++aspect Bar extends FooAspect<LinkedList> {
++  protected LinkedList method() {
++    System.out.println("Bar.method() running");
++	return new LinkedList();
++  }
++}
++
++public class Foo {
++
++    public static void main(String[] argv) {
++	  new Foo().bar();
++    }
++    public LinkedList bar() {
++        new LinkedList();
++        return null;
++    }
++}
+@@ -0,0 +1,35 @@
++import java.util.AbstractList;
++import java.util.LinkedList;
++import java.util.List;
++
++abstract aspect FooAspectParent<T extends List> {
++    protected int getNumber(int k) {
++        return -1*k;
++    }
++}
++
++abstract privileged aspect FooAspect<T extends AbstractList> extends FooAspectParent<T> {
++    pointcut pc():  call(T.new()); 
++
++    T around():pc() {
++        //getNumber(1); //<-- method call to superAspect fails   
++        method();  // <-- method call to abstract local defined method fails
++        //localMethod(); //<-- method call to local private method fails
++        Math.random(); //<-- works
++        hashCode(); //<-- works
++        return null;
++    }    
++
++    private void localMethod(){}
++
++    protected abstract T method();
++}
++
++/*
++class Foo {
++    public LinkedList bar() {
++        new LinkedList();
++        return null;
++    }
++}
++*/
+@@ -0,0 +1,35 @@
++import java.util.AbstractList;
++import java.util.LinkedList;
++import java.util.List;
++
++abstract aspect FooAspectParent<T extends List> {
++    protected int getNumber(int k) {
++        return -1*k;
++    }
++}
++
++abstract privileged aspect FooAspect<T extends AbstractList> extends FooAspectParent<T> {
++    pointcut pc():  call(T.new()); 
++
++    T around():pc() {
++        getNumber(1); //<-- method call to superAspect fails   
++        //method();  // <-- method call to abstract local defined method fails
++        //localMethod(); //<-- method call to local private method fails
++        Math.random(); //<-- works
++        hashCode(); //<-- works
++        return null;
++    }    
++
++    private void localMethod(){}
++
++    protected abstract T method();
++}
++
++/*
++class Foo {
++    public LinkedList bar() {
++        new LinkedList();
++        return null;
++    }
++}
++*/
+@@ -0,0 +1,35 @@
++import java.util.AbstractList;
++import java.util.LinkedList;
++import java.util.List;
++
++abstract aspect FooAspectParent<T extends List> {
++    protected int getNumber(int k) {
++        return -1*k;
++    }
++}
++
++abstract privileged aspect FooAspect<T extends AbstractList> extends FooAspectParent<T> {
++    pointcut pc():  call(T.new()); 
++
++    T around():pc() {
++        //getNumber(1); //<-- method call to superAspect fails   
++        //method();  // <-- method call to abstract local defined method fails
++        localMethod(); //<-- method call to local private method fails
++        Math.random(); //<-- works
++        hashCode(); //<-- works
++        return null;
++    }    
++
++    private void localMethod(){}
++
++    protected abstract T method();
++}
++
++/*
++class Foo {
++    public LinkedList bar() {
++        new LinkedList();
++        return null;
++    }
++}
++*/
+@@ -38,6 +38,26 @@ public class Ajc170Tests extends org.aspectj.testing.XMLBasedAjcTestCase {
+ //	public void testLostAnnos_377130_2() {
+ //		runTest("missing annos on priv aspects - 2");
+ //	}
++	
++	public void testGenericAspectAround382723() {
++		runTest("generic aspect");
++	}
++
++	public void testGenericAspectAround382723_2() {
++		runTest("generic aspect 2");
++	}
++
++	public void testGenericAspectAround382723_3() {
++		runTest("generic aspect 3");
++	}
++	
++	public void testGenericAspectAround382723_4() {
++		runTest("generic aspect 4");
++	}
++	
++//	public void testCovariantGenericsItd382189() {
++//		runTest("covariant generics");
++//	}
+ 
+ 	public void testAttributeErrorJ7() {
+ 		runTest("attribute issue with J7");
+@@ -2,6 +2,39 @@
+ 
+ <suite>
+ 
++	<ajc-test dir="bugs170/pr382723" title="generic aspect">
++		<compile files="FooAspect.java" options="-1.5"/>
++	</ajc-test>
++	
++	<ajc-test dir="bugs170/pr382723" title="generic aspect 2">
++		<compile files="FooAspect2.java" options="-1.5"/>
++	</ajc-test>
++	
++	<ajc-test dir="bugs170/pr382723" title="generic aspect 3">
++		<compile files="FooAspect3.java" options="-1.5"/>
++	</ajc-test>
++	
++	<ajc-test dir="bugs170/pr382723" title="generic aspect 4">
++		<compile files="Foo.java" options="-1.5 -showWeaveInfo">
++			<message kind="weave" text="Join point 'constructor-call(void java.util.LinkedList.&lt;init&gt;())' in Type 'Foo' (Foo.java:41) advised by around advice from 'Bar' (Foo.java:14)"/>
++		</compile>
++		<run class="Foo">
++			<stdout>
++				<line text="superaspect getNumber returns -2"/>
++				<line text="Bar.method() running"/>
++				<line text="abstract method returns []"/>
++			</stdout>
++		</run>
++	</ajc-test>
++	
++	<ajc-test dir="bugs170/pr382189" title="covariant generics">
++	<compile files="covbug/A.java covbug/A_ITD.aj covbug/B.java covbug/SuperA.java covbug/SuperB.java" options="-1.5"/>
++	<!-- <run class="Foo">
++	<stdout>
++	<line text="@Anno()"/></stdout>
++	</run> -->
++	</ajc-test>
++	
+ 	<ajc-test dir="bugs170/pr377130" title="missing annos on priv aspects">
+ 	<compile files="Foo.java" options="-1.5"/>
+ 	<run class="Foo">

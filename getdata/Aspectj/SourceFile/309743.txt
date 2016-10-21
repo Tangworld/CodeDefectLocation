@@ -1,0 +1,280 @@
+@@ -453,6 +453,8 @@ public class BuildArgParser extends Main {
+ 
+ 					args.remove(args.get(nextArgIndex));
+ 				}
++			} else if (arg.equals("-makeAjReflectable")) {
++				buildConfig.setMakeReflectable(true);				
+ 			} else if (arg.equals("-sourceroots")) {
+ 				if (args.size() > nextArgIndex) {
+ 					List sourceRoots = new ArrayList();
+@@ -50,6 +50,7 @@ public class AjCompilerAdapter extends AbstractCompilerAdapter {
+ 	private boolean isXTerminateAfterCompilation;
+ 	private boolean proceedOnError;
+ 	private boolean inJava5Mode;
++	private boolean reflectable;
+ 	private boolean noAtAspectJAnnotationProcessing;
+ 	private IIntermediateResultsRequestor intermediateResultsRequestor;
+ 	private IProgressListener progressListener;
+@@ -85,6 +86,7 @@ public class AjCompilerAdapter extends AbstractCompilerAdapter {
+ 			IOutputClassFileNameProvider outputFileNameProvider, IBinarySourceProvider binarySourceProvider,
+ 			Map fullBinarySourceEntries, /* fileName |-> List<UnwovenClassFile> */
+ 			boolean isXterminateAfterCompilation, boolean proceedOnError, boolean noAtAspectJProcessing,
++			boolean reflectable,
+ 			AjState incrementalCompilationState) {
+ 		this.compiler = compiler;
+ 		this.isBatchCompile = isBatchCompile;
+@@ -97,6 +99,7 @@ public class AjCompilerAdapter extends AbstractCompilerAdapter {
+ 		this.proceedOnError = proceedOnError;
+ 		this.binarySourceSetForFullWeave = fullBinarySourceEntries;
+ 		this.eWorld = eFactory;
++		this.reflectable= reflectable;
+ 		this.inJava5Mode = false;
+ 		this.noAtAspectJAnnotationProcessing = noAtAspectJProcessing;
+ 		this.incrementalCompilationState = incrementalCompilationState;
+@@ -129,7 +132,7 @@ public class AjCompilerAdapter extends AbstractCompilerAdapter {
+ 		if (inJava5Mode && !noAtAspectJAnnotationProcessing) {
+ 			ContextToken tok = CompilationAndWeavingContext.enteringPhase(
+ 					CompilationAndWeavingContext.ADDING_AT_ASPECTJ_ANNOTATIONS, unit.getFileName());
+-			AddAtAspectJAnnotationsVisitor atAspectJVisitor = new AddAtAspectJAnnotationsVisitor(unit);
++			AddAtAspectJAnnotationsVisitor atAspectJVisitor = new AddAtAspectJAnnotationsVisitor(unit,reflectable);
+ 			unit.traverse(atAspectJVisitor, unit.scope);
+ 			CompilationAndWeavingContext.leavingPhase(tok);
+ 		}
+@@ -96,6 +96,7 @@ public class AjPipeliningCompilerAdapter extends AbstractCompilerAdapter {
+ 	private boolean isXTerminateAfterCompilation;
+ 	private boolean proceedOnError;
+ 	private boolean inJava5Mode;
++	private boolean makeReflectable;
+ 	private boolean noAtAspectJAnnotationProcessing;
+ 	private IIntermediateResultsRequestor intermediateResultsRequestor;
+ 	private IProgressListener progressListener;
+@@ -138,7 +139,7 @@ public class AjPipeliningCompilerAdapter extends AbstractCompilerAdapter {
+ 			EclipseFactory eFactory, IIntermediateResultsRequestor intRequestor, IProgressListener progressListener,
+ 			IOutputClassFileNameProvider outputFileNameProvider, IBinarySourceProvider binarySourceProvider,
+ 			Map fullBinarySourceEntries, /* fileName |-> List<UnwovenClassFile> */
+-			boolean isXterminateAfterCompilation, boolean proceedOnError, boolean noAtAspectJProcessing,
++			boolean isXterminateAfterCompilation, boolean proceedOnError, boolean noAtAspectJProcessing, boolean makeReflectable,
+ 			AjState incrementalCompilationState) {
+ 		this.compiler = compiler;
+ 		this.isBatchCompile = isBatchCompile;
+@@ -152,6 +153,7 @@ public class AjPipeliningCompilerAdapter extends AbstractCompilerAdapter {
+ 		this.binarySourceSetForFullWeave = fullBinarySourceEntries;
+ 		this.eWorld = eFactory;
+ 		this.inJava5Mode = false;
++		this.makeReflectable = makeReflectable;
+ 		this.noAtAspectJAnnotationProcessing = noAtAspectJProcessing;
+ 		this.incrementalCompilationState = incrementalCompilationState;
+ 
+@@ -263,7 +265,7 @@ public class AjPipeliningCompilerAdapter extends AbstractCompilerAdapter {
+ 		if (inJava5Mode && !noAtAspectJAnnotationProcessing) {
+ 			ContextToken tok = CompilationAndWeavingContext.enteringPhase(
+ 					CompilationAndWeavingContext.ADDING_AT_ASPECTJ_ANNOTATIONS, unit.getFileName());
+-			AddAtAspectJAnnotationsVisitor atAspectJVisitor = new AddAtAspectJAnnotationsVisitor(unit);
++			AddAtAspectJAnnotationsVisitor atAspectJVisitor = new AddAtAspectJAnnotationsVisitor(unit,makeReflectable);
+ 			unit.traverse(atAspectJVisitor, unit.scope);
+ 			CompilationAndWeavingContext.leavingPhase(tok);
+ 		}
+@@ -28,10 +28,12 @@ import org.aspectj.org.eclipse.jdt.internal.compiler.lookup.CompilationUnitScope
+  */
+ public class AddAtAspectJAnnotationsVisitor extends ASTVisitor {
+ 
++	private boolean makeReflectable;
+ 	// private CompilationUnitDeclaration unit;
+ 
+-	public AddAtAspectJAnnotationsVisitor(CompilationUnitDeclaration unit) {
++	public AddAtAspectJAnnotationsVisitor(CompilationUnitDeclaration unit, boolean makeReflectable) {
+ 		// this.unit = unit;
++		this.makeReflectable= makeReflectable;
+ 	}
+ 
+ 	public boolean visit(TypeDeclaration localTypeDeclaration, BlockScope scope) {
+@@ -63,7 +65,9 @@ public class AddAtAspectJAnnotationsVisitor extends ASTVisitor {
+ 		} else if (methodDeclaration instanceof DeclareDeclaration) {
+ 			((DeclareDeclaration) methodDeclaration).addAtAspectJAnnotations();
+ 		} else if (methodDeclaration instanceof InterTypeDeclaration) {
+-			((InterTypeDeclaration) methodDeclaration).addAtAspectJAnnotations();
++			if (makeReflectable) {
++				((InterTypeDeclaration) methodDeclaration).addAtAspectJAnnotations();
++			}
+ 		}
+ 		return false;
+ 	}
+@@ -410,6 +410,7 @@ public class AjBuildConfig implements CompilerConfigurationChangeFlags {
+ 		setAddSerialVerUID(global.isAddSerialVerUID());
+ 		setXmlConfigured(global.isXmlConfigured());
+ 		setTiming(global.isTiming());
++		setMakeReflectable(global.isMakeReflectable());
+ 	}
+ 
+ 	void join(Collection local, Collection global) {
+@@ -565,10 +566,18 @@ public class AjBuildConfig implements CompilerConfigurationChangeFlags {
+ 	public void setXmlConfigured(boolean b) {
+ 		options.xmlConfigured = b;
+ 	}
++	
++	public void setMakeReflectable(boolean b) {
++		options.makeReflectable = b;
++	}
+ 
+ 	public boolean isXmlConfigured() {
+ 		return options.xmlConfigured;
+ 	}
++	
++	public boolean isMakeReflectable() {
++		return options.makeReflectable;
++	}
+ 
+ 	public boolean isXNotReweavable() {
+ 		return options.xNotReweavable;
+@@ -1383,14 +1383,14 @@ public class AjBuildManager implements IOutputClassFileNameProvider, IBinarySour
+ 					this, // IOutputFilenameProvider
+ 					this, // IBinarySourceProvider
+ 					state.getBinarySourceMap(), buildConfig.isTerminateAfterCompilation(), buildConfig.getProceedOnError(),
+-					buildConfig.isNoAtAspectJAnnotationProcessing(), state);
++					buildConfig.isNoAtAspectJAnnotationProcessing(), buildConfig.isMakeReflectable(), state);
+ 		} else {
+ 			return new AjCompilerAdapter(forCompiler, batchCompile, getBcelWorld(), getWeaver(), factory,
+ 					getInterimResultRequestor(), progressListener,
+ 					this, // IOutputFilenameProvider
+ 					this, // IBinarySourceProvider
+ 					state.getBinarySourceMap(), buildConfig.isTerminateAfterCompilation(), buildConfig.getProceedOnError(),
+-					buildConfig.isNoAtAspectJAnnotationProcessing(), state);
++					buildConfig.isNoAtAspectJAnnotationProcessing(), buildConfig.isMakeReflectable(), state);
+ 		}
+ 	}
+ 
+@@ -82,6 +82,7 @@ public class AjCompilerOptions extends CompilerOptions {
+ 	public String xConfigurationInfo;
+ 	public boolean addSerialVerUID = false;
+ 	public boolean xmlConfigured = false;
++	public boolean makeReflectable = false;
+ 
+ 	// these next four not exposed by IDEs
+ 	public boolean generateModel = false;
+@@ -0,0 +1,21 @@
++import java.lang.reflect.*;
++import java.lang.annotation.*;
++
++public class A {
++  public static void main(String []argv) throws Exception {
++    Method m = A.class.getDeclaredMethod("foo");
++    printM(m);
++  }
++  
++  private static void printM(Method m) {
++	  System.out.println(m.getName());
++	  Annotation[] as = m.getAnnotations();
++	  for (Annotation a: as) {
++		  System.out.println(a);
++	  }
++  }
++}
++
++aspect X {
++  public void A.foo() {}
++}
+@@ -0,0 +1,23 @@
++import java.lang.reflect.*;
++import java.lang.annotation.*;
++
++public class B {
++  public static void main(String []argv) {
++    Field[] fs = B.class.getDeclaredFields();
++    for (Field f: fs) {
++    	printM(f);
++    }
++  }
++  
++  private static void printM(Field m) {
++	  System.out.println(m.getName());
++	  Annotation[] as = m.getAnnotations();
++	  for (Annotation a: as) {
++		  System.out.println(a);
++	  }
++  }
++}
++
++aspect X {
++  public int B.boo;
++}
+@@ -366,7 +366,7 @@
+ 	</ajc-test>
+ 
+ 	<ajc-test dir="java5/reflection" title="reflection on itds">
+-		<compile files="InterTypeDeclarations.aj,ReflectOnCodeStyleITDs.java" options="-1.5 -Xlint:ignore"></compile>
++		<compile files="InterTypeDeclarations.aj,ReflectOnCodeStyleITDs.java" options="-1.5 -Xlint:ignore -makeAjReflectable"></compile>
+ 		<run class="ReflectOnCodeStyleITDs" classpath="../lib/bcel/bcel.jar">
+ 		  <stdout>
+ 		  	<line text="public C.new(int, int, int)"/>
+@@ -431,7 +431,7 @@
+ 
+ 
+ 	<ajc-test dir="java5/reflection" pr="114322" title="reflection on abstract ITDs (Billing example)">
+-		<compile files="ReflectBilling.java,Billing.aj" options="-1.5"/>
++		<compile files="ReflectBilling.java,Billing.aj" options="-1.5 -makeAjReflectable"/>
+ 		<run class="ReflectBilling">
+ 			<stdout>
+ 				<line text="public void Customer.addCharge(long)"/>
+@@ -180,7 +180,7 @@
+     </ajc-test>
+ 
+     <ajc-test dir="java5/ataspectj/annotationGen" title="ann gen for itds">
+-        <compile files="ITDTest.aj" options="-1.5, -outxml -Xlint:ignore">
++        <compile files="ITDTest.aj" options="-1.5, -outxml -Xlint:ignore -makeAjReflectable">
+         </compile>
+         <run class="a.b.c.ITDTest" ltw=""/>
+     </ajc-test>    
+@@ -30,6 +30,14 @@ public class Ajc169Tests extends org.aspectj.testing.XMLBasedAjcTestCase {
+ 	// runTest("advising privileged access method");
+ 	// }
+ 
++	public void testItdMarkerAnnotations_309743() {
++		runTest("itd marker annotations - 1");
++	}
++	
++	public void testItdMarkerAnnotations_309743_2() {
++		runTest("itd marker annotations - 2");
++	}
++	
+ 	public void testPipeliningAndGenerics_309336() {
+ 		runTest("pipelining and generics");
+ 	}
+@@ -2,6 +2,24 @@
+ 
+ <suite>
+ 
++   <ajc-test dir="bugs169/pr309743" title="itd marker annotations - 1">
++     <compile files="A.java" options="-1.5"/>
++     <run class="A">
++       <stdout>
++         <line text="foo"/>
++       </stdout>
++     </run>
++  </ajc-test>
++  
++   <ajc-test dir="bugs169/pr309743" title="itd marker annotations - 2">
++     <compile files="B.java" options="-1.5"/>
++     <run class="B">
++       <stdout>
++         <line text="boo"/>
++       </stdout>
++     </run>
++  </ajc-test>
++  
+    <ajc-test dir="bugs169/pr309336" title="pipelining and generics">
+      <compile files="NoSystemStreams.aj UseOperators.java Operators.java" options="-1.5">
+        <message kind="warning" text="No system.out"/>
+@@ -48,11 +48,11 @@
+    </ajc-test>
+ 
+    <ajc-test dir="features169/transparent" title="declare at on private itd">
+-     <compile files="OneDeclareAt.java" options="-1.5"/>
++     <compile files="OneDeclareAt.java" options="-1.5 -makeAjReflectable"/>
+    </ajc-test>
+ 
+    <ajc-test dir="features169/transparent" title="declare at two">
+-     <compile files="DeclareAtTwo.java" options="-1.5"/>
++     <compile files="DeclareAtTwo.java" options="-1.5 -makeAjReflectable"/>
+    </ajc-test>
+ 
+    <ajc-test dir="features169/transparent" title="three">

@@ -1,0 +1,577 @@
+Binary files differ
+Binary files differ
+Binary files differ
+Binary files differ
+Binary files differ
+Binary files differ
+@@ -25,6 +25,18 @@ public class Ajc1611Tests extends org.aspectj.testing.XMLBasedAjcTestCase {
+ 		runTest("pr335682");
+ 	}
+ 
++	public void testDeserialization_335682_2() {
++		runTest("pr335682 - 2");
++	}
++
++	public void testDeserialization_335682_3() {
++		runTest("pr335682 - 3");
++	}
++
++	public void testDeserialization_335682_5() {
++		runTest("pr335682 - 5");
++	}
++
+ 	public void testNPEAddSerialVersionUID_bug335783() {
+ 		runTest("pr335783");
+ 	}
+@@ -2,9 +2,22 @@
+ 
+ <suite>
+ 
+-<ajc-test dir="bugs1611/pr335682" title="pr335682">
+-  <compile inpath="foo.jar" outjar="bar.jar"/>
+-</ajc-test>
++  <ajc-test dir="bugs1611/pr335682" title="pr335682">
++    <compile inpath="foo.jar" outjar="bar.jar"/>
++  </ajc-test>
++
++  <ajc-test dir="bugs1611/pr335682" title="pr335682 - 2">
++    <compile inpath="case2.jar" outjar="bar.jar"/>
++  </ajc-test>
++  
++  <ajc-test dir="bugs1611/pr335682" title="pr335682 - 3">
++    <compile inpath="case3.jar" outjar="bar.jar"/>
++  </ajc-test>  
++  
++  <ajc-test dir="bugs1611/pr335682" title="pr335682 - 5">
++    <compile inpath="case5.jar" outjar="bar.jar"/>
++  </ajc-test>  
++
+   <ajc-test dir="bugs1611/pr335783" title="pr335783">
+     <compile files="A.java" options="-1.5"/>
+     <compile files="X.aj" options="-1.5 -Xlint:ignore" />
+@@ -231,7 +231,7 @@ public class AtAjAttributes {
+ 		boolean hasAtAspectAnnotation = false;
+ 		boolean hasAtPrecedenceAnnotation = false;
+ 
+-		boolean versionProcessed = false;
++		WeaverVersionInfo wvinfo = null;
+ 		for (int i = 0; i < attributes.length; i++) {
+ 			Attribute attribute = attributes[i];
+ 			if (acceptAttribute(attribute)) {
+@@ -254,15 +254,14 @@ public class AtAjAttributes {
+ 				try {
+ 					VersionedDataInputStream s = new VersionedDataInputStream(new ByteArrayInputStream(
+ 							((Unknown) attribute).getBytes()), null);
+-					WeaverVersionInfo wvi = WeaverVersionInfo.read(s);
+-					struct.ajAttributes.add(0, wvi);
+-					versionProcessed = true;
++					wvinfo = WeaverVersionInfo.read(s);
++					struct.ajAttributes.add(0, wvinfo);
+ 				} catch (IOException ioe) {
+ 					ioe.printStackTrace();
+ 				}
+ 			}
+ 		}
+-		if (!versionProcessed) {
++		if (wvinfo == null) {
+ 			// If we are in here due to a resetState() call (presumably because of reweavable state processing), the
+ 			// original type delegate will have been set with a version but that version will be missing from
+ 			// the new set of attributes (looks like a bug where the version attribute was not included in the
+@@ -270,15 +269,18 @@ public class AtAjAttributes {
+ 			// if it set on the delegate for the type.
+ 			ReferenceTypeDelegate delegate = type.getDelegate();
+ 			if (delegate instanceof BcelObjectType) {
+-				WeaverVersionInfo wvi = ((BcelObjectType) delegate).getWeaverVersionAttribute();
+-				if (wvi != null && wvi.getMajorVersion() != WeaverVersionInfo.WEAVER_VERSION_MAJOR_UNKNOWN) {
+-					// use this one
+-					struct.ajAttributes.add(0, wvi);
+-					versionProcessed = true;
++				wvinfo = ((BcelObjectType) delegate).getWeaverVersionAttribute();
++				if (wvinfo != null) {
++					if (wvinfo.getMajorVersion() != WeaverVersionInfo.WEAVER_VERSION_MAJOR_UNKNOWN) {
++						// use this one
++						struct.ajAttributes.add(0, wvinfo);
++					} else {
++						wvinfo = null;
++					}
+ 				}
+ 			}
+-			if (!versionProcessed) {
+-				struct.ajAttributes.add(0, new AjAttribute.WeaverVersionInfo());
++			if (wvinfo == null) {
++				struct.ajAttributes.add(0, wvinfo = new AjAttribute.WeaverVersionInfo());
+ 			}
+ 		}
+ 
+@@ -358,9 +360,6 @@ public class AtAjAttributes {
+ 				}
+ 			}
+ 			if (processedPointcut) {
+-				// FIXME asc should check we aren't adding multiple versions...
+-				// will do once I get the tests passing again...
+-				struct.ajAttributes.add(new AjAttribute.WeaverVersionInfo());
+ 				struct.ajAttributes.addAll(mstruct.ajAttributes);
+ 			}
+ 		}
+@@ -561,7 +560,7 @@ public class AtAjAttributes {
+ 				// struct.context.getOffset()+1);//FIXME
+ 				// AVASM
+ 				// Not setting version here
+-				//struct.ajAttributes.add(new AjAttribute.WeaverVersionInfo());
++				// struct.ajAttributes.add(new AjAttribute.WeaverVersionInfo());
+ 				AjAttribute.Aspect aspectAttribute = new AjAttribute.Aspect(perClause);
+ 				struct.ajAttributes.add(aspectAttribute);
+ 				FormalBinding[] bindings = new org.aspectj.weaver.patterns.FormalBinding[0];
+@@ -34,6 +34,7 @@ import org.aspectj.util.GenericSignature;
+ import org.aspectj.util.GenericSignature.TypeVariableSignature;
+ import org.aspectj.util.GenericSignatureParser;
+ import org.aspectj.weaver.AjAttribute;
++import org.aspectj.weaver.AjAttribute.WeaverVersionInfo;
+ import org.aspectj.weaver.AnnotationAJ;
+ import org.aspectj.weaver.BCException;
+ import org.aspectj.weaver.ISourceContext;
+@@ -195,9 +196,9 @@ class BcelMethod extends ResolvedMemberImpl {
+ 	private void unpackAjAttributes(World world) {
+ 		associatedShadowMunger = null;
+ 		ResolvedType resolvedDeclaringType = getDeclaringType().resolve(world);
++		WeaverVersionInfo wvinfo = bcelObjectType.getWeaverVersionAttribute();
+ 		List<AjAttribute> as = Utility.readAjAttributes(resolvedDeclaringType.getClassName(), method.getAttributes(),
+-				resolvedDeclaringType.getSourceContext(), world, bcelObjectType.getWeaverVersionAttribute(),
+-				new BcelConstantPoolReader(method.getConstantPool()));
++				resolvedDeclaringType.getSourceContext(), world, wvinfo, new BcelConstantPoolReader(method.getConstantPool()));
+ 		processAttributes(world, as);
+ 		as = AtAjAttributes.readAj5MethodAttributes(method, this, resolvedDeclaringType, preResolvedPointcut,
+ 				resolvedDeclaringType.getSourceContext(), world.getMessageHandler());
+Binary files differ
+Binary files differ
+@@ -21,6 +21,10 @@ import org.aspectj.testing.XMLBasedAjcTestCase;
+  */
+ public class Ajc1611Tests extends org.aspectj.testing.XMLBasedAjcTestCase {
+ 
++	public void testDeserialization_335682() {
++		runTest("pr335682");
++	}
++
+ 	public void testNPEAddSerialVersionUID_bug335783() {
+ 		runTest("pr335783");
+ 	}
+@@ -2,6 +2,9 @@
+ 
+ <suite>
+ 
++<ajc-test dir="bugs1611/pr335682" title="pr335682">
++  <compile inpath="foo.jar" outjar="bar.jar"/>
++</ajc-test>
+   <ajc-test dir="bugs1611/pr335783" title="pr335783">
+     <compile files="A.java" options="-1.5"/>
+     <compile files="X.aj" options="-1.5 -Xlint:ignore" />
+@@ -11,6 +11,7 @@
+ package org.aspectj.systemtest.incremental.tools;
+ 
+ import java.io.File;
++import java.util.List;
+ import java.util.Set;
+ 
+ import org.aspectj.ajde.core.AjCompiler;
+@@ -120,6 +121,65 @@ public class IncrementalCompilationTests extends AbstractMultiProjectIncremental
+ 		assertContains("B.java:4:0::0 Unhandled exception type Exception", getErrorMessages(p).get(0));
+ 	}
+ 
++	/**
++	 * Checking if we have the right information on the member nodes.
++	 */
++	public void testModelStructure_333123() throws Exception {
++		String p = "pr333123";
++		initialiseProject(p);
++		build(p);
++		checkWasFullBuild();
++		printModel(p);
++
++		AspectJElementHierarchy model = (AspectJElementHierarchy) getModelFor(p).getHierarchy();
++
++		IProgramElement ipe = null;
++		// fieldInt [field] 10 hid:=pr333123<a.b{Code.java[Code^fieldInt
++		// fieldString [field] 12 hid:=pr333123<a.b{Code.java[Code^fieldString
++		// fieldCode [field] 14 hid:=pr333123<a.b{Code.java[Code^fieldCode
++		ipe = model.findElementForHandle("=pr333123<a.b{Code.java[Code^fieldInt");
++		assertEquals("I", ipe.getCorrespondingTypeSignature());
++		assertEquals("int", ipe.getCorrespondingType(true));
++		ipe = model.findElementForHandle("=pr333123<a.b{Code.java[Code^fieldString");
++		assertEquals("Ljava/lang/String;", ipe.getCorrespondingTypeSignature());
++		assertEquals("java.lang.String", ipe.getCorrespondingType(true));
++		// assertEquals("Ljava/lang/String;", ipe.getBytecodeSignature());
++		ipe = model.findElementForHandle("=pr333123<a.b{Code.java[Code^fieldCode");
++		assertEquals("La/b/Code;", ipe.getCorrespondingTypeSignature());
++		assertEquals("a.b.Code", ipe.getCorrespondingType(true));
++		ipe = model.findElementForHandle("=pr333123<a.b{Code.java[Code^fieldList");
++		// assertEquals("La/b/Code;", ipe.getBytecodeSignature());
++		assertEquals("Ljava/util/List<La/b/Code;>;", ipe.getCorrespondingTypeSignature());
++		assertEquals("java.util.List<a.b.Code>", ipe.getCorrespondingType(true));
++
++		// method(java.lang.String) [method] 4 hid:=pr333123<a.b{Code.java[Code~method~QString;
++		// getInt() [method] 6 hid:=pr333123<a.b{Code.java[Code~getInt
++		// transform(a.b.Code,java.lang.String,long) [method] 8 hid:=pr333123<a.b{Code.java[Code~transform~QCode;~QString;~J
++		ipe = model.findElementForHandle("=pr333123<a.b{Code.java[Code~method~QString;");
++		assertEquals("(Ljava/lang/String;)V", ipe.getBytecodeSignature());
++		ipe = model.findElementForHandle("=pr333123<a.b{Code.java[Code~getInt");
++		assertEquals("()I", ipe.getBytecodeSignature());
++
++		ipe = model.findElementForHandle("=pr333123<a.b{Code.java[Code~transform~QCode;~QString;~J");
++		assertEquals("(La/b/Code;Ljava/lang/String;J)La/b/Code;", ipe.getBytecodeSignature());
++
++		List<char[]> paramSigs = ipe.getParameterSignatures();
++		assertEquals("La/b/Code;", new String(paramSigs.get(0)));
++		assertEquals("Ljava/lang/String;", new String(paramSigs.get(1)));
++		assertEquals("J", new String(paramSigs.get(2)));
++
++		assertEquals("a.b.Code", ipe.getCorrespondingType(true));
++		assertEquals("La/b/Code;", ipe.getCorrespondingTypeSignature());
++
++		ipe = model.findElementForHandle("=pr333123<a.b{Code.java[Code~transform2~QList\\<QString;>;");
++		assertEquals("(Ljava/util/List;)Ljava/util/List;", ipe.getBytecodeSignature());
++		paramSigs = ipe.getParameterSignatures();
++		assertEquals("Ljava/util/List<Ljava/lang/String;>;", new String(paramSigs.get(0)));
++		assertEquals("java.util.List<a.b.Code>", ipe.getCorrespondingType(true));
++		assertEquals("Ljava/util/List<La/b/Code;>;", ipe.getCorrespondingTypeSignature());
++
++	}
++
+ 	// changing method return type parameterization
+ 	public void testModifiedMethodReturnTypeGenericTypeParameterShouldTriggerError_318884_3() throws Exception {
+ 		String p = "pr318884_3";
+@@ -276,7 +336,7 @@ public class IncrementalCompilationTests extends AbstractMultiProjectIncremental
+ 		IProgramElement ipe = model.findElementForHandleOrCreate("=PR278496_1<a.b.c{Code.java", false);
+ 		assertNull(ipe);
+ 	}
+-	
++
+ 	// inner classes
+ 	public void testDeletion_278496_9() throws Exception {
+ 		String p = "PR278496_9";
+@@ -565,8 +565,8 @@ public abstract class AjAttribute {
+ 		public static AdviceAttribute read(VersionedDataInputStream s, ISourceContext context) throws IOException {
+ 			AdviceKind kind = AdviceKind.read(s);
+ 			if (kind == AdviceKind.Around) {
+-				return new AdviceAttribute(kind, Pointcut.read(s, context), s.readByte(), s.readInt(), s.readInt(), context, s
+-						.readBoolean(), ResolvedMemberImpl.readResolvedMemberArray(s, context), FileUtil.readBooleanArray(s),
++				return new AdviceAttribute(kind, Pointcut.read(s, context), s.readByte(), s.readInt(), s.readInt(), context,
++						s.readBoolean(), ResolvedMemberImpl.readResolvedMemberArray(s, context), FileUtil.readBooleanArray(s),
+ 						UnresolvedType.readArray(s));
+ 			} else {
+ 				return new AdviceAttribute(kind, Pointcut.read(s, context), s.readByte(), s.readInt(), s.readInt(), context);
+@@ -731,8 +731,8 @@ public abstract class AjAttribute {
+ 		}
+ 
+ 		public static EffectiveSignatureAttribute read(VersionedDataInputStream s, ISourceContext context) throws IOException {
+-			return new EffectiveSignatureAttribute(ResolvedMemberImpl.readResolvedMember(s, context), Shadow.Kind.read(s), s
+-					.readBoolean());
++			ResolvedMember member = ResolvedMemberImpl.readResolvedMember(s, context);
++			return new EffectiveSignatureAttribute(member, Shadow.Kind.read(s), s.readBoolean());
+ 		}
+ 
+ 		public ResolvedMember getEffectiveSignature() {
+@@ -80,4 +80,8 @@ public class VersionedDataInputStream extends DataInputStream {
+ 	public UnresolvedType readSignatureAsUnresolvedType() throws IOException {
+ 		return UnresolvedType.forSignature(readUtf8(readShort()));
+ 	}
++
++	public String toString() {
++		return "VersionedDataInputStream: version=" + version + " constantPoolReader?" + (constantPoolReader != null);
++	}
+ }
+\ No newline at end of file
+@@ -11,6 +11,8 @@
+  *******************************************************************************/
+ package org.aspectj.weaver.bcel;
+ 
++import java.io.ByteArrayInputStream;
++import java.io.IOException;
+ import java.lang.reflect.Modifier;
+ import java.util.ArrayList;
+ import java.util.Arrays;
+@@ -29,6 +31,7 @@ import org.aspectj.apache.bcel.classfile.JavaClass;
+ import org.aspectj.apache.bcel.classfile.LocalVariable;
+ import org.aspectj.apache.bcel.classfile.LocalVariableTable;
+ import org.aspectj.apache.bcel.classfile.Method;
++import org.aspectj.apache.bcel.classfile.Unknown;
+ import org.aspectj.apache.bcel.classfile.annotation.AnnotationGen;
+ import org.aspectj.apache.bcel.classfile.annotation.ArrayElementValue;
+ import org.aspectj.apache.bcel.classfile.annotation.ClassElementValue;
+@@ -48,16 +51,19 @@ import org.aspectj.bridge.MessageUtil;
+ import org.aspectj.weaver.Advice;
+ import org.aspectj.weaver.AdviceKind;
+ import org.aspectj.weaver.AjAttribute;
++import org.aspectj.weaver.AjAttribute.WeaverVersionInfo;
+ import org.aspectj.weaver.AjcMemberMaker;
+ import org.aspectj.weaver.BindingScope;
+ import org.aspectj.weaver.ISourceContext;
+ import org.aspectj.weaver.MethodDelegateTypeMunger;
+ import org.aspectj.weaver.NameMangler;
+ import org.aspectj.weaver.ReferenceType;
++import org.aspectj.weaver.ReferenceTypeDelegate;
+ import org.aspectj.weaver.ResolvedMember;
+ import org.aspectj.weaver.ResolvedPointcutDefinition;
+ import org.aspectj.weaver.ResolvedType;
+ import org.aspectj.weaver.UnresolvedType;
++import org.aspectj.weaver.VersionedDataInputStream;
+ import org.aspectj.weaver.WeaverMessages;
+ import org.aspectj.weaver.World;
+ import org.aspectj.weaver.patterns.Bindings;
+@@ -225,6 +231,7 @@ public class AtAjAttributes {
+ 		boolean hasAtAspectAnnotation = false;
+ 		boolean hasAtPrecedenceAnnotation = false;
+ 
++		boolean versionProcessed = false;
+ 		for (int i = 0; i < attributes.length; i++) {
+ 			Attribute attribute = attributes[i];
+ 			if (acceptAttribute(attribute)) {
+@@ -241,6 +248,39 @@ public class AtAjAttributes {
+ 				break;
+ 			}
+ 		}
++		for (int i = attributes.length - 1; i >= 0; i--) {
++			Attribute attribute = attributes[i];
++			if (attribute.getName().equals(WeaverVersionInfo.AttributeName)) {
++				try {
++					VersionedDataInputStream s = new VersionedDataInputStream(new ByteArrayInputStream(
++							((Unknown) attribute).getBytes()), null);
++					WeaverVersionInfo wvi = WeaverVersionInfo.read(s);
++					struct.ajAttributes.add(0, wvi);
++					versionProcessed = true;
++				} catch (IOException ioe) {
++					ioe.printStackTrace();
++				}
++			}
++		}
++		if (!versionProcessed) {
++			// If we are in here due to a resetState() call (presumably because of reweavable state processing), the
++			// original type delegate will have been set with a version but that version will be missing from
++			// the new set of attributes (looks like a bug where the version attribute was not included in the
++			// data compressed into the attribute). So rather than 'defaulting' to current, we should use one
++			// if it set on the delegate for the type.
++			ReferenceTypeDelegate delegate = type.getDelegate();
++			if (delegate instanceof BcelObjectType) {
++				WeaverVersionInfo wvi = ((BcelObjectType) delegate).getWeaverVersionAttribute();
++				if (wvi != null && wvi.getMajorVersion() != WeaverVersionInfo.WEAVER_VERSION_MAJOR_UNKNOWN) {
++					// use this one
++					struct.ajAttributes.add(0, wvi);
++					versionProcessed = true;
++				}
++			}
++			if (!versionProcessed) {
++				struct.ajAttributes.add(0, new AjAttribute.WeaverVersionInfo());
++			}
++		}
+ 
+ 		// basic semantic check
+ 		if (hasAtPrecedenceAnnotation && !hasAtAspectAnnotation) {
+@@ -520,8 +560,8 @@ public class AtAjAttributes {
+ 				perClause.setLocation(struct.context, -1, -1);// struct.context.getOffset(),
+ 				// struct.context.getOffset()+1);//FIXME
+ 				// AVASM
+-				// FIXME asc see related comment way about about the version...
+-				struct.ajAttributes.add(new AjAttribute.WeaverVersionInfo());
++				// Not setting version here
++				//struct.ajAttributes.add(new AjAttribute.WeaverVersionInfo());
+ 				AjAttribute.Aspect aspectAttribute = new AjAttribute.Aspect(perClause);
+ 				struct.ajAttributes.add(aspectAttribute);
+ 				FormalBinding[] bindings = new org.aspectj.weaver.patterns.FormalBinding[0];
+@@ -1988,4 +2028,4 @@ public class AtAjAttributes {
+ 			return formalName;
+ 		}
+ 	}
+-}
++}
+\ No newline at end of file
+@@ -12,6 +12,7 @@
+ package org.aspectj.weaver.bcel;
+ 
+ import java.lang.reflect.Modifier;
++import java.util.ArrayList;
+ import java.util.HashMap;
+ import java.util.HashSet;
+ import java.util.List;
+@@ -238,10 +239,12 @@ public class BcelAccessForInlineMunger extends BcelTypeMunger {
+ 			LazyMethodGen method = makeMethodGen(m_aspectGen, inlineAccessor);
+ 			// flag it synthetic, AjSynthetic
+ 			method.makeSynthetic();
+-			method.addAttribute(Utility.bcelAttribute(new AjAttribute.AjSynthetic(), m_aspectGen.getConstantPool()));
++			List<AjAttribute> methodAttributes = new ArrayList<AjAttribute>();
++			methodAttributes.add(new AjAttribute.AjSynthetic());
++			methodAttributes.add(new AjAttribute.EffectiveSignatureAttribute(resolvedMember, Shadow.MethodCall, false));
++			method.addAttribute(Utility.bcelAttribute(methodAttributes.get(0), m_aspectGen.getConstantPool()));
+ 			// flag the effective signature, so that we can deobfuscate the signature to apply method call pointcut
+-			method.addAttribute(Utility.bcelAttribute(new AjAttribute.EffectiveSignatureAttribute(resolvedMember,
+-					Shadow.MethodCall, false), m_aspectGen.getConstantPool()));
++			method.addAttribute(Utility.bcelAttribute(methodAttributes.get(1), m_aspectGen.getConstantPool()));
+ 
+ 			inlineAccessorMethodGens.add(method);
+ 
+@@ -257,7 +260,8 @@ public class BcelAccessForInlineMunger extends BcelTypeMunger {
+ 					: Constants.INVOKEVIRTUAL, resolvedMember));
+ 			il.append(InstructionFactory.createReturn(BcelWorld.makeBcelType(inlineAccessor.getReturnType())));
+ 
+-			m_inlineAccessorBcelMethods.put(accessor, new BcelMethod(m_aspectGen.getBcelObjectType(), method.getMethod()));
++			m_inlineAccessorBcelMethods.put(accessor, new BcelMethod(m_aspectGen.getBcelObjectType(), method.getMethod(),
++					methodAttributes));
+ 		}
+ 		return inlineAccessor;
+ 	}
+@@ -280,10 +284,12 @@ public class BcelAccessForInlineMunger extends BcelTypeMunger {
+ 			LazyMethodGen method = makeMethodGen(m_aspectGen, inlineAccessor);
+ 			// flag it synthetic, AjSynthetic
+ 			method.makeSynthetic();
+-			method.addAttribute(Utility.bcelAttribute(new AjAttribute.AjSynthetic(), m_aspectGen.getConstantPool()));
++			List<AjAttribute> methodAttributes = new ArrayList<AjAttribute>();
++			methodAttributes.add(new AjAttribute.AjSynthetic());
++			methodAttributes.add(new AjAttribute.EffectiveSignatureAttribute(resolvedMember, Shadow.MethodCall, false));
++			method.addAttribute(Utility.bcelAttribute(methodAttributes.get(0), m_aspectGen.getConstantPool()));
+ 			// flag the effective signature, so that we can deobfuscate the signature to apply method call pointcut
+-			method.addAttribute(Utility.bcelAttribute(new AjAttribute.EffectiveSignatureAttribute(resolvedMember,
+-					Shadow.MethodCall, false), m_aspectGen.getConstantPool()));
++			method.addAttribute(Utility.bcelAttribute(methodAttributes.get(1), m_aspectGen.getConstantPool()));
+ 
+ 			inlineAccessorMethodGens.add(method);
+ 
+@@ -299,7 +305,8 @@ public class BcelAccessForInlineMunger extends BcelTypeMunger {
+ 			il.append(Utility.createInvoke(factory, Constants.INVOKESPECIAL, resolvedMember));
+ 			il.append(InstructionFactory.createReturn(BcelWorld.makeBcelType(inlineAccessor.getReturnType())));
+ 
+-			m_inlineAccessorBcelMethods.put(accessor, new BcelMethod(m_aspectGen.getBcelObjectType(), method.getMethod()));
++			m_inlineAccessorBcelMethods.put(accessor, new BcelMethod(m_aspectGen.getBcelObjectType(), method.getMethod(),
++					methodAttributes));
+ 		}
+ 		return inlineAccessor;
+ 	}
+@@ -323,10 +330,12 @@ public class BcelAccessForInlineMunger extends BcelTypeMunger {
+ 			LazyMethodGen method = makeMethodGen(m_aspectGen, inlineAccessor);
+ 			// flag it synthetic, AjSynthetic
+ 			method.makeSynthetic();
+-			method.addAttribute(Utility.bcelAttribute(new AjAttribute.AjSynthetic(), m_aspectGen.getConstantPool()));
++			List<AjAttribute> methodAttributes = new ArrayList<AjAttribute>();
++			methodAttributes.add(new AjAttribute.AjSynthetic());
++			methodAttributes.add(new AjAttribute.EffectiveSignatureAttribute(resolvedMember, Shadow.FieldGet, false));
+ 			// flag the effective signature, so that we can deobfuscate the signature to apply method call pointcut
+-			method.addAttribute(Utility.bcelAttribute(new AjAttribute.EffectiveSignatureAttribute(resolvedMember, Shadow.FieldGet,
+-					false), m_aspectGen.getConstantPool()));
++			method.addAttribute(Utility.bcelAttribute(methodAttributes.get(0), m_aspectGen.getConstantPool()));
++			method.addAttribute(Utility.bcelAttribute(methodAttributes.get(1), m_aspectGen.getConstantPool()));
+ 
+ 			inlineAccessorMethodGens.add(method);
+ 
+@@ -339,7 +348,8 @@ public class BcelAccessForInlineMunger extends BcelTypeMunger {
+ 			il.append(Utility.createGet(factory, resolvedMember));
+ 			il.append(InstructionFactory.createReturn(BcelWorld.makeBcelType(inlineAccessor.getReturnType())));
+ 
+-			m_inlineAccessorBcelMethods.put(accessor, new BcelMethod(m_aspectGen.getBcelObjectType(), method.getMethod()));
++			m_inlineAccessorBcelMethods.put(accessor, new BcelMethod(m_aspectGen.getBcelObjectType(), method.getMethod(),
++					methodAttributes));
+ 		}
+ 		return inlineAccessor;
+ 	}
+@@ -363,10 +373,12 @@ public class BcelAccessForInlineMunger extends BcelTypeMunger {
+ 			LazyMethodGen method = makeMethodGen(m_aspectGen, inlineAccessor);
+ 			// flag it synthetic, AjSynthetic
+ 			method.makeSynthetic();
+-			method.addAttribute(Utility.bcelAttribute(new AjAttribute.AjSynthetic(), m_aspectGen.getConstantPool()));
++			List<AjAttribute> methodAttributes = new ArrayList<AjAttribute>();
++			methodAttributes.add(new AjAttribute.AjSynthetic());
++			methodAttributes.add(new AjAttribute.EffectiveSignatureAttribute(resolvedMember, Shadow.FieldSet, false));
++			method.addAttribute(Utility.bcelAttribute(methodAttributes.get(0), m_aspectGen.getConstantPool()));
+ 			// flag the effective signature, so that we can deobfuscate the signature to apply method call pointcut
+-			method.addAttribute(Utility.bcelAttribute(new AjAttribute.EffectiveSignatureAttribute(resolvedMember, Shadow.FieldSet,
+-					false), m_aspectGen.getConstantPool()));
++			method.addAttribute(Utility.bcelAttribute(methodAttributes.get(1), m_aspectGen.getConstantPool()));
+ 
+ 			inlineAccessorMethodGens.add(method);
+ 
+@@ -380,8 +392,8 @@ public class BcelAccessForInlineMunger extends BcelTypeMunger {
+ 			}
+ 			il.append(Utility.createSet(factory, resolvedMember));
+ 			il.append(InstructionConstants.RETURN);
+-
+-			m_inlineAccessorBcelMethods.put(accessor, new BcelMethod(m_aspectGen.getBcelObjectType(), method.getMethod()));
++			m_inlineAccessorBcelMethods.put(accessor, new BcelMethod(m_aspectGen.getBcelObjectType(), method.getMethod(),
++					methodAttributes));
+ 		}
+ 		return inlineAccessor;
+ 	}
+@@ -91,12 +91,25 @@ class BcelMethod extends ResolvedMemberImpl {
+ 		unpackAjAttributes(bcelObjectType.getWorld());
+ 	}
+ 
++	/**
++	 * This constructor expects to be passed the attributes, rather than deserializing them.
++	 */
++	BcelMethod(BcelObjectType declaringType, Method method, List<AjAttribute> attributes) {
++		super(method.getName().equals("<init>") ? CONSTRUCTOR : (method.getName().equals("<clinit>") ? STATIC_INITIALIZATION
++				: METHOD), declaringType.getResolvedTypeX(), declaringType.isInterface() ? method.getModifiers()
++				| Modifier.INTERFACE : method.getModifiers(), method.getName(), method.getSignature());
++		this.method = method;
++		sourceContext = declaringType.getResolvedTypeX().getSourceContext();
++		bcelObjectType = declaringType;
++		unpackJavaAttributes();
++		processAttributes(bcelObjectType.getWorld(), attributes);
++	}
++
+ 	// ----
+ 
+ 	private void unpackJavaAttributes() {
+ 		ExceptionTable exnTable = method.getExceptionTable();
+ 		checkedExceptions = (exnTable == null) ? UnresolvedType.NONE : UnresolvedType.forNames(exnTable.getExceptionNames());
+-
+ 	}
+ 
+ 	@Override
+@@ -37,6 +37,7 @@ import org.aspectj.apache.bcel.classfile.Signature;
+ import org.aspectj.apache.bcel.classfile.annotation.AnnotationGen;
+ import org.aspectj.apache.bcel.classfile.annotation.EnumElementValue;
+ import org.aspectj.apache.bcel.classfile.annotation.NameValuePair;
++import org.aspectj.asm.AsmManager;
+ import org.aspectj.bridge.IMessageHandler;
+ import org.aspectj.bridge.MessageUtil;
+ import org.aspectj.util.GenericSignature;
+@@ -386,8 +387,10 @@ public class BcelObjectType extends AbstractReferenceTypeDelegate {
+ 		typeMungers = new ArrayList<ConcreteTypeMunger>();
+ 		declares = new ArrayList<Declare>();
+ 		processAttributes(l, pointcuts, false);
+-		l = AtAjAttributes.readAj5ClassAttributes(((BcelWorld) getResolvedTypeX().getWorld()).getModelAsAsmManager(), javaClass,
+-				getResolvedTypeX(), getResolvedTypeX().getSourceContext(), msgHandler, isCodeStyleAspect);
++		ReferenceType type = getResolvedTypeX();
++		AsmManager asmManager = ((BcelWorld) type.getWorld()).getModelAsAsmManager();
++		l = AtAjAttributes.readAj5ClassAttributes(asmManager, javaClass, type, type.getSourceContext(), msgHandler,
++				isCodeStyleAspect);
+ 		AjAttribute.Aspect deferredAspectAttribute = processAttributes(l, pointcuts, true);
+ 
+ 		if (pointcuts.size() == 0) {
+@@ -440,9 +443,8 @@ public class BcelObjectType extends AbstractReferenceTypeDelegate {
+ 					setSourcefilename(sca.getSourceFileName());
+ 				}
+ 			} else if (a instanceof AjAttribute.WeaverVersionInfo) {
+-				wvInfo = (AjAttribute.WeaverVersionInfo) a; // Set the weaver
+-				// version used to
+-				// build this type
++				// Set the weaver version used to build this type
++				wvInfo = (AjAttribute.WeaverVersionInfo) a;
+ 			} else {
+ 				throw new BCException("bad attribute " + a);
+ 			}
+@@ -53,6 +53,7 @@ import org.aspectj.util.FileUtil;
+ import org.aspectj.util.FuzzyBoolean;
+ import org.aspectj.weaver.Advice;
+ import org.aspectj.weaver.AdviceKind;
++import org.aspectj.weaver.AjAttribute.WeaverVersionInfo;
+ import org.aspectj.weaver.AnnotationAJ;
+ import org.aspectj.weaver.AnnotationOnTypeMunger;
+ import org.aspectj.weaver.BCException;
+@@ -1377,7 +1378,9 @@ public class BcelWeaver {
+ 			// new: reweavable default with clever diff
+ 			if (!world.isOverWeaving()) {
+ 				byte[] bytes = wsi.getUnwovenClassFileData(classType.getJavaClass().getBytes());
+-				classType.setJavaClass(Utility.makeJavaClass(classType.getJavaClass().getFileName(), bytes), true);
++				WeaverVersionInfo wvi = classType.getWeaverVersionAttribute();
++				JavaClass newJavaClass = Utility.makeJavaClass(classType.getJavaClass().getFileName(), bytes);
++				classType.setJavaClass(newJavaClass, true);
+ 				classType.getResolvedTypeX().ensureConsistent();
+ 			}
+ 			// } else {

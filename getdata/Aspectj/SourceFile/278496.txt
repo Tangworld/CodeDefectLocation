@@ -1,0 +1,2807 @@
+@@ -313,6 +313,7 @@ public abstract class World implements Dump.INode {
+ 		// Pulling in the type may have already put the right entry in the map
+ 		ResolvedType result = typeMap.get(signature);
+ 		if (result == null && !ret.isMissing()) {
++			ret = ensureRawTypeIfNecessary(ret);
+ 			typeMap.put(signature, ret);
+ 			return ret;
+ 		}
+@@ -391,11 +392,7 @@ public abstract class World implements Dump.INode {
+ 	 * @return a type suitable for putting into the world
+ 	 */
+ 	private ResolvedType ensureRawTypeIfNecessary(ResolvedType type) {
+-		if (!isInJava5Mode()) {
+-			// Don't care, not running in 1.5 mode
+-			return type;
+-		}
+-		if (type.isRawType()) {
++		if (!isInJava5Mode() || type.isRawType()) {
+ 			return type;
+ 		}
+ 		// Key requirement here is if it is generic, create a RAW entry to be put in the map that points to it
+@@ -1068,18 +1065,23 @@ public abstract class World implements Dump.INode {
+ 						}
+ 						List<ConcreteTypeMunger> typeMungers = type.getInterTypeMungers();
+ 						if (typeMungers == null || typeMungers.size() == 0) {
+-								tMap.remove(key);
+-								insertInExpendableMap(key, type);
+-								demotionCounter++;
+-							}
++							tMap.remove(key);
++							insertInExpendableMap(key, type);
++							demotionCounter++;
+ 						}
+ 					}
++				}
+ 				addedSinceLastDemote.clear();
+ 			} else {
+ 				// Compile time demotion strategy
+ 				List<String> forRemoval = new ArrayList<String>();
+ 				for (String key : addedSinceLastDemote) {
+ 					ResolvedType type = tMap.get(key);
++					if (type == null) {
++						// TODO not 100% sure why it is not there, where did it go?
++						forRemoval.add(key);
++						continue;
++					}
+ 					if (!writtenClasses.contains(type.getName())) { // COSTLY
+ 						continue;
+ 					}
+@@ -1201,6 +1203,13 @@ public abstract class World implements Dump.INode {
+ 				return type;
+ 			}
+ 
++			// TODO should this be in as a permanent assertion?
++			/*
++			if ((type instanceof ReferenceType) && type.getWorld().isInJava5Mode()
++					&& (((ReferenceType) type).getDelegate() != null) && type.isGenericType()) {
++				throw new BCException("Attempt to add generic type to typemap " + type.toString() + " (should be raw)");
++			}*/
++
+ 			if (w.isExpendable(type)) {
+ 				if (useExpendableMap) {
+ 					// Dont use reference queue for tracking if not profiling...
+@@ -1068,12 +1068,12 @@ public abstract class World implements Dump.INode {
+ 						}
+ 						List<ConcreteTypeMunger> typeMungers = type.getInterTypeMungers();
+ 						if (typeMungers == null || typeMungers.size() == 0) {
+-							tMap.remove(key);
+-							insertInExpendableMap(key, type);
+-							demotionCounter++;
++								tMap.remove(key);
++								insertInExpendableMap(key, type);
++								demotionCounter++;
++							}
+ 						}
+ 					}
+-				}
+ 				addedSinceLastDemote.clear();
+ 			} else {
+ 				// Compile time demotion strategy
+@@ -1518,14 +1518,16 @@ public abstract class World implements Dump.INode {
+ 							MessageUtil.info("[completeBinaryTypes=true] Completion of binary types activated"));
+ 				}
+ 
+-				s = p.getProperty(xsetTYPE_DEMOTION, "true"); // default is: ON (for ltw) OFF (for ctw)
+-				boolean b = typeMap.demotionSystemActive;
+-				if (b && s.equalsIgnoreCase("false")) {
+-					System.out.println("typeDemotion=false: type demotion switched OFF");
+-					typeMap.demotionSystemActive = false;
+-				} else if (!b && s.equalsIgnoreCase("true")) {
+-					System.out.println("typeDemotion=true: type demotion switched ON");
+-					typeMap.demotionSystemActive = true;
++				s = p.getProperty(xsetTYPE_DEMOTION); // default is: ON (for ltw) OFF (for ctw)
++				if (s != null) {
++					boolean b = typeMap.demotionSystemActive;
++					if (b && s.equalsIgnoreCase("false")) {
++						System.out.println("typeDemotion=false: type demotion switched OFF");
++						typeMap.demotionSystemActive = false;
++					} else if (!b && s.equalsIgnoreCase("true")) {
++						System.out.println("typeDemotion=true: type demotion switched ON");
++						typeMap.demotionSystemActive = true;
++					}
+ 				}
+ 
+ 				s = p.getProperty(xsetOVERWEAVING, "false");
+@@ -28,10 +28,10 @@ import java.util.List;
+ import java.util.Map;
+ import java.util.Set;
+ import java.util.jar.Attributes;
++import java.util.jar.Attributes.Name;
+ import java.util.jar.JarEntry;
+ import java.util.jar.JarFile;
+ import java.util.jar.Manifest;
+-import java.util.jar.Attributes.Name;
+ import java.util.zip.ZipEntry;
+ import java.util.zip.ZipInputStream;
+ import java.util.zip.ZipOutputStream;
+@@ -932,8 +932,8 @@ public class BcelWeaver {
+ 	 * @param userPointcut
+ 	 */
+ 	private void raiseUnboundFormalError(String name, Pointcut userPointcut) {
+-		world.showMessage(IMessage.ERROR, WeaverMessages.format(WeaverMessages.UNBOUND_FORMAL, name), userPointcut
+-				.getSourceLocation(), null);
++		world.showMessage(IMessage.ERROR, WeaverMessages.format(WeaverMessages.UNBOUND_FORMAL, name),
++				userPointcut.getSourceLocation(), null);
+ 	}
+ 
+ 	public void addManifest(Manifest newManifest) {
+@@ -1335,8 +1335,8 @@ public class BcelWeaver {
+ 					ResolvedType rtx = world.resolve(UnresolvedType.forSignature(requiredTypeSignature), true);
+ 					boolean exists = !rtx.isMissing();
+ 					if (!exists) {
+-						world.getLint().missingAspectForReweaving.signal(new String[] { rtx.getName(), className }, classType
+-								.getSourceLocation(), null);
++						world.getLint().missingAspectForReweaving.signal(new String[] { rtx.getName(), className },
++								classType.getSourceLocation(), null);
+ 						// world.showMessage(IMessage.ERROR, WeaverMessages.format(WeaverMessages.MISSING_REWEAVABLE_TYPE,
+ 						// requiredTypeName, className), classType.getSourceLocation(), null);
+ 					} else {
+@@ -1353,8 +1353,8 @@ public class BcelWeaver {
+ 								world.showMessage(IMessage.ERROR, WeaverMessages.format(
+ 										WeaverMessages.REWEAVABLE_ASPECT_NOT_REGISTERED, rtx.getName(), className), null, null);
+ 							} else if (!world.getMessageHandler().isIgnoring(IMessage.INFO)) {
+-								world.showMessage(IMessage.INFO, WeaverMessages.format(WeaverMessages.VERIFIED_REWEAVABLE_TYPE, rtx
+-										.getName(), rtx.getSourceLocation().getSourceFile()), null, null);
++								world.showMessage(IMessage.INFO, WeaverMessages.format(WeaverMessages.VERIFIED_REWEAVABLE_TYPE,
++										rtx.getName(), rtx.getSourceLocation().getSourceFile()), null, null);
+ 							}
+ 						}
+ 						alreadyConfirmedReweavableState.add(requiredTypeSignature);
+@@ -1528,10 +1528,11 @@ public class BcelWeaver {
+ 				// TAG: WeavingMessage
+ 				if (!getWorld().getMessageHandler().isIgnoring(IMessage.WEAVEINFO)) {
+ 					getWorld().getMessageHandler().handleMessage(
+-							WeaveMessage.constructWeavingMessage(WeaveMessage.WEAVEMESSAGE_ANNOTATES, new String[] {
+-									onType.toString(), Utility.beautifyLocation(onType.getSourceLocation()),
+-									decA.getAnnotationString(), "type", decA.getAspect().toString(),
+-									Utility.beautifyLocation(decA.getSourceLocation()) }));
++							WeaveMessage.constructWeavingMessage(
++									WeaveMessage.WEAVEMESSAGE_ANNOTATES,
++									new String[] { onType.toString(), Utility.beautifyLocation(onType.getSourceLocation()),
++											decA.getAnnotationString(), "type", decA.getAspect().toString(),
++											Utility.beautifyLocation(decA.getSourceLocation()) }));
+ 				}
+ 				didSomething = true;
+ 				ResolvedTypeMunger newAnnotationTM = new AnnotationOnTypeMunger(annoX);
+@@ -1554,13 +1555,15 @@ public class BcelWeaver {
+ 				if (outputProblems) {
+ 					if (decA.isExactPattern()) {
+ 						world.getMessageHandler().handleMessage(
+-								MessageUtil.error(WeaverMessages.format(WeaverMessages.INCORRECT_TARGET_FOR_DECLARE_ANNOTATION,
+-										onType.getName(), annoX.getTypeName(), annoX.getValidTargets()), decA.getSourceLocation()));
++								MessageUtil.error(
++										WeaverMessages.format(WeaverMessages.INCORRECT_TARGET_FOR_DECLARE_ANNOTATION,
++												onType.getName(), annoX.getTypeName(), annoX.getValidTargets()),
++										decA.getSourceLocation()));
+ 					} else {
+ 						if (world.getLint().invalidTargetForAnnotation.isEnabled()) {
+ 							world.getLint().invalidTargetForAnnotation.signal(new String[] { onType.getName(), annoX.getTypeName(),
+-									annoX.getValidTargets() }, decA.getSourceLocation(), new ISourceLocation[] { onType
+-									.getSourceLocation() });
++									annoX.getValidTargets() }, decA.getSourceLocation(),
++									new ISourceLocation[] { onType.getSourceLocation() });
+ 						}
+ 					}
+ 				}
+@@ -1601,8 +1604,8 @@ public class BcelWeaver {
+ 	}
+ 
+ 	public void weaveNormalTypeMungers(ResolvedType onType) {
+-		ContextToken tok = CompilationAndWeavingContext.enteringPhase(CompilationAndWeavingContext.PROCESSING_TYPE_MUNGERS, onType
+-				.getName());
++		ContextToken tok = CompilationAndWeavingContext.enteringPhase(CompilationAndWeavingContext.PROCESSING_TYPE_MUNGERS,
++				onType.getName());
+ 		if (onType.isRawType() || onType.isParameterizedType()) {
+ 			onType = onType.getGenericType();
+ 		}
+@@ -1721,7 +1724,7 @@ public class BcelWeaver {
+ 				String pkgname = classType.getResolvedTypeX().getPackageName();
+ 				String tname = classType.getResolvedTypeX().getSimpleBaseName();
+ 				IProgramElement typeElement = hierarchy.findElementForType(pkgname, tname);
+-				if (typeElement != null && !hasInnerAspect(typeElement)) {
++				if (typeElement != null && !hasInnerType(typeElement)) {
+ 
+ 					// Set<String> deleted = new HashSet<String>();
+ 					// deleted.add(model.getCanonicalFilePath(typeElement.getSourceLocation().getSourceFile()));
+@@ -1782,14 +1785,18 @@ public class BcelWeaver {
+ 
+ 	// ---- writing
+ 
+-	private boolean hasInnerAspect(IProgramElement typeNode) {
++	// TODO could be smarter - really only matters if inner type has been woven, but there is a chance we haven't woven it *yet*
++	private boolean hasInnerType(IProgramElement typeNode) {
+ 		for (IProgramElement child : typeNode.getChildren()) {
+ 			IProgramElement.Kind kind = child.getKind();
+-			if (kind == IProgramElement.Kind.ASPECT) {
++			if (kind.isType()) {
+ 				return true;
+ 			}
+-			if (kind.isType()) {
+-				boolean b = hasInnerAspect(child);
++			// if (kind == IProgramElement.Kind.ASPECT) {
++			// return true;
++			// }
++			if (kind.isType() || kind == IProgramElement.Kind.METHOD || kind == IProgramElement.Kind.CONSTRUCTOR) {
++				boolean b = hasInnerType(child);
+ 				if (b) {
+ 					return b;
+ 				}
+@@ -0,0 +1,18 @@
++package generics;
++
++public class ActionExecutor {
++	public static void main(String[] args) {
++		DeleteAction<String> d = new DeleteAction<String>() {
++			public String getSelected() {
++				throw new RuntimeException();
++			}
++			
++		}; 
++		d.delete2++;  
++		d.delete3.add(null);
++	}
++	 
++	void nothing2(DeleteAction<String> g) {
++		g.delete2++;
++	}
++}
+\ No newline at end of file
+@@ -0,0 +1,12 @@
++package generics;
++import java.util.List;
++
++
++public interface DeleteAction<T extends Object>{
++
++    public void delete();
++    
++    public T getSelected(); 
++
++} 
++ 
+\ No newline at end of file
+@@ -0,0 +1,30 @@
++package generics;
++
++import java.util.List;
++
++
++public aspect DeleteActionAspect {
++
++    public void DeleteAction<T extends Object>.delete() {
++            Object selected = getSelected();
++            selected.toString();
++            delete3.add("");
++    } 
++	 
++	public int DeleteAction<T extends Object>.delete2;
++	
++	public List<String> DeleteAction.delete3;
++	
++	
++	public static void main(String[] args) {
++		DeleteAction<String> d = new DeleteAction<String>() {
++			public String getSelected() {
++				throw new RuntimeException();
++			}
++			
++		};
++		d.delete2++; 
++		d.delete3.add(null);
++	}
++
++} 
+\ No newline at end of file
+@@ -0,0 +1,14 @@
++package test;
++
++import java.util.List;
++ 
++public class Demo {
++    
++    void g() {
++        new Demo(7).foo(null);
++        x++;	
++        this.x++;
++        MyAspect.aspectOf();
++        MyAspect.hasAspect();
++    }
++}  
+\ No newline at end of file
+@@ -0,0 +1,63 @@
++package test;
++import java.util.List;
++
++public aspect MyAspect {
++	
++	@MyAnnotation(val = 5)
++	private Integer Demo.version;    
++
++	
++	List<String> Demo.list = null;
++	int Demo.x = 5;
++	
++	void Demo.foo(List<String> x) {
++		MyAspect.hasAspect();
++	}
++	 
++	public Demo.new(int x) { 
++		this();
++	}
++	
++    declare warning : execution(* *.nothing(..)) : "blah";
++    
++    declare error : execution(* *.nothing(..)) : "blah";
++    
++	declare soft : Exception : execution(* *.nothing(..));
++	
++	
++    protected pointcut s():
++        call(String Demo.toString(..));
++
++    before (): s() {
++    }
++    after (): s() {
++    }
++    void around (): s() {
++        proceed();
++        return;
++    }
++    after () returning(): s() {
++    }
++    after () throwing(): s() {
++    	thisEnclosingJoinPointStaticPart.getClass();
++    	thisJoinPoint.getClass();
++    	thisJoinPointStaticPart.getClass();  
++    }
++    
++    @interface MyAnnotation {
++    	int val() default 5;
++    }
++
++    // try out declare annotation
++	declare @type : Demo : @MyAnnotation;   
++    declare @field: int Demo.x: @MyAnnotation;
++    declare @method: void Demo.foo(..): @MyAnnotation;
++    declare @constructor: public Demo.new(int): @MyAnnotation; 
++
++    // try out abstract ITDs
++    public abstract long Abstract.nothing();
++
++    public static abstract class Abstract { }
++
++    
++}
+@@ -0,0 +1,10 @@
++package test;
++
++
++public class OtherClass {
++    void x() {
++        Demo d = new Demo(4);
++        d.foo(null);
++        d.x ++; 
++    } 
++}
+\ No newline at end of file
+@@ -0,0 +1,29 @@
++package test2;
++
++import test.Demo;
++import test2.MyAspect2;
++
++public aspect MyAspect2 {
++    
++    static interface Bar {
++        
++    }
++    declare parents : Demo implements Bar, Cloneable;
++    
++    public int Bar.bar() { 
++        return 7;
++    }
++
++    
++    static class Foo {
++        public Foo() {
++             
++        } 
++    }
++    declare parents : Demo extends Foo;
++    
++    public int Foo.baz() {
++    	return 7;
++    } 
++
++}
+@@ -0,0 +1,15 @@
++package test2;
++
++import test.Demo;
++
++public class OtherClass2 {
++    void x() {
++        Demo d = new Demo(4); 
++        d.bar(); 
++        d.baz();
++        // causes error for now see note at end of AJCompilationUnitProblemFinder.isARealProblem
++//        ((MyAspect2.Bar) d).bar();
++        ((MyAspect2.Foo) d).baz();
++        ((Cloneable) d).toString();
++    } 
++}        
+\ No newline at end of file
+@@ -543,7 +543,7 @@ public class IncrementalCompilationTests extends AbstractMultiProjectIncremental
+ 		configureNonStandardCompileOptions(p, "-Xset:minimalModel=true");
+ 		build(p);
+ 		checkWasFullBuild();
+-		printModel(p);
++		//		printModel(p);
+ 		// Here is the model without deletion.
+ 		//		PR278496_4  [build configuration file]  hid:=PR278496_4
+ 		//		  foo  [package]  hid:=PR278496_4<foo
+@@ -569,4 +569,151 @@ public class IncrementalCompilationTests extends AbstractMultiProjectIncremental
+ 				"=PR278496_4<foo{MyOtherClass.java[MyOtherClass[MyInnerClass'MyInnerInnerAspect", false);
+ 		assertNotNull(ipe);
+ 	}
++
++	public void testDeletionAnonInnerType_278496_8() throws Exception {
++		String p = "PR278496_8";
++		initialiseProject(p);
++		configureNonStandardCompileOptions(p, "-Xset:minimalModel=true");
++		build(p);
++		checkWasFullBuild();
++		//		printModel(p);
++		// Here is the model without deletion.
++		//		PR278496_8  [build configuration file]  hid:=PR278496_8
++		//		  generics  [package]  hid:=PR278496_8<generics
++		//		    DeleteActionAspect.aj  [java source file] 1 hid:=PR278496_8<generics*DeleteActionAspect.aj
++		//		      generics  [package declaration] 1 hid:=PR278496_8<generics*DeleteActionAspect.aj%generics
++		//		        [import reference]  hid:=PR278496_8<generics*DeleteActionAspect.aj#
++		//		        java.util.List  [import reference] 3 hid:=PR278496_8<generics*DeleteActionAspect.aj#java.util.List
++		//		      DeleteActionAspect  [aspect] 6 hid:=PR278496_8<generics*DeleteActionAspect.aj'DeleteActionAspect
++		//		        DeleteAction.delete()  [inter-type method] 8 hid:=PR278496_8<generics*DeleteActionAspect.aj'DeleteActionAspect)DeleteAction.delete
++		//		        DeleteAction.delete2  [inter-type field] 14 hid:=PR278496_8<generics*DeleteActionAspect.aj'DeleteActionAspect,DeleteAction.delete2
++		//		        DeleteAction.delete3  [inter-type field] 16 hid:=PR278496_8<generics*DeleteActionAspect.aj'DeleteActionAspect,DeleteAction.delete3
++		//		        main(java.lang.String[])  [method] 19 hid:=PR278496_8<generics*DeleteActionAspect.aj'DeleteActionAspect~main~\[QString;
++		//		          new DeleteAction<String>() {..}  [class] 20 hid:=PR278496_8<generics*DeleteActionAspect.aj'DeleteActionAspect~main~\[QString;[
++		//		            getSelected()  [method] 21 hid:=PR278496_8<generics*DeleteActionAspect.aj'DeleteActionAspect~main~\[QString;[~getSelected
++		//		    ActionExecutor.java  [java source file] 1 hid:=PR278496_8<generics{ActionExecutor.java
++		//		      generics  [package declaration] 1 hid:=PR278496_8<generics{ActionExecutor.java%generics
++		//		        [import reference]  hid:=PR278496_8<generics{ActionExecutor.java#
++		//		      ActionExecutor  [class] 3 hid:=PR278496_8<generics{ActionExecutor.java[ActionExecutor
++		//		        main(java.lang.String[])  [method] 4 hid:=PR278496_8<generics{ActionExecutor.java[ActionExecutor~main~\[QString;
++		//		          new DeleteAction<String>() {..}  [class] 5 hid:=PR278496_8<generics{ActionExecutor.java[ActionExecutor~main~\[QString;[
++		//		            getSelected()  [method] 6 hid:=PR278496_8<generics{ActionExecutor.java[ActionExecutor~main~\[QString;[~getSelected
++		//		        nothing2(generics.DeleteAction<java.lang.String>)  [method] 15 hid:=PR278496_8<generics{ActionExecutor.java[ActionExecutor~nothing2~QDeleteAction\<QString;>;
++		//		    DeleteAction.java  [java source file] 1 hid:=PR278496_8<generics{DeleteAction.java
++		//		      generics  [package declaration] 1 hid:=PR278496_8<generics{DeleteAction.java%generics
++		//		        [import reference]  hid:=PR278496_8<generics{DeleteAction.java#
++		//		        java.util.List  [import reference] 2 hid:=PR278496_8<generics{DeleteAction.java#java.util.List
++		//		      DeleteAction  [interface] 5 hid:=PR278496_8<generics{DeleteAction.java[DeleteAction
++		//		        delete()  [method] 7 hid:=PR278496_8<generics{DeleteAction.java[DeleteAction~delete
++		//		        getSelected()  [method] 9 hid:=PR278496_8<generics{DeleteAction.java[DeleteAction~getSelected
++		//		  test  [package]  hid:=PR278496_8<test
++		//		    MyAspect.aj  [java source file] 1 hid:=PR278496_8<test*MyAspect.aj
++		//		      test  [package declaration] 1 hid:=PR278496_8<test*MyAspect.aj%test
++		//		        [import reference]  hid:=PR278496_8<test*MyAspect.aj#
++		//		        java.util.List  [import reference] 2 hid:=PR278496_8<test*MyAspect.aj#java.util.List
++		//		      MyAspect  [aspect] 4 hid:=PR278496_8<test*MyAspect.aj'MyAspect
++		//		        MyAnnotation  [annotation] 47 hid:=PR278496_8<test*MyAspect.aj'MyAspect[MyAnnotation
++		//		        Abstract  [class] 60 hid:=PR278496_8<test*MyAspect.aj'MyAspect[Abstract
++		//		        Demo.version  [inter-type field] 7 hid:=PR278496_8<test*MyAspect.aj'MyAspect,Demo.version
++		//		        Demo.list  [inter-type field] 10 hid:=PR278496_8<test*MyAspect.aj'MyAspect,Demo.list
++		//		        Demo.x  [inter-type field] 11 hid:=PR278496_8<test*MyAspect.aj'MyAspect,Demo.x
++		//		        Demo.foo(java.util.List<java.lang.String>)  [inter-type method] 13 hid:=PR278496_8<test*MyAspect.aj'MyAspect)Demo.foo)QList\<QString;>;
++		//		        Demo.Demo(int)  [inter-type constructor] 17 hid:=PR278496_8<test*MyAspect.aj'MyAspect)Demo.Demo_new)I
++		//		        declare warning: "blah"  [declare warning] 21 hid:=PR278496_8<test*MyAspect.aj'MyAspect`declare warning
++		//		        declare error: "blah"  [declare error] 23 hid:=PR278496_8<test*MyAspect.aj'MyAspect`declare error!2
++		//		        declare soft: java.lang.Exception  [declare soft] 25 hid:=PR278496_8<test*MyAspect.aj'MyAspect`declare soft!3
++		//		        s()  [pointcut] 28 hid:=PR278496_8<test*MyAspect.aj'MyAspect"s
++		//		        before(): s..  [advice] 31 hid:=PR278496_8<test*MyAspect.aj'MyAspect&before
++		//		        after(): s..  [advice] 33 hid:=PR278496_8<test*MyAspect.aj'MyAspect&after
++		//		        around(): s..  [advice] 35 hid:=PR278496_8<test*MyAspect.aj'MyAspect&around
++		//		        afterReturning(): s..  [advice] 39 hid:=PR278496_8<test*MyAspect.aj'MyAspect&afterReturning
++		//		        afterThrowing(): s..  [advice] 41 hid:=PR278496_8<test*MyAspect.aj'MyAspect&afterThrowing
++		//		        declare @type: test.Demo : @MyAnnotation  [declare @type] 52 hid:=PR278496_8<test*MyAspect.aj'MyAspect`declare \@type
++		//		        declare @field: int test.Demo.x : @MyAnnotation  [declare @field] 53 hid:=PR278496_8<test*MyAspect.aj'MyAspect`declare \@field
++		//		        declare @method: void test.Demo.foo(..) : @MyAnnotation  [declare @method] 54 hid:=PR278496_8<test*MyAspect.aj'MyAspect`declare \@method
++		//		        declare @constructor: public test.Demo.new(int) : @MyAnnotation  [declare @constructor] 55 hid:=PR278496_8<test*MyAspect.aj'MyAspect`declare \@constructor
++		//		        Abstract.nothing()  [inter-type method] 58 hid:=PR278496_8<test*MyAspect.aj'MyAspect)Abstract.nothing
++		//		    Demo.aj  [java source file] 1 hid:=PR278496_8<test*Demo.aj
++		//		      test  [package declaration] 1 hid:=PR278496_8<test*Demo.aj%test
++		//		        [import reference]  hid:=PR278496_8<test*Demo.aj#
++		//		        test.MyAspect$MyAnnotation  [import reference] 1 hid:=PR278496_8<test*Demo.aj#test.MyAspect$MyAnnotation
++		//		        java.util.List  [import reference] 3 hid:=PR278496_8<test*Demo.aj#java.util.List
++		//		      Demo  [class] 5 hid:=PR278496_8<test*Demo.aj[Demo
++		//		        g()  [method] 7 hid:=PR278496_8<test*Demo.aj[Demo~g
++		//		    OtherClass.aj  [java source file] 1 hid:=PR278496_8<test*OtherClass.aj
++		//		      test  [package declaration] 1 hid:=PR278496_8<test*OtherClass.aj%test
++		//		        [import reference]  hid:=PR278496_8<test*OtherClass.aj#
++		//		      OtherClass  [class] 4 hid:=PR278496_8<test*OtherClass.aj[OtherClass
++		//		        x()  [method] 5 hid:=PR278496_8<test*OtherClass.aj[OtherClass~x
++		//		  test2  [package]  hid:=PR278496_8<test2
++		//		    MyAspect2.aj  [java source file] 1 hid:=PR278496_8<test2*MyAspect2.aj
++		//		      test2  [package declaration] 4 hid:=PR278496_8<test2*MyAspect2.aj%test2
++		//		        [import reference]  hid:=PR278496_8<test2*MyAspect2.aj#
++		//		        test.Demo  [import reference] 3 hid:=PR278496_8<test2*MyAspect2.aj#test.Demo
++		//		      MyAspect2  [aspect] 6 hid:=PR278496_8<test2*MyAspect2.aj'MyAspect2
++		//		        Bar  [interface] 8 hid:=PR278496_8<test2*MyAspect2.aj'MyAspect2[Bar
++		//		        Foo  [class] 18 hid:=PR278496_8<test2*MyAspect2.aj'MyAspect2[Foo
++		//		          Foo()  [constructor] 19 hid:=PR278496_8<test2*MyAspect2.aj'MyAspect2[Foo~Foo
++		//		        declare parents: implements MyAspect2$Bar,Cloneable  [declare parents] 11 hid:=PR278496_8<test2*MyAspect2.aj'MyAspect2`declare parents
++		//		        Bar.bar()  [inter-type method] 13 hid:=PR278496_8<test2*MyAspect2.aj'MyAspect2)Bar.bar
++		//		        declare parents: extends MyAspect2$Foo  [declare parents] 23 hid:=PR278496_8<test2*MyAspect2.aj'MyAspect2`declare parents!2
++		//		        Foo.baz()  [inter-type method] 25 hid:=PR278496_8<test2*MyAspect2.aj'MyAspect2)Foo.baz
++		//		    OtherClass2.aj  [java source file] 1 hid:=PR278496_8<test2*OtherClass2.aj
++		//		      test2  [package declaration] 1 hid:=PR278496_8<test2*OtherClass2.aj%test2
++		//		        [import reference]  hid:=PR278496_8<test2*OtherClass2.aj#
++		//		        test.Demo  [import reference] 3 hid:=PR278496_8<test2*OtherClass2.aj#test.Demo
++		//		      OtherClass2  [class] 5 hid:=PR278496_8<test2*OtherClass2.aj[OtherClass2
++		//		        x()  [method] 6 hid:=PR278496_8<test2*OtherClass2.aj[OtherClass2~x
++		//		Hid:1:(targets=1) =PR278496_8<test*MyAspect.aj'MyAspect,Demo.version (declared on) =PR278496_8<test*Demo.aj[Demo
++		//		Hid:2:(targets=1) =PR278496_8<test*MyAspect.aj'MyAspect)Abstract.nothing (declared on) =PR278496_8<test*MyAspect.aj'MyAspect[Abstract
++		//		Hid:3:(targets=1) =PR278496_8<test*Demo.aj[Demo (annotated by) =PR278496_8<test*MyAspect.aj'MyAspect`declare \@type
++		//		Hid:4:(targets=8) =PR278496_8<test*Demo.aj[Demo (aspect declarations) =PR278496_8<test2*MyAspect2.aj'MyAspect2`declare parents!2
++		//		Hid:5:(targets=8) =PR278496_8<test*Demo.aj[Demo (aspect declarations) =PR278496_8<test2*MyAspect2.aj'MyAspect2`declare parents
++		//		Hid:6:(targets=8) =PR278496_8<test*Demo.aj[Demo (aspect declarations) =PR278496_8<test2*MyAspect2.aj'MyAspect2)Bar.bar
++		//		Hid:7:(targets=8) =PR278496_8<test*Demo.aj[Demo (aspect declarations) =PR278496_8<test*MyAspect.aj'MyAspect,Demo.version
++		//		Hid:8:(targets=8) =PR278496_8<test*Demo.aj[Demo (aspect declarations) =PR278496_8<test*MyAspect.aj'MyAspect,Demo.list
++		//		Hid:9:(targets=8) =PR278496_8<test*Demo.aj[Demo (aspect declarations) =PR278496_8<test*MyAspect.aj'MyAspect,Demo.x
++		//		Hid:10:(targets=8) =PR278496_8<test*Demo.aj[Demo (aspect declarations) =PR278496_8<test*MyAspect.aj'MyAspect)Demo.foo)QList\<QString;>;
++		//		Hid:11:(targets=8) =PR278496_8<test*Demo.aj[Demo (aspect declarations) =PR278496_8<test*MyAspect.aj'MyAspect)Demo.Demo_new)I
++		//		Hid:12:(targets=1) =PR278496_8<test*MyAspect.aj'MyAspect`declare \@type (annotates) =PR278496_8<test*Demo.aj[Demo
++		//		Hid:13:(targets=1) =PR278496_8<test*MyAspect.aj'MyAspect,Demo.list (declared on) =PR278496_8<test*Demo.aj[Demo
++		//		Hid:14:(targets=1) =PR278496_8<test*MyAspect.aj'MyAspect)Demo.foo)QList\<QString;>; (declared on) =PR278496_8<test*Demo.aj[Demo
++		//		Hid:15:(targets=1) =PR278496_8<test2*MyAspect2.aj'MyAspect2`declare parents!2 (declared on) =PR278496_8<test*Demo.aj[Demo
++		//		Hid:16:(targets=3) =PR278496_8<generics*DeleteActionAspect.aj'DeleteActionAspect,DeleteAction.delete2 (declared on) =PR278496_8<generics*DeleteActionAspect.aj'DeleteActionAspect~main~\[QString;[
++		//		Hid:17:(targets=3) =PR278496_8<generics*DeleteActionAspect.aj'DeleteActionAspect,DeleteAction.delete2 (declared on) =PR278496_8<generics{ActionExecutor.java[ActionExecutor~main~\[QString;[
++		//		Hid:18:(targets=3) =PR278496_8<generics*DeleteActionAspect.aj'DeleteActionAspect,DeleteAction.delete2 (declared on) =PR278496_8<generics{DeleteAction.java[DeleteAction
++		//		Hid:19:(targets=1) =PR278496_8<test*MyAspect.aj'MyAspect`declare \@constructor (annotates) =PR278496_8<test*MyAspect.aj'MyAspect)Demo.Demo_new)I
++		//		Hid:20:(targets=3) =PR278496_8<generics*DeleteActionAspect.aj'DeleteActionAspect,DeleteAction.delete3 (declared on) =PR278496_8<generics*DeleteActionAspect.aj'DeleteActionAspect~main~\[QString;[
++		//		Hid:21:(targets=3) =PR278496_8<generics*DeleteActionAspect.aj'DeleteActionAspect,DeleteAction.delete3 (declared on) =PR278496_8<generics{ActionExecutor.java[ActionExecutor~main~\[QString;[
++		//		Hid:22:(targets=3) =PR278496_8<generics*DeleteActionAspect.aj'DeleteActionAspect,DeleteAction.delete3 (declared on) =PR278496_8<generics{DeleteAction.java[DeleteAction
++		//		Hid:23:(targets=1) =PR278496_8<test*MyAspect.aj'MyAspect[Abstract (aspect declarations) =PR278496_8<test*MyAspect.aj'MyAspect)Abstract.nothing
++		//		Hid:24:(targets=1) =PR278496_8<test2*MyAspect2.aj'MyAspect2`declare parents (declared on) =PR278496_8<test*Demo.aj[Demo
++		//		Hid:25:(targets=3) =PR278496_8<generics*DeleteActionAspect.aj'DeleteActionAspect)DeleteAction.delete (declared on) =PR278496_8<generics*DeleteActionAspect.aj'DeleteActionAspect~main~\[QString;[
++		//		Hid:26:(targets=3) =PR278496_8<generics*DeleteActionAspect.aj'DeleteActionAspect)DeleteAction.delete (declared on) =PR278496_8<generics{ActionExecutor.java[ActionExecutor~main~\[QString;[
++		//		Hid:27:(targets=3) =PR278496_8<generics*DeleteActionAspect.aj'DeleteActionAspect)DeleteAction.delete (declared on) =PR278496_8<generics{DeleteAction.java[DeleteAction
++		//		Hid:28:(targets=1) =PR278496_8<test*MyAspect.aj'MyAspect`declare \@field (annotates) =PR278496_8<test*MyAspect.aj'MyAspect,Demo.x
++		//		Hid:29:(targets=3) =PR278496_8<generics{ActionExecutor.java[ActionExecutor~main~\[QString;[ (aspect declarations) =PR278496_8<generics*DeleteActionAspect.aj'DeleteActionAspect)DeleteAction.delete
++		//		Hid:30:(targets=3) =PR278496_8<generics{ActionExecutor.java[ActionExecutor~main~\[QString;[ (aspect declarations) =PR278496_8<generics*DeleteActionAspect.aj'DeleteActionAspect,DeleteAction.delete2
++		//		Hid:31:(targets=3) =PR278496_8<generics{ActionExecutor.java[ActionExecutor~main~\[QString;[ (aspect declarations) =PR278496_8<generics*DeleteActionAspect.aj'DeleteActionAspect,DeleteAction.delete3
++		//		Hid:32:(targets=3) =PR278496_8<generics*DeleteActionAspect.aj'DeleteActionAspect~main~\[QString;[ (aspect declarations) =PR278496_8<generics*DeleteActionAspect.aj'DeleteActionAspect)DeleteAction.delete
++		//		Hid:33:(targets=3) =PR278496_8<generics*DeleteActionAspect.aj'DeleteActionAspect~main~\[QString;[ (aspect declarations) =PR278496_8<generics*DeleteActionAspect.aj'DeleteActionAspect,DeleteAction.delete2
++		//		Hid:34:(targets=3) =PR278496_8<generics*DeleteActionAspect.aj'DeleteActionAspect~main~\[QString;[ (aspect declarations) =PR278496_8<generics*DeleteActionAspect.aj'DeleteActionAspect,DeleteAction.delete3
++		//		Hid:35:(targets=3) =PR278496_8<generics{DeleteAction.java[DeleteAction (aspect declarations) =PR278496_8<generics*DeleteActionAspect.aj'DeleteActionAspect)DeleteAction.delete
++		//		Hid:36:(targets=3) =PR278496_8<generics{DeleteAction.java[DeleteAction (aspect declarations) =PR278496_8<generics*DeleteActionAspect.aj'DeleteActionAspect,DeleteAction.delete2
++		//		Hid:37:(targets=3) =PR278496_8<generics{DeleteAction.java[DeleteAction (aspect declarations) =PR278496_8<generics*DeleteActionAspect.aj'DeleteActionAspect,DeleteAction.delete3
++		//		Hid:38:(targets=1) =PR278496_8<test2*MyAspect2.aj'MyAspect2[Foo (aspect declarations) =PR278496_8<test2*MyAspect2.aj'MyAspect2)Foo.baz
++		//		Hid:39:(targets=1) =PR278496_8<test*MyAspect.aj'MyAspect)Demo.Demo_new)I (annotated by) =PR278496_8<test*MyAspect.aj'MyAspect`declare \@constructor
++		//		Hid:40:(targets=1) =PR278496_8<test*MyAspect.aj'MyAspect)Demo.Demo_new)I (declared on) =PR278496_8<test*Demo.aj[Demo
++		//		Hid:41:(targets=1) =PR278496_8<test*MyAspect.aj'MyAspect,Demo.x (annotated by) =PR278496_8<test*MyAspect.aj'MyAspect`declare \@field
++		//		Hid:42:(targets=1) =PR278496_8<test*MyAspect.aj'MyAspect,Demo.x (declared on) =PR278496_8<test*Demo.aj[Demo
++		//		Hid:43:(targets=2) =PR278496_8<test2*MyAspect2.aj'MyAspect2)Bar.bar (declared on) =PR278496_8<test2*MyAspect2.aj'MyAspect2[Bar
++		//		Hid:44:(targets=2) =PR278496_8<test2*MyAspect2.aj'MyAspect2)Bar.bar (declared on) =PR278496_8<test*Demo.aj[Demo
++		//		Hid:45:(targets=1) =PR278496_8<test2*MyAspect2.aj'MyAspect2[Bar (aspect declarations) =PR278496_8<test2*MyAspect2.aj'MyAspect2)Bar.bar
++		//		Hid:46:(targets=1) =PR278496_8<test2*MyAspect2.aj'MyAspect2)Foo.baz (declared on) =PR278496_8<test2*MyAspect2.aj'MyAspect2[Foo
++		AspectJElementHierarchy model = (AspectJElementHierarchy) getModelFor(p).getHierarchy();
++		// check handle to anonymous inner:
++		IProgramElement ipe = model.findElementForHandleOrCreate(
++				"=PR278496_8<generics*DeleteActionAspect.aj'DeleteActionAspect~main~\\[QString;[", false);
++		assertNotNull(ipe);
++	}
+ }
+@@ -421,6 +421,10 @@ public abstract class World implements Dump.INode {
+ 		return ret;
+ 	}
+ 
++	public ReferenceType resolveToReferenceType(String name) {
++		return (ReferenceType) resolve(name);
++	}
++
+ 	public ResolvedType resolve(String name, boolean allowMissing) {
+ 		return resolve(UnresolvedType.forName(name), allowMissing);
+ 	}
+@@ -981,17 +985,18 @@ public abstract class World implements Dump.INode {
+ 	 */
+ 	public static class TypeMap {
+ 
+-		private static boolean debug = false;
+-
+-		private boolean demotionSystemActive;
+-		private boolean debugDemotion = false;
+-
+ 		// Strategy for entries in the expendable map
+ 		public final static int DONT_USE_REFS = 0; // Hang around forever
+ 		public final static int USE_WEAK_REFS = 1; // Collected asap
+-		public final static int USE_SOFT_REFS = 2; // Collected when short on
+-		// memory
+-		List<String> addedSinceLastDemote;
++		public final static int USE_SOFT_REFS = 2; // Collected when short on memory
++
++		public List<String> addedSinceLastDemote;
++		public List<String> writtenClasses;
++
++		private static boolean debug = false;
++		public static boolean useExpendableMap = true; // configurable for reliable testing
++		private boolean demotionSystemActive;
++		private boolean debugDemotion = false;
+ 
+ 		public int policy = USE_WEAK_REFS;
+ 
+@@ -1013,8 +1018,10 @@ public abstract class World implements Dump.INode {
+ 		// private static Trace trace = TraceFactory.getTraceFactory().getTrace(World.TypeMap.class);
+ 
+ 		TypeMap(World w) {
+-			demotionSystemActive = w.isDemotionActive();
++			// Demotion activated when switched on and loadtime weaving or in AJDT
++			demotionSystemActive = w.isDemotionActive() && (w.isLoadtimeWeaving() || w.couldIncrementalCompileFollow());
+ 			addedSinceLastDemote = new ArrayList<String>();
++			writtenClasses = new ArrayList<String>();
+ 			this.w = w;
+ 			memoryProfiling = false;// !w.getMessageHandler().isIgnoring(Message.
+ 			// INFO);
+@@ -1043,48 +1050,105 @@ public abstract class World implements Dump.INode {
+ 		 * @return number of types demoted
+ 		 */
+ 		public int demote(boolean atEndOfCompile) {
+-			if (!demotionSystemActive || (!atEndOfCompile && !w.isLoadtimeWeaving())) {
++			if (!demotionSystemActive) {
+ 				return 0;
+ 			}
++			if (debugDemotion) {
++				System.out.println("Demotion running " + addedSinceLastDemote);
++			}
++			boolean isLtw = w.isLoadtimeWeaving();
+ 			int demotionCounter = 0;
+-			boolean ctw = !w.isLoadtimeWeaving();
+-			for (String key : addedSinceLastDemote) {
+-				ResolvedType type = tMap.get(key);
+-				if (type != null && !type.isAspect() && !type.equals(UnresolvedType.OBJECT) && !type.isPrimitiveType()) {
+-					if (type.isParameterizedOrRawType()) {
+-						type = type.getGenericType();
+-					}
+-					List<ConcreteTypeMunger> typeMungers = type.getInterTypeMungers();
+-					if (typeMungers == null || typeMungers.size() == 0) {
+-						ReferenceTypeDelegate delegate = ((ReferenceType) type).getDelegate();
+-						boolean isWeavable = delegate == null ? false : delegate.isWeavable();
+-						// boolean hasBeenWoven = delegate == null ? false : delegate.hasBeenWoven();
+-						// System.out.println("Might demote " + key + " delegate?" + (delegate == null) + " isWeavable?" + isWeavable);
+-						// + " hasBeenWoven?" + hasBeenWoven);
+-
+-						if (!ctw || !isWeavable) { // || hasBeenWoven) {
+-							// System.out.println("Demoting " + key);
++			if (isLtw) {
++				// Loadtime weaving demotion strategy
++				for (String key : addedSinceLastDemote) {
++					ResolvedType type = tMap.get(key);
++					if (type != null && !type.isAspect() && !type.equals(UnresolvedType.OBJECT) && !type.isPrimitiveType()) {
++						if (type.isParameterizedOrRawType()) {
++							type = type.getGenericType();
++						}
++						List<ConcreteTypeMunger> typeMungers = type.getInterTypeMungers();
++						if (typeMungers == null || typeMungers.size() == 0) {
+ 							tMap.remove(key);
+-							if (!expendableMap.containsKey(key)) {
+-								if (policy == USE_SOFT_REFS) {
+-									expendableMap.put(key, new SoftReference<ResolvedType>(type));
+-								} else {
+-									expendableMap.put(key, new WeakReference<ResolvedType>(type));
++							insertInExpendableMap(key, type);
++							demotionCounter++;
++						}
++					}
++				}
++				addedSinceLastDemote.clear();
++			} else {
++				// Compile time demotion strategy
++				List<String> forRemoval = new ArrayList<String>();
++				for (String key : addedSinceLastDemote) {
++					ResolvedType type = tMap.get(key);
++					if (!writtenClasses.contains(type.getName())) { // COSTLY
++						continue;
++					}
++					if (type != null && !type.isAspect() && !type.equals(UnresolvedType.OBJECT) && !type.isPrimitiveType()) {
++						if (type.isParameterizedOrRawType()) {
++							type = type.getGenericType();
++						}
++						List<ConcreteTypeMunger> typeMungers = type.getInterTypeMungers();
++						if (typeMungers == null || typeMungers.size() == 0) {
++							/*
++							 * if (type.isNested()) { try { ReferenceType rt = (ReferenceType) w.resolve(type.getOutermostType());
++							 * if (!rt.isMissing()) { ReferenceTypeDelegate delegate = ((ReferenceType) type).getDelegate(); boolean
++							 * isWeavable = delegate == null ? false : delegate.isExposedToWeaver(); boolean hasBeenWoven = delegate
++							 * == null ? false : delegate.hasBeenWoven(); if (isWeavable && !hasBeenWoven) { // skip demotion of
++							 * this inner type for now continue; } } } catch (ClassCastException cce) { cce.printStackTrace();
++							 * System.out.println("outer of " + key + " is not a reftype? " + type.getOutermostType()); // throw new
++							 * IllegalStateException(cce); } }
++							 */
++							ReferenceTypeDelegate delegate = ((ReferenceType) type).getDelegate();
++							boolean isWeavable = delegate == null ? false : delegate.isExposedToWeaver();
++							boolean hasBeenWoven = delegate == null ? false : delegate.hasBeenWoven();
++							if (!isWeavable || hasBeenWoven) {
++								if (debugDemotion) {
++									System.out.println("Demoting " + key);
+ 								}
++								forRemoval.add(key);
++								tMap.remove(key);
++								insertInExpendableMap(key, type);
++								demotionCounter++;
+ 							}
++						} else {
++							// no need to try this again, it will never be demoted
++							writtenClasses.remove(type.getName());
++							forRemoval.add(key);
+ 						}
+-						// }
+-						demotionCounter++;
++					} else {
++						writtenClasses.remove(type.getName());
++						// no need to try this again, it will never be demoted
++						forRemoval.add(key);
+ 					}
+ 				}
++				addedSinceLastDemote.removeAll(forRemoval);
+ 			}
+ 			if (debugDemotion) {
+-				System.out.println("Demoted " + demotionCounter + " types.  Types remaining in fixed set #" + tMap.keySet().size());
++				System.out.println("Demoted " + demotionCounter + " types.  Types remaining in fixed set #" + tMap.keySet().size()
++						+ ".  addedSinceLastDemote size is " + addedSinceLastDemote.size());
++				System.out.println("writtenClasses.size() = " + writtenClasses.size() + ": " + writtenClasses);
++			}
++			if (atEndOfCompile) {
++				if (debugDemotion) {
++					System.out.println("Clearing writtenClasses");
++				}
++				writtenClasses.clear();
+ 			}
+-			addedSinceLastDemote.clear();
+ 			return demotionCounter;
+ 		}
+ 
++		private void insertInExpendableMap(String key, ResolvedType type) {
++			if (useExpendableMap) {
++				if (!expendableMap.containsKey(key)) {
++					if (policy == USE_SOFT_REFS) {
++						expendableMap.put(key, new SoftReference<ResolvedType>(type));
++					} else {
++						expendableMap.put(key, new WeakReference<ResolvedType>(type));
++					}
++				}
++			}
++		}
++
+ 		/**
+ 		 * Add a new type into the map, the key is the type signature. Some types do *not* go in the map, these are ones involving
+ 		 * *member* type variables. The reason is that when all you have is the signature which gives you a type variable name, you
+@@ -1138,21 +1202,23 @@ public abstract class World implements Dump.INode {
+ 			}
+ 
+ 			if (w.isExpendable(type)) {
+-				// Dont use reference queue for tracking if not profiling...
+-				if (policy == USE_WEAK_REFS) {
+-					if (memoryProfiling) {
+-						expendableMap.put(key, new WeakReference<ResolvedType>(type, rq));
+-					} else {
+-						expendableMap.put(key, new WeakReference<ResolvedType>(type));
+-					}
+-				} else if (policy == USE_SOFT_REFS) {
+-					if (memoryProfiling) {
+-						expendableMap.put(key, new SoftReference<ResolvedType>(type, rq));
+-					} else {
+-						expendableMap.put(key, new SoftReference<ResolvedType>(type));
++				if (useExpendableMap) {
++					// Dont use reference queue for tracking if not profiling...
++					if (policy == USE_WEAK_REFS) {
++						if (memoryProfiling) {
++							expendableMap.put(key, new WeakReference<ResolvedType>(type, rq));
++						} else {
++							expendableMap.put(key, new WeakReference<ResolvedType>(type));
++						}
++					} else if (policy == USE_SOFT_REFS) {
++						if (memoryProfiling) {
++							expendableMap.put(key, new SoftReference<ResolvedType>(type, rq));
++						} else {
++							expendableMap.put(key, new SoftReference<ResolvedType>(type));
++						}
++						// } else {
++						// expendableMap.put(key, type);
+ 					}
+-					// } else {
+-					// expendableMap.put(key, type);
+ 				}
+ 				if (memoryProfiling && expendableMap.size() > maxExpendableMapSize) {
+ 					maxExpendableMapSize = expendableMap.size();
+@@ -1235,6 +1301,16 @@ public abstract class World implements Dump.INode {
+ 			return ret;
+ 		}
+ 
++		public void classWriteEvent(String classname) {
++			// that is a name com.Foo and not a signature Lcom/Foo; boooooooooo!
++			if (demotionSystemActive) {
++				writtenClasses.add(classname);
++			}
++			if (debugDemotion) {
++				System.out.println("Class write event for " + classname);
++			}
++		}
++
+ 		// public ResolvedType[] getAllTypes() {
+ 		// List/* ResolvedType */results = new ArrayList();
+ 		//
+@@ -1443,9 +1519,12 @@ public abstract class World implements Dump.INode {
+ 				}
+ 
+ 				s = p.getProperty(xsetTYPE_DEMOTION, "true"); // default is: ON (for ltw) OFF (for ctw)
+-				if (s.equalsIgnoreCase("false")) {
++				boolean b = typeMap.demotionSystemActive;
++				if (b && s.equalsIgnoreCase("false")) {
++					System.out.println("typeDemotion=false: type demotion switched OFF");
+ 					typeMap.demotionSystemActive = false;
+-				} else if (s.equalsIgnoreCase("true") && !typeMap.demotionSystemActive) {
++				} else if (!b && s.equalsIgnoreCase("true")) {
++					System.out.println("typeDemotion=true: type demotion switched ON");
+ 					typeMap.demotionSystemActive = true;
+ 				}
+ 
+@@ -1506,6 +1585,16 @@ public abstract class World implements Dump.INode {
+ 					System.out.println("ASPECTJ: aspectj.overweaving=true: overweaving switched ON");
+ 					overWeaving = true;
+ 				}
++				value = System.getProperty("aspectj.typeDemotion", "false");
++				if (value.equalsIgnoreCase("true")) {
++					System.out.println("ASPECTJ: aspectj.typeDemotion=true: type demotion switched ON");
++					typeMap.demotionSystemActive = true;
++				}
++				value = System.getProperty("aspectj.minimalModel", "false");
++				if (value.equalsIgnoreCase("true")) {
++					System.out.println("ASPECTJ: aspectj.minmalModel=true: minimal model switched ON");
++					minimalModel = true;
++				}
+ 			} catch (Throwable t) {
+ 				System.err.println("ASPECTJ: Unable to read system properties");
+ 				t.printStackTrace();
+@@ -1843,4 +1932,8 @@ public abstract class World implements Dump.INode {
+ 	// if not loadtime weaving then we are compile time weaving or post-compile time weaving
+ 	public abstract boolean isLoadtimeWeaving();
+ 
++	public void classWriteEvent(char[][] compoundName) {
++		// override if interested in write events
++	}
++
+ }
+\ No newline at end of file
+@@ -10,10 +10,20 @@
+  *******************************************************************/
+ package org.aspectj.systemtest.incremental.tools;
+ 
+-import junit.framework.Assert;
++import java.util.Set;
+ 
++import org.aspectj.ajde.core.internal.AjdeCoreBuildManager;
++import org.aspectj.ajdt.internal.core.builder.AjBuildManager;
+ import org.aspectj.asm.IProgramElement;
+ import org.aspectj.asm.internal.AspectJElementHierarchy;
++import org.aspectj.weaver.AnnotationAJ;
++import org.aspectj.weaver.ReferenceType;
++import org.aspectj.weaver.ReferenceTypeDelegate;
++import org.aspectj.weaver.ResolvedMember;
++import org.aspectj.weaver.ResolvedType;
++import org.aspectj.weaver.UnresolvedType;
++import org.aspectj.weaver.World;
++import org.aspectj.weaver.World.TypeMap;
+ 
+ /**
+  * Incremental compilation tests. MultiProjectIncrementalTests was getting unwieldy - started this new test class for 1.6.10.
+@@ -210,8 +220,8 @@ public class IncrementalCompilationTests extends AbstractMultiProjectIncremental
+ 
+ 		AspectJElementHierarchy model = (AspectJElementHierarchy) getModelFor(p).getHierarchy();
+ 		// Node for "Code.java" should not be there:
+-		IProgramElement ipe = model.findElementForHandleOrCreate("=PR278496_1<a.b.c{Code.java", false);
+-		Assert.assertNull(ipe);
++		IProgramElement ipe = model.findElementForHandleOrCreate("=PR278496_1<a.b.c{Code.java",false);
++		assertNull(ipe);
+ 	}
+ 
+ 	// deleting unaffected model entries
+@@ -235,10 +245,296 @@ public class IncrementalCompilationTests extends AbstractMultiProjectIncremental
+ 		//	Hid:1:(targets=1) =PR278496_2<{Azpect.java}Azpect)Code.m (declared on) =PR278496_2<{Code.java[Code
+ 		//	Hid:2:(targets=1) =PR278496_2<{Code.java[Code (aspect declarations) =PR278496_2<{Azpect.java}Azpect)Code.m
+ 
++
+ 		AspectJElementHierarchy model = (AspectJElementHierarchy) getModelFor(p).getHierarchy();
+ 		// Node for "Code.java" should be there since it is the target of a relationship
+-		IProgramElement ipe = model.findElementForHandleOrCreate("=PR278496_2<{Code.java", false);
+-		Assert.assertNotNull(ipe);
++		IProgramElement ipe = model.findElementForHandleOrCreate("=PR278496_2<{Code.java",false);
++		assertNotNull(ipe);
++	}
++
++	public void testWorldDemotion_278496_5() throws Exception {
++		String p = "PR278496_5";
++		initialiseProject(p);
++		configureNonStandardCompileOptions(p, "-Xset:typeDemotion=true");
++		build(p);
++		checkWasFullBuild();
++		alter(p,"inc1");
++		build(p);
++		checkWasntFullBuild();
++		AjdeCoreBuildManager buildManager = getCompilerForProjectWithName(p).getBuildManager();
++		AjBuildManager ajBuildManager = buildManager.getAjBuildManager();
++		World w = ajBuildManager.getWorld();
++		ReferenceTypeDelegate delegate = null;
++		delegate = w.resolveToReferenceType("com.Foo").getDelegate();
++		ResolvedMember[] fields = delegate.getDeclaredFields();
++		assertEquals("int com.Foo.i",fields[0].toString());
++		assertEquals("java.lang.String com.Foo.s",fields[1].toString());
++		assertEquals("java.util.List com.Foo.ls",fields[2].toString());
++
++		assertEquals("[Anno[Lcom/Anno; rVis]]", stringify(fields[2].getAnnotations()));
++		assertNotNull(fields[2].getAnnotationOfType(UnresolvedType.forSignature("Lcom/Anno;")));
++		assertNull(fields[2].getAnnotationOfType(UnresolvedType.forSignature("Lcom/Anno2;")));
++		assertTrue(fields[2].hasAnnotation(UnresolvedType.forSignature("Lcom/Anno;")));
++		assertFalse(fields[2].hasAnnotation(UnresolvedType.forSignature("Ljava/lang/String;")));
++		assertEquals(0,fields[1].getAnnotations().length);
++		assertEquals("[com.Anno2 com.Anno]",stringify(fields[3].getAnnotationTypes()));
++		assertEquals("[]",stringify(fields[1].getAnnotationTypes()));
++		assertEquals("[Anno[Lcom/Anno2; rVis a=(int)42] Anno[Lcom/Anno; rVis]]",stringify(fields[3].getAnnotations()));
++		assertEquals("[]",stringify(fields[1].getAnnotations()));
++
++		assertEquals("I",fields[0].getSignature());
++		assertEquals("Ljava/lang/String;",fields[1].getSignature());
++		assertEquals("Ljava/util/List;",fields[2].getSignature());
++		assertEquals("Pjava/util/List<Ljava/lang/String;>;",fields[2].getGenericReturnType().getSignature());
++		assertEquals("Ljava/util/List;",fields[3].getSignature());
++		assertEquals("Pjava/util/List<Ljava/lang/Integer;>;",fields[3].getGenericReturnType().getSignature());
++	}
++
++	public void testWorldDemotion_278496_6() throws Exception {
++		String p = "PR278496_6";
++		initialiseProject(p);
++		configureNonStandardCompileOptions(p, "-Xset:typeDemotion=true");
++		build(p);
++		checkWasFullBuild();
++		alter(p,"inc1");
++		build(p);
++		checkWasntFullBuild();
++		AjdeCoreBuildManager buildManager = getCompilerForProjectWithName(p).getBuildManager();
++		AjBuildManager ajBuildManager = buildManager.getAjBuildManager();
++		World w = ajBuildManager.getWorld();
++		ReferenceTypeDelegate delegate = null;
++		delegate = w.resolveToReferenceType("com.Meths").getDelegate();
++		//		assertTrue(delegate instanceof CompactTypeStructureDelegate);
++		ResolvedMember[] methods = delegate.getDeclaredMethods();
++		assertEquals("void com.Meths.<init>()",methods[0].toString());
++		assertEquals("void com.Meths.m()",methods[1].toString());
++		assertEquals("java.util.List com.Meths.n(int, long, java.util.List)",methods[2].toString());
++
++
++		System.out.println(stringify(methods[0].getAnnotations()));
++		System.out.println(stringify(methods[1].getAnnotations()));
++		System.out.println(stringify(methods[2].getAnnotations()));
++		assertEquals("[Anno[Lcom/Anno; rVis]]", stringify(methods[1].getAnnotations()));
++		//		assertNotNull(fields[2].getAnnotationOfType(UnresolvedType.forSignature("Lcom/Anno;")));
++		//		assertNull(fields[2].getAnnotationOfType(UnresolvedType.forSignature("Lcom/Anno2;")));
++		//		assertTrue(fields[2].hasAnnotation(UnresolvedType.forSignature("Lcom/Anno;")));
++		//		assertFalse(fields[2].hasAnnotation(UnresolvedType.forSignature("Ljava/lang/String;")));
++		//		assertEquals(0,fields[1].getAnnotations().length);
++		//		assertEquals("[com.Anno2 com.Anno]",stringify(fields[3].getAnnotationTypes()));
++		//		assertEquals("[]",stringify(fields[1].getAnnotationTypes()));
++		//		assertEquals("[Anno[Lcom/Anno2; rVis a=(int)42] Anno[Lcom/Anno; rVis]]",stringify(fields[3].getAnnotations()));
++		//		assertEquals("[]",stringify(fields[1].getAnnotations()));
++		//
++		//		assertEquals("I",fields[0].getSignature());
++		//		assertEquals("Ljava/lang/String;",fields[1].getSignature());
++		//		assertEquals("Ljava/util/List;",fields[2].getSignature());
++		//		assertEquals("Pjava/util/List<Ljava/lang/String;>;",fields[2].getGenericReturnType().getSignature());
++		//		assertEquals("Ljava/util/List;",fields[3].getSignature());
++		//		assertEquals("Pjava/util/List<Ljava/lang/Integer;>;",fields[3].getGenericReturnType().getSignature());
++	}
++
++	//	public void testWorldDemotion_278496_7() throws Exception {
++	//		boolean demotion = true;
++	//		AjdeInteractionTestbed.VERBOSE=true;
++	//		String p = "PR278496_7";
++	//		TypeMap.useExpendableMap=false;
++	//		initialiseProject(p);
++	//		if (demotion) {
++	//			configureNonStandardCompileOptions(p, "-Xset:typeDemotion=true,typeDemotionDebug=true");
++	//		}
++	//		build(p);
++	//		checkWasFullBuild();
++	//		assertNoErrors(p);
++	//		alter(p,"inc1");
++	//		build(p);
++	//		checkWasntFullBuild();
++	//		assertNoErrors(p);
++	//
++	//		AjdeCoreBuildManager buildManager = getCompilerForProjectWithName(p).getBuildManager();
++	//		AjBuildManager ajBuildManager = buildManager.getAjBuildManager();
++	//		World w = ajBuildManager.getWorld();
++	//	}
++
++	@Override
++	protected void tearDown() throws Exception {
++		super.tearDown();
++		TypeMap.useExpendableMap=true;
++	}
++
++	public void testWorldDemotion_278496_4() throws Exception {
++		String p = "PR278496_4";
++		// Setting this ensures types are forced out when demoted - we are not at the mercy of weak reference GC
++		TypeMap.useExpendableMap=false;
++		initialiseProject(p);
++		configureNonStandardCompileOptions(p, "-Xset:typeDemotion=true,typeDemotionDebug=true");
++		build(p);
++		checkWasFullBuild();
++		alter(p,"inc1");
++		build(p);
++		checkWasntFullBuild();
++
++		AjdeCoreBuildManager buildManager = getCompilerForProjectWithName(p).getBuildManager();
++		AjBuildManager ajBuildManager = buildManager.getAjBuildManager();
++		World w = ajBuildManager.getWorld();
++
++		// Confirm demoted:
++		assertNotInTypeMap(w,"Lcom/foo/Bar;");
++
++		ReferenceType rt =null;
++		ReferenceTypeDelegate delegate = null;
++		rt = w.resolveToReferenceType("com.foo.Bar");
++		delegate = rt.getDelegate();
++		// Should have been demoted to a CTSD
++		assertEquals(0,delegate.getAnnotations().length);
++		assertEquals(0,delegate.getAnnotationTypes().length);
++		assertEquals(0,delegate.getDeclaredInterfaces().length);
++		assertEquals("java.lang.Object",delegate.getSuperclass().toString());
++		assertNull(delegate.getRetentionPolicy());
++		assertFalse(delegate.isInterface());
++		assertTrue(delegate.isClass());
++		assertFalse(delegate.isEnum());
++		//		assertFalse(rtd.isWeavable());
++		//		try {
++		//			assertTrue(delegate.hasBeenWoven());
++		//			fail("expected exception");
++		//		} catch (IllegalStateException ise) {
++		//			// success
++		//		}
++
++		// Confirm demoted:
++		assertNull(w.getTypeMap().get("Lcom/foo/Color;"));
++		rt = w.resolveToReferenceType("com.foo.Color");
++		delegate = rt.getDelegate();
++		assertFalse(delegate.isInterface());
++		assertTrue(delegate.isEnum());
++
++		// Aspects are never demoted and so never have a per clause, declares or type mungers
++		assertNull(delegate.getPerClause());
++		assertEquals(0,delegate.getDeclares().size());
++		assertEquals(0,delegate.getTypeMungers().size());
++		assertFalse(delegate.isAspect());
++		assertEquals(0,delegate.getPrivilegedAccesses().size());
++		assertEquals(0,delegate.getDeclaredPointcuts().length);
++		assertFalse(delegate.isAnnotationStyleAspect());
++		assertFalse(delegate.isAnnotationWithRuntimeRetention());
++
++		// Confirm demoted:
++		assertNull(w.getTypeMap().get("Lcom/foo/Extender;"));
++		rt = w.resolveToReferenceType("com.foo.Extender");
++		delegate = rt.getDelegate();
++		assertEquals("[com.foo.Marker]",stringify(delegate.getDeclaredInterfaces()));
++		assertEquals("com.foo.Super",delegate.getSuperclass().toString());
++
++		// this has one fixed annotation that is a well known one
++		// Confirm demoted:
++		ResolvedType annoType = w.getTypeMap().get("Lcom/foo/Anno;");
++		assertNull(annoType);
++		rt = w.resolveToReferenceType("com.foo.Anno");
++		delegate = rt.getDelegate();
++		assertEquals("[Anno[Ljava/lang/annotation/Retention; rVis value=E(Ljava/lang/annotation/RetentionPolicy; RUNTIME)]]",stringify(delegate.getAnnotations()));
++		assertEquals("[java.lang.annotation.Retention]",stringify(delegate.getAnnotationTypes()));
++		assertTrue(delegate.isAnnotationWithRuntimeRetention());
++		assertEquals("RUNTIME",delegate.getRetentionPolicy());
++
++		// this has a bunch of well known ones
++		rt = w.resolveToReferenceType("com.foo.Anno2");
++		delegate = rt.getDelegate();
++		assertEquals("[Anno[Ljava/lang/Deprecated; rVis] Anno[Ljava/lang/annotation/Inherited; rVis] Anno[Ljava/lang/annotation/Retention; rVis value=E(Ljava/lang/annotation/RetentionPolicy; CLASS)]]",
++				stringify(delegate.getAnnotations()));
++		assertEquals("[java.lang.Deprecated java.lang.annotation.Inherited java.lang.annotation.Retention]",stringify(delegate.getAnnotationTypes()));
++		assertFalse(delegate.isAnnotationWithRuntimeRetention());
++		assertEquals("CLASS",delegate.getRetentionPolicy());
++		assertTrue(delegate.hasAnnotation(UnresolvedType.forSignature("Ljava/lang/annotation/Inherited;")));
++		assertTrue(delegate.hasAnnotation(UnresolvedType.forSignature("Ljava/lang/annotation/Retention;")));
++		assertFalse(delegate.hasAnnotation(UnresolvedType.forSignature("Lcom/foo/Anno;")));
++
++		// this has a well known one and a non-well known one
++		rt = w.resolveToReferenceType("com.foo.Anno3");
++		delegate = rt.getDelegate();
++		System.out.println(stringify(delegate.getAnnotations()));
++		assertEquals("[Anno[Lcom/foo/Anno; rVis] Anno[Ljava/lang/annotation/Retention; rVis value=E(Ljava/lang/annotation/RetentionPolicy; SOURCE)]]",stringify(delegate.getAnnotations()));
++		assertEquals("[com.foo.Anno java.lang.annotation.Retention]",stringify(delegate.getAnnotationTypes()));
++		assertFalse(delegate.isAnnotationWithRuntimeRetention());
++		assertEquals("SOURCE",delegate.getRetentionPolicy());
++
++		// this has two non-well known ones
++		rt = w.resolveToReferenceType("com.foo.Anno4");
++		delegate = rt.getDelegate();
++		assertEquals("[Anno[Lcom/foo/Anno2; rInvis] Anno[Lcom/foo/Anno; rVis]]",stringify(delegate.getAnnotations()));
++		assertEquals("[com.foo.Anno2 com.foo.Anno]",stringify(delegate.getAnnotationTypes()));
++		assertFalse(delegate.isAnnotationWithRuntimeRetention());
++		assertNull(delegate.getRetentionPolicy());
++		assertTrue(delegate.hasAnnotation(UnresolvedType.forSignature("Lcom/foo/Anno;")));
++
++
++		rt = w.resolveToReferenceType("com.foo.Colored");
++		delegate = rt.getDelegate();
++		AnnotationAJ annotation = delegate.getAnnotations()[0]; // should be ColorAnno(c=Color.G)
++		assertTrue(annotation.hasNamedValue("c"));
++		assertFalse(annotation.hasNamedValue("value"));
++		assertTrue(annotation.hasNameValuePair("c","Lcom/foo/Color;G"));
++		assertFalse(annotation.hasNameValuePair("c","Lcom/foo/Color;B"));
++		assertFalse(annotation.hasNameValuePair("d","xxx"));
++		assertNull(annotation.getStringFormOfValue("d"));
++		assertEquals("Lcom/foo/Color;G",annotation.getStringFormOfValue("c"));
++		assertEquals(0,annotation.getTargets().size());
++		assertTrue(delegate.isCacheable());
++
++		assertFalse(delegate.isExposedToWeaver());
++
++		//		assertEquals(w.resolve(UnresolvedType.forSignature("Lcom/foo/Colored;")),delegate.getResolvedTypeX());
++
++		assertEquals("com/foo/Colored.java",delegate.getSourcefilename());
++
++		// Anno5 has an @Target annotation
++		rt = w.resolveToReferenceType("com.foo.Anno5");
++		delegate = rt.getDelegate();
++		annotation = delegate.getAnnotations()[0]; // should be @Target(TYPE,FIELD)
++		Set<String> ss = annotation.getTargets();
++		assertEquals(2,ss.size());
++		assertTrue(ss.contains("FIELD"));
++		assertTrue(ss.contains("TYPE"));
++		//		AnnotationTargetKind[] kinds = delegate.getAnnotationTargetKinds();
++		//		assertEquals("FIELD",kinds[0].getName());
++		//		assertEquals("TYPE",kinds[1].getName());
++
++		rt = w.resolveToReferenceType("com.foo.Inners$Inner");
++		delegate = rt.getDelegate();
++		assertTrue(delegate.isNested());
++		assertEquals("com.foo.Inners",delegate.getOuterClass().getName());
++
++		rt = w.resolveToReferenceType("com.foo.Inners$1");
++		delegate = rt.getDelegate();
++		assertTrue(delegate.isAnonymous());
++		assertTrue(delegate.isNested());
++
++		//		delegate = w.resolveToReferenceType("com.foo.Anno6").getDelegate();
++		//		kinds = delegate.getAnnotationTargetKinds();
++		//		assertEquals(6,kinds.length);
++		//		String s = stringify(kinds);
++		//		assertTrue(s.contains("ANNOTATION_TYPE"));
++		//		assertTrue(s.contains("LOCAL_VARIABLE"));
++		//		assertTrue(s.contains("METHOD"));
++		//		assertTrue(s.contains("PARAMETER"));
++		//		assertTrue(s.contains("PACKAGE"));
++		//		assertTrue(s.contains("CONSTRUCTOR"));
++
++		delegate = w.resolveToReferenceType("com.foo.Marker").getDelegate();
++		assertTrue(delegate.isInterface());
++
++	}
++
++	private void assertNotInTypeMap(World w, String string) {
++		assertNull(w.getTypeMap().get(string));
++	}
++
++	private String stringify(Object[] arr) {
++		StringBuilder s = new StringBuilder();
++		for (int i=0;i<arr.length;i++) {
++			s.append(arr[i]);
++			s.append(" ");
++		}
++		return "["+s.toString().trim()+"]";
+ 	}
+ 
+ 	public void testDeletionInnerAspects_278496_4() throws Exception {
+@@ -269,9 +565,8 @@ public class IncrementalCompilationTests extends AbstractMultiProjectIncremental
+ 		//		Hid:2:(targets=1) =PR278496_4<foo{MyOtherClass.java[MyOtherClass[MyInnerClass}MyInnerInnerAspect&before (advises) =PR278496_4<foo{MyClass.java[MyClass~method1
+ 
+ 		AspectJElementHierarchy model = (AspectJElementHierarchy) getModelFor(p).getHierarchy();
+-
+ 		IProgramElement ipe = model.findElementForHandleOrCreate(
+ 				"=PR278496_4<foo{MyOtherClass.java[MyOtherClass[MyInnerClass'MyInnerInnerAspect", false);
+-		Assert.assertNotNull(ipe);
++		assertNotNull(ipe);
+ 	}
+ }
+@@ -44,6 +44,7 @@ import org.aspectj.apache.bcel.util.NonCachingClassLoaderRepository;
+ import org.aspectj.apache.bcel.util.Repository;
+ import org.aspectj.asm.AsmManager;
+ import org.aspectj.asm.IRelationship;
++import org.aspectj.asm.internal.CharOperation;
+ import org.aspectj.bridge.IMessage;
+ import org.aspectj.bridge.IMessageHandler;
+ import org.aspectj.bridge.ISourceLocation;
+@@ -1197,7 +1198,7 @@ public class BcelWorld extends World implements Repository {
+ 		typeDelegateResolvers.add(typeDelegateResolver);
+ 	}
+ 
+-	public void classWriteEvent(char[] classname) {
+-		typeMap.classWriteEvent(new String(classname));
++	public void classWriteEvent(char[][] compoundName) {
++		typeMap.classWriteEvent(new String(CharOperation.concatWith(compoundName, '.')));
+ 	}
+ }
+@@ -1063,10 +1063,10 @@ public class AjBuildManager implements IOutputClassFileNameProvider, IBinarySour
+ 				// this is either a jar file or a file in a directory
+ 				boolean hasErrors = unitResult.hasErrors();
+ 				if (!hasErrors || proceedOnError()) {
+-					Collection classFiles = unitResult.compiledTypes.values();
++					Collection<ClassFile> classFiles = unitResult.compiledTypes.values();
+ 					boolean shouldAddAspectName = (buildConfig.getOutxmlName() != null);
+-					for (Iterator iter = classFiles.iterator(); iter.hasNext();) {
+-						ClassFile classFile = (ClassFile) iter.next();
++					for (Iterator<ClassFile> iter = classFiles.iterator(); iter.hasNext();) {
++						ClassFile classFile = iter.next();
+ 						String filename = new String(classFile.fileName());
+ 						String classname = filename.replace('/', '.');
+ 						filename = filename.replace('/', File.separatorChar) + ".class";
+@@ -1074,6 +1074,7 @@ public class AjBuildManager implements IOutputClassFileNameProvider, IBinarySour
+ 						try {
+ 							if (buildConfig.getOutputJar() == null) {
+ 								String outfile = writeDirectoryEntry(unitResult, classFile, filename);
++								getWorld().classWriteEvent(classFile.getCompoundName());
+ 								if (environmentSupportsIncrementalCompilation) {
+ 									if (!classname.endsWith("$ajcMightHaveAspect")) {
+ 										ResolvedType type = getBcelWorld().resolve(classname);
+@@ -34,6 +34,7 @@ import java.util.Set;
+ import org.aspectj.ajdt.internal.compiler.CompilationResultDestinationManager;
+ import org.aspectj.ajdt.internal.compiler.InterimCompilationResult;
+ import org.aspectj.ajdt.internal.core.builder.AjBuildConfig.BinarySourceFile;
++import org.aspectj.apache.bcel.classfile.ClassParser;
+ import org.aspectj.asm.AsmManager;
+ import org.aspectj.bridge.IMessage;
+ import org.aspectj.bridge.Message;
+@@ -54,15 +55,18 @@ import org.aspectj.org.eclipse.jdt.internal.core.builder.StringSet;
+ import org.aspectj.util.FileUtil;
+ import org.aspectj.weaver.BCException;
+ import org.aspectj.weaver.CompressingDataOutputStream;
++import org.aspectj.weaver.ReferenceType;
++import org.aspectj.weaver.ReferenceTypeDelegate;
+ import org.aspectj.weaver.ResolvedType;
+ import org.aspectj.weaver.bcel.BcelWeaver;
+ import org.aspectj.weaver.bcel.BcelWorld;
++import org.aspectj.weaver.bcel.TypeDelegateResolver;
+ import org.aspectj.weaver.bcel.UnwovenClassFile;
+ 
+ /**
+  * Maintains state needed for incremental compilation
+  */
+-public class AjState implements CompilerConfigurationChangeFlags {
++public class AjState implements CompilerConfigurationChangeFlags, TypeDelegateResolver {
+ 
+ 	// SECRETAPI configures whether we use state instead of lastModTime - see pr245566
+ 	public static boolean CHECK_STATE_FIRST = true;
+@@ -1935,6 +1939,7 @@ public class AjState implements CompilerConfigurationChangeFlags {
+ 
+ 	public void setWorld(BcelWorld bw) {
+ 		world = bw;
++		world.addTypeDelegateResolver(this);
+ 	}
+ 
+ 	public BcelWorld getBcelWorld() {
+@@ -2133,4 +2138,22 @@ public class AjState implements CompilerConfigurationChangeFlags {
+ 		// model
+ 		// local state
+ 	}
++
++	/**
++	 * See if we can create a delegate from a CompactTypeStructure - TODO better comment
++	 */
++	public ReferenceTypeDelegate getDelegate(ReferenceType referenceType) {
++		File f = classesFromName.get(referenceType.getName());
++		if (f == null) {
++			return null; // not heard of it
++		}
++		try {
++			ClassParser parser = new ClassParser(f.toString());
++			return world.buildBcelDelegate(referenceType, parser.parse(), true, false);
++		} catch (IOException e) {
++			System.err.println("Failed to recover "+referenceType);
++			e.printStackTrace();
++		}
++		return null;
++	}
+ }
+@@ -254,4 +254,8 @@ public class AbstractMultiProjectIncrementalAjdeInteractionTestbed extends AjdeI
+ 		getModelFor(projectName).dumprels(pw);
+ 		pw.flush();
+ 	}
++
++	protected void assertNoErrors(String projectName) {
++		assertTrue("Should be no errors, but got " + getErrorMessages(projectName), getErrorMessages(projectName).size() == 0);
++	}
+ }
+@@ -3895,8 +3895,4 @@ public class MultiProjectIncrementalTests extends AbstractMultiProjectIncrementa
+ 		return new File(projDir, "bin" + File.separator + filename);
+ 	}
+ 
+-	private void assertNoErrors(String projectName) {
+-		assertTrue("Should be no errors, but got " + getErrorMessages(projectName), getErrorMessages(projectName).size() == 0);
+-	}
+-
+ }
+\ No newline at end of file
+@@ -91,6 +91,7 @@ public class BcelWorld extends World implements Repository {
+ 	private final BcelWeavingSupport bcelWeavingSupport = new BcelWeavingSupport();
+ 	private boolean isXmlConfiguredWorld = false;
+ 	private WeavingXmlConfig xmlConfiguration;
++	private List<TypeDelegateResolver> typeDelegateResolvers;
+ 
+ 	private static Trace trace = TraceFactory.getTraceFactory().getTrace(BcelWorld.class);
+ 
+@@ -373,6 +374,15 @@ public class BcelWorld extends World implements Repository {
+ 		ensureAdvancedConfigurationProcessed();
+ 		JavaClass jc = lookupJavaClass(classPath, name);
+ 		if (jc == null) {
++			// Anyone else to ask?
++			if (typeDelegateResolvers != null) {
++				for (TypeDelegateResolver tdr : typeDelegateResolvers) {
++					ReferenceTypeDelegate delegate = tdr.getDelegate(ty);
++					if (delegate != null) {
++						return delegate;
++					}
++				}
++			}
+ 			return null;
+ 		} else {
+ 			return buildBcelDelegate(ty, jc, false, false);
+@@ -1180,4 +1190,14 @@ public class BcelWorld extends World implements Repository {
+ 		return false;
+ 	}
+ 
++	public void addTypeDelegateResolver(TypeDelegateResolver typeDelegateResolver) {
++		if (typeDelegateResolvers == null) {
++			typeDelegateResolvers = new ArrayList<TypeDelegateResolver>();
++		}
++		typeDelegateResolvers.add(typeDelegateResolver);
++	}
++
++	public void classWriteEvent(char[] classname) {
++		typeMap.classWriteEvent(new String(classname));
++	}
+ }
+@@ -0,0 +1,28 @@
++/* *******************************************************************
++ * Copyright (c) 2010 Contributors
++ * All rights reserved.
++ * This program and the accompanying materials are made available
++ * under the terms of the Eclipse Public License v1.0
++ * which accompanies this distribution and is available at
++ * http://www.eclipse.org/legal/epl-v10.html
++ *
++ * Contributors:
++ *   Andy Clement, SpringSource
++ * ******************************************************************/
++package org.aspectj.weaver.bcel;
++
++import org.aspectj.weaver.ReferenceType;
++import org.aspectj.weaver.ReferenceTypeDelegate;
++
++/**
++ * A type delegate resolver is able to create type delegates for a named reference type.  A type delegate will implement
++ * ReferenceTypeDelegate.  There are three kind of delegate already in existence: those created for eclipse structures, those
++ * created for bytecode structures, and those created based on reflection.  
++ * 
++ * @author Andy Clement
++ */
++public interface TypeDelegateResolver {
++
++	ReferenceTypeDelegate getDelegate(ReferenceType referenceType);
++
++}
+Binary files differ
+Binary files differ
+@@ -84,12 +84,12 @@ public class EnumElementValue extends ElementValue {
+ 		return sb.toString();
+ 	}
+ 
+-/*	public String toString() {
++	public String toString() {
+ 		StringBuilder s = new StringBuilder("E(");
+ 		s.append(getEnumTypeString()).append(" ").append(getEnumValueString()).append(")");
+ 		return s.toString();
+ 	}
+-*/
++
+ 	// BCELBUG: Should we need to call utility.signatureToString() on the output here?
+ 	public String getEnumTypeString() {
+ 		// Constant cc = getConstantPool().getConstant(typeIdx);
+@@ -44,6 +44,25 @@ public class BcelAnnotation extends AbstractAnnotationAJ {
+ 		this.bcelAnnotation = theBcelAnnotation;
+ 	}
+ 
++	public String toString() {
++		StringBuffer sb = new StringBuffer();
++		List<NameValuePair> nvPairs = bcelAnnotation.getValues();
++		sb.append("Anno[" + getTypeSignature() + " " + (isRuntimeVisible() ? "rVis" : "rInvis"));
++		if (nvPairs.size() > 0) {
++			sb.append(" ");
++			int i = 0;
++			for (NameValuePair element : nvPairs) {
++				if (i > 0) {
++					sb.append(',');
++				}
++				sb.append(element.getNameString()).append("=").append(element.getValue().toString());
++				i++;
++			}
++		}
++		sb.append("]");
++		return sb.toString();
++	}
++
+ 	/**
+ 	 * {@inheritDoc}
+ 	 */
+@@ -13,17 +13,17 @@ package org.aspectj.weaver;
+ 
+ public class EnumAnnotationValue extends AnnotationValue {
+ 
+-	private String type;
++	private String typeSignature;
+ 	private String value;
+ 
+-	public EnumAnnotationValue(String type, String value) {
++	public EnumAnnotationValue(String typeSignature, String value) {
+ 		super(AnnotationValue.ENUM_CONSTANT);
+-		this.type = type;
++		this.typeSignature = typeSignature;
+ 		this.value = value;
+ 	}
+ 
+ 	public String getType() {
+-		return type;
++		return typeSignature;
+ 	}
+ 
+ 	public String stringify() {
+@@ -31,7 +31,7 @@ public class EnumAnnotationValue extends AnnotationValue {
+ 	}
+ 
+ 	public String toString() {
+-		return value;
++		return "E(" + typeSignature + " " + value + ")";
+ 	}
+ 
+ }
+@@ -59,8 +59,9 @@ public class StandardAnnotation extends AbstractAnnotationAJ {
+ 
+ 	public String toString() {
+ 		StringBuffer sb = new StringBuffer();
+-		sb.append("ANNOTATION [" + getTypeSignature() + "] [" + (isRuntimeVisible ? "runtimeVisible" : "runtimeInvisible") + "] [");
++		sb.append("Anno[" + getTypeSignature() + " " + (isRuntimeVisible ? "rVis" : "rInvis"));
+ 		if (nvPairs != null) {
++			sb.append(" ");
+ 			for (Iterator<AnnotationNameValuePair> iter = nvPairs.iterator(); iter.hasNext();) {
+ 				AnnotationNameValuePair element = iter.next();
+ 				sb.append(element.toString());
+@@ -75,10 +75,6 @@ public class JoinPointSignature implements ResolvedMember {
+ 		return realMember.isAjSynthetic();
+ 	}
+ 
+-	public boolean hasAnnotations() {
+-		return realMember.hasAnnotations();
+-	}
+-
+ 	public boolean hasAnnotation(UnresolvedType ofType) {
+ 		return realMember.hasAnnotation(ofType);
+ 	}
+@@ -27,8 +27,7 @@ import org.aspectj.bridge.ISourceLocation;
+  * @author PARC
+  * @author Andy Clement
+  */
+-public class ResolvedMemberImpl extends MemberImpl implements IHasPosition, AnnotatedElement, TypeVariableDeclaringElement,
+-		ResolvedMember {
++public class ResolvedMemberImpl extends MemberImpl implements IHasPosition, TypeVariableDeclaringElement, ResolvedMember {
+ 
+ 	private String[] parameterNames = null;
+ 	protected UnresolvedType[] checkedExceptions = UnresolvedType.NONE;
+@@ -756,13 +755,13 @@ public class ResolvedMemberImpl extends MemberImpl implements IHasPosition, Anno
+ 			}
+ 		}
+ 
+-		UnresolvedType parameterizedReturnType = parameterize(getGenericReturnType(), typeMap, isParameterized, newDeclaringType
+-				.getWorld());
++		UnresolvedType parameterizedReturnType = parameterize(getGenericReturnType(), typeMap, isParameterized,
++				newDeclaringType.getWorld());
+ 		UnresolvedType[] parameterizedParameterTypes = new UnresolvedType[getGenericParameterTypes().length];
+ 		UnresolvedType[] genericParameterTypes = getGenericParameterTypes();
+ 		for (int i = 0; i < parameterizedParameterTypes.length; i++) {
+-			parameterizedParameterTypes[i] = parameterize(genericParameterTypes[i], typeMap, isParameterized, newDeclaringType
+-					.getWorld());
++			parameterizedParameterTypes[i] = parameterize(genericParameterTypes[i], typeMap, isParameterized,
++					newDeclaringType.getWorld());
+ 		}
+ 		ResolvedMemberImpl ret = new ResolvedMemberImpl(getKind(), newDeclaringType, getModifiers(), parameterizedReturnType,
+ 				getName(), parameterizedParameterTypes, getExceptions(), this);
+@@ -930,7 +929,7 @@ public class ResolvedMemberImpl extends MemberImpl implements IHasPosition, Anno
+ 	// }
+ 	// return null;
+ 	// }
+-	//	
++	//
+ 	// private ResolvedMember myErasure = null;
+ 	// private boolean calculatedMyErasure = false;
+ 	public boolean hasBackingGenericMember() {
+@@ -37,8 +37,6 @@ public interface ResolvedMember extends Member, AnnotatedElement, TypeVariableDe
+ 
+ 	public boolean isCompatibleWith(Member am);
+ 
+-	public boolean hasAnnotations();
+-
+ 	public boolean hasAnnotation(UnresolvedType ofType);
+ 
+ 	public AnnotationAJ[] getAnnotations();
+@@ -0,0 +1,6 @@
++package com.foo;
++import java.lang.annotation.*;
++
++@Retention(RetentionPolicy.RUNTIME)
++public @interface Anno {
++}
+@@ -0,0 +1,8 @@
++package com.foo;
++import java.lang.annotation.*;
++
++@Deprecated
++@Inherited
++@Retention(RetentionPolicy.CLASS)
++public @interface Anno2 {
++}
+@@ -0,0 +1,7 @@
++package com.foo;
++import java.lang.annotation.*;
++
++@Anno
++@Retention(RetentionPolicy.SOURCE)
++public @interface Anno3 {
++}
+@@ -0,0 +1,7 @@
++package com.foo;
++import java.lang.annotation.*;
++
++@Anno
++@Anno2
++public @interface Anno4 {
++}
+@@ -0,0 +1,7 @@
++package com.foo;
++
++import java.lang.annotation.*;
++
++@Target({ElementType.TYPE,ElementType.FIELD})
++public @interface Anno5 {
++}
+@@ -0,0 +1,7 @@
++package com.foo;
++
++import java.lang.annotation.*;
++
++@Target({ElementType.ANNOTATION_TYPE,ElementType.LOCAL_VARIABLE,ElementType.METHOD,ElementType.PACKAGE,ElementType.PARAMETER,ElementType.CONSTRUCTOR})
++public @interface Anno6 {
++}
+@@ -0,0 +1,4 @@
++package com.foo;
++
++public class Bar {
++}
+@@ -0,0 +1,3 @@
++package com.foo;
++
++enum Color {R,G,B}
+@@ -0,0 +1,5 @@
++package com.foo;
++
++public @interface ColorAnno {
++  Color c();
++}
+@@ -0,0 +1,5 @@
++package com.foo;
++
++@ColorAnno(c=Color.G)
++public class Colored {
++}
+@@ -0,0 +1,11 @@
++package com.foo;
++
++public class Extender extends Super implements Marker {
++  public void aMethod(String aString) {}
++  public int aField;
++
++}
++
++class Super {}
++
++interface Marker {}
+@@ -0,0 +1,13 @@
++package com.foo;
++
++public class Inners {
++ 
++
++  public static class Inner {
++  }
++
++  Runnable r = new Runnable() {
++    public void run() {
++    }
++  };
++}
+@@ -0,0 +1,5 @@
++package com;
++import java.lang.annotation.*;
++
++@Retention(RetentionPolicy.RUNTIME)
++public @interface Anno {}
+@@ -0,0 +1,7 @@
++package com;
++import java.lang.annotation.*;
++
++@Retention(RetentionPolicy.RUNTIME)
++public @interface Anno2 {
++  int a();
++}
+@@ -0,0 +1,15 @@
++package com;
++
++import java.util.*;
++
++public class Foo {
++
++  public int i;
++  public String s;
++
++  @Anno
++  public List<String> ls;
++ 
++  @Anno2(a=42) @Anno
++  public List<Integer> li;
++}
+@@ -0,0 +1,5 @@
++package com;
++import java.lang.annotation.*;
++
++@Retention(RetentionPolicy.RUNTIME)
++public @interface Anno {}
+@@ -0,0 +1,7 @@
++package com;
++import java.lang.annotation.*;
++
++@Retention(RetentionPolicy.RUNTIME)
++public @interface Anno2 {
++  int a();
++}
+@@ -0,0 +1,12 @@
++package com;
++import java.util.List;
++
++public class Meths {
++
++  @Anno
++  public void m() { }
++
++  @Anno @Anno2(a=3254)
++  private List<String> n(int i,long l,List<Integer> li) {return null;}
++
++}
+@@ -0,0 +1,8 @@
++package com;
++
++public class One {
++  public class Inner {
++  }
++  public static class StaticInner {
++  }
++}
+@@ -0,0 +1,7 @@
++package com;
++
++public class Two {
++  public static void main(String[] argv) {
++    new One();
++  }
++}
+Binary files differ
+Binary files differ
+Binary files differ
+Binary files differ
+@@ -32,8 +32,9 @@ public class EnumElementValue extends ElementValue {
+ 	 */
+ 	protected EnumElementValue(int typeIdx, int valueIdx, ConstantPool cpool) {
+ 		super(ElementValue.ENUM_CONSTANT, cpool);
+-		if (type != ENUM_CONSTANT)
++		if (type != ENUM_CONSTANT) {
+ 			throw new RuntimeException("Only element values of type enum can be built with this ctor");
++		}
+ 		this.typeIdx = typeIdx;
+ 		this.valueIdx = valueIdx;
+ 	}
+@@ -83,6 +84,12 @@ public class EnumElementValue extends ElementValue {
+ 		return sb.toString();
+ 	}
+ 
++/*	public String toString() {
++		StringBuilder s = new StringBuilder("E(");
++		s.append(getEnumTypeString()).append(" ").append(getEnumValueString()).append(")");
++		return s.toString();
++	}
++*/
+ 	// BCELBUG: Should we need to call utility.signatureToString() on the output here?
+ 	public String getEnumTypeString() {
+ 		// Constant cc = getConstantPool().getConstant(typeIdx);
+@@ -78,10 +78,11 @@ public class SimpleElementValue extends ElementValue {
+ 
+ 	public SimpleElementValue(int type, ConstantPool cpGen, boolean value) {
+ 		super(type, cpGen);
+-		if (value)
++		if (value) {
+ 			idx = cpGen.addInteger(1);
+-		else
++		} else {
+ 			idx = cpGen.addInteger(0);
++		}
+ 	}
+ 
+ 	public SimpleElementValue(int type, ConstantPool cpGen, String value) {
+@@ -90,50 +91,57 @@ public class SimpleElementValue extends ElementValue {
+ 	}
+ 
+ 	public byte getValueByte() {
+-		if (type != PRIMITIVE_BYTE)
++		if (type != PRIMITIVE_BYTE) {
+ 			throw new RuntimeException("Dont call getValueByte() on a non BYTE ElementValue");
++		}
+ 		ConstantInteger c = (ConstantInteger) cpool.getConstant(idx, Constants.CONSTANT_Integer);
+ 		return (byte) c.getIntValue();
+ 	}
+ 
+ 	public char getValueChar() {
+-		if (type != PRIMITIVE_CHAR)
++		if (type != PRIMITIVE_CHAR) {
+ 			throw new RuntimeException("Dont call getValueChar() on a non CHAR ElementValue");
++		}
+ 		ConstantInteger c = (ConstantInteger) cpool.getConstant(idx, Constants.CONSTANT_Integer);
+ 		return (char) c.getIntValue();
+ 	}
+ 
+ 	public long getValueLong() {
+-		if (type != PRIMITIVE_LONG)
++		if (type != PRIMITIVE_LONG) {
+ 			throw new RuntimeException("Dont call getValueLong() on a non LONG ElementValue");
++		}
+ 		ConstantLong j = (ConstantLong) cpool.getConstant(idx);
+ 		return j.getValue();
+ 	}
+ 
+ 	public float getValueFloat() {
+-		if (type != PRIMITIVE_FLOAT)
++		if (type != PRIMITIVE_FLOAT) {
+ 			throw new RuntimeException("Dont call getValueFloat() on a non FLOAT ElementValue");
++		}
+ 		ConstantFloat f = (ConstantFloat) cpool.getConstant(idx);
+ 		return f.getValue();
+ 	}
+ 
+ 	public double getValueDouble() {
+-		if (type != PRIMITIVE_DOUBLE)
++		if (type != PRIMITIVE_DOUBLE) {
+ 			throw new RuntimeException("Dont call getValueDouble() on a non DOUBLE ElementValue");
++		}
+ 		ConstantDouble d = (ConstantDouble) cpool.getConstant(idx);
+ 		return d.getValue();
+ 	}
+ 
+ 	public boolean getValueBoolean() {
+-		if (type != PRIMITIVE_BOOLEAN)
++		if (type != PRIMITIVE_BOOLEAN) {
+ 			throw new RuntimeException("Dont call getValueBoolean() on a non BOOLEAN ElementValue");
++		}
+ 		ConstantInteger bo = (ConstantInteger) cpool.getConstant(idx);
+ 		return (bo.getValue() != 0);
+ 	}
+ 
+ 	public short getValueShort() {
+-		if (type != PRIMITIVE_SHORT)
++		if (type != PRIMITIVE_SHORT) {
+ 			throw new RuntimeException("Dont call getValueShort() on a non SHORT ElementValue");
++		}
+ 		ConstantInteger s = (ConstantInteger) cpool.getConstant(idx);
+ 		return (short) s.getIntValue();
+ 	}
+@@ -192,15 +200,17 @@ public class SimpleElementValue extends ElementValue {
+ 	}
+ 
+ 	public String getValueString() {
+-		if (type != STRING)
++		if (type != STRING) {
+ 			throw new RuntimeException("Dont call getValueString() on a non STRING ElementValue");
++		}
+ 		ConstantUtf8 c = (ConstantUtf8) cpool.getConstant(idx);
+ 		return c.getValue();
+ 	}
+ 
+ 	public int getValueInt() {
+-		if (type != PRIMITIVE_INT)
++		if (type != PRIMITIVE_INT) {
+ 			throw new RuntimeException("Dont call getValueString() on a non STRING ElementValue");
++		}
+ 		ConstantInteger c = (ConstantInteger) cpool.getConstant(idx);
+ 		return c.getValue();
+ 	}
+@@ -232,10 +242,11 @@ public class SimpleElementValue extends ElementValue {
+ 			return new Character((char) ch.getIntValue()).toString();
+ 		case PRIMITIVE_BOOLEAN:
+ 			ConstantInteger bo = (ConstantInteger) cpool.getConstant(idx);
+-			if (bo.getValue() == 0)
++			if (bo.getValue() == 0) {
+ 				return "false";
+-			else
++			} else {
+ 				return "true";
++			}
+ 		case STRING:
+ 			ConstantUtf8 cu8 = (ConstantUtf8) cpool.getConstant(idx);
+ 			return cu8.getValue();
+@@ -246,6 +257,57 @@ public class SimpleElementValue extends ElementValue {
+ 	}
+ 
+ 	@Override
++	public String toString() {
++		StringBuilder s = new StringBuilder();
++		switch (type) {
++		case PRIMITIVE_INT:
++			ConstantInteger c = (ConstantInteger) cpool.getConstant(idx);
++			s.append("(int)").append(Integer.toString(c.getValue()));
++			break;
++		case PRIMITIVE_LONG:
++			ConstantLong j = (ConstantLong) cpool.getConstant(idx);
++			s.append("(long)").append(Long.toString(j.getValue()));
++			break;
++		case PRIMITIVE_DOUBLE:
++			ConstantDouble d = (ConstantDouble) cpool.getConstant(idx);
++			s.append("(double)").append(d.getValue().toString());
++			break;
++		case PRIMITIVE_FLOAT:
++			ConstantFloat f = (ConstantFloat) cpool.getConstant(idx);
++			s.append("(float)").append(Float.toString(f.getValue()));
++			break;
++		case PRIMITIVE_SHORT:
++			ConstantInteger ci = (ConstantInteger) cpool.getConstant(idx);
++			s.append("(short)").append(Integer.toString(ci.getValue()));
++			break;
++		case PRIMITIVE_BYTE:
++			ConstantInteger b = (ConstantInteger) cpool.getConstant(idx);
++			s.append("(byte)").append(Integer.toString(b.getValue()));
++			break;
++		case PRIMITIVE_CHAR:
++			ConstantInteger ch = (ConstantInteger) cpool.getConstant(idx);
++			s.append("(char)").append(new Character((char) ch.getIntValue()).toString());
++			break;
++		case PRIMITIVE_BOOLEAN:
++			ConstantInteger bo = (ConstantInteger) cpool.getConstant(idx);
++			s.append("(boolean)");
++			if (bo.getValue() == 0) {
++				s.append("false");
++			} else {
++				s.append("true");
++			}
++			break;
++		case STRING:
++			ConstantUtf8 cu8 = (ConstantUtf8) cpool.getConstant(idx);
++			s.append("(string)").append(cu8.getValue());
++			break;
++		default:
++			throw new RuntimeException("SimpleElementValueGen class does not know how to stringify type " + type);
++		}
++		return s.toString();
++	}
++
++	@Override
+ 	public void dump(DataOutputStream dos) throws IOException {
+ 		dos.writeByte(type); // u1 kind of value
+ 		switch (type) {
+@@ -31,8 +31,8 @@ import org.aspectj.apache.bcel.classfile.annotation.NameValuePair;
+ import org.aspectj.bridge.ISourceLocation;
+ import org.aspectj.bridge.SourceLocation;
+ import org.aspectj.util.GenericSignature;
+-import org.aspectj.util.GenericSignatureParser;
+ import org.aspectj.util.GenericSignature.TypeVariableSignature;
++import org.aspectj.util.GenericSignatureParser;
+ import org.aspectj.weaver.AjAttribute;
+ import org.aspectj.weaver.AnnotationAJ;
+ import org.aspectj.weaver.BCException;
+@@ -126,7 +126,8 @@ class BcelMethod extends ResolvedMemberImpl {
+ 		int len = getArity();
+ 		if (varTable == null) {
+ 			// do we have an annotation with the argNames value specified...
+-			if (hasAnnotations()) {
++			AnnotationAJ[] annos = getAnnotations();
++			if (annos != null && annos.length != 0) {
+ 				AnnotationAJ[] axs = getAnnotations();
+ 				for (int i = 0; i < axs.length; i++) {
+ 					AnnotationAJ annotationX = axs[i];
+@@ -185,8 +186,8 @@ class BcelMethod extends ResolvedMemberImpl {
+ 				resolvedDeclaringType.getSourceContext(), world, bcelObjectType.getWeaverVersionAttribute(),
+ 				new BcelConstantPoolReader(method.getConstantPool()));
+ 		processAttributes(world, as);
+-		as = AtAjAttributes.readAj5MethodAttributes(method, this, resolvedDeclaringType, preResolvedPointcut, resolvedDeclaringType
+-				.getSourceContext(), world.getMessageHandler());
++		as = AtAjAttributes.readAj5MethodAttributes(method, this, resolvedDeclaringType, preResolvedPointcut,
++				resolvedDeclaringType.getSourceContext(), world.getMessageHandler());
+ 		processAttributes(world, as);
+ 	}
+ 
+@@ -0,0 +1,7 @@
++package a.b.c;
++
++public class AAA {
++  AAA aaa = new AAA();
++  BBB bbb = new BBB();
++  CCC ccc = new CCC();
++}
+@@ -0,0 +1,7 @@
++package a.b.c;
++
++public class BBB {
++  AAA aaa = new AAA();
++  BBB bbb = new BBB();
++  CCC ccc = new CCC();
++}
+@@ -0,0 +1,7 @@
++package a.b.c;
++
++public class CCC {
++  AAA aaa = new AAA();
++  BBB bbb = new BBB();
++  CCC ccc = new CCC();
++}
+@@ -0,0 +1,7 @@
++package a.b.c;
++
++public class AAA {
++  AAA aaa = new AAA();
++  BBB bbb = new BBB();
++  CCC ccc = new CCC();
++}
+@@ -28,10 +28,10 @@ import java.util.List;
+ import java.util.Map;
+ import java.util.Set;
+ import java.util.jar.Attributes;
+-import java.util.jar.Attributes.Name;
+ import java.util.jar.JarEntry;
+ import java.util.jar.JarFile;
+ import java.util.jar.Manifest;
++import java.util.jar.Attributes.Name;
+ import java.util.zip.ZipEntry;
+ import java.util.zip.ZipInputStream;
+ import java.util.zip.ZipOutputStream;
+@@ -64,7 +64,6 @@ import org.aspectj.weaver.CustomMungerFactory;
+ import org.aspectj.weaver.IClassFileProvider;
+ import org.aspectj.weaver.IUnwovenClassFile;
+ import org.aspectj.weaver.IWeaveRequestor;
+-import org.aspectj.weaver.MissingResolvedTypeWithKnownSignature;
+ import org.aspectj.weaver.NewParentTypeMunger;
+ import org.aspectj.weaver.ReferenceType;
+ import org.aspectj.weaver.ReferenceTypeDelegate;
+@@ -933,8 +932,8 @@ public class BcelWeaver {
+ 	 * @param userPointcut
+ 	 */
+ 	private void raiseUnboundFormalError(String name, Pointcut userPointcut) {
+-		world.showMessage(IMessage.ERROR, WeaverMessages.format(WeaverMessages.UNBOUND_FORMAL, name),
+-				userPointcut.getSourceLocation(), null);
++		world.showMessage(IMessage.ERROR, WeaverMessages.format(WeaverMessages.UNBOUND_FORMAL, name), userPointcut
++				.getSourceLocation(), null);
+ 	}
+ 
+ 	public void addManifest(Manifest newManifest) {
+@@ -1336,8 +1335,8 @@ public class BcelWeaver {
+ 					ResolvedType rtx = world.resolve(UnresolvedType.forSignature(requiredTypeSignature), true);
+ 					boolean exists = !rtx.isMissing();
+ 					if (!exists) {
+-						world.getLint().missingAspectForReweaving.signal(new String[] { rtx.getName(), className },
+-								classType.getSourceLocation(), null);
++						world.getLint().missingAspectForReweaving.signal(new String[] { rtx.getName(), className }, classType
++								.getSourceLocation(), null);
+ 						// world.showMessage(IMessage.ERROR, WeaverMessages.format(WeaverMessages.MISSING_REWEAVABLE_TYPE,
+ 						// requiredTypeName, className), classType.getSourceLocation(), null);
+ 					} else {
+@@ -1354,8 +1353,8 @@ public class BcelWeaver {
+ 								world.showMessage(IMessage.ERROR, WeaverMessages.format(
+ 										WeaverMessages.REWEAVABLE_ASPECT_NOT_REGISTERED, rtx.getName(), className), null, null);
+ 							} else if (!world.getMessageHandler().isIgnoring(IMessage.INFO)) {
+-								world.showMessage(IMessage.INFO, WeaverMessages.format(WeaverMessages.VERIFIED_REWEAVABLE_TYPE,
+-										rtx.getName(), rtx.getSourceLocation().getSourceFile()), null, null);
++								world.showMessage(IMessage.INFO, WeaverMessages.format(WeaverMessages.VERIFIED_REWEAVABLE_TYPE, rtx
++										.getName(), rtx.getSourceLocation().getSourceFile()), null, null);
+ 							}
+ 						}
+ 						alreadyConfirmedReweavableState.add(requiredTypeSignature);
+@@ -1529,11 +1528,10 @@ public class BcelWeaver {
+ 				// TAG: WeavingMessage
+ 				if (!getWorld().getMessageHandler().isIgnoring(IMessage.WEAVEINFO)) {
+ 					getWorld().getMessageHandler().handleMessage(
+-							WeaveMessage.constructWeavingMessage(
+-									WeaveMessage.WEAVEMESSAGE_ANNOTATES,
+-									new String[] { onType.toString(), Utility.beautifyLocation(onType.getSourceLocation()),
+-											decA.getAnnotationString(), "type", decA.getAspect().toString(),
+-											Utility.beautifyLocation(decA.getSourceLocation()) }));
++							WeaveMessage.constructWeavingMessage(WeaveMessage.WEAVEMESSAGE_ANNOTATES, new String[] {
++									onType.toString(), Utility.beautifyLocation(onType.getSourceLocation()),
++									decA.getAnnotationString(), "type", decA.getAspect().toString(),
++									Utility.beautifyLocation(decA.getSourceLocation()) }));
+ 				}
+ 				didSomething = true;
+ 				ResolvedTypeMunger newAnnotationTM = new AnnotationOnTypeMunger(annoX);
+@@ -1556,15 +1554,13 @@ public class BcelWeaver {
+ 				if (outputProblems) {
+ 					if (decA.isExactPattern()) {
+ 						world.getMessageHandler().handleMessage(
+-								MessageUtil.error(
+-										WeaverMessages.format(WeaverMessages.INCORRECT_TARGET_FOR_DECLARE_ANNOTATION,
+-												onType.getName(), annoX.getTypeName(), annoX.getValidTargets()),
+-										decA.getSourceLocation()));
++								MessageUtil.error(WeaverMessages.format(WeaverMessages.INCORRECT_TARGET_FOR_DECLARE_ANNOTATION,
++										onType.getName(), annoX.getTypeName(), annoX.getValidTargets()), decA.getSourceLocation()));
+ 					} else {
+ 						if (world.getLint().invalidTargetForAnnotation.isEnabled()) {
+ 							world.getLint().invalidTargetForAnnotation.signal(new String[] { onType.getName(), annoX.getTypeName(),
+-									annoX.getValidTargets() }, decA.getSourceLocation(),
+-									new ISourceLocation[] { onType.getSourceLocation() });
++									annoX.getValidTargets() }, decA.getSourceLocation(), new ISourceLocation[] { onType
++									.getSourceLocation() });
+ 						}
+ 					}
+ 				}
+@@ -1605,8 +1601,8 @@ public class BcelWeaver {
+ 	}
+ 
+ 	public void weaveNormalTypeMungers(ResolvedType onType) {
+-		ContextToken tok = CompilationAndWeavingContext.enteringPhase(CompilationAndWeavingContext.PROCESSING_TYPE_MUNGERS,
+-				onType.getName());
++		ContextToken tok = CompilationAndWeavingContext.enteringPhase(CompilationAndWeavingContext.PROCESSING_TYPE_MUNGERS, onType
++				.getName());
+ 		if (onType.isRawType() || onType.isParameterizedType()) {
+ 			onType = onType.getGenericType();
+ 		}
+@@ -1725,7 +1721,8 @@ public class BcelWeaver {
+ 				String pkgname = classType.getResolvedTypeX().getPackageName();
+ 				String tname = classType.getResolvedTypeX().getSimpleBaseName();
+ 				IProgramElement typeElement = hierarchy.findElementForType(pkgname, tname);
+-				if (typeElement != null) {
++				if (typeElement != null && !hasInnerAspect(typeElement)) {
++
+ 					// Set<String> deleted = new HashSet<String>();
+ 					// deleted.add(model.getCanonicalFilePath(typeElement.getSourceLocation().getSourceFile()));
+ 					// hierarchy.updateHandleMap(deleted);
+@@ -1785,6 +1782,22 @@ public class BcelWeaver {
+ 
+ 	// ---- writing
+ 
++	private boolean hasInnerAspect(IProgramElement typeNode) {
++		for (IProgramElement child : typeNode.getChildren()) {
++			IProgramElement.Kind kind = child.getKind();
++			if (kind == IProgramElement.Kind.ASPECT) {
++				return true;
++			}
++			if (kind.isType()) {
++				boolean b = hasInnerAspect(child);
++				if (b) {
++					return b;
++				}
++			}
++		}
++		return false;
++	}
++
+ 	private void checkDeclareTypeErrorOrWarning(BcelWorld world2, BcelObjectType classType) {
+ 		List<DeclareTypeErrorOrWarning> dteows = world.getDeclareTypeEows();
+ 		for (DeclareTypeErrorOrWarning dteow : dteows) {
+@@ -0,0 +1,20 @@
++package foo;
++
++/**
++ * @author Sian
++ *
++ * TODO To change the template for this generated type comment go to
++ * Window - Preferences - Java - Code Style - Code Templates
++ */
++public class MyClass {
++
++	
++	public static void main(String[] args) {
++		
++	}
++	
++	public void method1() {}
++	
++	public void method2() {}
++}
++
+@@ -0,0 +1,17 @@
++package foo;
++public class MyOtherClass {
++
++	public static class MyInnerClass {
++		
++		public static aspect MyInnerInnerAspect {
++			
++			before(): execution(* MyClass.method1()) { 
++				System.out.println("Before method1..");
++			} 
++		
++		}
++		
++	}
++	
++}
++
+@@ -17,6 +17,7 @@ import org.aspectj.apache.bcel.classfile.JavaClass;
+ import org.aspectj.apache.bcel.util.ClassPath;
+ import org.aspectj.apache.bcel.util.SyntheticRepository;
+ import org.aspectj.asm.AsmManager;
++import org.aspectj.asm.IRelationshipMap;
+ import org.aspectj.testing.XMLBasedAjcTestCase;
+ 
+ /**
+@@ -130,10 +131,12 @@ public class IntertypeTests extends org.aspectj.testing.XMLBasedAjcTestCase {
+ 		ByteArrayOutputStream baos = new ByteArrayOutputStream();
+ 		PrintWriter pw = new PrintWriter(baos);
+ 		AsmManager.dumptree(pw, AsmManager.lastActiveStructureModel.getHierarchy().getRoot(), 0);
+-		pw.write(AsmManager.lastActiveStructureModel.getRelationshipMap().toString());
++		IRelationshipMap irm = AsmManager.lastActiveStructureModel.getRelationshipMap();
++		pw.write(irm.toString());
+ 		pw.flush();
+ 		String model = baos.toString();
+-		assertTrue(model.indexOf("<{Choice.java[Choice=[aspect declarations], <{Choice.java}X[Keys=[declared on]") != -1);
++		assertTrue(model.indexOf("<{Choice.java[Choice=[aspect declarations]") != -1);
++		assertTrue(model.indexOf("<{Choice.java}X[Keys=[declared on]") != -1);
+ 	}
+ 
+ 	public void testGenerics1() throws Exception {
+@@ -210,7 +210,7 @@ public class IncrementalCompilationTests extends AbstractMultiProjectIncremental
+ 
+ 		AspectJElementHierarchy model = (AspectJElementHierarchy) getModelFor(p).getHierarchy();
+ 		// Node for "Code.java" should not be there:
+-		IProgramElement ipe = model.findElementForHandleOrCreate("=PR278496_1<a.b.c{Code.java",false);
++		IProgramElement ipe = model.findElementForHandleOrCreate("=PR278496_1<a.b.c{Code.java", false);
+ 		Assert.assertNull(ipe);
+ 	}
+ 
+@@ -235,10 +235,43 @@ public class IncrementalCompilationTests extends AbstractMultiProjectIncremental
+ 		//	Hid:1:(targets=1) =PR278496_2<{Azpect.java}Azpect)Code.m (declared on) =PR278496_2<{Code.java[Code
+ 		//	Hid:2:(targets=1) =PR278496_2<{Code.java[Code (aspect declarations) =PR278496_2<{Azpect.java}Azpect)Code.m
+ 
+-
+ 		AspectJElementHierarchy model = (AspectJElementHierarchy) getModelFor(p).getHierarchy();
+ 		// Node for "Code.java" should be there since it is the target of a relationship
+-		IProgramElement ipe = model.findElementForHandleOrCreate("=PR278496_2<{Code.java",false);
++		IProgramElement ipe = model.findElementForHandleOrCreate("=PR278496_2<{Code.java", false);
++		Assert.assertNotNull(ipe);
++	}
++
++	public void testDeletionInnerAspects_278496_4() throws Exception {
++		String p = "PR278496_4";
++		initialiseProject(p);
++		configureNonStandardCompileOptions(p, "-Xset:minimalModel=true");
++		build(p);
++		checkWasFullBuild();
++		printModel(p);
++		// Here is the model without deletion.
++		//		PR278496_4  [build configuration file]  hid:=PR278496_4
++		//		  foo  [package]  hid:=PR278496_4<foo
++		//		    MyOtherClass.java  [java source file] 1 hid:=PR278496_4<foo{MyOtherClass.java
++		//		      foo  [package declaration] 1 hid:=PR278496_4<foo{MyOtherClass.java%foo
++		//		        [import reference]  hid:=PR278496_4<foo{MyOtherClass.java#
++		//		      MyOtherClass  [class] 2 hid:=PR278496_4<foo{MyOtherClass.java[MyOtherClass
++		//		        MyInnerClass  [class] 4 hid:=PR278496_4<foo{MyOtherClass.java[MyOtherClass[MyInnerClass
++		//		          MyInnerInnerAspect  [aspect] 6 hid:=PR278496_4<foo{MyOtherClass.java[MyOtherClass[MyInnerClass}MyInnerInnerAspect
++		//		            before(): <anonymous pointcut>  [advice] 8 hid:=PR278496_4<foo{MyOtherClass.java[MyOtherClass[MyInnerClass}MyInnerInnerAspect&before
++		//		    MyClass.java  [java source file] 1 hid:=PR278496_4<foo{MyClass.java
++		//		      foo  [package declaration] 1 hid:=PR278496_4<foo{MyClass.java%foo
++		//		        [import reference]  hid:=PR278496_4<foo{MyClass.java#
++		//		      MyClass  [class] 9 hid:=PR278496_4<foo{MyClass.java[MyClass
++		//		        main(java.lang.String[])  [method] 12 hid:=PR278496_4<foo{MyClass.java[MyClass~main~\[QString;
++		//		        method1()  [method] 16 hid:=PR278496_4<foo{MyClass.java[MyClass~method1
++		//		        method2()  [method] 18 hid:=PR278496_4<foo{MyClass.java[MyClass~method2
++		//		Hid:1:(targets=1) =PR278496_4<foo{MyClass.java[MyClass~method1 (advised by) =PR278496_4<foo{MyOtherClass.java[MyOtherClass[MyInnerClass}MyInnerInnerAspect&before
++		//		Hid:2:(targets=1) =PR278496_4<foo{MyOtherClass.java[MyOtherClass[MyInnerClass}MyInnerInnerAspect&before (advises) =PR278496_4<foo{MyClass.java[MyClass~method1
++
++		AspectJElementHierarchy model = (AspectJElementHierarchy) getModelFor(p).getHierarchy();
++
++		IProgramElement ipe = model.findElementForHandleOrCreate(
++				"=PR278496_4<foo{MyOtherClass.java[MyOtherClass[MyInnerClass}MyInnerInnerAspect", false);
+ 		Assert.assertNotNull(ipe);
+ 	}
+ }
+@@ -0,0 +1,6 @@
++public aspect Azpect {
++
++  public int Code.foo() {
++    return 4;
++  }
++}
+@@ -0,0 +1,2 @@
++public class Code {
++}
+@@ -0,0 +1,5 @@
++public aspect Azpect {
++  public int Code.m() {
++    return 3;
++  }
++}
+@@ -0,0 +1,2 @@
++public class Code {
++}
+@@ -20,11 +20,11 @@ import java.util.Map;
+ import org.aspectj.apache.bcel.classfile.JavaClass;
+ import org.aspectj.bridge.IMessageHandler;
+ import org.aspectj.util.LangUtil;
++import org.aspectj.weaver.Dump.IVisitor;
+ import org.aspectj.weaver.ICrossReferenceHandler;
+ import org.aspectj.weaver.ReferenceType;
+ import org.aspectj.weaver.ReferenceTypeDelegate;
+ import org.aspectj.weaver.ResolvedType;
+-import org.aspectj.weaver.Dump.IVisitor;
+ import org.aspectj.weaver.bcel.BcelWorld;
+ import org.aspectj.weaver.loadtime.IWeavingContext;
+ import org.aspectj.weaver.reflect.AnnotationFinder;
+@@ -66,7 +66,7 @@ public class LTWWorld extends BcelWorld implements IReflectionWorld {
+ 			concurrentMapClass = null;
+ 		}
+ 	}
+-	
++
+ 	public boolean isDemotionActive() {
+ 		return true;
+ 	}
+@@ -286,4 +286,8 @@ public class LTWWorld extends BcelWorld implements IReflectionWorld {
+ 		super.accept(visitor);
+ 	}
+ 
++	public boolean isLoadtimeWeaving() {
++		return true;
++	}
++
+ }
+@@ -20,6 +20,7 @@ import java.net.URLClassLoader;
+ import java.util.Collection;
+ import java.util.Collections;
+ 
++import org.aspectj.weaver.AjAttribute.WeaverVersionInfo;
+ import org.aspectj.weaver.AnnotationAJ;
+ import org.aspectj.weaver.AnnotationTargetKind;
+ import org.aspectj.weaver.ISourceContext;
+@@ -33,7 +34,6 @@ import org.aspectj.weaver.UnresolvedType;
+ import org.aspectj.weaver.WeakClassLoaderReference;
+ import org.aspectj.weaver.WeaverStateInfo;
+ import org.aspectj.weaver.World;
+-import org.aspectj.weaver.AjAttribute.WeaverVersionInfo;
+ import org.aspectj.weaver.patterns.PerClause;
+ 
+ /**
+@@ -413,4 +413,12 @@ public class ReflectionBasedReferenceTypeDelegate implements ReferenceTypeDelega
+ 	public void ensureConsistent() {
+ 
+ 	}
++
++	public boolean isWeavable() {
++		return false;
++	}
++
++	public boolean hasBeenWoven() {
++		return false;
++	}
+ }
+@@ -151,4 +151,8 @@ public class ReflectionWorld extends World implements IReflectionWorld {
+ 		return null;
+ 	}
+ 
++	public boolean isLoadtimeWeaving() {
++		return true;
++	}
++
+ }
+@@ -144,4 +144,11 @@ public abstract class AbstractReferenceTypeDelegate implements ReferenceTypeDele
+ 
+ 	}
+ 
++	public boolean isWeavable() {
++		return false;
++	}
++
++	public boolean hasBeenWoven() {
++		return false;
++	}
+ }
+\ No newline at end of file
+@@ -136,4 +136,8 @@ public interface ReferenceTypeDelegate {
+ 	 */
+ 	public void ensureConsistent();
+ 
++	public boolean isWeavable();
++
++	public boolean hasBeenWoven();
++
+ }
+\ No newline at end of file
+@@ -442,7 +442,8 @@ public abstract class World implements Dump.INode {
+ 
+ 		} else if (ty.isGenericType()) {
+ 			// ======= generic types ======================
+-			ReferenceType genericType = (ReferenceType) resolveGenericTypeFor(ty, false);
++			ResolvedType rt = resolveGenericTypeFor(ty, false);
++			ReferenceType genericType = (ReferenceType) rt;
+ 			return genericType;
+ 
+ 		} else if (ty.isGenericWildcard()) {
+@@ -1029,6 +1030,10 @@ public abstract class World implements Dump.INode {
+ 			return tMap;
+ 		}
+ 
++		public int demote() {
++			return demote(false);
++		}
++
+ 		/**
+ 		 * Go through any types added during the previous file weave. If any are suitable for demotion, then put them in the
+ 		 * expendable map where GC can claim them at some point later. Demotion means: the type is not an aspect, the type is not
+@@ -1037,24 +1042,38 @@ public abstract class World implements Dump.INode {
+ 		 * 
+ 		 * @return number of types demoted
+ 		 */
+-		public int demote() {
+-			if (!demotionSystemActive) {
++		public int demote(boolean atEndOfCompile) {
++			if (!demotionSystemActive || (!atEndOfCompile && !w.isLoadtimeWeaving())) {
+ 				return 0;
+ 			}
+ 			int demotionCounter = 0;
++			boolean ctw = !w.isLoadtimeWeaving();
+ 			for (String key : addedSinceLastDemote) {
+ 				ResolvedType type = tMap.get(key);
+ 				if (type != null && !type.isAspect() && !type.equals(UnresolvedType.OBJECT) && !type.isPrimitiveType()) {
++					if (type.isParameterizedOrRawType()) {
++						type = type.getGenericType();
++					}
+ 					List<ConcreteTypeMunger> typeMungers = type.getInterTypeMungers();
+ 					if (typeMungers == null || typeMungers.size() == 0) {
+-						tMap.remove(key);
+-						if (!expendableMap.containsKey(key)) {
+-							if (policy == USE_SOFT_REFS) {
+-								expendableMap.put(key, new SoftReference<ResolvedType>(type));
+-							} else {
+-								expendableMap.put(key, new WeakReference<ResolvedType>(type));
++						ReferenceTypeDelegate delegate = ((ReferenceType) type).getDelegate();
++						boolean isWeavable = delegate == null ? false : delegate.isWeavable();
++						// boolean hasBeenWoven = delegate == null ? false : delegate.hasBeenWoven();
++						// System.out.println("Might demote " + key + " delegate?" + (delegate == null) + " isWeavable?" + isWeavable);
++						// + " hasBeenWoven?" + hasBeenWoven);
++
++						if (!ctw || !isWeavable) { // || hasBeenWoven) {
++							// System.out.println("Demoting " + key);
++							tMap.remove(key);
++							if (!expendableMap.containsKey(key)) {
++								if (policy == USE_SOFT_REFS) {
++									expendableMap.put(key, new SoftReference<ResolvedType>(type));
++								} else {
++									expendableMap.put(key, new WeakReference<ResolvedType>(type));
++								}
+ 							}
+ 						}
++						// }
+ 						demotionCounter++;
+ 					}
+ 				}
+@@ -1142,6 +1161,7 @@ public abstract class World implements Dump.INode {
+ 			} else {
+ 
+ 				if (demotionSystemActive) {
++					// System.out.println("Added since last demote " + key);
+ 					addedSinceLastDemote.add(key);
+ 				}
+ 
+@@ -1422,9 +1442,11 @@ public abstract class World implements Dump.INode {
+ 							MessageUtil.info("[completeBinaryTypes=true] Completion of binary types activated"));
+ 				}
+ 
+-				s = p.getProperty(xsetTYPE_DEMOTION, "true"); // default is ON
++				s = p.getProperty(xsetTYPE_DEMOTION, "true"); // default is: ON (for ltw) OFF (for ctw)
+ 				if (s.equalsIgnoreCase("false")) {
+ 					typeMap.demotionSystemActive = false;
++				} else if (s.equalsIgnoreCase("true") && !typeMap.demotionSystemActive) {
++					typeMap.demotionSystemActive = true;
+ 				}
+ 
+ 				s = p.getProperty(xsetOVERWEAVING, "false");
+@@ -1818,4 +1840,7 @@ public abstract class World implements Dump.INode {
+ 		return itdVersion;
+ 	}
+ 
++	// if not loadtime weaving then we are compile time weaving or post-compile time weaving
++	public abstract boolean isLoadtimeWeaving();
++
+ }
+\ No newline at end of file
+@@ -377,8 +377,8 @@ public class BcelObjectType extends AbstractReferenceTypeDelegate {
+ 		List<AjAttribute> l = null;
+ 		try {
+ 			l = Utility.readAjAttributes(className, javaClass.getAttributes(), getResolvedTypeX().getSourceContext(),
+-					getResolvedTypeX().getWorld(), AjAttribute.WeaverVersionInfo.UNKNOWN, new BcelConstantPoolReader(javaClass
+-							.getConstantPool()));
++					getResolvedTypeX().getWorld(), AjAttribute.WeaverVersionInfo.UNKNOWN,
++					new BcelConstantPoolReader(javaClass.getConstantPool()));
+ 		} catch (RuntimeException re) {
+ 			throw new RuntimeException("Problem processing attributes in " + javaClass.getFileName(), re);
+ 		}
+@@ -434,8 +434,8 @@ public class BcelObjectType extends AbstractReferenceTypeDelegate {
+ 			} else if (a instanceof AjAttribute.SourceContextAttribute) {
+ 				if (getResolvedTypeX().getSourceContext() instanceof SourceContextImpl) {
+ 					AjAttribute.SourceContextAttribute sca = (AjAttribute.SourceContextAttribute) a;
+-					((SourceContextImpl) getResolvedTypeX().getSourceContext()).configureFromAttribute(sca.getSourceFileName(), sca
+-							.getLineBreaks());
++					((SourceContextImpl) getResolvedTypeX().getSourceContext()).configureFromAttribute(sca.getSourceFileName(),
++							sca.getLineBreaks());
+ 
+ 					setSourcefilename(sca.getSourceFileName());
+ 				}
+@@ -985,4 +985,8 @@ public class BcelObjectType extends AbstractReferenceTypeDelegate {
+ 		superTypeReference.clear();
+ 		superInterfaceReferences.clear();
+ 	}
++
++	public boolean isWeavable() {
++		return true;
++	}
+ }
+@@ -64,6 +64,7 @@ import org.aspectj.weaver.CustomMungerFactory;
+ import org.aspectj.weaver.IClassFileProvider;
+ import org.aspectj.weaver.IUnwovenClassFile;
+ import org.aspectj.weaver.IWeaveRequestor;
++import org.aspectj.weaver.MissingResolvedTypeWithKnownSignature;
+ import org.aspectj.weaver.NewParentTypeMunger;
+ import org.aspectj.weaver.ReferenceType;
+ import org.aspectj.weaver.ReferenceTypeDelegate;
+@@ -1745,16 +1746,18 @@ public class BcelWeaver {
+ 							}
+ 							// If the compilation unit node contained no other types, there is no need to keep it
+ 							if (!anyOtherTypeDeclarations) {
+-								IProgramElement cuParent = parent.getParent();
++								IProgramElement cuParent = compilationUnit.getParent();
+ 								if (cuParent != null) {
+-									cuParent.setParent(null);
+-									cuParent.removeChild(parent);
++									compilationUnit.setParent(null);
++									cuParent.removeChild(compilationUnit);
+ 								}
+ 								// need to update some caches and structures too?
+ 								((AspectJElementHierarchy) model.getHierarchy()).forget(parent, typeElement);
+ 							} else {
+ 								((AspectJElementHierarchy) model.getHierarchy()).forget(null, typeElement);
+ 							}
++						} else {
++							((AspectJElementHierarchy) model.getHierarchy()).forget(null, typeElement);
+ 						}
+ 					}
+ 				}
+@@ -670,6 +670,7 @@ public class BcelWorld extends World implements Repository {
+ 		// is possible
+ 		classPath.closeArchives();
+ 		typeMap.report();
++		typeMap.demote(true);
+ 		ResolvedType.resetPrimitives();
+ 	}
+ 
+@@ -1175,4 +1176,8 @@ public class BcelWorld extends World implements Repository {
+ 		return typeMap;
+ 	}
+ 
++	public boolean isLoadtimeWeaving() {
++		return false;
++	}
++
+ }
+@@ -164,7 +164,6 @@ public class IncrementalCompilationTests extends AbstractMultiProjectIncremental
+ 		configureNonStandardCompileOptions(p, "-Xset:minimalModel=true");
+ 		build(p);
+ 		checkWasFullBuild();
+-		printModel(p);
+ 		// Here is the model without deletion.  The node for 'Code.java' can safely be deleted as it contains
+ 		// no types that are the target of relationships.
+ 		//		PR278496_1  [build configuration file]  hid:=PR278496_1
+@@ -214,4 +213,32 @@ public class IncrementalCompilationTests extends AbstractMultiProjectIncremental
+ 		IProgramElement ipe = model.findElementForHandleOrCreate("=PR278496_1<a.b.c{Code.java",false);
+ 		Assert.assertNull(ipe);
+ 	}
++
++	// deleting unaffected model entries
++	public void testDeletion_278496_2() throws Exception {
++		String p = "PR278496_2";
++		initialiseProject(p);
++		configureNonStandardCompileOptions(p, "-Xset:minimalModel=true");
++		build(p);
++		checkWasFullBuild();
++		printModel(p);
++		// Here is the model without deletion.
++		//		PR278496_2  [build configuration file]  hid:=PR278496_2
++		//	    [package]  hid:=PR278496_2<
++		//	    Azpect.java  [java source file] 1 hid:=PR278496_2<{Azpect.java
++		//	        [import reference]  hid:=PR278496_2<{Azpect.java#
++		//	      Azpect  [aspect] 1 hid:=PR278496_2<{Azpect.java}Azpect
++		//	        Code.m()  [inter-type method] 2 hid:=PR278496_2<{Azpect.java}Azpect)Code.m
++		//	    Code.java  [java source file] 1 hid:=PR278496_2<{Code.java
++		//	        [import reference]  hid:=PR278496_2<{Code.java#
++		//	      Code  [class] 1 hid:=PR278496_2<{Code.java[Code
++		//	Hid:1:(targets=1) =PR278496_2<{Azpect.java}Azpect)Code.m (declared on) =PR278496_2<{Code.java[Code
++		//	Hid:2:(targets=1) =PR278496_2<{Code.java[Code (aspect declarations) =PR278496_2<{Azpect.java}Azpect)Code.m
++
++
++		AspectJElementHierarchy model = (AspectJElementHierarchy) getModelFor(p).getHierarchy();
++		// Node for "Code.java" should be there since it is the target of a relationship
++		IProgramElement ipe = model.findElementForHandleOrCreate("=PR278496_1<{Code.java",false);
++		Assert.assertNotNull(ipe);
++	}
+ }
+@@ -0,0 +1,5 @@
++package a.b.c;
++
++public aspect Azpect {
++  before():staticinitialization(Code2) {}
++}
+@@ -0,0 +1,10 @@
++package a.b.c;
++import java.util.List;
++import java.util.ArrayList;
++
++public class Code {
++  public void m() {
++    List l = new ArrayList();
++  }
++}
++
+@@ -0,0 +1,10 @@
++package a.b.c;
++import java.util.List;
++import java.util.ArrayList;
++
++public class Code2 {
++  public void m() {
++    List l = new ArrayList();
++  }
++}
++
+@@ -17,12 +17,14 @@ import java.io.File;
+ import java.io.FileOutputStream;
+ import java.io.FileReader;
+ import java.io.IOException;
++import java.io.PrintWriter;
+ import java.util.ArrayList;
+ import java.util.Iterator;
+ import java.util.List;
+ import java.util.Set;
+ 
+ import org.aspectj.ajdt.internal.core.builder.AjState;
++import org.aspectj.asm.IProgramElement;
+ import org.aspectj.asm.IRelationship;
+ import org.aspectj.asm.IRelationshipMap;
+ import org.aspectj.testing.util.FileUtil;
+@@ -31,6 +33,40 @@ public class AbstractMultiProjectIncrementalAjdeInteractionTestbed extends AjdeI
+ 
+ 	public static boolean VERBOSE = false;
+ 
++	public static void dumptree(IProgramElement node, int indent) {
++		for (int i = 0; i < indent; i++) {
++			System.out.print(" ");
++		}
++		String loc = "";
++		if (node != null) {
++			if (node.getSourceLocation() != null) {
++				loc = Integer.toString(node.getSourceLocation().getLine());
++			}
++		}
++		// System.out.println(node + "  [" + (node == null ? "null" : node.getKind().toString()) + "] " + loc);
++		System.out.println(node + "  [" + (node == null ? "null" : node.getKind().toString()) + "] " + loc
++				+ (node == null ? "" : " hid:" + node.getHandleIdentifier()));
++		if (node != null) {
++			// for (int i = 0; i < indent; i++)
++			// System.out.print(" ");
++			// System.out.println("  hid is " + node.getHandleIdentifier());
++			// Map m = ((ProgramElement) node).kvpairs;
++			// if (m != null) {
++			// Set keys = m.keySet();
++			// for (Iterator iterator = keys.iterator(); iterator.hasNext();) {
++			// Object object = (Object) iterator.next();
++			//
++			// for (int i = 0; i < indent; i++)
++			// System.out.print(" ");
++			// System.out.println("kvp: " + object + " = " + m.get(object));
++			// }
++			// }
++			for (Iterator i = node.getChildren().iterator(); i.hasNext();) {
++				dumptree((IProgramElement) i.next(), indent + 2);
++			}
++		}
++	}
++
+ 	protected void setUp() throws Exception {
+ 		super.setUp();
+ 		AjdeInteractionTestbed.VERBOSE = VERBOSE;
+@@ -210,4 +246,12 @@ public class AbstractMultiProjectIncrementalAjdeInteractionTestbed extends AjdeI
+ 			fail("Expected to find '" + expectedSubstring + "' in '" + actualString + "'");
+ 		}
+ 	}
++
++	/** @return the number of relationship pairs */
++	protected void printModel(String projectName) throws Exception {
++		dumptree(getModelFor(projectName).getHierarchy().getRoot(), 0);
++		PrintWriter pw = new PrintWriter(System.out);
++		getModelFor(projectName).dumprels(pw);
++		pw.flush();
++	}
+ }
+@@ -1,15 +1,20 @@
+ /********************************************************************
+- * Copyright (c) 2010 Contributors. All rights reserved. 
+- * This program and the accompanying materials are made available 
+- * under the terms of the Eclipse Public License v1.0 
+- * which accompanies this distribution and is available at 
+- * http://eclipse.org/legal/epl-v10.html 
+- *  
+- * Contributors: 
++ * Copyright (c) 2010 Contributors. All rights reserved.
++ * This program and the accompanying materials are made available
++ * under the terms of the Eclipse Public License v1.0
++ * which accompanies this distribution and is available at
++ * http://eclipse.org/legal/epl-v10.html
++ * 
++ * Contributors:
+  *     Andy Clement (SpringSource)         initial implementation
+  *******************************************************************/
+ package org.aspectj.systemtest.incremental.tools;
+ 
++import junit.framework.Assert;
++
++import org.aspectj.asm.IProgramElement;
++import org.aspectj.asm.internal.AspectJElementHierarchy;
++
+ /**
+  * Incremental compilation tests. MultiProjectIncrementalTests was getting unwieldy - started this new test class for 1.6.10.
+  * 
+@@ -140,7 +145,6 @@ public class IncrementalCompilationTests extends AbstractMultiProjectIncremental
+ 
+ 	// removing class
+ 	public void testInnerClassChanges_318884_10() throws Exception {
+-		AjdeInteractionTestbed.VERBOSE = true;
+ 		String p = "pr318884_10";
+ 		initialiseProject(p);
+ 		build(p);
+@@ -152,4 +156,62 @@ public class IncrementalCompilationTests extends AbstractMultiProjectIncremental
+ 		assertEquals(2, getErrorMessages(p).size());
+ 		assertContains("B cannot be resolved to a type", getErrorMessages(p).get(0));
+ 	}
++
++	// deleting unaffected model entries
++	public void testDeletion_278496() throws Exception {
++		String p = "PR278496_1";
++		initialiseProject(p);
++		configureNonStandardCompileOptions(p, "-Xset:minimalModel=true");
++		build(p);
++		checkWasFullBuild();
++		printModel(p);
++		// Here is the model without deletion.  The node for 'Code.java' can safely be deleted as it contains
++		// no types that are the target of relationships.
++		//		PR278496_1  [build configuration file]  hid:=PR278496_1
++		//		  a.b.c  [package]  hid:=PR278496_1<a.b.c
++		//		    Azpect.java  [java source file] 1 hid:=PR278496_1<a.b.c{Azpect.java
++		//		      a.b.c  [package declaration] 1 hid:=PR278496_1<a.b.c{Azpect.java%a.b.c
++		//		        [import reference]  hid:=PR278496_1<a.b.c{Azpect.java#
++		//		      Azpect  [aspect] 3 hid:=PR278496_1<a.b.c{Azpect.java}Azpect
++		//		        before(): <anonymous pointcut>  [advice] 4 hid:=PR278496_1<a.b.c{Azpect.java}Azpect&before
++		//		    Code.java  [java source file] 1 hid:=PR278496_1<a.b.c{Code.java
++		//		      a.b.c  [package declaration] 1 hid:=PR278496_1<a.b.c{Code.java%a.b.c
++		//		        [import reference]  hid:=PR278496_1<a.b.c{Code.java#
++		//		        java.util.ArrayList  [import reference] 3 hid:=PR278496_1<a.b.c{Code.java#java.util.ArrayList
++		//		        java.util.List  [import reference] 2 hid:=PR278496_1<a.b.c{Code.java#java.util.List
++		//		      Code  [class] 5 hid:=PR278496_1<a.b.c{Code.java[Code
++		//		        m()  [method] 6 hid:=PR278496_1<a.b.c{Code.java[Code~m
++		//		    Code2.java  [java source file] 1 hid:=PR278496_1<a.b.c{Code2.java
++		//		      a.b.c  [package declaration] 1 hid:=PR278496_1<a.b.c{Code2.java%a.b.c
++		//		        [import reference]  hid:=PR278496_1<a.b.c{Code2.java#
++		//		        java.util.ArrayList  [import reference] 3 hid:=PR278496_1<a.b.c{Code2.java#java.util.ArrayList
++		//		        java.util.List  [import reference] 2 hid:=PR278496_1<a.b.c{Code2.java#java.util.List
++		//		      Code2  [class] 5 hid:=PR278496_1<a.b.c{Code2.java[Code2
++		//		        m()  [method] 6 hid:=PR278496_1<a.b.c{Code2.java[Code2~m
++		//		Hid:1:(targets=1) =PR278496_1<a.b.c{Azpect.java}Azpect&before (advises) =PR278496_1<a.b.c{Code2.java[Code2
++		//		Hid:2:(targets=1) =PR278496_1<a.b.c{Code2.java[Code2 (advised by) =PR278496_1<a.b.c{Azpect.java}Azpect&before
++
++		// deletion turned on:
++		//		PR278496_1  [build configuration file]  hid:=PR278496_1
++		//		  a.b.c  [package]  hid:<a.b.c
++		//		    Azpect.java  [java source file] 1 hid:<a.b.c{Azpect.java
++		//		      a.b.c  [package declaration] 1 hid:<a.b.c{Azpect.java%a.b.c
++		//		        [import reference]  hid:<a.b.c{Azpect.java#
++		//		      Azpect  [aspect] 3 hid:<a.b.c{Azpect.java}Azpect
++		//		        before(): <anonymous pointcut>  [advice] 4 hid:<a.b.c{Azpect.java}Azpect&before
++		//		    Code2.java  [java source file] 1 hid:<a.b.c{Code2.java
++		//		      a.b.c  [package declaration] 1 hid:<a.b.c{Code2.java%a.b.c
++		//		        [import reference]  hid:<a.b.c{Code2.java#
++		//		        java.util.ArrayList  [import reference] 3 hid:<a.b.c{Code2.java#java.util.ArrayList
++		//		        java.util.List  [import reference] 2 hid:<a.b.c{Code2.java#java.util.List
++		//		      Code2  [class] 5 hid:<a.b.c{Code2.java[Code2
++		//		        m()  [method] 6 hid:<a.b.c{Code2.java[Code2~m
++		//		Hid:1:(targets=1) <a.b.c{Azpect.java}Azpect&before (advises) <a.b.c{Code2.java[Code2
++		//		Hid:2:(targets=1) <a.b.c{Code2.java[Code2 (advised by) <a.b.c{Azpect.java}Azpect&before
++
++		AspectJElementHierarchy model = (AspectJElementHierarchy) getModelFor(p).getHierarchy();
++		// Node for "Code.java" should not be there:
++		IProgramElement ipe = model.findElementForHandleOrCreate("=PR278496_1<a.b.c{Code.java",false);
++		Assert.assertNull(ipe);
++	}
+ }
+@@ -1489,40 +1489,6 @@ public class MultiProjectIncrementalTests extends AbstractMultiProjectIncrementa
+ 		// dumptree(AsmManager.getDefault().getHierarchy().getRoot(), 0);
+ 	}
+ 
+-	public static void dumptree(IProgramElement node, int indent) {
+-		for (int i = 0; i < indent; i++) {
+-			System.out.print(" ");
+-		}
+-		String loc = "";
+-		if (node != null) {
+-			if (node.getSourceLocation() != null) {
+-				loc = Integer.toString(node.getSourceLocation().getLine());
+-			}
+-		}
+-		// System.out.println(node + "  [" + (node == null ? "null" : node.getKind().toString()) + "] " + loc);
+-		System.out.println(node + "  [" + (node == null ? "null" : node.getKind().toString()) + "] " + loc
+-				+ (node == null ? "" : " hid:" + node.getHandleIdentifier()));
+-		if (node != null) {
+-			// for (int i = 0; i < indent; i++)
+-			// System.out.print(" ");
+-			// System.out.println("  hid is " + node.getHandleIdentifier());
+-			// Map m = ((ProgramElement) node).kvpairs;
+-			// if (m != null) {
+-			// Set keys = m.keySet();
+-			// for (Iterator iterator = keys.iterator(); iterator.hasNext();) {
+-			// Object object = (Object) iterator.next();
+-			//
+-			// for (int i = 0; i < indent; i++)
+-			// System.out.print(" ");
+-			// System.out.println("kvp: " + object + " = " + m.get(object));
+-			// }
+-			// }
+-			for (Iterator i = node.getChildren().iterator(); i.hasNext();) {
+-				dumptree((IProgramElement) i.next(), indent + 2);
+-			}
+-		}
+-	}
+-
+ 	public void testIncrementalItdsWithMultipleAspects_pr173729() {
+ 		initialiseProject("PR173729");
+ 		build("PR173729");
+@@ -1597,14 +1563,6 @@ public class MultiProjectIncrementalTests extends AbstractMultiProjectIncrementa
+ 		// assertEquals("=AspectPathTwo/binaries<(Asp2.class}Asp2&before", findElementAtLine(root, 16).getHandleIdentifier());
+ 	}
+ 
+-	/** @return the number of relationship pairs */
+-	private void printModel(String projectName) throws Exception {
+-		dumptree(getModelFor(projectName).getHierarchy().getRoot(), 0);
+-		PrintWriter pw = new PrintWriter(System.out);
+-		getModelFor(projectName).dumprels(pw);
+-		pw.flush();
+-	}
+-
+ 	public void testAspectPath_pr265693() throws IOException {
+ 		String bug = "AspectPath3";
+ 		String bug2 = "AspectPath4";

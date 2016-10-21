@@ -1,0 +1,92 @@
+@@ -18,6 +18,10 @@ import org.aspectj.testing.XMLBasedAjcTestCase;
+ 
+ public class Ajc169Tests extends org.aspectj.testing.XMLBasedAjcTestCase {
+ 
++	public void testAnnoType_pr314965() {
++		runTest("anno typo");
++	}
++
+ 	public void testValidateBranchRecursion_314840() {
+ 		runTest("validate branch recursion");
+ 	}
+@@ -25,7 +29,7 @@ public class Ajc169Tests extends org.aspectj.testing.XMLBasedAjcTestCase {
+ 	public void testClashingDeclareAnnos_313026_1() {
+ 		runTest("clashing declare annos");
+ 	}
+-
++	
+ 	public void testClassFileSize_312839_1() {
+ 		runTest("class file size - 1");
+ 		// 2531 (0x404): 1.6.9.M2 size of Class.class
+@@ -2,6 +2,12 @@
+ 
+ <suite>
+ 
++  <ajc-test dir="bugs169/pr314965" title="anno typo">
++     <compile files="MinimalExample.java" options="-1.5">
++       <message kind="warning" text="no match for this type name: AnnotationWithParamAndTypo [Xlint:invalidAbsoluteTypeName]"/>
++     </compile>
++  </ajc-test>
++  
+   <ajc-test dir="bugs169/pr314840" title="validate branch recursion">
+      <compile files="Arguments.aj Test1.java Test2.java Test.java" options="-1.5"/>
+   </ajc-test>
+@@ -0,0 +1,13 @@
++public aspect MinimalExample {
++    declare @type : @AnnotationWithParam("arg") * : @AnnotationWithParam2("gra");
++    // the following lines leads to a misleading compiler error
++    declare @type : @AnnotationWithParamAndTypo("arg") * : @AnnotationWithParam2("gra");
++}
++
++@interface AnnotationWithParam {
++    String value();
++}
++
++@interface AnnotationWithParam2 {
++    String value();
++}
+@@ -351,6 +351,10 @@ public abstract class TypePattern extends PatternNode {
+ 		return false;
+ 	}
+ 
++	public boolean hasFailedResolution() {
++		return false;
++	}
++
+ }
+ 
+ class EllipsisTypePattern extends TypePattern {
+@@ -201,7 +201,7 @@ public class WildAnnotationTypePattern extends AnnotationTypePattern {
+ 		if (!resolved) {
+ 			throw new IllegalStateException("Can't match on an unresolved annotation type pattern");
+ 		}
+-		if (annotationValues != null) {
++		if (annotationValues != null && !typePattern.hasFailedResolution()) {
+ 			// PVAL improve this restriction, would allow '*(value=Color.RED)'
+ 			throw new IllegalStateException("Cannot use annotationvalues with a wild annotation pattern");
+ 		}
+@@ -76,6 +76,7 @@ public class WildTypePattern extends TypePattern {
+ 	private static final String GENERIC_WILDCARD_CHARACTER = "?"; // signature of ? is *
+ 	private static final String GENERIC_WILDCARD_SIGNATURE_CHARACTER = "*"; // signature of ? is *
+ 	private NamePattern[] namePatterns;
++	private boolean failedResolution = false;
+ 	int ellipsisCount;
+ 	String[] importedPrefixes;
+ 	String[] knownMatches;
+@@ -915,6 +916,7 @@ public class WildTypePattern extends TypePattern {
+ 			// Only put the lint warning out if we can't find it in the world
+ 			if (typeFoundInWholeWorldSearch.isMissing()) {
+ 				scope.getWorld().getLint().invalidAbsoluteTypeName.signal(nameWeLookedFor, getSourceLocation());
++				this.failedResolution = true;
+ 			}
+ 		}
+ 		importedPrefixes = scope.getImportedPrefixes();
+@@ -1396,4 +1398,8 @@ public class WildTypePattern extends TypePattern {
+ 		return visitor.visit(this, data);
+ 	}
+ 
++	public boolean hasFailedResolution() {
++		return failedResolution;
++	}
++
+ }

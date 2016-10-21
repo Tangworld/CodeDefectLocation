@@ -1,0 +1,293 @@
+@@ -24,6 +24,7 @@ import java.util.Set;
+ import org.aspectj.ajdt.internal.compiler.ast.AdviceDeclaration;
+ import org.aspectj.ajdt.internal.compiler.ast.AspectDeclaration;
+ import org.aspectj.ajdt.internal.compiler.ast.DeclareAnnotationDeclaration;
++import org.aspectj.ajdt.internal.compiler.ast.IfMethodDeclaration;
+ import org.aspectj.ajdt.internal.compiler.ast.PointcutDeclaration;
+ import org.aspectj.ajdt.internal.compiler.ast.Proceed;
+ import org.aspectj.ajdt.internal.compiler.lookup.EclipseFactory;
+@@ -518,7 +519,8 @@ public class AjProblemReporter extends ProblemReporter {
+ 			CharOperation.equals(binding.name, thisJoinPointStaticPartName) ||
+ 			CharOperation.equals(binding.name, thisEnclosingJoinPointStaticPartName)) {
+ 			// If in advice, this is not a problem
+-			if (binding.declaringScope!=null && binding.declaringScope.referenceContext() instanceof AdviceDeclaration) {
++			if (binding.declaringScope!=null && (binding.declaringScope.referenceContext() instanceof AdviceDeclaration ||
++												 binding.declaringScope.referenceContext() instanceof IfMethodDeclaration)) {
+ 				return;
+ 			}
+ 		}			
+@@ -0,0 +1,103 @@
++/*
++ * Copyright 2002-2013 the original author or authors.
++ *
++ * Licensed under the Apache License, Version 2.0 (the "License");
++ * you may not use this file except in compliance with the License.
++ * You may obtain a copy of the License at
++ *
++ *      http://www.apache.org/licenses/LICENSE-2.0
++ *
++ * Unless required by applicable law or agreed to in writing, software
++ * distributed under the License is distributed on an "AS IS" BASIS,
++ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++ * See the License for the specific language governing permissions and
++ * limitations under the License.
++ */
++
++package org.springframework.beans.factory.aspectj;
++
++import org.aspectj.lang.annotation.SuppressAjWarnings;
++import org.aspectj.lang.annotation.control.CodeGenerationHint;
++
++/**
++ * Abstract base aspect that can perform Dependency
++ * Injection on objects, however they may be created.
++ *
++ * @author Ramnivas Laddad
++ * @since 2.5.2
++ */
++public abstract aspect AbstractDependencyInjectionAspect {
++	/**
++	 * Select construction join points for objects to inject dependencies
++	 */
++	public abstract pointcut beanConstruction(Object bean);
++
++	/**
++	 * Select deserialization join points for objects to inject dependencies
++	 */
++	public abstract pointcut beanDeserialization(Object bean);
++
++	/**
++	 * Select join points in a configurable bean
++	 */
++	public abstract pointcut inConfigurableBean();
++
++	/**
++	 * Select join points in beans to be configured prior to construction?
++	 * By default, use post-construction injection matching the default in the Configurable annotation.
++	 */
++	public pointcut preConstructionConfiguration() : if(false);
++
++	/**
++	 * Select the most-specific initialization join point
++	 * (most concrete class) for the initialization of an instance.
++	 */
++	@CodeGenerationHint(ifNameSuffix="6f1")
++	public pointcut mostSpecificSubTypeConstruction() :
++		if(thisJoinPoint.getSignature().getDeclaringType() == thisJoinPoint.getThis().getClass());
++
++	/**
++	 * Select least specific super type that is marked for DI (so that injection occurs only once with pre-construction inejection
++	 */
++	public abstract pointcut leastSpecificSuperTypeConstruction();
++
++	/**
++	 * Configure the bean
++	 */
++	public abstract void configureBean(Object bean);
++
++
++	private pointcut preConstructionCondition() :
++		leastSpecificSuperTypeConstruction() && preConstructionConfiguration();
++
++	private pointcut postConstructionCondition() :
++		mostSpecificSubTypeConstruction() && !preConstructionConfiguration();
++
++	/**
++	 * Pre-construction configuration.
++	 */
++	@SuppressAjWarnings("adviceDidNotMatch")
++	before(Object bean) :
++		beanConstruction(bean) && preConstructionCondition() && inConfigurableBean()  {
++		configureBean(bean);
++	}
++
++	/**
++	 * Post-construction configuration.
++	 */
++	@SuppressAjWarnings("adviceDidNotMatch")
++	after(Object bean) returning :
++		beanConstruction(bean) && postConstructionCondition() && inConfigurableBean() {
++		configureBean(bean);
++	}
++
++	/**
++	 * Post-deserialization configuration.
++	 */
++	@SuppressAjWarnings("adviceDidNotMatch")
++	after(Object bean) returning :
++		beanDeserialization(bean) && inConfigurableBean() {
++		configureBean(bean);
++	}
++
++}
+@@ -24,8 +24,8 @@ public class AllTests18 {
+ 		suite.addTest(AllTestsAspectJ181.suite()); 
+ 		suite.addTest(AllTestsAspectJ180.suite()); 
+ 		suite.addTest(AllTests17.suite());
+-		suite.addTest(AllTests16.suite());
+-		suite.addTest(AllTests15.suite());
++//		suite.addTest(AllTests16.suite());
++//		suite.addTest(AllTests15.suite());
+ 		// $JUnit-END$
+ 		return suite;
+ 	}
+@@ -21,7 +21,10 @@ import org.aspectj.testing.XMLBasedAjcTestCase;
+  * @author Andy Clement
+  */
+ public class Ajc181Tests extends org.aspectj.testing.XMLBasedAjcTestCase {
+-
++	
++	public void testVariableNotInitialized_431976() {
++		runTest("variable not initialized");
++	}
+ 
+ 	public void testThisEnclosingJoinPointStaticPartNotInitialized_431976() {
+ 		runTest("thisEnclosingJoinPointStaticPart not initialized");
+@@ -2,6 +2,10 @@
+ 
+ <suite>
+ 
++	<ajc-test dir="bugs181/431976" title="variable not initialized">
++		<compile options="-1.8" files="AbstractDependencyInjectionAspect.aj"/>
++	</ajc-test>
++	
+ 	<ajc-test dir="bugs181/431976" title="thisEnclosingJoinPointStaticPart not initialized">
+ 		<compile options="-1.8" files="Code.java"/>
+ 	</ajc-test>
+@@ -508,15 +508,20 @@ public class AjProblemReporter extends ProblemReporter {
+ 		}
+ 		super.unusedPrivateType(typeDecl);
+ 	}
++	
+ 	private final static char[] thisJoinPointName = "thisJoinPoint".toCharArray();
++	private final static char[] thisJoinPointStaticPartName = "thisJoinPointStaticPart".toCharArray();
++	private final static char[] thisEnclosingJoinPointStaticPartName = "thisEnclosingJoinPointStaticPart".toCharArray();
+ 
+ 	public void uninitializedLocalVariable(LocalVariableBinding binding, ASTNode location) {
+-		if (CharOperation.equals(binding.name,thisJoinPointName)) {
++		if (CharOperation.equals(binding.name, thisJoinPointName) ||
++			CharOperation.equals(binding.name, thisJoinPointStaticPartName) ||
++			CharOperation.equals(binding.name, thisEnclosingJoinPointStaticPartName)) {
+ 			// If in advice, this is not a problem
+ 			if (binding.declaringScope!=null && binding.declaringScope.referenceContext() instanceof AdviceDeclaration) {
+ 				return;
+ 			}
+-		}
++		}			
+ 		super.uninitializedLocalVariable(binding, location);
+ 	}
+ 
+@@ -0,0 +1,15 @@
++import org.aspectj.lang.annotation.SuppressAjWarnings;
++
++privileged aspect BugThisJoinPoint {
++
++	@SuppressAjWarnings("adviceDidNotMatch")
++	void around(): execution(boolean forceFocus ()) {
++		thisEnclosingJoinPointStaticPart.getSignature();
++	}
++
++	@SuppressAjWarnings("adviceDidNotMatch")
++	void around(): execution(boolean forceFocus ()) {
++		thisJoinPointStaticPart.getSignature();
++	}
++}
++
+@@ -21,7 +21,6 @@ public class AllTestsAspectJ180 {
+ 		TestSuite suite = new TestSuite("AspectJ 1.8.0 tests");
+ 		// $JUnit-BEGIN$
+ 		suite.addTest(Ajc180Tests.suite());
+-		suite.addTest(Ajc181Tests.suite());
+ 		// $JUnit-END$
+ 		return suite;
+ 	}
+@@ -22,6 +22,11 @@ import org.aspectj.testing.XMLBasedAjcTestCase;
+  */
+ public class Ajc181Tests extends org.aspectj.testing.XMLBasedAjcTestCase {
+ 
++
++	public void testThisEnclosingJoinPointStaticPartNotInitialized_431976() {
++		runTest("thisEnclosingJoinPointStaticPart not initialized");
++	}
++	
+ 	public void testLvarTable_435446() throws Exception {
+ 		runTest("lvartable");
+ 	}
+@@ -2,6 +2,10 @@
+ 
+ <suite>
+ 
++	<ajc-test dir="bugs181/431976" title="thisEnclosingJoinPointStaticPart not initialized">
++		<compile options="-1.8" files="Code.java"/>
++	</ajc-test>
++	
+ 	<ajc-test dir="bugs181/435446" title="lvartable">
+ 		<compile options="-1.8" files="Application.java MyAspect.java">
+ 		</compile>
+@@ -21,6 +21,7 @@ import java.util.Iterator;
+ import java.util.List;
+ import java.util.Set;
+ 
++import org.aspectj.ajdt.internal.compiler.ast.AdviceDeclaration;
+ import org.aspectj.ajdt.internal.compiler.ast.AspectDeclaration;
+ import org.aspectj.ajdt.internal.compiler.ast.DeclareAnnotationDeclaration;
+ import org.aspectj.ajdt.internal.compiler.ast.PointcutDeclaration;
+@@ -48,6 +49,7 @@ import org.aspectj.org.eclipse.jdt.internal.compiler.impl.CompilerOptions;
+ import org.aspectj.org.eclipse.jdt.internal.compiler.impl.ReferenceContext;
+ import org.aspectj.org.eclipse.jdt.internal.compiler.lookup.ArrayBinding;
+ import org.aspectj.org.eclipse.jdt.internal.compiler.lookup.IPrivilegedHandler;
++import org.aspectj.org.eclipse.jdt.internal.compiler.lookup.LocalVariableBinding;
+ import org.aspectj.org.eclipse.jdt.internal.compiler.lookup.MethodBinding;
+ import org.aspectj.org.eclipse.jdt.internal.compiler.lookup.ParameterizedMethodBinding;
+ import org.aspectj.org.eclipse.jdt.internal.compiler.lookup.ReferenceBinding;
+@@ -506,6 +508,17 @@ public class AjProblemReporter extends ProblemReporter {
+ 		}
+ 		super.unusedPrivateType(typeDecl);
+ 	}
++	private final static char[] thisJoinPointName = "thisJoinPoint".toCharArray();
++	
++	public void uninitializedLocalVariable(LocalVariableBinding binding, ASTNode location) {
++		if (CharOperation.equals(binding.name,thisJoinPointName)) {
++			// If in advice, this is not a problem
++			if (binding.declaringScope!=null && binding.declaringScope.referenceContext() instanceof AdviceDeclaration) {
++				return;
++			}
++		}
++		super.uninitializedLocalVariable(binding, location);
++	}
+ 
+ 	public void abstractMethodInConcreteClass(SourceTypeBinding type) {
+ 		if (type.scope!=null && type.scope.referenceContext instanceof AspectDeclaration) {
+@@ -0,0 +1,10 @@
++import org.aspectj.lang.annotation.SuppressAjWarnings;
++
++privileged aspect BugThisJoinPoint {
++
++	@SuppressAjWarnings("adviceDidNotMatch")
++	void around(): execution(boolean forceFocus ()) {
++		thisJoinPoint.getThis();
++	}
++}
++
+@@ -21,6 +21,10 @@ import org.aspectj.testing.XMLBasedAjcTestCase;
+  */
+ public class Ajc180Tests extends org.aspectj.testing.XMLBasedAjcTestCase {
+ 
++	public void testThisJoinPointNotInitialized_431976() {
++		runTest("thisJoinPoint not initialized");
++	}
++	
+ 	public void testNullAnnotationMatching_431541() {
+ 		runTest("NullAnnotationMatching exception");
+ 	}
+@@ -2,6 +2,10 @@
+ 
+ <suite>
+ 
++	<ajc-test dir="bugs180/pr431976" title="thisJoinPoint not initialized">
++		<compile options="-1.8" files="Code.java"/>
++	</ajc-test>
++
+ 	<ajc-test dir="bugs180/pr431541" title="NullAnnotationMatching exception">
+ 		<compile options="-1.8" files="Test.aj"/>
+ 	</ajc-test>

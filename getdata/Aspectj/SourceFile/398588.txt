@@ -1,0 +1,233 @@
+@@ -0,0 +1,7 @@
++package a.b.c;
++
++import java.lang.annotation.*;
++
++@Retention(RetentionPolicy.RUNTIME)
++public @interface Anno {
++}
+@@ -0,0 +1,7 @@
++package a.b.c;
++
++import java.lang.annotation.*;
++
++@Retention(RetentionPolicy.RUNTIME)
++public @interface Anno2 {
++}
+@@ -0,0 +1,5 @@
++import a.b.c.Anno;
++
++public aspect AspectA {
++  before(): execution(@Anno * *(..)) {System.out.println("A");}
++}
+@@ -0,0 +1,3 @@
++public aspect AspectB {
++  before():staticinitialization(!Aspect*) { System.out.println("staticinitialization");}
++}
+@@ -0,0 +1,5 @@
++import a.b.c.Blah;
++
++public aspect AspectC {
++  before(): execution(@Blah * *(..)) {System.out.println("C");}
++}
+@@ -0,0 +1,5 @@
++import a.b.c.Anno2;
++
++public aspect AspectD {
++  before(): execution(@Anno2 * *(..)) {System.out.println("D");}
++}
+@@ -0,0 +1,6 @@
++package a.b.c;
++
++import java.lang.annotation.*;
++
++@Retention(RetentionPolicy.RUNTIME)
++public @interface Blah {}
+@@ -0,0 +1,10 @@
++import java.lang.annotation.*;
++import a.b.c.Blah;
++
++@Blah
++public class Code {
++  @Blah
++  public static void main(String[] argv) {
++    System.out.println("abcde");
++  }
++}
+@@ -0,0 +1,11 @@
++import java.lang.annotation.*;
++import a.b.c.*;
++
++@Anno
++public class Code2 {
++  @Anno
++  public static void main(String[] argv) {
++    System.out.println("abcde");
++  }
++}
++
+@@ -0,0 +1,9 @@
++<aspectj>
++  <aspects>
++    <aspect name="AspectA" requires="a.b.c.Anno"/>
++    <aspect name="AspectB"/>
++    <aspect name="AspectC" requires="a.b.c.Blah"/>
++    <aspect name="AspectD" requires="a.b.c.Anno2"/>
++  </aspects>
++  <weaver options="-showWeaveInfo -verbose"/>
++</aspectj>
+@@ -18,13 +18,17 @@ import org.aspectj.testing.XMLBasedAjcTestCase;
+ 
+ /**
+  * @author Andy Clement
+- */ 
++ */
+ public class Ajc172Tests extends org.aspectj.testing.XMLBasedAjcTestCase {
+-	
++
++	public void testOptionalAspects_pr398588() {
++		runTest("optional aspects");
++	}
++
+ 	public void testInconsistentClassFile_pr389750() {
+ 		runTest("inconsistent class file");
+ 	}
+-	
++
+ 	public void testInconsistentClassFile_pr389750_2() {
+ 		runTest("inconsistent class file 2");
+ 	}
+@@ -44,13 +48,16 @@ public class Ajc172Tests extends org.aspectj.testing.XMLBasedAjcTestCase {
+ 	public void testAnnotationValueError_pr389752_2() {
+ 		runTest("annotation value error 2");
+ 	}
+-	
+-	// this needs some cleverness to fix... the annotation value is parsed as a string and then not checked
+-	// to see if the user is accidentally supplying, for example, an enum value. Due to the use of strings, it
+-	// is hard to check.  The verification code might go here: WildAnnotationTypePattern, line 205 (the string case)
+-//	public void testAnnotationValueError_pr389752_3() {
+-//		runTest("annotation value error 3");
+-//	}
++
++	// this needs some cleverness to fix... the annotation value is parsed as a
++	// string and then not checked
++	// to see if the user is accidentally supplying, for example, an enum value.
++	// Due to the use of strings, it
++	// is hard to check. The verification code might go here:
++	// WildAnnotationTypePattern, line 205 (the string case)
++	// public void testAnnotationValueError_pr389752_3() {
++	// runTest("annotation value error 3");
++	// }
+ 
+ 	// ---
+ 
+@@ -1,7 +1,39 @@
+ <!DOCTYPE suite SYSTEM "../tests/ajcTestSuite.dtd"[]>
+ 
+ <suite>
+-
++	<ajc-test dir="bugs172/pr398588" title="optional aspects">
++	     <compile files="Anno.java Anno2.java" outjar="anno.jar" options="-1.5"/>
++	     <compile files="AspectA.java" classpath="anno.jar" outjar="aspect.jar" options="-Xlint:ignore -1.5"/>
++	     <compile files="AspectB.java" outjar="aspect2.jar" options="-Xlint:ignore -1.5"/>
++	     <compile files="Code.java Blah.java" classpath="code.jar;aspect.jar;aspect2.jar" options="-1.5"/>
++		 <compile files="AspectC.java" classpath="$sandbox" outjar="aspect3.jar" options="-Xlint:ignore -1.5"/>	     
++	     <compile files="AspectD.java" classpath="anno.jar" outjar="aspect4.jar" options="-Xlint:ignore -1.5"/>
++	     
++	     <file deletefile="anno.jar"/>
++	     <run class="Code" ltw="META-INF/aop.xml" classpath=".;aspect.jar;aspect2.jar;aspectj3.jar;aspect4.jar">
++	     <stderr>
++	     <line text="AspectJ Weaver Version"/>
++	     <line text="register classloader"/>
++	     <line text="using configuration"/>
++	     <line text="register aspect AspectA"/>
++	     <line text="deactivating aspect"/>
++	     <line text="register aspect AspectB"/>     
++	     <line text="register aspect AspectC"/>   
++	     <line text="register aspect AspectD"/>
++	     <line text="deactivating aspect 'AspectD' as it requires type 'a.b.c.Anno2' which cannot be found on the classpath"/>
++	     <line text="Join point 'method-execution(void Code.main(java.lang.String[]))' in Type 'Code' (Code.java:7) advised by before advice from 'AspectC'"/>
++	     <line text="Join point 'staticinitialization(void Code.&lt;clinit&gt;())' in Type 'Code' (Code.java) advised by before advice from 'AspectB'"/>  
++	     <line text="processing reweavable"/>
++	     <line text="processing reweavable"/>
++	     </stderr>
++	     <stdout>
++	     <line text="staticinitialization"/>
++	     <line text="C"/>
++	     <line text="abcde"/>
++	     </stdout>
++	     </run>
++	</ajc-test>
++  
+ 	<ajc-test dir="bugs172/pr389750" title="inconsistent class file">
+       <compile files="Code.aj" options="-1.5">
+       </compile>
+@@ -1000,41 +1000,44 @@ public class BcelWorld extends World implements Repository {
+ 
+ 	@Override
+ 	public boolean hasUnsatisfiedDependency(ResolvedType aspectType) {
+-		if (!aspectRequiredTypesProcessed) {
+-			if (aspectRequiredTypes != null) {
+-				List<String> forRemoval = new ArrayList<String>();
+-				for (Map.Entry<String, String> entry : aspectRequiredTypes.entrySet()) {
+-					ResolvedType rt = this.resolve(UnresolvedType.forName(entry.getValue()));
+-					if (!rt.isMissing()) {
+-						forRemoval.add(entry.getKey());
+-					} else {
+-						if (!getMessageHandler().isIgnoring(IMessage.INFO)) {
+-							getMessageHandler().handleMessage(
+-									MessageUtil.info("deactivating aspect '" + aspectType.getName() + "' as it requires type '"
+-											+ rt.getName() + "' which cannot be found on the classpath"));
+-						}
++		if (aspectRequiredTypes == null) {
++			// no aspects require anything, so there can be no unsatisfied dependencies
++			return false;
++		}
++		String aspectName = aspectType.getName();
++		if (!aspectRequiredTypesProcessed.contains(aspectName)) {
++			String requiredTypeName = aspectRequiredTypes.get(aspectName);
++			if (requiredTypeName==null) {
++				aspectRequiredTypesProcessed.add(aspectName);
++				return false;
++			} else {
++				ResolvedType rt = resolve(UnresolvedType.forName(requiredTypeName));
++				if (!rt.isMissing()) {
++					aspectRequiredTypesProcessed.add(aspectName);
++					aspectRequiredTypes.remove(aspectName);
++					return false;
++				} else {
++					if (!getMessageHandler().isIgnoring(IMessage.INFO)) {
++						getMessageHandler().handleMessage(
++								MessageUtil.info("deactivating aspect '" + aspectName + "' as it requires type '"
++										+ requiredTypeName + "' which cannot be found on the classpath"));
+ 					}
+-				}
+-				for (String key : forRemoval) {
+-					aspectRequiredTypes.remove(key);
++					aspectRequiredTypesProcessed.add(aspectName);
++					return true;
+ 				}
+ 			}
+-			aspectRequiredTypesProcessed = true;
+-		}
+-		if (aspectRequiredTypes == null) {
+-			return false;
+ 		}
+-		return aspectRequiredTypes.containsKey(aspectType.getName());
++		return aspectRequiredTypes.containsKey(aspectName);
+ 	}
+ 
+-	private boolean aspectRequiredTypesProcessed = false;
++	private List<String> aspectRequiredTypesProcessed = new ArrayList<String>();
+ 	private Map<String, String> aspectRequiredTypes = null;
+ 
+-	public void addAspectRequires(String name, String requiredType) {
++	public void addAspectRequires(String aspectClassName, String requiredType) {
+ 		if (aspectRequiredTypes == null) {
+ 			aspectRequiredTypes = new HashMap<String, String>();
+ 		}
+-		aspectRequiredTypes.put(name, requiredType);
++		aspectRequiredTypes.put(aspectClassName, requiredType);
+ 	}
+ 
+ 	/**

@@ -1,0 +1,125 @@
+@@ -1064,6 +1064,8 @@ public class PatternParser {
+ 				typeIsPattern = new TypeCategoryTypePattern(TypeCategoryTypePattern.ENUM);
+ 			} else if (category.equals("AnnotationType")) {
+ 				typeIsPattern = new TypeCategoryTypePattern(TypeCategoryTypePattern.ANNOTATION);
++			} else if (category.equals("FinalType")) {
++				typeIsPattern = new TypeCategoryTypePattern(TypeCategoryTypePattern.FINAL);
+ 			}
+ 		}
+ 		if (typeIsPattern == null) {
+@@ -14,6 +14,7 @@
+ package org.aspectj.weaver.patterns;
+ 
+ import java.io.IOException;
++import java.lang.reflect.Modifier;
+ import java.util.Map;
+ 
+ import org.aspectj.util.FuzzyBoolean;
+@@ -40,6 +41,7 @@ public class TypeCategoryTypePattern extends TypePattern {
+ 	public static final int ANONYMOUS = 5;
+ 	public static final int ENUM = 6;
+ 	public static final int ANNOTATION = 7;
++	public static final int FINAL = 8;
+ 
+ 	private int category;
+ 
+@@ -104,6 +106,7 @@ public class TypeCategoryTypePattern extends TypePattern {
+ 		writeLocation(s);
+ 	}
+ 
++	@SuppressWarnings("unused")
+ 	public static TypePattern read(VersionedDataInputStream s, ISourceContext context) throws IOException {
+ 		int version = s.readInt();
+ 		int category = s.readInt();
+@@ -131,6 +134,8 @@ public class TypeCategoryTypePattern extends TypePattern {
+ 			return type.isEnum();
+ 		case ANNOTATION:
+ 			return type.isAnnotation();
++		case FINAL:
++			return Modifier.isFinal(type.getModifiers());
+ 		}
+ 		return false;
+ 	}
+@@ -0,0 +1,20 @@
++public class Code {
++  public static void main(String[] argv) {
++    new Code().run();
++  }
++
++  public void run() {
++    new Code2().run();
++  }
++}
++
++final class Code2 {
++  public void run() {
++  }
++}
++
++aspect X {
++  before(): execution(* (!is(FinalType)).run(..)) {
++    System.out.println(thisJoinPointStaticPart);
++  }
++}
+@@ -0,0 +1,20 @@
++public class Code2 {
++  public static void main(String[] argv) {
++    new Code2().run();
++  }
++
++  public void run() {
++    new Helper().run();
++  }
++}
++
++final class Helper {
++  public void run() {
++  }
++}
++
++aspect X {
++  before(): execution(* (is(FinalType)).run(..)) {
++    System.out.println(thisJoinPointStaticPart);
++  }
++}
+@@ -97,6 +97,15 @@ public class Ajc184Tests extends org.aspectj.testing.XMLBasedAjcTestCase {
+ 		// abstract aspects
+ 		runTest("thisAspectInstance - 15");
+ 	}
++	
++	public void testIsFinal_449739() {
++		runTest("is final");
++	}
++
++	public void testIsFinal_449739_2() {
++		runTest("is final - 2");
++	}
++	
+ 	// ---
+ 
+ 	public static Test suite() {
+@@ -133,6 +133,24 @@
+ </compile>
+ </ajc-test>
+ 
++<ajc-test dir="bugs184/449739" title="is final">
++<compile files="Code.java" options="-1.8"/>
++<run class="Code">
++  <stdout>
++  <line text="execution(void Code.run())"/>
++  </stdout>
++</run>
++</ajc-test>
++
++<ajc-test dir="bugs184/449739" title="is final - 2">
++<compile files="Code2.java" options="-1.8"/>
++<run class="Code2">
++  <stdout>
++  <line text="execution(void Helper.run())"/>
++  </stdout>
++</run>
++</ajc-test>
++
+ <ajc-test dir="bugs1612/pr239649" title="thisAspectInstance - 12">
+ <compile files="Twelve.java" options="-1.8"/>
+ <run class="Twelve">

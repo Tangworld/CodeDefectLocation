@@ -1,0 +1,75 @@
+@@ -673,8 +673,15 @@ public class ResolvedMemberImpl extends MemberImpl implements IHasPosition, Reso
+ 	}
+ 
+ 	public boolean isVisible(ResolvedType fromType) {
+-		World world = fromType.getWorld();
+-		return ResolvedType.isVisible(getModifiers(), getDeclaringType().resolve(world), fromType);
++		UnresolvedType declaringType = getDeclaringType();
++		ResolvedType type = null;
++		if (fromType.equals(declaringType)) {
++			type = fromType;
++		} else {
++			World world = fromType.getWorld();
++			type = declaringType.resolve(world);
++		}
++		return ResolvedType.isVisible(getModifiers(), type, fromType);
+ 	}
+ 
+ 	public void setCheckedExceptions(UnresolvedType[] checkedExceptions) {
+@@ -0,0 +1,14 @@
++package ca;
++
++import org.aspectj.lang.annotation.*;
++
++public class C {
++
++  public static void main(String[]argv) {
++    new C().setOwner();
++  }
++
++  public void setOwner() {
++  }
++
++}
+@@ -0,0 +1,16 @@
++package ca;
++import org.aspectj.lang.annotation.*;
++
++@Aspect
++class OwnershipSecurityAspect {
++
++
++   @Pointcut("call(public void ca..setOwner(..)) && !within(ca..OwnershipSecurityAspect) && !within(ca..*Test)")
++   protected void myPcut() {}
++
++   @DeclareWarning("myPcut()")
++   public static final String securityError = "An advice already exists for setting an owner";
++
++
++
++}
+@@ -29,6 +29,10 @@ public class Ajc170Tests extends org.aspectj.testing.XMLBasedAjcTestCase {
+ 		runTest("missing impl 2");
+ 	}
+ 
++	public void testStackOverflow_364380() {
++		runTest("stackoverflow");
++	}
++
+ 	// ---
+ 
+ 	public static Test suite() {
+@@ -20,5 +20,11 @@
+      </run>
+    </ajc-test>
+ 
+-  
++   <ajc-test dir="bugs170/pr364380" title="stackoverflow">
++     <compile files="X.aj" options="-1.5" outjar="foo.jar"/>
++     <compile files="C.java" options="-1.5" inpath="foo.jar">
++     <message kind="warning" text="An advice already exists for setting an owner"/>
++     </compile>
++   </ajc-test>
++   
+ </suite>
+\ No newline at end of file

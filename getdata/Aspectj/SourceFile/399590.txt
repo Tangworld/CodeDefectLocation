@@ -1,0 +1,246 @@
+@@ -115,6 +115,28 @@ public class BoundedReferenceType extends ReferenceType {
+ 		}
+ 	}
+ 
++	@Override
++	public String getSignatureForAttribute() {
++		StringBuilder ret = new StringBuilder();
++		if (kind==SUPER){
++			ret.append("-");
++			ret.append(lowerBound.getSignatureForAttribute());
++			for (int i=0;i<additionalInterfaceBounds.length;i++) {
++				ret.append(additionalInterfaceBounds[i].getSignatureForAttribute());
++			}
++		} else if (kind==EXTENDS) {
++			ret.append("+");
++			ret.append(upperBound.getSignatureForAttribute());
++			for (int i=0;i<additionalInterfaceBounds.length;i++) {
++				ret.append(additionalInterfaceBounds[i].getSignatureForAttribute());
++			}
++		} else if (kind==UNBOUND) {
++			ret.append("*");
++		}
++		return ret.toString();
++	}
++
++
+ 	public boolean hasLowerBound() {
+ 		return lowerBound != null;
+ 	}
+@@ -0,0 +1,9 @@
++class LionCage extends Cage<Lion> {}
++class Lion extends Animal<LionCage> {}
++
++class Animal<T> { }
++
++class Bar {}
++
++public class Cage<T extends Animal<? extends Cage<T>>> extends Bar { }
++
+@@ -0,0 +1,13 @@
++class LionCage2 extends Cage2<Lion2> {}
++class Lion2 extends Animal2<LionCage2> {}
++
++class Animal2<T> { }
++
++class Bar2 {}
++
++public class Cage2<T extends Animal2<? extends Cage2<T>>> extends Bar2 { }
++
++aspect X {
++	declare parents: Cage2 implements java.io.Serializable;
++}
++
+@@ -0,0 +1,9 @@
++//class LionCage extends Cage<Lion> {}
++//class Lion extends Animal<LionCage> {}
++
++class Animal<T> { }
++
++class Bar {}
++
++
++public class Cage<T extends Animal<?>> extends Bar { }
+@@ -0,0 +1,9 @@
++class Animal2<T> { }
++
++class Bar2 {}
++
++public class Cage2<T extends Animal2<?>> extends Bar2 { }
++
++aspect X {
++  declare parents: Cage2 implements java.io.Serializable;
++}
+@@ -0,0 +1,11 @@
++//class LionCage extends Cage<Lion> {}
++//class Lion extends Animal<LionCage> {}
++
++class Animal<T,R> { }
++
++class Bar {}
++
++interface XXX<T> {}
++interface YYY<T> {}
++
++public class Cage<T extends Animal<? super XXX<T>,YYY>> extends Bar { }
+@@ -0,0 +1,13 @@
++class Animal2<T,Q> { }
++
++class Bar2 {}
++
++interface XXX2<T> {}
++
++interface YYY2<T> {}
++
++public class Cage2<T extends Animal2<? super XXX2<T>,YYY2>> extends Bar2 { }
++
++aspect X {
++  declare parents: Cage2 implements java.io.Serializable;
++}
+@@ -0,0 +1,10 @@
++//class LionCage extends Cage<Lion> {}
++//class Lion extends Animal<LionCage> {}
++
++class Animal<T> { }
++
++class Bar {}
++
++interface XXX<T> {}
++
++public class Cage<T extends Animal<? super XXX<T>>> extends Bar { }
+@@ -0,0 +1,11 @@
++class Animal2<T> { }
++
++class Bar2 {}
++
++interface XXX2<T> {}
++
++public class Cage2<T extends Animal2<? super XXX2<T>>> extends Bar2 { }
++
++aspect X {
++  declare parents: Cage2 implements java.io.Serializable;
++}
+@@ -0,0 +1,9 @@
++
++class Animal<T,Q> { }
++
++class Bar {}
++
++class Intf {}
++
++public class Cage<T extends Animal<? extends Cage<T,Intf>,Intf>,Q> extends Bar { }
++
+@@ -0,0 +1,13 @@
++
++class Animal2<T,Q> { }
++
++class Bar2 {}
++
++class Intf2 {}
++
++public class Cage2<T extends Animal2<? extends Cage2<T,Intf2>,Intf2>,Q> extends Bar2 { }
++
++
++aspect X {
++	declare parents: Cage2 implements java.io.Serializable;
++}
+@@ -23,6 +23,66 @@ import org.aspectj.testing.XMLBasedAjcTestCase;
+  */
+ public class Ajc172Tests extends org.aspectj.testing.XMLBasedAjcTestCase {
+ 
++	// extends
++	public void testPSignatures_pr399590() throws Exception {
++		runTest("p signatures 1");
++		JavaClass jc = getClassFrom(ajc.getSandboxDirectory(),"Cage");
++		String sss = jc.getSignatureAttribute().getSignature();
++		assertEquals("<T:LAnimal<+LCage<TT;>;>;>LBar;", sss);
++		jc = getClassFrom(ajc.getSandboxDirectory(),"Cage2");
++		sss = jc.getSignatureAttribute().getSignature();
++		assertEquals("<T:LAnimal2<+LCage2<TT;>;>;>LBar2;Ljava/io/Serializable;", sss);
++		jc = getClassFrom(ajc.getSandboxDirectory(),"Cage2");
++	}
++	
++	// extends two classes
++	public void testPSignatures_pr399590_2() throws Exception {
++		runTest("p signatures 2");
++		JavaClass jc = getClassFrom(ajc.getSandboxDirectory(),"Cage");
++		String sss = jc.getSignatureAttribute().getSignature();
++		assertEquals("<T:LAnimal<+LCage<TT;LIntf;>;LIntf;>;Q:Ljava/lang/Object;>LBar;", sss);
++		jc = getClassFrom(ajc.getSandboxDirectory(),"Cage2");
++		sss = jc.getSignatureAttribute().getSignature();
++		assertEquals("<T:LAnimal2<+LCage2<TT;LIntf2;>;LIntf2;>;Q:Ljava/lang/Object;>LBar2;Ljava/io/Serializable;", sss);
++		jc = getClassFrom(ajc.getSandboxDirectory(),"Cage2");
++	}
++	
++	// super
++	public void testPSignatures_pr399590_3() throws Exception {
++		runTest("p signatures 3");
++		JavaClass jc = getClassFrom(ajc.getSandboxDirectory(),"Cage");
++		String sss = jc.getSignatureAttribute().getSignature();
++		assertEquals("<T:LAnimal<-LXXX<TT;>;>;>LBar;", sss);
++		jc = getClassFrom(ajc.getSandboxDirectory(),"Cage2");
++		sss = jc.getSignatureAttribute().getSignature();
++		assertEquals("<T:LAnimal2<-LXXX2<TT;>;>;>LBar2;Ljava/io/Serializable;", sss);
++		jc = getClassFrom(ajc.getSandboxDirectory(),"Cage2");
++	}
++
++	// super
++	public void testPSignatures_pr399590_4() throws Exception {
++		runTest("p signatures 4");
++		JavaClass jc = getClassFrom(ajc.getSandboxDirectory(),"Cage");
++		String sss = jc.getSignatureAttribute().getSignature();
++		assertEquals("<T:LAnimal<-LXXX<TT;>;LYYY;>;>LBar;", sss);
++		jc = getClassFrom(ajc.getSandboxDirectory(),"Cage2");
++		sss = jc.getSignatureAttribute().getSignature();
++		assertEquals("<T:LAnimal2<-LXXX2<TT;>;LYYY2;>;>LBar2;Ljava/io/Serializable;", sss);
++		jc = getClassFrom(ajc.getSandboxDirectory(),"Cage2");
++	}
++
++	// unbound
++	public void testPSignatures_pr399590_5() throws Exception {
++		runTest("p signatures 5");
++		JavaClass jc = getClassFrom(ajc.getSandboxDirectory(),"Cage");
++		String sss = jc.getSignatureAttribute().getSignature();
++		assertEquals("<T:LAnimal<*>;>LBar;", sss);
++		jc = getClassFrom(ajc.getSandboxDirectory(),"Cage2");
++		sss = jc.getSignatureAttribute().getSignature();
++		assertEquals("<T:LAnimal2<*>;>LBar2;Ljava/io/Serializable;", sss);
++		jc = getClassFrom(ajc.getSandboxDirectory(),"Cage2");
++	}
++
+ 	public void testIfPointcutNames_pr398246() throws Exception {
+ 		runTest("if pointcut names");
+ 		JavaClass jc = getClassFrom(ajc.getSandboxDirectory(), "X");
+@@ -1,6 +1,32 @@
+ <!DOCTYPE suite SYSTEM "../tests/ajcTestSuite.dtd"[]>
+ 
+ <suite>
++
++	<ajc-test dir="bugs172/pr399590" title="p signatures 1">
++      <compile files="Cage.java" options="-1.5"/>
++      <compile files="Cage2.java" options="-1.5"/>
++    </ajc-test>
++    
++	<ajc-test dir="bugs172/pr399590/two" title="p signatures 2">
++      <compile files="Cage.java" options="-1.5"/>
++      <compile files="Cage2.java" options="-1.5"/>
++    </ajc-test>
++    
++	<ajc-test dir="bugs172/pr399590/three" title="p signatures 3">
++      <compile files="Cage.java" options="-1.5"/>
++      <compile files="Cage2.java" options="-1.5"/>
++    </ajc-test>
++    
++	<ajc-test dir="bugs172/pr399590/four" title="p signatures 4">
++      <compile files="Cage.java" options="-1.5"/>
++      <compile files="Cage2.java" options="-1.5"/>
++    </ajc-test>
++    
++	<ajc-test dir="bugs172/pr399590/five" title="p signatures 5">
++      <compile files="Cage.java" options="-1.5"/>
++      <compile files="Cage2.java" options="-1.5"/>
++    </ajc-test>
++    
+ 	<ajc-test dir="bugs172/pr398588" title="optional aspects">
+ 	     <compile files="Anno.java Anno2.java" outjar="anno.jar" options="-1.5"/>
+ 	     <compile files="AspectA.java" classpath="anno.jar" outjar="aspect.jar" options="-Xlint:ignore -1.5"/>

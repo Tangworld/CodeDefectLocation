@@ -1,0 +1,40 @@
+@@ -0,0 +1,16 @@
++import java.util.*;
++import java.io.*;
++
++interface IVOList<T extends IValueObject> extends List<T>, Externalizable, Serializable {
++    void updateList(List<T> newList);
++}
++
++interface IValueObject extends Comparable<IValueObject>, Serializable {
++
++}
++
++aspect Foo {
++  @SuppressWarnings("rawtypes")
++  pointcut IVOListUpdate(IVOList list):  target(list) && call(void updateList(*));
++}
++
+@@ -21,6 +21,10 @@ import org.aspectj.testing.XMLBasedAjcTestCase;
+  */
+ public class Ajc1612Tests extends org.aspectj.testing.XMLBasedAjcTestCase {
+ 
++	public void testRawTypePointcut_327134() {
++		runTest("rawtype pointcut");
++	}
++	
+ 	public void testRawTypeWarning_335810() {
+ 		runTest("rawtype warning");
+ 	}
+@@ -7,6 +7,11 @@
+ </compile>
+ </ajc-test>
+ 
++<ajc-test dir="bugs1612/pr327134" title="rawtype pointcut">
++<compile files="Code.java" options="-1.5 -warn:+raw -warn:+warningToken">
++</compile>
++</ajc-test>
++
+ <ajc-test dir="bugs1612/pr344005" title="decp generics">
+ <compile files="Anno.java Types.java Azpect.java" options="-1.5 -showWeaveInfo">
+ <message kind="weave" text="XX"/>

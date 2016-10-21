@@ -1,0 +1,129 @@
+@@ -158,7 +158,7 @@ public class AspectJElementHierarchy implements IHierarchy {
+ 
+ 		synchronized (this) {
+ 			// Build a cache key and check the cache
+-			StringBuffer keyb = (packageName == null) ? new StringBuffer() : new StringBuffer(packageName);
++			StringBuilder keyb = (packageName == null) ? new StringBuilder() : new StringBuilder(packageName);
+ 			keyb.append(".").append(typeName);
+ 			String key = keyb.toString();
+ 			IProgramElement cachedValue = typeMap.get(key);
+@@ -290,6 +290,15 @@ public class AspectJElementHierarchy implements IHierarchy {
+ 		}
+ 
+ 		for (IProgramElement classNode : nodes) {
++			if (!classNode.getKind().isType()) {
++				List<IProgramElement> kids = classNode.getChildren();
++				if (kids != null && !kids.isEmpty()) {
++					IProgramElement node = findClassInNodes(kids, name, typeName);
++					if (node != null) {
++						return node;
++					}
++				}
++			} else {
+ 			if (baseName.equals(classNode.getName())) {
+ 				if (innerName == null) {
+ 					return classNode;
+@@ -306,6 +315,7 @@ public class AspectJElementHierarchy implements IHierarchy {
+ 					return node;
+ 				}
+ 			}
++			}
+ 		}
+ 		return null;
+ 	}
+@@ -11,14 +11,18 @@
+ package org.aspectj.systemtest.ajc151;
+ 
+ import java.io.File;
++import java.io.IOException;
++import java.io.PrintWriter;
+ 
+ import junit.framework.Test;
+ 
++import org.aspectj.ajdt.internal.core.builder.AsmHierarchyBuilder;
+ import org.aspectj.asm.AsmManager;
+ import org.aspectj.asm.IHierarchy;
+ import org.aspectj.asm.IProgramElement;
+ import org.aspectj.systemtest.ajc150.GenericsTests;
+ import org.aspectj.testing.XMLBasedAjcTestCase;
++import org.aspectj.weaver.UnresolvedType.TypeKind;
+ 
+ public class Ajc151Tests extends org.aspectj.testing.XMLBasedAjcTestCase {
+ 
+@@ -177,11 +181,12 @@ public class Ajc151Tests extends org.aspectj.testing.XMLBasedAjcTestCase {
+ 		GenericsTests.verifyClassSignature(ajc, "ConcreteAspect", "LAbstractAspect<LStudent;>;");
+ 	}
+ 
+-	public void testIProgramElementMethods_pr125295() {
++	public void testIProgramElementMethods_pr125295() throws IOException {
+ 		runTest("new IProgramElement methods");
+ 		IHierarchy top = AsmManager.lastActiveStructureModel.getHierarchy();
+ 
+-		IProgramElement pe = top.findElementForType("pkg", "foo");
++		IProgramElement typeC = top.findElementForType("pkg", "C");
++		IProgramElement pe = top.findElementForSignature(typeC, IProgramElement.Kind.METHOD, "foo(int,java.lang.Object)");
+ 		assertNotNull("Couldn't find 'foo' element in the tree", pe);
+ 		// check that the defaults return the fully qualified arg
+ 		assertEquals("foo(int,java.lang.Object)", pe.toLabelString());
+@@ -192,7 +197,8 @@ public class Ajc151Tests extends org.aspectj.testing.XMLBasedAjcTestCase {
+ 		assertEquals("C.foo(int,Object)", pe.toLinkLabelString(false));
+ 		assertEquals("foo(int,Object)", pe.toSignatureString(false));
+ 
+-		IProgramElement pe2 = top.findElementForType("pkg", "printParameters");
++		IProgramElement typeA = top.findElementForType("pkg", "A");
++		IProgramElement pe2 = top.findElementForSignature(typeA,IProgramElement.Kind.METHOD,"printParameters(org.aspectj.lang.JoinPoint)");
+ 		assertNotNull("Couldn't find 'printParameters' element in the tree", pe2);
+ 		// the argument is org.aspectj.lang.JoinPoint, check that this is added
+ 		assertFalse("printParameters method should have arguments", pe2.getParameterSignatures().isEmpty());
+@@ -0,0 +1,33 @@
++package TestRequirements;
++
++import java.lang.annotation.Retention;
++import java.lang.annotation.RetentionPolicy;
++
++
++@Retention(RetentionPolicy.RUNTIME)
++@interface AnnotatedMethod {}
++
++@Retention(RetentionPolicy.RUNTIME)
++@interface NewAnnotatedMethod {
++    boolean newValue();
++}
++
++aspect X {
++    declare @method: !@AnnotatedMethod * TestRequirements.*(..) : @NewAnnotatedMethod(newValue = true);
++}
++
++public class TestRequirements {
++    @AnnotatedMethod
++    public void dontMatchMe() {}
++
++    public void matchMe() {}
++
++  public static void foo() throws Exception {
++    if (TestRequirements.class.getDeclaredMethod("dontMatchMe").getAnnotation(NewAnnotatedMethod.class)!=null) {
++      throw new IllegalStateException();
++    }
++    if (TestRequirements.class.getDeclaredMethod("matchMe").getAnnotation(NewAnnotatedMethod.class)==null) {
++      throw new IllegalStateException();
++    }
++  }
++}
+@@ -67,6 +67,17 @@ import org.aspectj.weaver.World;
+  */
+ public class MultiProjectIncrementalTests extends AbstractMultiProjectIncrementalAjdeInteractionTestbed {
+ 
++	public void testMissingRel_328121() throws Exception {
++		String p = "pr328121";
++		initialiseProject(p);
++		build(p);
++		checkWasFullBuild();
++		assertNoErrors(p);
++		// Check the annotations:
++		runMethod(p,"TestRequirements.TestRequirements","foo");
++		assertEquals(4,getRelationshipCount(p));
++	}
++	
+ 	public void testEncoding_pr290741() throws Exception {
+ 		String p = "pr290741";
+ 		initialiseProject(p);

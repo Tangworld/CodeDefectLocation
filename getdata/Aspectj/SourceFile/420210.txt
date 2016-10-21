@@ -1,0 +1,71 @@
+@@ -222,6 +222,22 @@ public class Checker extends ShadowMunger {
+ 			return shadow.toString();
+ 		} else if (key.equalsIgnoreCase("joinpoint.kind")) {
+ 			return shadow.getKind().getName();
++		} else if (key.equalsIgnoreCase("joinpoint.enclosingclass")) {
++			return shadow.getEnclosingType().getName();
++		} else if (key.equalsIgnoreCase("joinpoint.enclosingmember.name")) {
++			Member member = shadow.getEnclosingCodeSignature();
++			if (member==null) {
++				return "";
++			} else {
++				return member.getName();
++			}
++		} else if (key.equalsIgnoreCase("joinpoint.enclosingmember")) {
++			Member member = shadow.getEnclosingCodeSignature();
++			if (member==null) {
++				return "";
++			} else {
++				return member.toString();
++			}
+ 		} else if (key.equalsIgnoreCase("joinpoint.signature")) {
+ 			return shadow.getSignature().toString();
+ 		} else if (key.equalsIgnoreCase("joinpoint.signature.declaringtype")) {
+@@ -0,0 +1,18 @@
++public aspect Code {
++  declare warning: call(* foo(..)): "Call to foo made inside class {joinpoint.enclosingclass}";
++  declare warning: call(* foo(..)): "Call to foo made inside member {joinpoint.enclosingmember.name}";
++  declare warning: call(* foo(..)): "Call to foo made inside member {joinpoint.enclosingmember}";
++}
++class Bar {
++  public void booble() {
++    foo();
++  }
++  public void foo() {}
++}
++
++class Boo {
++  public void m() {
++    foo();
++  }
++  public void foo() {}
++}
+@@ -21,6 +21,10 @@ import org.aspectj.testing.XMLBasedAjcTestCase;
+  */
+ public class Ajc174Tests extends org.aspectj.testing.XMLBasedAjcTestCase {
+ 
++	public void testExtraInserts() throws Exception {
++		runTest("extra inserts");
++	}
++	
+ 	public void testMoreConfigurableLint_419279() throws Exception {
+ 		runTest("more configurable lint");
+ 	}
+@@ -2,6 +2,17 @@
+ 
+ <suite>
+ 
++	<ajc-test dir="bugs174/extra_inserts" title="extra inserts">
++		<compile files="Code.java" options="-1.5">
++			<message kind="warning" line="8"  text="Call to foo made inside class Bar"/>
++			<message kind="warning" line="15" text="Call to foo made inside class Boo"/>
++			<message kind="warning" line="8"  text="Call to foo made inside member booble"/>
++			<message kind="warning" line="15" text="Call to foo made inside member m"/>
++			<message kind="warning" line="8"  text="Call to foo made inside member void Bar.booble()"/>
++			<message kind="warning" line="15" text="Call to foo made inside member void Boo.m()"/>
++		</compile>
++	</ajc-test>
++
+ 	<ajc-test dir="bugs174/pr419279" title="more configurable lint">
+ 		<compile files="Code.java" options="-1.5">
+ 			<message kind="warning" text="advice defined in Code has not been applied [Xlint:adviceDidNotMatch]"/>

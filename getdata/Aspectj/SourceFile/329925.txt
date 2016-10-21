@@ -1,0 +1,1418 @@
+@@ -0,0 +1,32 @@
++import java.lang.annotation.*;
++
++@Retention(RetentionPolicy.RUNTIME)
++@interface Anno {}
++
++aspect Foo {
++  // one way round
++  declare @field: * OnOffITD.field: -@Anno;
++  declare @field: * OnOffITD.field: @Anno;
++
++  // the other way round
++  declare @field: * OnOffITD.field2: @Anno;
++  declare @field: * OnOffITD.field2: -@Anno;
++}
++
++aspect B {
++  public static int OnOffITD.field;
++  public int OnOffITD.field2;
++}
++
++public class OnOffITD {
++
++
++  public static void main(String[]argv) throws Exception {
++    Object o = OnOffITD.class.getDeclaredField("field").getAnnotation(Anno.class);
++    System.out.println("field annotated? "+(o==null?"no":"yes"));
++
++    o = OnOffITD.class.getDeclaredField("field2").getAnnotation(Anno.class);
++    System.out.println("field2 annotated? "+(o==null?"no":"yes"));
++  }
++}
++
+@@ -19,6 +19,7 @@ import java.util.Comparator;
+ import java.util.HashMap;
+ import java.util.HashSet;
+ import java.util.Iterator;
++import java.util.LinkedHashSet;
+ import java.util.List;
+ import java.util.Map;
+ import java.util.Properties;
+@@ -1121,28 +1122,41 @@ class BcelClassWeaver implements IClassWeaver {
+ 	 * will iterate over the fields repeatedly until everything has been applied.
+ 	 * 
+ 	 */
+-	private boolean weaveAtFieldRepeatedly(List<DeclareAnnotation> decaFs, List itdFields, List<Integer> reportedErrors) {
++	private boolean weaveAtFieldRepeatedly(List<DeclareAnnotation> decaFs, List<ConcreteTypeMunger> itdFields,
++			List<Integer> reportedErrors) {
+ 		boolean isChanged = false;
+-		for (Iterator iter = itdFields.iterator(); iter.hasNext();) {
++		for (Iterator<ConcreteTypeMunger> iter = itdFields.iterator(); iter.hasNext();) {
+ 			BcelTypeMunger fieldMunger = (BcelTypeMunger) iter.next();
+ 			ResolvedMember itdIsActually = fieldMunger.getSignature();
+-			List<DeclareAnnotation> worthRetrying = new ArrayList<DeclareAnnotation>();
++			Set<DeclareAnnotation> worthRetrying = new LinkedHashSet<DeclareAnnotation>();
+ 			boolean modificationOccured = false;
+ 
+ 			for (Iterator<DeclareAnnotation> iter2 = decaFs.iterator(); iter2.hasNext();) {
+ 				DeclareAnnotation decaF = iter2.next();
+-
+ 				if (decaF.matches(itdIsActually, world)) {
+-					LazyMethodGen annotationHolder = locateAnnotationHolderForFieldMunger(clazz, fieldMunger);
+-					if (doesAlreadyHaveAnnotation(annotationHolder, itdIsActually, decaF, reportedErrors)) {
+-						continue; // skip this one...
+-					}
+-					annotationHolder.addAnnotation(decaF.getAnnotation());
+-					AsmRelationshipProvider.addDeclareAnnotationRelationship(world.getModelAsAsmManager(),
+-							decaF.getSourceLocation(), itdIsActually.getSourceLocation());
+-					isChanged = true;
+-					modificationOccured = true;
++					if (decaF.isRemover()) {
++						LazyMethodGen annotationHolder = locateAnnotationHolderForFieldMunger(clazz, fieldMunger);
++						if (annotationHolder.hasAnnotation(decaF.getAnnotationType())) {
++							isChanged = true;
++							// something to remove
++							annotationHolder.removeAnnotation(decaF.getAnnotationType());
++							AsmRelationshipProvider.addDeclareAnnotationRelationship(world.getModelAsAsmManager(),
++									decaF.getSourceLocation(), itdIsActually.getSourceLocation(), true);
++						} else {
++							worthRetrying.add(decaF);
++						}
++					} else {
+ 
++						LazyMethodGen annotationHolder = locateAnnotationHolderForFieldMunger(clazz, fieldMunger);
++						if (doesAlreadyHaveAnnotation(annotationHolder, itdIsActually, decaF, reportedErrors)) {
++							continue; // skip this one...
++						}
++						annotationHolder.addAnnotation(decaF.getAnnotation());
++						AsmRelationshipProvider.addDeclareAnnotationRelationship(world.getModelAsAsmManager(),
++								decaF.getSourceLocation(), itdIsActually.getSourceLocation(), false);
++						isChanged = true;
++						modificationOccured = true;
++					}
+ 				} else {
+ 					if (!decaF.isStarredAnnotationPattern()) {
+ 						worthRetrying.add(decaF); // an annotation is specified
+@@ -1158,16 +1172,28 @@ class BcelClassWeaver implements IClassWeaver {
+ 				for (Iterator<DeclareAnnotation> iter2 = worthRetrying.iterator(); iter2.hasNext();) {
+ 					DeclareAnnotation decaF = iter2.next();
+ 					if (decaF.matches(itdIsActually, world)) {
+-						LazyMethodGen annotationHolder = locateAnnotationHolderForFieldMunger(clazz, fieldMunger);
+-						if (doesAlreadyHaveAnnotation(annotationHolder, itdIsActually, decaF, reportedErrors)) {
+-							continue; // skip this one...
++						if (decaF.isRemover()) {
++							LazyMethodGen annotationHolder = locateAnnotationHolderForFieldMunger(clazz, fieldMunger);
++							if (annotationHolder.hasAnnotation(decaF.getAnnotationType())) {
++								isChanged = true;
++								// something to remove
++								annotationHolder.removeAnnotation(decaF.getAnnotationType());
++								AsmRelationshipProvider.addDeclareAnnotationRelationship(world.getModelAsAsmManager(),
++										decaF.getSourceLocation(), itdIsActually.getSourceLocation(), true);
++								forRemoval.add(decaF);
++							}
++						} else {
++							LazyMethodGen annotationHolder = locateAnnotationHolderForFieldMunger(clazz, fieldMunger);
++							if (doesAlreadyHaveAnnotation(annotationHolder, itdIsActually, decaF, reportedErrors)) {
++								continue; // skip this one...
++							}
++							annotationHolder.addAnnotation(decaF.getAnnotation());
++							AsmRelationshipProvider.addDeclareAnnotationRelationship(world.getModelAsAsmManager(),
++									decaF.getSourceLocation(), itdIsActually.getSourceLocation(), false);
++							isChanged = true;
++							modificationOccured = true;
++							forRemoval.add(decaF);
+ 						}
+-						annotationHolder.addAnnotation(decaF.getAnnotation());
+-						AsmRelationshipProvider.addDeclareAnnotationRelationship(world.getModelAsAsmManager(),
+-								decaF.getSourceLocation(), itdIsActually.getSourceLocation());
+-						isChanged = true;
+-						modificationOccured = true;
+-						forRemoval.add(decaF);
+ 					}
+ 				}
+ 				worthRetrying.removeAll(forRemoval);
+@@ -1202,7 +1228,7 @@ class BcelClassWeaver implements IClassWeaver {
+ 					annotationHolder.addAnnotation(decaMC.getAnnotation());
+ 					isChanged = true;
+ 					AsmRelationshipProvider.addDeclareAnnotationRelationship(asmManager, decaMC.getSourceLocation(),
+-							unMangledInterMethod.getSourceLocation());
++							unMangledInterMethod.getSourceLocation(), false);
+ 					reportMethodCtorWeavingMessage(clazz, unMangledInterMethod, decaMC, -1);
+ 					modificationOccured = true;
+ 				} else {
+@@ -1226,7 +1252,7 @@ class BcelClassWeaver implements IClassWeaver {
+ 						annotationHolder.addAnnotation(decaMC.getAnnotation());
+ 						unMangledInterMethod.addAnnotation(decaMC.getAnnotation());
+ 						AsmRelationshipProvider.addDeclareAnnotationRelationship(asmManager, decaMC.getSourceLocation(),
+-								unMangledInterMethod.getSourceLocation());
++								unMangledInterMethod.getSourceLocation(), false);
+ 						isChanged = true;
+ 						modificationOccured = true;
+ 						forRemoval.add(decaMC);
+@@ -1239,19 +1265,21 @@ class BcelClassWeaver implements IClassWeaver {
+ 	}
+ 
+ 	private boolean dontAddTwice(DeclareAnnotation decaF, AnnotationAJ[] dontAddMeTwice) {
+-		for (int i = 0; i < dontAddMeTwice.length; i++) {
+-			AnnotationAJ ann = dontAddMeTwice[i];
++		for (AnnotationAJ ann : dontAddMeTwice) {
+ 			if (ann != null && decaF.getAnnotation().getTypeName().equals(ann.getTypeName())) {
+-				// dontAddMeTwice[i] = null; // incase it really has been added
+-				// twice!
+ 				return true;
+ 			}
+ 		}
+ 		return false;
+ 	}
+ 
++	// BUGWARNING not getting enough warnings out on declare @field ? There is a potential problem here with warnings not
++	// coming out - this will occur if they are created on the second iteration round this loop.
++	// We currently deactivate error reporting for the second time round. A possible solution is to record what annotations
++	// were added by what decafs and check that to see if an error needs to be reported - this would be expensive so lets
++	// skip it for now
+ 	/**
+-	 * Weave any declare @field statements into the fields of the supplied class
++	 * Weave any declare @field statements into the fields of the supplied class. This will attempt to apply them to the ITDs too.
+ 	 * 
+ 	 * Interesting case relating to public ITDd fields. The annotations are really stored against the interfieldinit method in the
+ 	 * aspect, but the public field is placed in the target type and then is processed in the 2nd pass over fields that occurs. I
+@@ -1259,139 +1287,105 @@ class BcelClassWeaver implements IClassWeaver {
+ 	 * as well as on the interfieldinit method.
+ 	 */
+ 	private boolean weaveDeclareAtField(LazyClassGen clazz) {
+-
+-		// BUGWARNING not getting enough warnings out on declare @field ?
+-		// There is a potential problem here with warnings not coming out - this
+-		// will occur if they are created on the second iteration round this
+-		// loop.
+-		// We currently deactivate error reporting for the second time round.
+-		// A possible solution is to record what annotations were added by what
+-		// decafs and check that to see if an error needs to be reported - this
+-		// would be expensive so lets skip it for now
+-
+ 		List<Integer> reportedProblems = new ArrayList<Integer>();
+-
+ 		List<DeclareAnnotation> allDecafs = world.getDeclareAnnotationOnFields();
+ 		if (allDecafs.isEmpty()) {
+ 			return false;
+ 		}
+-
+-		boolean isChanged = false;
+-		List<ConcreteTypeMunger> itdFields = getITDSubset(clazz, ResolvedTypeMunger.Field);
+-		if (itdFields != null) {
+-			isChanged = weaveAtFieldRepeatedly(allDecafs, itdFields, reportedProblems);
++		boolean typeIsChanged = false;
++		List<ConcreteTypeMunger> relevantItdFields = getITDSubset(clazz, ResolvedTypeMunger.Field);
++		if (relevantItdFields != null) {
++			typeIsChanged = weaveAtFieldRepeatedly(allDecafs, relevantItdFields, reportedProblems);
+ 		}
+ 
+-		List<DeclareAnnotation> decaFs = getMatchingSubset(allDecafs, clazz.getType());
+-		if (decaFs.isEmpty()) {
+-			return false; // nothing more to do
++		List<DeclareAnnotation> decafs = getMatchingSubset(allDecafs, clazz.getType());
++		if (decafs.isEmpty()) {
++			return typeIsChanged;
+ 		}
++
+ 		List<BcelField> fields = clazz.getFieldGens();
+ 		if (fields != null) {
+ 			Set<DeclareAnnotation> unusedDecafs = new HashSet<DeclareAnnotation>();
+-			unusedDecafs.addAll(decaFs);
+-			for (int fieldCounter = 0; fieldCounter < fields.size(); fieldCounter++) {
+-				BcelField aBcelField = fields.get(fieldCounter);// new
+-				// BcelField(clazz.getBcelObjectType(),fields[fieldCounter
+-				// ]);
+-				if (!aBcelField.getName().startsWith(NameMangler.PREFIX)) {
++			unusedDecafs.addAll(decafs);
++			for (BcelField field : fields) {
++				if (!field.getName().startsWith(NameMangler.PREFIX)) {
+ 					// Single first pass
+-					List<DeclareAnnotation> worthRetrying = new ArrayList<DeclareAnnotation>();
++					Set<DeclareAnnotation> worthRetrying = new LinkedHashSet<DeclareAnnotation>();
+ 					boolean modificationOccured = false;
+-
+-					AnnotationAJ[] dontAddMeTwice = aBcelField.getAnnotations();
++					AnnotationAJ[] dontAddMeTwice = field.getAnnotations();
+ 
+ 					// go through all the declare @field statements
+-					for (DeclareAnnotation decaF : decaFs) {
+-						if (decaF.getAnnotation() == null) {
++					for (DeclareAnnotation decaf : decafs) {
++						if (decaf.getAnnotation() == null) {
+ 							return false;
+ 						}
+-						if (decaF.matches(aBcelField, world)) {
+-
+-							if (!dontAddTwice(decaF, dontAddMeTwice)) {
+-								if (doesAlreadyHaveAnnotation(aBcelField, decaF, reportedProblems)) {
+-									// remove the declare @field since don't
+-									// want an error when
+-									// the annotation is already there
+-									unusedDecafs.remove(decaF);
+-									continue;
+-								}
+-
+-								if (decaF.getAnnotation().isRuntimeVisible()) { // isAnnotationWithRuntimeRetention
+-									// (
+-									// clazz
+-									// .
+-									// getJavaClass(world))){
+-									// if(decaF.getAnnotationTypeX().
+-									// isAnnotationWithRuntimeRetention(world)){
+-									// it should be runtime visible, so put it
+-									// on the Field
+-									// Annotation a =
+-									// decaF.getAnnotationX().getBcelAnnotation
+-									// ();
+-									// AnnotationGen ag = new
+-									// AnnotationGen(a,clazz
+-									// .getConstantPoolGen(),true);
+-									// FieldGen myGen = new
+-									// FieldGen(fields[fieldCounter
+-									// ],clazz.getConstantPoolGen());
+-									// myGen.addAnnotation(ag);
+-									// Field newField = myGen.getField();
+-
+-									aBcelField.addAnnotation(decaF.getAnnotation());
+-									// clazz.replaceField(fields[fieldCounter],
+-									// newField);
+-									// fields[fieldCounter]=newField;
+-
++						if (decaf.matches(field, world)) {
++							if (decaf.isRemover()) {
++								AnnotationAJ annotation = decaf.getAnnotation();
++								if (field.hasAnnotation(annotation.getType())) {
++									// something to remove
++									typeIsChanged = true;
++									field.removeAnnotation(annotation);
++									AsmRelationshipProvider.addDeclareAnnotationFieldRelationship(world.getModelAsAsmManager(),
++											decaf.getSourceLocation(), clazz.getName(), field, true);
++									reportFieldAnnotationWeavingMessage(clazz, field, decaf, true);
+ 								} else {
+-									aBcelField.addAnnotation(decaF.getAnnotation());
++									worthRetrying.add(decaf);
+ 								}
++								unusedDecafs.remove(decaf);
++							} else {
++								if (!dontAddTwice(decaf, dontAddMeTwice)) {
++									if (doesAlreadyHaveAnnotation(field, decaf, reportedProblems)) {
++										// remove the declare @field since don't want an error when the annotation is already there
++										unusedDecafs.remove(decaf);
++										continue;
++									}
++									field.addAnnotation(decaf.getAnnotation());
++								}
++								AsmRelationshipProvider.addDeclareAnnotationFieldRelationship(world.getModelAsAsmManager(),
++										decaf.getSourceLocation(), clazz.getName(), field, false);
++								reportFieldAnnotationWeavingMessage(clazz, field, decaf, false);
++								typeIsChanged = true;
++								modificationOccured = true;
++								unusedDecafs.remove(decaf);
+ 							}
+-
+-							AsmRelationshipProvider.addDeclareAnnotationFieldRelationship(world.getModelAsAsmManager(),
+-									decaF.getSourceLocation(), clazz.getName(), aBcelField);
+-							reportFieldAnnotationWeavingMessage(clazz, fields, fieldCounter, decaF);
+-							isChanged = true;
+-							modificationOccured = true;
+-							// remove the declare @field since have matched
+-							// against it
+-							unusedDecafs.remove(decaF);
+-						} else {
+-							if (!decaF.isStarredAnnotationPattern()) {
+-								worthRetrying.add(decaF); // an annotation is
+-								// specified that
+-								// might be put on
+-								// by a subsequent
+-								// decaf
+-							}
++						} else if (!decaf.isStarredAnnotationPattern() || decaf.isRemover()) {
++							worthRetrying.add(decaf); // an annotation is specified that might be put on by a subsequent decaf
+ 						}
+ 					}
+ 
+ 					// Multiple secondary passes
+ 					while (!worthRetrying.isEmpty() && modificationOccured) {
+ 						modificationOccured = false;
+-						// lets have another go
++						// lets have another go with any remaining ones
+ 						List<DeclareAnnotation> forRemoval = new ArrayList<DeclareAnnotation>();
+ 						for (Iterator<DeclareAnnotation> iter = worthRetrying.iterator(); iter.hasNext();) {
+ 							DeclareAnnotation decaF = iter.next();
+-							if (decaF.matches(aBcelField, world)) {
+-								// below code is for recursive things
+-								if (doesAlreadyHaveAnnotation(aBcelField, decaF, reportedProblems)) {
+-									// remove the declare @field since don't
+-									// want an error when
+-									// the annotation is already there
++
++							if (decaF.matches(field, world)) {
++								if (decaF.isRemover()) {
++									AnnotationAJ annotation = decaF.getAnnotation();
++									if (field.hasAnnotation(annotation.getType())) {
++										// something to remove
++										typeIsChanged = modificationOccured = true;
++										forRemoval.add(decaF);
++										field.removeAnnotation(annotation);
++										AsmRelationshipProvider.addDeclareAnnotationFieldRelationship(world.getModelAsAsmManager(),
++												decaF.getSourceLocation(), clazz.getName(), field, true);
++										reportFieldAnnotationWeavingMessage(clazz, field, decaF, true);
++									}
++								} else {
++									// below code is for recursive things
+ 									unusedDecafs.remove(decaF);
+-									continue; // skip this one...
++									if (doesAlreadyHaveAnnotation(field, decaF, reportedProblems)) {
++										continue;
++									}
++									field.addAnnotation(decaF.getAnnotation());
++									AsmRelationshipProvider.addDeclareAnnotationFieldRelationship(world.getModelAsAsmManager(),
++											decaF.getSourceLocation(), clazz.getName(), field, false);
++									typeIsChanged = modificationOccured = true;
++									forRemoval.add(decaF);
+ 								}
+-								aBcelField.addAnnotation(decaF.getAnnotation());
+-								AsmRelationshipProvider.addDeclareAnnotationFieldRelationship(world.getModelAsAsmManager(),
+-										decaF.getSourceLocation(), clazz.getName(), aBcelField);
+-								isChanged = true;
+-								modificationOccured = true;
+-								forRemoval.add(decaF);
+-								// remove the declare @field since have matched
+-								// against it
+-								unusedDecafs.remove(decaF);
+ 							}
+ 						}
+ 						worthRetrying.removeAll(forRemoval);
+@@ -1400,7 +1394,7 @@ class BcelClassWeaver implements IClassWeaver {
+ 			}
+ 			checkUnusedDeclareAts(unusedDecafs, true);
+ 		}
+-		return isChanged;
++		return typeIsChanged;
+ 	}
+ 
+ 	// bug 99191 - put out an error message if the type doesn't exist
+@@ -1413,13 +1407,10 @@ class BcelClassWeaver implements IClassWeaver {
+ 		for (DeclareAnnotation declA : unusedDecaTs) {
+ 
+ 			// Error if an exact type pattern was specified
+-			boolean shouldCheck = declA.isExactPattern() || declA.getSignaturePattern().getExactDeclaringTypes().size() != 0;// !=
+-																																// null;//
+-																																// instanceof
+-			// ExactTypePattern;
++			boolean shouldCheck = declA.isExactPattern() || declA.getSignaturePattern().getExactDeclaringTypes().size() != 0;
+ 
+ 			if (shouldCheck && declA.getKind() != DeclareAnnotation.AT_CONSTRUCTOR) {
+-				if (declA.getSignaturePattern().isMatchOnAnyName()/* getName().isAny() */) {
++				if (declA.getSignaturePattern().isMatchOnAnyName()) {
+ 					shouldCheck = false;
+ 				} else {
+ 					List<ExactTypePattern> declaringTypePatterns = declA.getSignaturePattern().getExactDeclaringTypes();
+@@ -1468,15 +1459,15 @@ class BcelClassWeaver implements IClassWeaver {
+ 	}
+ 
+ 	// TAG: WeavingMessage
+-	private void reportFieldAnnotationWeavingMessage(LazyClassGen clazz, List fields, int fieldCounter, DeclareAnnotation decaF) {
++	private void reportFieldAnnotationWeavingMessage(LazyClassGen clazz, BcelField theField, DeclareAnnotation decaf,
++			boolean isRemove) {
+ 		if (!getWorld().getMessageHandler().isIgnoring(IMessage.WEAVEINFO)) {
+-			BcelField theField = (BcelField) fields.get(fieldCounter);
+ 			world.getMessageHandler().handleMessage(
+ 					WeaveMessage.constructWeavingMessage(
+-							WeaveMessage.WEAVEMESSAGE_ANNOTATES,
++							isRemove ? WeaveMessage.WEAVEMESSAGE_REMOVES_ANNOTATION : WeaveMessage.WEAVEMESSAGE_ANNOTATES,
+ 							new String[] { theField.getFieldAsIs().toString() + "' of type '" + clazz.getName(),
+-									clazz.getFileName(), decaF.getAnnotationString(), "field", decaF.getAspect().toString(),
+-									Utility.beautifyLocation(decaF.getSourceLocation()) }));
++									clazz.getFileName(), decaf.getAnnotationString(), "field", decaf.getAspect().toString(),
++									Utility.beautifyLocation(decaf.getSourceLocation()) }));
+ 		}
+ 	}
+ 
+@@ -23,16 +23,21 @@ import org.aspectj.apache.bcel.generic.FieldGen;
+ import org.aspectj.util.GenericSignature;
+ import org.aspectj.util.GenericSignatureParser;
+ import org.aspectj.weaver.AjAttribute;
++import org.aspectj.weaver.AjAttribute.WeaverVersionInfo;
+ import org.aspectj.weaver.AnnotationAJ;
+-import org.aspectj.weaver.BCException;
+ import org.aspectj.weaver.ISourceContext;
+ import org.aspectj.weaver.ResolvedMemberImpl;
+ import org.aspectj.weaver.ResolvedType;
+ import org.aspectj.weaver.UnresolvedType;
+ import org.aspectj.weaver.World;
+-import org.aspectj.weaver.AjAttribute.WeaverVersionInfo;
+ import org.aspectj.weaver.bcel.BcelGenericSignatureToTypeXConverter.GenericSignatureFormatException;
+ 
++/**
++ * An AspectJ Field object that is backed by a Bcel Field object.
++ * 
++ * @author PARC
++ * @author Andy Clement
++ */
+ final class BcelField extends ResolvedMemberImpl {
+ 
+ 	public static int AccSynthetic = 0x1000;
+@@ -45,7 +50,7 @@ final class BcelField extends ResolvedMemberImpl {
+ 	private final BcelObjectType bcelObjectType;
+ 	private UnresolvedType genericFieldType = null;
+ 	private boolean unpackedGenericSignature = false;
+-	private boolean annotationsAdded = false;
++	private boolean annotationsOnFieldObjectAreOutOfDate = false;
+ 
+ 	BcelField(BcelObjectType declaringType, Field field) {
+ 		super(FIELD, declaringType.getResolvedTypeX(), field.getModifiers(), field.getName(), field.getSignature());
+@@ -69,8 +74,6 @@ final class BcelField extends ResolvedMemberImpl {
+ 		checkedExceptions = UnresolvedType.NONE;
+ 	}
+ 
+-	// ----
+-
+ 	private void unpackAttributes(World world) {
+ 		Attribute[] attrs = field.getAttributes();
+ 		if (attrs != null && attrs.length > 0) {
+@@ -78,16 +81,17 @@ final class BcelField extends ResolvedMemberImpl {
+ 			List<AjAttribute> as = Utility.readAjAttributes(getDeclaringType().getClassName(), attrs, sourceContext, world,
+ 					(bcelObjectType != null ? bcelObjectType.getWeaverVersionAttribute() : WeaverVersionInfo.CURRENT),
+ 					new BcelConstantPoolReader(field.getConstantPool()));
+-			as.addAll(AtAjAttributes.readAj5FieldAttributes(field, this, world.resolve(getDeclaringType()), sourceContext, world
+-					.getMessageHandler()));
+-
+-			for (AjAttribute a : as) {
+-				if (a instanceof AjAttribute.AjSynthetic) {
+-					isAjSynthetic = true;
+-				} else {
+-					throw new BCException("weird field attribute " + a);
+-				}
+-			}
++			as.addAll(AtAjAttributes.readAj5FieldAttributes(field, this, world.resolve(getDeclaringType()), sourceContext,
++					world.getMessageHandler()));
++
++			// FIXME this code has no effect!!!??? it is set to false immediately after the block
++			// for (AjAttribute a : as) {
++			// if (a instanceof AjAttribute.AjSynthetic) {
++			// isAjSynthetic = true;
++			// } else {
++			// throw new BCException("weird field attribute " + a);
++			// }
++			// }
+ 		}
+ 		isAjSynthetic = false;
+ 
+@@ -96,7 +100,6 @@ final class BcelField extends ResolvedMemberImpl {
+ 				isSynthetic = true;
+ 			}
+ 		}
+-
+ 		// in 1.5, synthetic is a modifier, not an attribute
+ 		if ((field.getModifiers() & AccSynthetic) != 0) {
+ 			isSynthetic = true;
+@@ -106,7 +109,7 @@ final class BcelField extends ResolvedMemberImpl {
+ 
+ 	@Override
+ 	public boolean isAjSynthetic() {
+-		return isAjSynthetic; // || getName().startsWith(NameMangler.PREFIX);
++		return isAjSynthetic;
+ 	}
+ 
+ 	@Override
+@@ -140,9 +143,9 @@ final class BcelField extends ResolvedMemberImpl {
+ 	@Override
+ 	public AnnotationAJ getAnnotationOfType(UnresolvedType ofType) {
+ 		ensureAnnotationTypesRetrieved();
+-		for (int i = 0; i < annotations.length; i++) {
+-			if (annotations[i].getTypeName().equals(ofType.getName())) {
+-				return annotations[i];
++		for (AnnotationAJ annotation : annotations) {
++			if (annotation.getTypeName().equals(ofType.getName())) {
++				return annotation;
+ 			}
+ 		}
+ 		return null;
+@@ -170,7 +173,6 @@ final class BcelField extends ResolvedMemberImpl {
+ 	@Override
+ 	public void addAnnotation(AnnotationAJ annotation) {
+ 		ensureAnnotationTypesRetrieved();
+-
+ 		int len = annotations.length;
+ 		AnnotationAJ[] ret = new AnnotationAJ[len + 1];
+ 		System.arraycopy(annotations, 0, ret, 0, len);
+@@ -182,7 +184,32 @@ final class BcelField extends ResolvedMemberImpl {
+ 		newAnnotationTypes[len] = annotation.getType();
+ 		annotationTypes = newAnnotationTypes;
+ 
+-		annotationsAdded = true;
++		annotationsOnFieldObjectAreOutOfDate = true;
++	}
++
++	public void removeAnnotation(AnnotationAJ annotation) {
++		ensureAnnotationTypesRetrieved();
++
++		int len = annotations.length;
++		AnnotationAJ[] ret = new AnnotationAJ[len - 1];
++		int p = 0;
++		for (AnnotationAJ anno : annotations) {
++			if (!anno.getType().equals(annotation.getType())) {
++				ret[p++] = anno;
++			}
++		}
++		annotations = ret;
++
++		ResolvedType[] newAnnotationTypes = new ResolvedType[len - 1];
++		p = 0;
++		for (ResolvedType anno : annotationTypes) {
++			if (!anno.equals(annotation.getType())) {
++				newAnnotationTypes[p++] = anno;
++			}
++		}
++		annotationTypes = newAnnotationTypes;
++
++		annotationsOnFieldObjectAreOutOfDate = true;
+ 	}
+ 
+ 	/**
+@@ -199,30 +226,34 @@ final class BcelField extends ResolvedMemberImpl {
+ 		return field;
+ 	}
+ 
+-	// FIXME asc badly performing code ftw !
+-	public Field getField(ConstantPool cpg) {
+-		if (!annotationsAdded) {
++	public Field getField(ConstantPool cpool) {
++		if (!annotationsOnFieldObjectAreOutOfDate) {
+ 			return field;
+ 		}
+-		FieldGen fg = new FieldGen(field, cpg);
+-		List<AnnotationGen> alreadyHas = fg.getAnnotations();
+-		if (annotations != null) {
+-			for (int i = 0; i < annotations.length; i++) {
+-				AnnotationAJ array_element = annotations[i];
+-				boolean alreadyHasIt = false;
+-				for (AnnotationGen gen : alreadyHas) {
+-					if (gen.getTypeName().equals(array_element.getTypeName())) {
+-						alreadyHasIt = true;
+-						break;
+-					}
+-				}
+-				if (!alreadyHasIt) {
+-					fg.addAnnotation(new AnnotationGen(((BcelAnnotation) array_element).getBcelAnnotation(), cpg, true));
+-				}
+-			}
++		FieldGen newFieldGen = new FieldGen(field, cpool);
++		newFieldGen.removeAnnotations();
++		// List<AnnotationGen> alreadyHas = fg.getAnnotations();
++		// if (annotations != null) {
++		// fg.removeAnnotations();
++		for (AnnotationAJ annotation : annotations) {
++			newFieldGen.addAnnotation(new AnnotationGen(((BcelAnnotation) annotation).getBcelAnnotation(), cpool, true));
+ 		}
+-		field = fg.getField();
+-		annotationsAdded = false; // we are now correct again
++		// for (int i = 0; i < annotations.length; i++) {
++		// AnnotationAJ array_element = annotations[i];
++		// boolean alreadyHasIt = false;
++		// for (AnnotationGen gen : alreadyHas) {
++		// if (gen.getTypeName().equals(array_element.getTypeName())) {
++		// alreadyHasIt = true;
++		// break;
++		// }
++		// }
++		// if (!alreadyHasIt) {
++		// fg.addAnnotation(new AnnotationGen(((BcelAnnotation) array_element).getBcelAnnotation(), cpg, true));
++		// // }
++		// // }
++		// }
++		field = newFieldGen.getField();
++		annotationsOnFieldObjectAreOutOfDate = false; // we are now correct again
+ 		return field;
+ 	}
+ 
+@@ -380,6 +380,39 @@ class BcelMethod extends ResolvedMemberImpl {
+ 		bitflags |= HAS_ANNOTATIONS;
+ 	}
+ 
++	public void removeAnnotation(ResolvedType annotationType) {
++		ensureAnnotationsRetrieved();
++		if ((bitflags & HAS_ANNOTATIONS) == 0) {
++			// nothing to do, why did we get called?
++		} else {
++			int len = annotations.length;
++			if (len == 1) {
++				bitflags &= ~HAS_ANNOTATIONS;
++				annotations = null;
++				annotationTypes = null;
++				return;
++			}
++			AnnotationAJ[] ret = new AnnotationAJ[len - 1];
++			int p = 0;
++			for (AnnotationAJ annotation : annotations) {
++				if (!annotation.getType().equals(annotationType)) {
++					ret[p++] = annotation;
++				}
++			}
++			annotations = ret;
++
++			ResolvedType[] newAnnotationTypes = new ResolvedType[len - 1];
++			p = 0;
++			for (AnnotationAJ annotation : annotations) {
++				if (!annotation.getType().equals(annotationType)) {
++					newAnnotationTypes[p++] = annotationType;
++				}
++			}
++			annotationTypes = newAnnotationTypes;
++		}
++		bitflags |= HAS_ANNOTATIONS;
++	}
++
+ 	public static final AnnotationAJ[] NO_PARAMETER_ANNOTATIONS = new AnnotationAJ[] {};
+ 
+ 	public void addParameterAnnotation(int param, AnnotationAJ anno) {
+@@ -1520,7 +1520,7 @@ public class BcelWeaver {
+ 
+ 			if (!problemReported) {
+ 				AsmRelationshipProvider.addDeclareAnnotationRelationship(world.getModelAsAsmManager(), decA.getSourceLocation(),
+-						onType.getSourceLocation());
++						onType.getSourceLocation(), false);
+ 				// TAG: WeavingMessage
+ 				if (!getWorld().getMessageHandler().isIgnoring(IMessage.WEAVEINFO)) {
+ 					getWorld().getMessageHandler().handleMessage(
+@@ -51,6 +51,7 @@ import org.aspectj.apache.bcel.generic.Type;
+ import org.aspectj.bridge.IMessage;
+ import org.aspectj.bridge.ISourceLocation;
+ import org.aspectj.weaver.AjAttribute;
++import org.aspectj.weaver.AjAttribute.WeaverVersionInfo;
+ import org.aspectj.weaver.AnnotationAJ;
+ import org.aspectj.weaver.BCException;
+ import org.aspectj.weaver.ISourceContext;
+@@ -61,7 +62,6 @@ import org.aspectj.weaver.ResolvedType;
+ import org.aspectj.weaver.Shadow;
+ import org.aspectj.weaver.UnresolvedType;
+ import org.aspectj.weaver.WeaverMessages;
+-import org.aspectj.weaver.AjAttribute.WeaverVersionInfo;
+ import org.aspectj.weaver.tools.Traceable;
+ 
+ /**
+@@ -88,6 +88,7 @@ public final class LazyMethodGen implements Traceable {
+ 	private InstructionList body;
+ 	private List<Attribute> attributes;
+ 	private List<AnnotationAJ> newAnnotations;
++	private List<ResolvedType> annotationsForRemoval;
+ 	private AnnotationAJ[][] newParameterAnnotations;
+ 	private final LazyClassGen enclosingClass;
+ 	private BcelMethod memberView;
+@@ -264,6 +265,19 @@ public final class LazyMethodGen implements Traceable {
+ 		}
+ 	}
+ 
++	public void removeAnnotation(ResolvedType annotationType) {
++		initialize();
++		if (memberView == null) {
++			// If member view is null, we manage them in newAnnotations
++			if (annotationsForRemoval == null) {
++				annotationsForRemoval = new ArrayList<ResolvedType>();
++			}
++			annotationsForRemoval.add(annotationType);
++		} else {
++			memberView.removeAnnotation(annotationType);
++		}
++	}
++
+ 	public void addParameterAnnotation(int parameterNumber, AnnotationAJ anno) {
+ 		initialize();
+ 		if (memberView == null) {
+@@ -294,6 +308,13 @@ public final class LazyMethodGen implements Traceable {
+ 	public boolean hasAnnotation(UnresolvedType annotationType) {
+ 		initialize();
+ 		if (memberView == null) {
++			if (annotationsForRemoval != null) {
++				for (ResolvedType at : annotationsForRemoval) {
++					if (at.equals(annotationType)) {
++						return false;
++					}
++				}
++			}
+ 			// Check local annotations first
+ 			if (newAnnotations != null) {
+ 				for (AnnotationAJ annotation : newAnnotations) {
+@@ -442,10 +463,15 @@ public final class LazyMethodGen implements Traceable {
+ 			savedMethod = gen.getMethod();
+ 			return savedMethod;
+ 		} catch (ClassGenException e) {
+-			enclosingClass.getBcelObjectType().getResolvedTypeX().getWorld().showMessage(
+-					IMessage.ERROR,
+-					WeaverMessages.format(WeaverMessages.PROBLEM_GENERATING_METHOD, this.getClassName(), this.getName(), e
+-							.getMessage()), this.getMemberView() == null ? null : this.getMemberView().getSourceLocation(), null);
++			enclosingClass
++					.getBcelObjectType()
++					.getResolvedTypeX()
++					.getWorld()
++					.showMessage(
++							IMessage.ERROR,
++							WeaverMessages.format(WeaverMessages.PROBLEM_GENERATING_METHOD, this.getClassName(), this.getName(),
++									e.getMessage()),
++							this.getMemberView() == null ? null : this.getMemberView().getSourceLocation(), null);
+ 			// throw e; PR 70201.... let the normal problem reporting
+ 			// infrastructure deal with this rather than crashing.
+ 			body = null;
+@@ -906,8 +932,8 @@ public final class LazyMethodGen implements Traceable {
+ 			for (int i = 0; i < newParameterAnnotations.length; i++) {
+ 				AnnotationAJ[] annos = newParameterAnnotations[i];
+ 				for (int j = 0; j < annos.length; j++) {
+-					gen.addParameterAnnotation(i, new AnnotationGen(((BcelAnnotation) annos[j]).getBcelAnnotation(), gen
+-							.getConstantPool(), true));
++					gen.addParameterAnnotation(i,
++							new AnnotationGen(((BcelAnnotation) annos[j]).getBcelAnnotation(), gen.getConstantPool(), true));
+ 				}
+ 			}
+ 		}
+@@ -1164,8 +1190,8 @@ public final class LazyMethodGen implements Traceable {
+ 				continue;
+ 			}
+ 			gen.addExceptionHandler(jumpForward(r.getRealStart(), forDeletion), jumpForward(r.getRealEnd(), forDeletion),
+-					jumpForward(r.getHandler(), forDeletion), (r.getCatchType() == null) ? null : (ObjectType) BcelWorld
+-							.makeBcelType(r.getCatchType()));
++					jumpForward(r.getHandler(), forDeletion),
++					(r.getCatchType() == null) ? null : (ObjectType) BcelWorld.makeBcelType(r.getCatchType()));
+ 		}
+ 
+ 		for (InstructionHandle handle : forDeletion) {
+@@ -40,11 +40,11 @@ import org.aspectj.weaver.ResolvedMember;
+ import org.aspectj.weaver.ResolvedPointcutDefinition;
+ import org.aspectj.weaver.ResolvedType;
+ import org.aspectj.weaver.ResolvedTypeMunger;
++import org.aspectj.weaver.ResolvedTypeMunger.Kind;
+ import org.aspectj.weaver.Shadow;
+ import org.aspectj.weaver.ShadowMunger;
+ import org.aspectj.weaver.UnresolvedType;
+ import org.aspectj.weaver.World;
+-import org.aspectj.weaver.ResolvedTypeMunger.Kind;
+ import org.aspectj.weaver.bcel.BcelShadow;
+ import org.aspectj.weaver.bcel.BcelTypeMunger;
+ import org.aspectj.weaver.patterns.DeclareErrorOrWarning;
+@@ -67,6 +67,9 @@ public class AsmRelationshipProvider {
+ 	public static final String ANNOTATES = "annotates";
+ 	public static final String ANNOTATED_BY = "annotated by";
+ 
++	// public static final String REMOVES_ANNOTATION = "removes annotation";
++	// public static final String ANNOTATION_REMOVED_BY = "annotated removed by";
++
+ 	/**
+ 	 * Add a relationship for a declare error or declare warning
+ 	 */
+@@ -321,7 +324,7 @@ public class AsmRelationshipProvider {
+ 				((sl.getColumn() == 0) ? ISourceLocation.NO_COLUMN : sl.getColumn()), sl.getContext(), sourceFileName);
+ 		return sLoc;
+ 	}
+-	
++
+ 	private static ISourceLocation createSourceLocation(String sourcefilename, ResolvedType aspect, ISourceLocation sl) {
+ 		ISourceLocation sLoc = new SourceLocation(getBinaryFile(aspect), sl.getLine(), sl.getEndLine(),
+ 				((sl.getColumn() == 0) ? ISourceLocation.NO_COLUMN : sl.getColumn()), sl.getContext(), sourcefilename);
+@@ -468,7 +471,7 @@ public class AsmRelationshipProvider {
+ 	 * this method if that is the case as they will look the entities up in the structure model.
+ 	 */
+ 	public static void addDeclareAnnotationRelationship(AsmManager model, ISourceLocation declareAnnotationLocation,
+-			ISourceLocation annotatedLocation) {
++			ISourceLocation annotatedLocation, boolean isRemove) {
+ 		if (model == null) {
+ 			return;
+ 		}
+@@ -486,6 +489,18 @@ public class AsmRelationshipProvider {
+ 		}
+ 
+ 		IRelationshipMap mapper = model.getRelationshipMap();
++		// if (isRemove) {
++		// IRelationship foreward = mapper.get(sourceHandle, IRelationship.Kind.DECLARE_INTER_TYPE, REMOVES_ANNOTATION, false,
++		// true);
++		// foreward.addTarget(targetHandle);
++		//
++		// IRelationship back = mapper
++		// .get(targetHandle, IRelationship.Kind.DECLARE_INTER_TYPE, ANNOTATION_REMOVED_BY, false, true);
++		// back.addTarget(sourceHandle);
++		// if (sourceNode.getSourceLocation() != null) {
++		// model.addAspectInEffectThisBuild(sourceNode.getSourceLocation().getSourceFile());
++		// }
++		// } else {
+ 		IRelationship foreward = mapper.get(sourceHandle, IRelationship.Kind.DECLARE_INTER_TYPE, ANNOTATES, false, true);
+ 		foreward.addTarget(targetHandle);
+ 
+@@ -494,6 +509,7 @@ public class AsmRelationshipProvider {
+ 		if (sourceNode.getSourceLocation() != null) {
+ 			model.addAspectInEffectThisBuild(sourceNode.getSourceLocation().getSourceFile());
+ 		}
++		// }
+ 	}
+ 
+ 	/**
+@@ -518,8 +534,8 @@ public class AsmRelationshipProvider {
+ 		ResolvedType aspect = munger.getDeclaringType();
+ 
+ 		// create the class file node
+-		IProgramElement classFileNode = new ProgramElement(asm, sourceFileNode.getName(), IProgramElement.Kind.FILE, munger
+-				.getBinarySourceLocation(aspect.getSourceLocation()), 0, null, null);
++		IProgramElement classFileNode = new ProgramElement(asm, sourceFileNode.getName(), IProgramElement.Kind.FILE,
++				munger.getBinarySourceLocation(aspect.getSourceLocation()), 0, null, null);
+ 
+ 		// create package ipe if one exists....
+ 		IProgramElement root = asm.getHierarchy().getRoot();
+@@ -577,8 +593,8 @@ public class AsmRelationshipProvider {
+ 		// null));
+ 
+ 		// add and create aspect ipe
+-		IProgramElement aspectNode = new ProgramElement(asm, aspect.getSimpleName(), IProgramElement.Kind.ASPECT, munger
+-				.getBinarySourceLocation(aspect.getSourceLocation()), aspect.getModifiers(), null, null);
++		IProgramElement aspectNode = new ProgramElement(asm, aspect.getSimpleName(), IProgramElement.Kind.ASPECT,
++				munger.getBinarySourceLocation(aspect.getSourceLocation()), aspect.getModifiers(), null, null);
+ 		classFileNode.addChild(aspectNode);
+ 
+ 		String sourcefilename = getSourceFileName(aspect);
+@@ -684,8 +700,8 @@ public class AsmRelationshipProvider {
+ 	}
+ 
+ 	private static IProgramElement createAdviceChild(AsmManager model, Advice advice) {
+-		IProgramElement adviceNode = new ProgramElement(model, advice.getKind().getName(), IProgramElement.Kind.ADVICE, advice
+-				.getBinarySourceLocation(advice.getSourceLocation()), advice.getSignature().getModifiers(), null,
++		IProgramElement adviceNode = new ProgramElement(model, advice.getKind().getName(), IProgramElement.Kind.ADVICE,
++				advice.getBinarySourceLocation(advice.getSourceLocation()), advice.getSignature().getModifiers(), null,
+ 				Collections.EMPTY_LIST);
+ 		adviceNode.setDetails(AsmRelationshipUtils.genPointcutDetails(advice.getPointcut()));
+ 		adviceNode.setBytecodeName(advice.getSignature().getName());
+@@ -1061,7 +1077,7 @@ public class AsmRelationshipProvider {
+ 	 * number info for it, we have to dig through the structure model under the fields' type in order to locate it.
+ 	 */
+ 	public static void addDeclareAnnotationFieldRelationship(AsmManager model, ISourceLocation declareLocation,
+-			String affectedTypeName, ResolvedMember affectedFieldName) {
++			String affectedTypeName, ResolvedMember affectedFieldName, boolean isRemove) {
+ 		if (model == null) {
+ 			return;
+ 		}
+@@ -1079,8 +1095,8 @@ public class AsmRelationshipProvider {
+ 			return;
+ 		}
+ 
+-		IProgramElement fieldElem = hierarchy.findElementForSignature(typeElem, IProgramElement.Kind.FIELD, affectedFieldName
+-				.getName());
++		IProgramElement fieldElem = hierarchy.findElementForSignature(typeElem, IProgramElement.Kind.FIELD,
++				affectedFieldName.getName());
+ 		if (fieldElem == null) {
+ 			return;
+ 		}
+@@ -1097,10 +1113,19 @@ public class AsmRelationshipProvider {
+ 		}
+ 
+ 		IRelationshipMap relmap = model.getRelationshipMap();
++		// if (isRemove) {
++		// IRelationship foreward = relmap.get(sourceHandle, IRelationship.Kind.DECLARE_INTER_TYPE, REMOVES_ANNOTATION, false,
++		// true);
++		// foreward.addTarget(targetHandle);
++		// IRelationship back = relmap
++		// .get(targetHandle, IRelationship.Kind.DECLARE_INTER_TYPE, ANNOTATION_REMOVED_BY, false, true);
++		// back.addTarget(sourceHandle);
++		// } else {
+ 		IRelationship foreward = relmap.get(sourceHandle, IRelationship.Kind.DECLARE_INTER_TYPE, ANNOTATES, false, true);
+ 		foreward.addTarget(targetHandle);
+ 		IRelationship back = relmap.get(targetHandle, IRelationship.Kind.DECLARE_INTER_TYPE, ANNOTATED_BY, false, true);
+ 		back.addTarget(sourceHandle);
++		// }
+ 	}
+ 
+ }
+@@ -19,6 +19,7 @@ public class AllTestsAspectJ1611 {
+ 		TestSuite suite = new TestSuite("AspectJ 1.6.11 tests");
+ 		// $JUnit-BEGIN$
+ 		suite.addTest(Ajc1611Tests.suite());
++		suite.addTest(NewFeatures.suite());
+ 		// $JUnit-END$
+ 		return suite;
+ 	}
+@@ -0,0 +1,69 @@
++/*******************************************************************************
++ * Copyright (c) 2010 Lucierna 
++ * All rights reserved. This program and the accompanying materials
++ * are made available under the terms of the Eclipse Public License v1.0
++ * which accompanies this distribution, and is available at
++ * http://www.eclipse.org/legal/epl-v10.html
++ *
++ * Contributors:
++ *    Abraham Nevado - initial API and implementation
++ *******************************************************************************/
++package org.aspectj.systemtest.ajc1611;
++
++import java.io.File;
++
++import junit.framework.Test;
++
++import org.aspectj.testing.XMLBasedAjcTestCase;
++
++public class NewFeatures extends org.aspectj.testing.XMLBasedAjcTestCase {
++
++	public void testAddingRemoving() {
++		runTest("adding and removing");
++	}
++
++	public void testAddingRemoving2() {
++		runTest("adding and removing - 2");
++	}
++
++	public void testAddingRemoving3() {
++		runTest("adding and removing - 3");
++	}
++
++	public void testDeclareMinus() {
++		runTest("declare minus - 1");
++	}
++
++	public void testDeclareMinusItd() {
++		runTest("declare minus - itd");
++	}
++
++	public void testDeclareMinus2annos() {
++		runTest("declare minus - 2 annos");
++	}
++
++	public void testDeclareMinusmultifiles() {
++		runTest("declare minus - multifiles");
++	}
++
++	public void testDeclareMinusmultifiles2() {
++		runTest("declare minus - multifiles - 2");
++	}
++
++	public void testDeclareMinusmultifiles3() {
++		runTest("declare minus - multifiles - 3");
++	}
++
++	public void testBinaryWeaving() {
++		runTest("binary weaving");
++	}
++
++	public static Test suite() {
++		return XMLBasedAjcTestCase.loadSuite(NewFeatures.class);
++	}
++
++	protected File getSpecFile() {
++		return new File("../tests/src/org/aspectj/systemtest/ajc1611/newfeatures-tests.xml");
++	}
++
++}
+\ No newline at end of file
+@@ -0,0 +1,120 @@
++<!DOCTYPE suite SYSTEM "../tests/ajcTestSuite.dtd"[]>
++
++<!-- AspectJ v1.6.11 Tests -->
++<suite>
++
++  <ajc-test dir="features1611/declareMinus" title="adding and removing - 3">
++  	<compile files="OnOffITD.java" options="-1.5 -showWeaveInfo">
++  	  <message kind="weave" text="'public int field2' of type 'OnOffITD' (OnOffITD.java) is annotated with @Anno field annotation from 'Foo' (OnOffITD.java:12)"/>
++  	  <message kind="weave" text="'public int field2' of type 'OnOffITD' (OnOffITD.java) has had @Anno field annotation removed by 'Foo' (OnOffITD.java:13)"/>
++  	  <message kind="weave" text="'public static int field' of type 'OnOffITD' (OnOffITD.java) is annotated with @Anno field annotation from 'Foo' (OnOffITD.java:9)"/>
++  	  <message kind="weave" text="'public static int field' of type 'OnOffITD' (OnOffITD.java) has had @Anno field annotation removed by 'Foo' (OnOffITD.java:8)"/>
++  	  <message kind="weave" text="Type 'OnOffITD' (OnOffITD.java) has intertyped field from 'B' (OnOffITD.java:'int OnOffITD.field')"/>
++  	  <message kind="weave" text="Type 'OnOffITD' (OnOffITD.java) has intertyped field from 'B' (OnOffITD.java:'int OnOffITD.field2')"/>
++  	</compile>
++  	<run class="OnOffITD">
++  	  <stdout>
++  		<line text="field annotated? no"/>
++  		<line text="field2 annotated? no"/>
++  	  </stdout>
++  	</run>
++  </ajc-test>
++  
++  <ajc-test dir="features1611/declareMinus" title="adding and removing">
++  	<compile files="OnOff.java" options="-1.5 -showWeaveInfo">
++  	  <message kind="weave" text="'public int field2' of type 'OnOff' (OnOff.java) is annotated with @Anno field annotation from 'Foo' (OnOff.java:12)"/>
++  	  <message kind="weave" text="'public int field2' of type 'OnOff' (OnOff.java) has had @Anno field annotation removed by 'Foo' (OnOff.java:13)"/>
++  	  <message kind="weave" text="'public static int field' of type 'OnOff' (OnOff.java) is annotated with @Anno field annotation from 'Foo' (OnOff.java:9)"/>
++  	  <message kind="weave" text="'public static int field' of type 'OnOff' (OnOff.java) has had @Anno field annotation removed by 'Foo' (OnOff.java:8)"/>
++  	</compile>
++  	<run class="OnOff">
++  	  <stdout>
++  		<line text="field annotated? no"/>
++  		<line text="field2 annotated? no"/>
++  	  </stdout>
++  	</run>
++  </ajc-test>
++  
++  
++  <ajc-test dir="features1611/declareMinus" title="adding and removing - 2">
++  	<compile files="OnOff2.java" options="-1.5 -showWeaveInfo">
++  	  <message kind="weave" text="'public int field2' of type 'OnOff2' (OnOff2.java) is annotated with @Anno field annotation from 'Foo' (OnOff2.java:8)"/>
++  	  <message kind="weave" text="'public int field2' of type 'OnOff2' (OnOff2.java) has had @Anno field annotation removed by 'Foo' (OnOff2.java:7)"/>
++  	  <message kind="weave" text="'public static int field' of type 'OnOff2' (OnOff2.java) is annotated with @Anno field annotation from 'Foo' (OnOff2.java:8)"/>
++  	  <message kind="weave" text="'public static int field' of type 'OnOff2' (OnOff2.java) has had @Anno field annotation removed by 'Foo' (OnOff2.java:7)"/>
++  	</compile>
++  	<run class="OnOff2">
++  	  <stdout>
++  		<line text="field annotated? no"/>
++  		<line text="field2 annotated? no"/>
++  	  </stdout>
++  	</run>
++  </ajc-test>
++  
++  <ajc-test dir="features1611/declareMinus" title="declare minus - 1">
++  	<compile files="Code.java" options="-1.5"/>
++  	<run class="Code"> 	<stdout>
++  	<line text="no annotation"/>
++  	</stdout></run>
++  </ajc-test>
++  
++  <ajc-test dir="features1611/declareMinus" title="declare minus - itd">
++  	<compile files="Code2.java" options="-1.5"/>
++  	<run class="Code2">
++  	<stdout>
++  	<line text="no annotation"/>
++  	</stdout></run>
++  </ajc-test>
++  
++  <ajc-test dir="features1611/declareMinus" title="declare minus - 2 annos">
++  	<compile files="Code3.java" options="-1.5"/>
++  	<run class="Code3">
++  	<stdout>
++  	<line text="no Anno"/>
++  	<line text="has AnnoB"/>
++  	</stdout></run>
++  </ajc-test>
++  
++  <ajc-test dir="features1611/declareMinus" title="declare minus - multifiles">
++  	<compile files="aspectjtest/AnnotationA.java aspectjtest/AnnotationB.java aspectjtest/ExampleItd.aj aspectjtest/HelloTest.java aspectjtest/MyEntity.java" options="-1.5"/>
++  	<run class="aspectjtest.HelloTest">
++  	<stdout>
++  	<line text="1"/>
++  	<line text="interface aspectjtest.AnnotationB"/>
++  	</stdout></run>
++  </ajc-test>
++  
++  <!--  different ordering -->
++  <ajc-test dir="features1611/declareMinus" title="declare minus - multifiles - 2">
++  	<compile files="aspectjtest/MyEntity.java aspectjtest/AnnotationA.java aspectjtest/AnnotationB.java aspectjtest/ExampleItd.aj aspectjtest/HelloTest.java" options="-1.5"/>
++  	<run class="aspectjtest.HelloTest">
++  	<stdout>
++  	<line text="1"/>
++  	<line text="interface aspectjtest.AnnotationB"/>
++  	</stdout></run>
++  </ajc-test>
++
++  <!--  different ordering -->
++  <ajc-test dir="features1611/declareMinus" title="declare minus - multifiles - 3">
++  	<compile files="aspectjtest/ExampleItd.aj aspectjtest/AnnotationA.java aspectjtest/AnnotationB.java aspectjtest/MyEntity.java  aspectjtest/HelloTest.java" options="-1.5"/>
++  	<run class="aspectjtest.HelloTest">
++  	<stdout>
++  	<line text="1"/>
++  	<line text="interface aspectjtest.AnnotationB"/>
++  	</stdout></run>
++  </ajc-test>
++  
++  <ajc-test dir="features1611/declareMinus" title="binary weaving">
++    <compile files="aspectjtest/AnnotationA.java aspectjtest/AnnotationB.java aspectjtest/MyEntity.java aspectjtest/HelloTest.java" outjar="code.jar" options="-1.5"/>
++    <compile files="aspectjtest/ExampleItd.aj" inpath="code.jar" options="-1.5 -showWeaveInfo">
++    <message kind="weave" text="'private String myField [RuntimeVisibleAnnotations]' of type 'aspectjtest.MyEntity' (MyEntity.java) has had @AnnotationA field annotation removed by"/>
++    <message kind="weave" text="'private String myField [RuntimeVisibleAnnotations]' of type 'aspectjtest.MyEntity' (MyEntity.java) is annotated with @AnnotationB field"/>
++    </compile>
++  	<run class="aspectjtest.HelloTest">
++  	<stdout>
++  	<line text="1"/>
++  	<line text="interface aspectjtest.AnnotationB"/>
++  	</stdout></run>
++  </ajc-test>
++  
++</suite>
+@@ -41,6 +41,7 @@ public class DeclareAnnotation extends Declare {
+ 	public static final Kind AT_FIELD = new Kind(2, "field");
+ 	public static final Kind AT_METHOD = new Kind(3, "method");
+ 	public static final Kind AT_CONSTRUCTOR = new Kind(4, "constructor");
++	public static final Kind AT_REMOVE_FROM_FIELD = new Kind(5, "removeFromField");
+ 
+ 	private Kind kind;
+ 	// for declare @type
+@@ -227,7 +228,11 @@ public class DeclareAnnotation extends Declare {
+ 	@Override
+ 	public void write(CompressingDataOutputStream s) throws IOException {
+ 		s.writeByte(Declare.ANNOTATION);
+-		s.writeInt(kind.id);
++		if (kind.id == AT_FIELD.id && isRemover) {
++			s.writeInt(AT_REMOVE_FROM_FIELD.id);
++		} else {
++			s.writeInt(kind.id);
++		}
+ 		int max = 0;
+ 		s.writeByte(max = annotationStrings.size());
+ 		for (int i = 0; i < max; i++) {
+@@ -248,7 +253,12 @@ public class DeclareAnnotation extends Declare {
+ 
+ 	public static Declare read(VersionedDataInputStream s, ISourceContext context) throws IOException {
+ 		DeclareAnnotation ret = null;
++		boolean isRemover = false;
+ 		int kind = s.readInt();
++		if (kind == AT_REMOVE_FROM_FIELD.id) {
++			kind = AT_FIELD.id;
++			isRemover = true;
++		}
+ 		// old format was just a single string and method
+ 		if (s.getMajorVersion() >= WeaverVersionInfo.WEAVER_VERSION_AJ169) {
+ 			// int numAnnotationStrings =
+@@ -274,6 +284,9 @@ public class DeclareAnnotation extends Declare {
+ 				sp = SignaturePattern.read(s, context);
+ 				ret = new DeclareAnnotation(AT_FIELD, sp);
+ 			}
++			if (isRemover) {
++				ret.setRemover(true);
++			}
+ 			break;
+ 		case 3:
+ 			if (s.getMajorVersion() >= WeaverVersionInfo.WEAVER_VERSION_AJ169) {
+@@ -511,4 +524,14 @@ public class DeclareAnnotation extends Declare {
+ 			return "at_" + s;
+ 		}
+ 	}
++
++	boolean isRemover = false;
++
++	public void setRemover(boolean b) {
++		isRemover = b;
++	}
++
++	public boolean isRemover() {
++		return isRemover;
++	}
+ }
+@@ -198,7 +198,8 @@ public class PatternParser {
+ 
+ 	public DeclareAnnotation parseDeclareAtField() {
+ 		ISignaturePattern compoundFieldSignaturePattern = parseCompoundFieldSignaturePattern();
+-		return new DeclareAnnotation(DeclareAnnotation.AT_FIELD, compoundFieldSignaturePattern);
++		DeclareAnnotation da = new DeclareAnnotation(DeclareAnnotation.AT_FIELD, compoundFieldSignaturePattern);
++		return da;
+ 	}
+ 
+ 	public ISignaturePattern parseCompoundFieldSignaturePattern() {
+@@ -144,8 +144,11 @@ public class DeclarationFactory implements IDeclarationFactory {
+ 	}
+ 
+ 	public MethodDeclaration createDeclareAnnotationDeclaration(CompilationResult result, ASTNode pseudoTokens,
+-			Annotation annotation, Parser parser) {
++			Annotation annotation, Parser parser, char kind) {
+ 		DeclareAnnotation declare = (DeclareAnnotation) ((PseudoTokens) pseudoTokens).parseAnnotationDeclare(parser);
++		if (kind == '-') {
++			declare.setRemover(true);
++		}
+ 		DeclareAnnotationDeclaration decl = new DeclareAnnotationDeclaration(result, declare, annotation);
+ 		return decl;
+ 	}
+@@ -178,7 +181,6 @@ public class DeclarationFactory implements IDeclarationFactory {
+ 		((InterTypeDeclaration) interTypeDecl).setOnType(onType);
+ 	}
+ 
+-
+ 	public ASTNode createPseudoToken(Parser parser, String value, boolean isIdentifier) {
+ 		return new PseudoToken(parser, value, isIdentifier);
+ 	}
+@@ -198,7 +200,7 @@ public class DeclarationFactory implements IDeclarationFactory {
+ 	public TypeDeclaration createIntertypeMemberClassDeclaration(CompilationResult compilationResult) {
+ 		return new IntertypeMemberClassDeclaration(compilationResult);
+ 	}
+-	
++
+ 	public void setOnType(TypeDeclaration interTypeDecl, TypeReference onType) {
+ 		((IntertypeMemberClassDeclaration) interTypeDecl).setOnType(onType);
+ 	}
+Binary files differ
+Binary files differ
+@@ -36,6 +36,9 @@ public class WeaveMessage extends Message {
+ 
+ 	public static WeaveMessageKind WEAVEMESSAGE_MIXIN = new WeaveMessageKind(7, "Mixing interface '%1' (%2) into type '%3' (%4)");
+ 
++	public static WeaveMessageKind WEAVEMESSAGE_REMOVES_ANNOTATION = new WeaveMessageKind(6,
++			"'%1' (%2) has had %3 %4 annotation removed by '%5' (%6)");
++
+ 	private String affectedtypename;
+ 	private String aspectname;
+ 
+@@ -0,0 +1,4 @@
++import java.lang.annotation.*;
++
++@Retention(RetentionPolicy.RUNTIME)
++@interface AnnotationA {}
+@@ -0,0 +1,4 @@
++import java.lang.annotation.*;
++
++@Retention(RetentionPolicy.RUNTIME)
++@interface AnnotationB {}
+@@ -0,0 +1,20 @@
++import java.lang.annotation.*;
++
++@Retention(RetentionPolicy.RUNTIME)
++@interface Anno {}
++
++aspect Foo {
++  declare @field: * Code.someField: -@Anno;
++}
++
++public class Code {
++
++  @Anno
++  public static int someField;
++
++  public static void main(String[]argv) throws Exception {
++    Object o = Code.class.getDeclaredField("someField").getAnnotation(Anno.class);
++    System.out.println(o==null?"no annotation":"has annotation");
++  }
++}
++
+@@ -0,0 +1,20 @@
++import java.lang.annotation.*;
++
++@Retention(RetentionPolicy.RUNTIME)
++@interface Anno {}
++
++aspect Foo {
++  declare @field: * Code2.someField: -@Anno;
++
++  @Anno
++  public int Code2.someField;
++}
++
++public class Code2 {
++
++  public static void main(String[]argv) throws Exception {
++    Object o = Code2.class.getDeclaredField("someField").getAnnotation(Anno.class);
++    System.out.println(o==null?"no annotation":"has annotation");
++  }
++}
++
+@@ -0,0 +1,26 @@
++import java.lang.annotation.*;
++
++@Retention(RetentionPolicy.RUNTIME)
++@interface Anno {}
++
++@Retention(RetentionPolicy.RUNTIME)
++@interface AnnoB {}
++
++aspect Foo {
++  declare @field: * Code3.someField: @AnnoB;
++  declare @field: * Code3.someField: -@Anno;
++}
++
++public class Code3 {
++
++  @Anno
++  public static int someField;
++
++  public static void main(String[]argv) throws Exception {
++    Object o = Code3.class.getDeclaredField("someField").getAnnotation(Anno.class);
++    System.out.println(o==null?"no Anno":"has Anno");
++    o = Code3.class.getDeclaredField("someField").getAnnotation(AnnoB.class);
++    System.out.println(o==null?"no AnnoB":"has AnnoB");
++  }
++}
++
+@@ -0,0 +1,30 @@
++import java.lang.annotation.*;
++
++@Retention(RetentionPolicy.RUNTIME)
++@interface Anno {}
++
++aspect Foo {
++  // one way round
++  declare @field: * OnOff.field: -@Anno;
++  declare @field: * OnOff.field: @Anno;
++
++  // the other way round
++  declare @field: * OnOff.field2: @Anno;
++  declare @field: * OnOff.field2: -@Anno;
++}
++
++public class OnOff {
++
++  public static int field;
++
++  public int field2;
++
++  public static void main(String[]argv) throws Exception {
++    Object o = OnOff.class.getDeclaredField("field").getAnnotation(Anno.class);
++    System.out.println("field annotated? "+(o==null?"no":"yes"));
++
++    o = OnOff.class.getDeclaredField("field2").getAnnotation(Anno.class);
++    System.out.println("field2 annotated? "+(o==null?"no":"yes"));
++  }
++}
++
+@@ -0,0 +1,25 @@
++import java.lang.annotation.*;
++
++@Retention(RetentionPolicy.RUNTIME)
++@interface Anno {}
++
++aspect Foo {
++  declare @field: @Anno * OnOff2.*: -@Anno;
++  declare @field: * OnOff2.*: @Anno;
++}
++
++public class OnOff2 {
++
++  public static int field;
++
++  public int field2;
++
++  public static void main(String[]argv) throws Exception {
++    Object o = OnOff2.class.getDeclaredField("field").getAnnotation(Anno.class);
++    System.out.println("field annotated? "+(o==null?"no":"yes"));
++
++    o = OnOff2.class.getDeclaredField("field2").getAnnotation(Anno.class);
++    System.out.println("field2 annotated? "+(o==null?"no":"yes"));
++  }
++}
++
+@@ -0,0 +1,10 @@
++package aspectjtest;
++
++import java.lang.annotation.ElementType;
++import java.lang.annotation.Retention;
++import java.lang.annotation.RetentionPolicy;
++import java.lang.annotation.Target;
++
++@Retention(value=RetentionPolicy.RUNTIME)
++@Target(value=ElementType.FIELD)
++public @interface AnnotationA {}
+@@ -0,0 +1,10 @@
++package aspectjtest;
++
++import java.lang.annotation.ElementType;
++import java.lang.annotation.Retention;
++import java.lang.annotation.RetentionPolicy;
++import java.lang.annotation.Target;
++
++@Retention(value=RetentionPolicy.RUNTIME)
++@Target(value=ElementType.FIELD)
++public @interface AnnotationB {}
+@@ -0,0 +1,9 @@
++// WARNING: DO NOT EDIT THIS FILE. THIS FILE IS MANAGED BY SPRING ROO.
++// You may push code into the target .java compilation unit if you wish to edit any member(s).
++
++package aspectjtest;
++
++privileged aspect ExampleItd {
++    declare @field: * MyEntity.myField: -@AnnotationA;
++    declare @field: * MyEntity.myField: @AnnotationB;
++}
+@@ -0,0 +1,10 @@
++package aspectjtest;
++
++
++public class HelloTest {
++public static void main(String []argv) throws Exception {
++		System.out.println( MyEntity.class.getDeclaredField("myField").getAnnotations().length);
++// should be B
++		System.out.println(MyEntity.class.getDeclaredField("myField").getAnnotations()[0].annotationType());
++	}
++}
+@@ -0,0 +1,6 @@
++package aspectjtest;
++
++public class MyEntity {
++
++	@AnnotationA private String myField;
++}

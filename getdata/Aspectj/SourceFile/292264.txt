@@ -1,0 +1,138 @@
+@@ -92,15 +92,22 @@ public class Ajc169Tests extends org.aspectj.testing.XMLBasedAjcTestCase {
+ 
+ 	/*
+ 	 * public void testVerifyError() { runTest("verifyerror on atAj"); }
+-	 * 
+-	 * public void testDeclareTypeWarning1() { runTest("declare type warning - 1"); }
+-	 * 
+-	 * public void testDeclareTypeWarning2() { runTest("declare type warning - 2"); }
+-	 * 
+-	 * public void testDeclareTypeWarning3() { runTest("declare type warning - 3"); }
+-	 * 
+-	 * public void testDeclareTypeError1() { runTest("declare type error - 1"); }
+ 	 */
++	public void testDeclareTypeWarning1() {
++		runTest("declare type warning - 1");
++	}
++
++	public void testDeclareTypeWarning2() {
++		runTest("declare type warning - 2");
++	}
++
++	public void testDeclareTypeWarning3() {
++		runTest("declare type warning - 3");
++	}
++
++	public void testDeclareTypeError1() {
++		runTest("declare type error - 1");
++	}
+ 
+ 	public void testPr298388() {
+ 		runTest("declare mixin and generics");
+@@ -1831,7 +1831,7 @@ public class BcelWeaver {
+ 								inReweavableMode);
+ 					}
+ 
+-				//	checkDeclareTypeErrorOrWarning(world, classType);
++					checkDeclareTypeErrorOrWarning(world, classType);
+ 
+ 					if (mightNeedBridgeMethods) {
+ 						isChanged = BcelClassWeaver.calculateAnyRequiredBridgeMethods(world, clazz) || isChanged;
+@@ -1864,8 +1864,8 @@ public class BcelWeaver {
+ 					String messageText = "trouble in: \n" + classDebugInfo;
+ 					getWorld().getMessageHandler().handleMessage(new Message(messageText, IMessage.ABORT, re, null));
+ 				}
+-//			} else {
+-//				checkDeclareTypeErrorOrWarning(world, classType);
++			} else {
++				 checkDeclareTypeErrorOrWarning(world, classType);
+ 			}
+ 			// this is very odd return behavior trying to keep everyone happy
+ 			/*
+@@ -1903,7 +1903,7 @@ public class BcelWeaver {
+ 
+ 	// ---- writing
+ 
+-/*	private void checkDeclareTypeErrorOrWarning(BcelWorld world2, BcelObjectType classType) {
++	private void checkDeclareTypeErrorOrWarning(BcelWorld world2, BcelObjectType classType) {
+ 		List<DeclareTypeErrorOrWarning> dteows = world.getDeclareTypeEows();
+ 		for (DeclareTypeErrorOrWarning dteow : dteows) {
+ 			if (dteow.getTypePattern().matchesStatically(classType.getResolvedTypeX())) {
+@@ -1917,7 +1917,6 @@ public class BcelWeaver {
+ 			}
+ 		}
+ 	}
+-*/
+ 
+ 	private void dumpUnchanged(UnwovenClassFile classFile) throws IOException {
+ 		if (zipOutputStream != null) {
+@@ -454,6 +454,10 @@ public class CrosscuttingMembers {
+ 			changed = true;
+ 			declareAnnotationsOnMethods = other.declareAnnotationsOnMethods;
+ 		}
++		if (!declareTypeEow.equals(other.declareTypeEow)) {
++			changed = true;
++			declareTypeEow = other.declareTypeEow;
++		}
+ 
+ 		return changed;
+ 	}
+@@ -41,6 +41,7 @@ import org.aspectj.weaver.patterns.DeclareAnnotation;
+ import org.aspectj.weaver.patterns.DeclareParents;
+ import org.aspectj.weaver.patterns.DeclarePrecedence;
+ import org.aspectj.weaver.patterns.DeclareSoft;
++import org.aspectj.weaver.patterns.DeclareTypeErrorOrWarning;
+ import org.aspectj.weaver.patterns.Pointcut;
+ import org.aspectj.weaver.patterns.TypePattern;
+ import org.aspectj.weaver.tools.PointcutDesignatorHandler;
+@@ -736,9 +737,9 @@ public abstract class World implements Dump.INode {
+ 		return crosscuttingMembersSet.getDeclareAnnotationOnMethods();
+ 	}
+ 
+-	// public List<DeclareTypeErrorOrWarning> getDeclareTypeEows() {
+-	// return crosscuttingMembersSet.getDeclareTypeEows();
+-	// }
++	public List<DeclareTypeErrorOrWarning> getDeclareTypeEows() {
++		return crosscuttingMembersSet.getDeclareTypeEows();
++	}
+ 
+ 	public List<DeclareSoft> getDeclareSoft() {
+ 		return crosscuttingMembersSet.getDeclareSofts();
+@@ -256,8 +256,36 @@ public class PatternParser {
+ 		return new DeclareSoft(p, pointcut);
+ 	}
+ 
++	/**
++	 * Attempt to parse a pointcut, if that fails then try again for a type pattern.
++	 * 
++	 * @param isError true if it is declare error rather than declare warning
++	 * @return the new declare
++	 */
+ 	private Declare parseErrorOrWarning(boolean isError) {
+-		Pointcut pointcut = parsePointcut();
++		Pointcut pointcut = null;
++		int index = tokenSource.getIndex();
++		try {
++			pointcut = parsePointcut();
++		} catch (ParserException pe) {
++			try {
++				tokenSource.setIndex(index);
++				boolean oldValue = allowHasTypePatterns;
++				TypePattern typePattern = null;
++				try {
++					allowHasTypePatterns = true;
++					typePattern = parseTypePattern();
++				} finally {
++					allowHasTypePatterns = oldValue;
++				}
++				eat(":");
++				String message = parsePossibleStringSequence(true);
++				return new DeclareTypeErrorOrWarning(isError, typePattern, message);
++			} catch (ParserException pe2) {
++				// deliberately throw the original problem
++				throw pe;
++			}
++		}
+ 		eat(":");
+ 		String message = parsePossibleStringSequence(true);
+ 		return new DeclareErrorOrWarning(isError, pointcut, message);

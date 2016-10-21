@@ -1,0 +1,70 @@
+Binary files differ
+Binary files differ
+@@ -0,0 +1,10 @@
++enum Color { R,G,B; }
++
++public class Code {
++
++        public static void main(String[] argv) {
++                Color c = Color.R;
++                switch (c) {
++                }
++        }
++}
+@@ -31,6 +31,9 @@ import org.aspectj.weaver.tools.StandardPointcutParser;
+  */ 
+ public class Ajc170Tests extends org.aspectj.testing.XMLBasedAjcTestCase {
+ 
++	public void testSwitchOnEnum() {
++		runTest("switch on enum");
++	}
+ 
+ 	public void testDecAtFieldOrderingLTW1() {
+ 		runTest("dec at field ordering ltw 1");
+@@ -3,6 +3,11 @@
+ <suite>
+ 
+ 
++ 	<ajc-test dir="bugs170/pr376139" title="switch on enum">
++     <compile files="Code.java" options="-1.5"/>
++     <run class="Code"/>
++   </ajc-test>
++
+  	<ajc-test dir="bugs170/ltw" title="dec at field ordering 1">
+      <compile files="Anno.java TriggerAll.java MyObject.java Main.java" options="-1.5"/>
+      <run class="ch.tests.Main">
+Binary files differ
+Binary files differ
+@@ -0,0 +1,10 @@
++enum Color { R,G,B; }
++
++public class Code {
++
++        public static void main(String[] argv) {
++                Color c = Color.R;
++                switch (c) {
++                }
++        }
++}
+@@ -31,6 +31,9 @@ import org.aspectj.weaver.tools.StandardPointcutParser;
+  */ 
+ public class Ajc170Tests extends org.aspectj.testing.XMLBasedAjcTestCase {
+ 
++	public void testSwitchOnEnum() {
++		runTest("switch on enum");
++	}
+ 
+ 	public void testDecAtFieldOrderingLTW1() {
+ 		runTest("dec at field ordering ltw 1");
+@@ -3,6 +3,11 @@
+ <suite>
+ 
+ 
++ 	<ajc-test dir="bugs170/pr376139" title="switch on enum">
++     <compile files="Code.java" options="-1.5"/>
++     <run class="Code"/>
++   </ajc-test>
++
+  	<ajc-test dir="bugs170/ltw" title="dec at field ordering 1">
+      <compile files="Anno.java TriggerAll.java MyObject.java Main.java" options="-1.5"/>
+      <run class="ch.tests.Main">

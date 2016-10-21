@@ -1,0 +1,43 @@
+Binary files differ
+Binary files differ
+Binary files differ
+@@ -0,0 +1,16 @@
++import java.util.List;
++
++public class One {
++
++	@SuppressWarnings("rawtypes")
++	public void m(List l) {
++		
++	}
++	
++	@SuppressWarnings("unchecked")
++	public void m2(List<?> input) {
++		List<String> ls = (List<String>)input;
++		System.out.println(ls);
++	}
++}
++
+@@ -21,6 +21,10 @@ import org.aspectj.testing.XMLBasedAjcTestCase;
+  */
+ public class Ajc1612Tests extends org.aspectj.testing.XMLBasedAjcTestCase {
+ 
++	public void testRawTypeWarning_335810() {
++		runTest("rawtype warning");
++	}
++	
+ //	public void testDecpGenerics_344005() {
+ //		runTest("decp generics");
+ //	}
+@@ -2,6 +2,11 @@
+ 
+ <suite>
+ 
++<ajc-test dir="bugs1612/pr335810" title="rawtype warning">
++<compile files="One.java" options="-1.5 -warn:+raw -warn:+warningToken">
++</compile>
++</ajc-test>
++
+ <ajc-test dir="bugs1612/pr344005" title="decp generics">
+ <compile files="Anno.java Types.java Azpect.java" options="-1.5 -showWeaveInfo">
+ <message kind="weave" text="XX"/>

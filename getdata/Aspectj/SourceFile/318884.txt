@@ -1,0 +1,2874 @@
+@@ -0,0 +1,3 @@
++public class A {
++  B b = new B();
++}
+@@ -0,0 +1,2 @@
++public class B {
++}
+@@ -0,0 +1,5 @@
++public class A {
++  public static void main(String []argv) {
++    new B.C("abc");
++  }
++}
+@@ -0,0 +1,5 @@
++public class B {
++  public static class C {
++    public C(String s) {}
++  }
++}
+@@ -0,0 +1,4 @@
++public class B {
++  public static class C {
++  }
++}
+@@ -125,8 +125,8 @@ public class IncrementalCompilationTests extends AbstractMultiProjectIncremental
+ 	}
+ 
+ 	// removing constructor from a static inner class
+-	public void testInnerClassChanges_318884_8() throws Exception {
+-		String p = "pr318884_8";
++	public void testInnerClassChanges_318884_9() throws Exception {
++		String p = "pr318884_9";
+ 		initialiseProject(p);
+ 		build(p);
+ 		checkWasFullBuild();
+@@ -137,4 +137,19 @@ public class IncrementalCompilationTests extends AbstractMultiProjectIncremental
+ 		assertEquals(1, getErrorMessages(p).size());
+ 		assertContains("The constructor B.C(String) is undefined", getErrorMessages(p).get(0));
+ 	}
++
++	// removing class
++	public void testInnerClassChanges_318884_10() throws Exception {
++		AjdeInteractionTestbed.VERBOSE = true;
++		String p = "pr318884_10";
++		initialiseProject(p);
++		build(p);
++		checkWasFullBuild();
++		checkCompileWeaveCount(p, 2, 2);
++		alter(p, "inc1");
++		build(p);
++		checkWasntFullBuild();
++		assertEquals(2, getErrorMessages(p).size());
++		assertContains("B cannot be resolved to a type", getErrorMessages(p).get(0));
++	}
+ }
+@@ -64,8 +64,6 @@ import org.aspectj.weaver.bcel.UnwovenClassFile;
+  */
+ public class AjState implements CompilerConfigurationChangeFlags {
+ 
+-	// --- static state, no need to write out
+-
+ 	// SECRETAPI configures whether we use state instead of lastModTime - see pr245566
+ 	public static boolean CHECK_STATE_FIRST = true;
+ 
+@@ -84,8 +82,7 @@ public class AjState implements CompilerConfigurationChangeFlags {
+ 
+ 	private static final char[][] EMPTY_CHAR_ARRAY = new char[0][];
+ 
+-	// --- non static, but transient state - no need to write out, doesn't need reinitializing
+-
++	// now follows non static, but transient state - no need to write out, doesn't need reinitializing
+ 	// State recreated for each build:
+ 
+ 	/**
+@@ -108,45 +105,37 @@ public class AjState implements CompilerConfigurationChangeFlags {
+ 	// For a particular build run, this set records the changes to classesFromName
+ 	public final Set<String> deltaAddedClasses = new HashSet<String>();
+ 
+-	// --- non static, but transient state - no need to write out, DOES need reinitializing when read AjState instance reloaded
++	// now follows non static, but transient state - no need to write out, DOES need reinitializing when read AjState instance
++	// reloaded
+ 
+ 	private final AjBuildManager buildManager;
+-
+ 	private INameEnvironment nameEnvironment;
+ 
+-	// --- normal state that must be written out
++	// now follows normal state that must be written out
+ 
+ 	private boolean couldBeSubsequentIncrementalBuild = false;
+ 	private boolean batchBuildRequiredThisTime = false;
+ 	private AjBuildConfig buildConfig;
+-
+ 	private long lastSuccessfulFullBuildTime = -1;
+ 	private final Hashtable<String, Long> structuralChangesSinceLastFullBuild = new Hashtable<String, Long>();
+-
+ 	private long lastSuccessfulBuildTime = -1;
+ 	private long currentBuildTime = -1;
+-
+ 	private AsmManager structureModel;
+ 
+ 	/**
+-	 * Keeps a list of (FQN,Filename) pairs (as ClassFile objects) for types that resulted from the compilation of the given File.
+-	 * Note :- the ClassFile objects contain no byte code, they are simply a Filename,typename pair.
+-	 * 
+-	 * Populated in noteResult and used in addDependentsOf(File)
++	 * For a given source file, records the ClassFiles (which contain a fully qualified name and a file name) that were created when
++	 * the source file was compiled. Populated in noteResult and used in addDependentsOf(File)
+ 	 */
+ 	private final Map<File, List<ClassFile>> fullyQualifiedTypeNamesResultingFromCompilationUnit = new HashMap<File, List<ClassFile>>();
+ 
+ 	/**
+-	 * Source files defining aspects
+-	 * 
+-	 * Populated in noteResult and used in processDeletedFiles
++	 * Source files defining aspects Populated in noteResult and used in processDeletedFiles
+ 	 */
+ 	private final Set<File> sourceFilesDefiningAspects = new HashSet<File>();
+ 
+ 	/**
+ 	 * Populated in noteResult to record the set of types that should be recompiled if the given file is modified or deleted.
+-	 * 
+-	 * Refered to during addAffectedSourceFiles when calculating incremental compilation set.
++	 * Referred to during addAffectedSourceFiles when calculating incremental compilation set.
+ 	 */
+ 	private final Map<File, ReferenceCollection> references = new HashMap<File, ReferenceCollection>();
+ 
+@@ -1378,12 +1367,17 @@ public class AjState implements CompilerConfigurationChangeFlags {
+ 			UnwovenClassFile[] unwovenClassFiles) {
+ 		List<ClassFile> classFiles = this.fullyQualifiedTypeNamesResultingFromCompilationUnit.get(sourceFile);
+ 		if (classFiles != null) {
++
+ 			for (int i = 0; i < unwovenClassFiles.length; i++) {
+ 				// deleting also deletes types from the weaver... don't do this if they are
+ 				// still present this time around...
+ 				removeFromClassFilesIfPresent(unwovenClassFiles[i].getClassName(), classFiles);
+ 			}
+ 			for (ClassFile cf : classFiles) {
++				recordTypeChanged(cf.fullyQualifiedTypeName);
++				resolvedTypeStructuresFromLastBuild.remove(cf.fullyQualifiedTypeName);
++				// }
++				// for (ClassFile cf : classFiles) {
+ 				deleteClassFile(cf);
+ 			}
+ 		}
+@@ -2048,6 +2042,12 @@ public class AjState implements CompilerConfigurationChangeFlags {
+ 			this.locationOnDisk = location;
+ 		}
+ 
++		public String toString() {
++			StringBuilder s = new StringBuilder();
++			s.append("ClassFile(type=").append(fullyQualifiedTypeName).append(",location=").append(locationOnDisk).append(")");
++			return s.toString();
++		}
++
+ 		public void deleteFromFileSystem(AjBuildConfig buildConfig) {
+ 			String namePrefix = locationOnDisk.getName();
+ 			namePrefix = namePrefix.substring(0, namePrefix.lastIndexOf('.'));
+@@ -294,8 +294,8 @@ public class BuildArgParser extends Main {
+ 		return Arrays.asList(FileUtil.listFiles(dir, FileUtil.aspectjSourceFileFilter));
+ 	}
+ 
+-	public List getBootclasspath(AjcConfigParser parser) {
+-		List ret = new ArrayList();
++	public List<String> getBootclasspath(AjcConfigParser parser) {
++		List<String> ret = new ArrayList<String>();
+ 
+ 		if (parser.bootclasspath == null) {
+ 			addClasspath(System.getProperty("sun.boot.class.path", ""), ret);
+@@ -358,7 +358,7 @@ public class BuildArgParser extends Main {
+ 		}
+ 	}
+ 
+-	private void addClasspath(String classpath, List classpathCollector) {
++	private void addClasspath(String classpath, List<String> classpathCollector) {
+ 		StringTokenizer tokenizer = new StringTokenizer(classpath, File.pathSeparator);
+ 		while (tokenizer.hasMoreTokens()) {
+ 			classpathCollector.add(tokenizer.nextToken());
+@@ -44,18 +44,18 @@ public class AjBuildConfig implements CompilerConfigurationChangeFlags {
+ 	private File outputJar;
+ 	private String outxmlName;
+ 	private CompilationResultDestinationManager compilationResultDestinationManager = null;
+-	private List/* File */sourceRoots = new ArrayList();
+-	private List/* File */changedFiles;
++	private List<File> sourceRoots = new ArrayList<File>();
++	private List<File> changedFiles;
+ 	private List<File> files = new ArrayList<File>();
+ 	private List<File> xmlfiles = new ArrayList<File>();
+ 	private List<BinarySourceFile> binaryFiles = new ArrayList<BinarySourceFile>(); // .class files in indirs...
+-	private List/* File */inJars = new ArrayList();
+-	private List/* File */inPath = new ArrayList();
+-	private Map/* String->File */sourcePathResources = new HashMap();
+-	private List/* File */aspectpath = new ArrayList();
+-	private List/* String */classpath = new ArrayList();
+-	private List/* String */bootclasspath = new ArrayList();
+-	private List/* String */cpElementsWithModifiedContents = new ArrayList();
++	private List<File> inJars = new ArrayList<File>();
++	private List<File> inPath = new ArrayList<File>();
++	private Map<String, File> sourcePathResources = new HashMap<String, File>();
++	private List<File> aspectpath = new ArrayList<File>();
++	private List<String> classpath = new ArrayList<String>();
++	private List<String> bootclasspath = new ArrayList<String>();
++	private List<String> cpElementsWithModifiedContents = new ArrayList<String>();
+ 
+ 	private File configFile;
+ 	private String lintMode = AJLINT_DEFAULT;
+@@ -164,19 +164,19 @@ public class AjBuildConfig implements CompilerConfigurationChangeFlags {
+ 	/**
+ 	 * This does not include -bootclasspath but includes -extdirs and -classpath
+ 	 */
+-	public List getClasspath() { // XXX setters don't respect javadoc contract...
++	public List<String> getClasspath() {
+ 		return classpath;
+ 	}
+ 
+-	public void setClasspath(List classpath) {
++	public void setClasspath(List<String> classpath) {
+ 		this.classpath = classpath;
+ 	}
+ 
+-	public List getBootclasspath() {
++	public List<String> getBootclasspath() {
+ 		return bootclasspath;
+ 	}
+ 
+-	public void setBootclasspath(List bootclasspath) {
++	public void setBootclasspath(List<String> bootclasspath) {
+ 		this.bootclasspath = bootclasspath;
+ 	}
+ 
+@@ -188,16 +188,16 @@ public class AjBuildConfig implements CompilerConfigurationChangeFlags {
+ 		return outxmlName;
+ 	}
+ 
+-	public List/* File */getInpath() {
++	public List<File> getInpath() {
+ 		// Elements of the list are either archives (jars/zips) or directories
+ 		return inPath;
+ 	}
+ 
+-	public List/* File */getInJars() {
++	public List<File> getInJars() {
+ 		return inJars;
+ 	}
+ 
+-	public Map getSourcePathResources() {
++	public Map<String, File> getSourcePathResources() {
+ 		return sourcePathResources;
+ 	}
+ 
+@@ -209,11 +209,11 @@ public class AjBuildConfig implements CompilerConfigurationChangeFlags {
+ 		this.outxmlName = name;
+ 	}
+ 
+-	public void setInJars(List sourceJars) {
++	public void setInJars(List<File> sourceJars) {
+ 		this.inJars = sourceJars;
+ 	}
+ 
+-	public void setInPath(List dirsOrJars) {
++	public void setInPath(List<File> dirsOrJars) {
+ 		inPath = dirsOrJars;
+ 
+ 		// remember all the class files in directories on the inpath
+@@ -223,8 +223,8 @@ public class AjBuildConfig implements CompilerConfigurationChangeFlags {
+ 				return pathname.getPath().endsWith(".class");
+ 			}
+ 		};
+-		for (Iterator iter = dirsOrJars.iterator(); iter.hasNext();) {
+-			File inpathElement = (File) iter.next();
++		for (Iterator<File> iter = dirsOrJars.iterator(); iter.hasNext();) {
++			File inpathElement = iter.next();
+ 			if (inpathElement.isDirectory()) {
+ 				File[] files = FileUtil.listFiles(inpathElement, filter);
+ 				for (int i = 0; i < files.length; i++) {
+@@ -234,11 +234,11 @@ public class AjBuildConfig implements CompilerConfigurationChangeFlags {
+ 		}
+ 	}
+ 
+-	public List getSourceRoots() {
++	public List<File> getSourceRoots() {
+ 		return sourceRoots;
+ 	}
+ 
+-	public void setSourceRoots(List sourceRootDir) {
++	public void setSourceRoots(List<File> sourceRootDir) {
+ 		this.sourceRoots = sourceRootDir;
+ 	}
+ 
+@@ -270,17 +270,17 @@ public class AjBuildConfig implements CompilerConfigurationChangeFlags {
+ 	 * @return List (String) classpath of bootclasspath, injars, inpath, aspectpath entries, specified classpath (extdirs, and
+ 	 *         classpath), and output dir or jar
+ 	 */
+-	public List getFullClasspath() {
+-		List full = new ArrayList();
++	public List<String> getFullClasspath() {
++		List<String> full = new ArrayList<String>();
+ 		full.addAll(getBootclasspath()); // XXX Is it OK that boot classpath overrides inpath/injars/aspectpath?
+-		for (Iterator i = inJars.iterator(); i.hasNext();) {
+-			full.add(((File) i.next()).getAbsolutePath());
++		for (Iterator<File> i = inJars.iterator(); i.hasNext();) {
++			full.add((i.next()).getAbsolutePath());
+ 		}
+-		for (Iterator i = inPath.iterator(); i.hasNext();) {
+-			full.add(((File) i.next()).getAbsolutePath());
++		for (Iterator<File> i = inPath.iterator(); i.hasNext();) {
++			full.add((i.next()).getAbsolutePath());
+ 		}
+-		for (Iterator i = aspectpath.iterator(); i.hasNext();) {
+-			full.add(((File) i.next()).getAbsolutePath());
++		for (Iterator<File> i = aspectpath.iterator(); i.hasNext();) {
++			full.add((i.next()).getAbsolutePath());
+ 		}
+ 		full.addAll(getClasspath());
+ 		// if (null != outputDir) {
+@@ -299,11 +299,11 @@ public class AjBuildConfig implements CompilerConfigurationChangeFlags {
+ 		this.lintSpecFile = lintSpecFile;
+ 	}
+ 
+-	public List getAspectpath() {
++	public List<File> getAspectpath() {
+ 		return aspectpath;
+ 	}
+ 
+-	public void setAspectpath(List aspectpath) {
++	public void setAspectpath(List<File> aspectpath) {
+ 		this.aspectpath = aspectpath;
+ 	}
+ 
+@@ -415,6 +415,7 @@ public class AjBuildConfig implements CompilerConfigurationChangeFlags {
+ 		setMakeReflectable(global.isMakeReflectable());
+ 	}
+ 
++	@SuppressWarnings({ "rawtypes", "unchecked" })
+ 	void join(Collection local, Collection global) {
+ 		for (Iterator iter = global.iterator(); iter.hasNext();) {
+ 			Object next = iter.next();
+@@ -424,25 +425,7 @@ public class AjBuildConfig implements CompilerConfigurationChangeFlags {
+ 		}
+ 	}
+ 
+-	/**
+-	 * Join some global options into a local set of options - globals will override locals.
+-	 * 
+-	 * @param local
+-	 * @param global
+-	 */
+-	void join(Map local, Map global) {
+-		for (Iterator iter = global.keySet().iterator(); iter.hasNext();) {
+-			Object key = iter.next();
+-			// if (override || (null == local.get(key))) { //
+-			Object value = global.get(key);
+-			if (null != value) {
+-				local.put(key, value);
+-			}
+-			// }
+-		}
+-	}
+-
+-	public void setSourcePathResources(Map map) {
++	public void setSourcePathResources(Map<String, File> map) {
+ 		sourcePathResources = map;
+ 	}
+ 
+@@ -475,7 +458,7 @@ public class AjBuildConfig implements CompilerConfigurationChangeFlags {
+ 		}
+ 
+ 		if (lintValue != null) {
+-			Map lintOptions = new HashMap();
++			Map<String, String> lintOptions = new HashMap<String, String>();
+ 			lintOptions.put(AjCompilerOptions.OPTION_ReportInvalidAbsoluteTypeName, lintValue);
+ 			lintOptions.put(AjCompilerOptions.OPTION_ReportInvalidWildcardTypeName, lintValue);
+ 			lintOptions.put(AjCompilerOptions.OPTION_ReportUnresolvableMember, lintValue);
+@@ -692,19 +675,19 @@ public class AjBuildConfig implements CompilerConfigurationChangeFlags {
+ 		return this.changes;
+ 	}
+ 
+-	public void setModifiedFiles(List projectSourceFilesChanged) {
++	public void setModifiedFiles(List<File> projectSourceFilesChanged) {
+ 		this.changedFiles = projectSourceFilesChanged;
+ 	}
+ 
+-	public List getModifiedFiles() {
++	public List<File> getModifiedFiles() {
+ 		return this.changedFiles;
+ 	}
+ 
+-	public void setClasspathElementsWithModifiedContents(List cpElementsWithModifiedContents) {
++	public void setClasspathElementsWithModifiedContents(List<String> cpElementsWithModifiedContents) {
+ 		this.cpElementsWithModifiedContents = cpElementsWithModifiedContents;
+ 	}
+ 
+-	public List getClasspathElementsWithModifiedContents() {
++	public List<String> getClasspathElementsWithModifiedContents() {
+ 		return this.cpElementsWithModifiedContents;
+ 	}
+ }
+@@ -462,7 +462,7 @@ public class AjBuildManager implements IOutputClassFileNameProvider, IBinarySour
+ 		if (buildConfig.getSourcePathResources() != null) {
+ 			for (Iterator i = buildConfig.getSourcePathResources().keySet().iterator(); i.hasNext();) {
+ 				String resource = (String) i.next();
+-				File from = (File) buildConfig.getSourcePathResources().get(resource);
++				File from = buildConfig.getSourcePathResources().get(resource);
+ 				copyResourcesFromFile(from, resource, from);
+ 			}
+ 		}
+@@ -874,7 +874,7 @@ public class AjBuildManager implements IOutputClassFileNameProvider, IBinarySour
+ 		// ??? incremental issues
+ 		for (Iterator i = buildConfig.getInJars().iterator(); i.hasNext();) {
+ 			File inJar = (File) i.next();
+-			List unwovenClasses = bcelWeaver.addJarFile(inJar, outputDir, false);
++			List<UnwovenClassFile> unwovenClasses = bcelWeaver.addJarFile(inJar, outputDir, false);
+ 			state.recordBinarySource(inJar.getPath(), unwovenClasses);
+ 		}
+ 
+@@ -14,7 +14,6 @@
+ package org.aspectj.ajdt.internal.core.builder;
+ 
+ import java.io.File;
+-import java.io.FileFilter;
+ import java.io.FilenameFilter;
+ import java.io.IOException;
+ import java.lang.ref.ReferenceQueue;
+@@ -46,6 +45,7 @@ import org.aspectj.org.eclipse.jdt.internal.compiler.classfmt.ClassFormatExcepti
+ import org.aspectj.org.eclipse.jdt.internal.compiler.env.IBinaryAnnotation;
+ import org.aspectj.org.eclipse.jdt.internal.compiler.env.IBinaryField;
+ import org.aspectj.org.eclipse.jdt.internal.compiler.env.IBinaryMethod;
++import org.aspectj.org.eclipse.jdt.internal.compiler.env.IBinaryNestedType;
+ import org.aspectj.org.eclipse.jdt.internal.compiler.env.IBinaryType;
+ import org.aspectj.org.eclipse.jdt.internal.compiler.env.INameEnvironment;
+ import org.aspectj.org.eclipse.jdt.internal.compiler.lookup.ExtraCompilerModifiers;
+@@ -106,7 +106,7 @@ public class AjState implements CompilerConfigurationChangeFlags {
+ 	private Set<BinarySourceFile> addedBinaryFiles;
+ 	private Set<BinarySourceFile> deletedBinaryFiles;
+ 	// For a particular build run, this set records the changes to classesFromName
+-	public final Set deltaAddedClasses = new HashSet();
++	public final Set<String> deltaAddedClasses = new HashSet<String>();
+ 
+ 	// --- non static, but transient state - no need to write out, DOES need reinitializing when read AjState instance reloaded
+ 
+@@ -121,7 +121,7 @@ public class AjState implements CompilerConfigurationChangeFlags {
+ 	private AjBuildConfig buildConfig;
+ 
+ 	private long lastSuccessfulFullBuildTime = -1;
+-	private final Hashtable /* File, long */structuralChangesSinceLastFullBuild = new Hashtable();
++	private final Hashtable<String, Long> structuralChangesSinceLastFullBuild = new Hashtable<String, Long>();
+ 
+ 	private long lastSuccessfulBuildTime = -1;
+ 	private long currentBuildTime = -1;
+@@ -141,7 +141,7 @@ public class AjState implements CompilerConfigurationChangeFlags {
+ 	 * 
+ 	 * Populated in noteResult and used in processDeletedFiles
+ 	 */
+-	private final Set/* <File> */sourceFilesDefiningAspects = new HashSet();
++	private final Set<File> sourceFilesDefiningAspects = new HashSet<File>();
+ 
+ 	/**
+ 	 * Populated in noteResult to record the set of types that should be recompiled if the given file is modified or deleted.
+@@ -180,13 +180,13 @@ public class AjState implements CompilerConfigurationChangeFlags {
+ 	/**
+ 	 * A list of the .class files created by this state that contain aspects.
+ 	 */
+-	private final List/* <String> */aspectClassFiles = new ArrayList();
++	private final List<String> aspectClassFiles = new ArrayList<String>();
+ 
+ 	/**
+ 	 * Holds structure information on types as they were at the end of the last build. It would be nice to get rid of this too, but
+ 	 * can't see an easy way to do that right now.
+ 	 */
+-	private final Map/* FQN,CompactStructureRepresentation */resolvedTypeStructuresFromLastBuild = new HashMap();
++	private final Map<String, CompactTypeStructureRepresentation> resolvedTypeStructuresFromLastBuild = new HashMap<String, CompactTypeStructureRepresentation>();
+ 
+ 	/**
+ 	 * Populated in noteResult to record the set of UnwovenClassFiles (intermediate results) that originated from compilation of the
+@@ -196,7 +196,7 @@ public class AjState implements CompilerConfigurationChangeFlags {
+ 	 * 
+ 	 * Passed into StatefulNameEnvironment during incremental compilation to support findType lookups.
+ 	 */
+-	private final Map<String, File> classesFromName = new HashMap();
++	private final Map<String, File> classesFromName = new HashMap<String, File>();
+ 
+ 	/**
+ 	 * Populated by AjBuildManager to record the aspects with the file name in which they're contained. This is later used when
+@@ -206,7 +206,7 @@ public class AjState implements CompilerConfigurationChangeFlags {
+ 	 */
+ 	private Map<String, char[]> aspectsFromFileNames;
+ 
+-	private Set/* File */compiledSourceFiles = new HashSet();
++	private Set<File> compiledSourceFiles = new HashSet<File>();
+ 	private final Map<String, File> resources = new HashMap<String, File>();
+ 
+ 	SoftHashMap/* <baseDir,SoftHashMap<theFile,className>> */fileToClassNameMap = new SoftHashMap();
+@@ -355,21 +355,19 @@ public class AjState implements CompilerConfigurationChangeFlags {
+ 	 * 
+ 	 * @return false if we discovered an aspect declaration
+ 	 */
+-	private boolean processDeletedFiles(Set deletedFiles) {
+-		for (Iterator iter = deletedFiles.iterator(); iter.hasNext();) {
+-			File aDeletedFile = (File) iter.next();
+-			if (this.sourceFilesDefiningAspects.contains(aDeletedFile)) {
++	private boolean processDeletedFiles(Set<File> deletedFiles) {
++		for (File deletedFile : deletedFiles) {
++			if (this.sourceFilesDefiningAspects.contains(deletedFile)) {
+ 				removeAllResultsOfLastBuild();
+ 				if (stateListener != null) {
+-					stateListener.detectedAspectDeleted(aDeletedFile);
++					stateListener.detectedAspectDeleted(deletedFile);
+ 				}
+ 				return false;
+ 			}
+-			List/* ClassFile */classes = fullyQualifiedTypeNamesResultingFromCompilationUnit.get(aDeletedFile);
++			List<ClassFile> classes = fullyQualifiedTypeNamesResultingFromCompilationUnit.get(deletedFile);
+ 			if (classes != null) {
+-				for (Iterator iterator = classes.iterator(); iterator.hasNext();) {
+-					ClassFile element = (ClassFile) iterator.next();
+-					resolvedTypeStructuresFromLastBuild.remove(element.fullyQualifiedTypeName);
++				for (ClassFile cf : classes) {
++					resolvedTypeStructuresFromLastBuild.remove(cf.fullyQualifiedTypeName);
+ 				}
+ 			}
+ 		}
+@@ -409,15 +407,15 @@ public class AjState implements CompilerConfigurationChangeFlags {
+ 		return ret;
+ 	}
+ 
+-	private Collection getModifiedBinaryFiles() {
++	private Collection<BinarySourceFile> getModifiedBinaryFiles() {
+ 		return getModifiedBinaryFiles(lastSuccessfulBuildTime);
+ 	}
+ 
+-	Collection getModifiedBinaryFiles(long lastBuildTime) {
+-		List ret = new ArrayList();
++	Collection<BinarySourceFile> getModifiedBinaryFiles(long lastBuildTime) {
++		List<BinarySourceFile> ret = new ArrayList<BinarySourceFile>();
+ 		// not our job to account for new and deleted files
+-		for (Iterator i = buildConfig.getBinaryFiles().iterator(); i.hasNext();) {
+-			AjBuildConfig.BinarySourceFile bsfile = (AjBuildConfig.BinarySourceFile) i.next();
++		for (Iterator<BinarySourceFile> i = buildConfig.getBinaryFiles().iterator(); i.hasNext();) {
++			AjBuildConfig.BinarySourceFile bsfile = i.next();
+ 			File file = bsfile.binSrc;
+ 			if (!file.exists()) {
+ 				continue;
+@@ -433,12 +431,6 @@ public class AjState implements CompilerConfigurationChangeFlags {
+ 		return ret;
+ 	}
+ 
+-	public static final FileFilter classFileFilter = new FileFilter() {
+-		public boolean accept(File pathname) {
+-			return pathname.getName().endsWith(".class");
+-		}
+-	};
+-
+ 	private void recordDecision(String decision) {
+ 		getListener().recordDecision(decision);
+ 	}
+@@ -499,10 +491,10 @@ public class AjState implements CompilerConfigurationChangeFlags {
+ 			}
+ 		}
+ 
+-		List classFiles = FileUtil.listClassFiles(dir);
++		List<File> classFiles = FileUtil.listClassFiles(dir);
+ 
+-		for (Iterator iterator = classFiles.iterator(); iterator.hasNext();) {
+-			File classFile = (File) iterator.next();
++		for (Iterator<File> iterator = classFiles.iterator(); iterator.hasNext();) {
++			File classFile = iterator.next();
+ 			if (CHECK_STATE_FIRST && state != null) {
+ 				// Next section reworked based on bug 270033:
+ 				// if it is an aspect we may or may not be in trouble depending on whether (a) we depend on it (b) it is on the
+@@ -638,6 +630,7 @@ public class AjState implements CompilerConfigurationChangeFlags {
+ 		return aspectClassFiles.contains(file.getAbsolutePath());
+ 	}
+ 
++	@SuppressWarnings("rawtypes")
+ 	public static class SoftHashMap extends AbstractMap {
+ 
+ 		private final Map map;
+@@ -660,6 +653,7 @@ public class AjState implements CompilerConfigurationChangeFlags {
+ 
+ 			private final Object key;
+ 
++			@SuppressWarnings("unchecked")
+ 			SoftReferenceKnownKey(Object k, Object v) {
+ 				super(v, rq);
+ 				this.key = k;
+@@ -823,7 +817,7 @@ public class AjState implements CompilerConfigurationChangeFlags {
+ 	 */
+ 	private boolean hasStructuralChangedSince(File file, long lastSuccessfulBuildTime) {
+ 		// long lastModTime = file.lastModified();
+-		Long l = (Long) structuralChangesSinceLastFullBuild.get(file.getAbsolutePath());
++		Long l = structuralChangesSinceLastFullBuild.get(file.getAbsolutePath());
+ 		long strucModTime = -1;
+ 		if (l != null) {
+ 			strucModTime = l.longValue();
+@@ -839,10 +833,10 @@ public class AjState implements CompilerConfigurationChangeFlags {
+ 	 * Determine if anything has changed since a given time.
+ 	 */
+ 	private boolean hasAnyStructuralChangesSince(long lastSuccessfulBuildTime) {
+-		Set entries = structuralChangesSinceLastFullBuild.entrySet();
+-		for (Iterator iterator = entries.iterator(); iterator.hasNext();) {
+-			Map.Entry entry = (Map.Entry) iterator.next();
+-			Long l = (Long) entry.getValue();
++		Set<Map.Entry<String, Long>> entries = structuralChangesSinceLastFullBuild.entrySet();
++		for (Iterator<Map.Entry<String, Long>> iterator = entries.iterator(); iterator.hasNext();) {
++			Map.Entry<String, Long> entry = iterator.next();
++			Long l = entry.getValue();
+ 			if (l != null) {
+ 				long lvalue = l.longValue();
+ 				if (lvalue > lastSuccessfulBuildTime) {
+@@ -870,12 +864,12 @@ public class AjState implements CompilerConfigurationChangeFlags {
+ 		int changes = newConfig.getChanged();
+ 
+ 		if ((changes & (CLASSPATH_CHANGED | ASPECTPATH_CHANGED | INPATH_CHANGED | OUTPUTDESTINATIONS_CHANGED | INJARS_CHANGED)) != 0) {
+-			List oldOutputLocs = getOutputLocations(previousConfig);
++			List<File> oldOutputLocs = getOutputLocations(previousConfig);
+ 
+-			Set alreadyAnalysedPaths = new HashSet();
++			Set<String> alreadyAnalysedPaths = new HashSet<String>();
+ 
+-			List oldClasspath = previousConfig.getClasspath();
+-			List newClasspath = newConfig.getClasspath();
++			List<String> oldClasspath = previousConfig.getClasspath();
++			List<String> newClasspath = newConfig.getClasspath();
+ 			if (stateListener != null) {
+ 				stateListener.aboutToCompareClasspaths(oldClasspath, newClasspath);
+ 			}
+@@ -883,20 +877,20 @@ public class AjState implements CompilerConfigurationChangeFlags {
+ 				return true;
+ 			}
+ 
+-			List oldAspectpath = previousConfig.getAspectpath();
+-			List newAspectpath = newConfig.getAspectpath();
++			List<File> oldAspectpath = previousConfig.getAspectpath();
++			List<File> newAspectpath = newConfig.getAspectpath();
+ 			if (changedAndNeedsFullBuild(oldAspectpath, newAspectpath, true, oldOutputLocs, alreadyAnalysedPaths, PATHID_ASPECTPATH)) {
+ 				return true;
+ 			}
+ 
+-			List oldInPath = previousConfig.getInpath();
+-			List newInPath = newConfig.getInpath();
++			List<File> oldInPath = previousConfig.getInpath();
++			List<File> newInPath = newConfig.getInpath();
+ 			if (changedAndNeedsFullBuild(oldInPath, newInPath, false, oldOutputLocs, alreadyAnalysedPaths, PATHID_INPATH)) {
+ 				return true;
+ 			}
+ 
+-			List oldInJars = previousConfig.getInJars();
+-			List newInJars = newConfig.getInJars();
++			List<File> oldInJars = previousConfig.getInJars();
++			List<File> newInJars = newConfig.getInJars();
+ 			if (changedAndNeedsFullBuild(oldInJars, newInJars, false, oldOutputLocs, alreadyAnalysedPaths, PATHID_INPATH)) {
+ 				return true;
+ 			}
+@@ -906,9 +900,9 @@ public class AjState implements CompilerConfigurationChangeFlags {
+ 			// the compiler configuration. This will allow for projects with long classpaths where classpaths
+ 			// are also capturing project dependencies - when a project we depend on is rebuilt, we can just check
+ 			// it as a standalone element on our classpath rather than going through them all
+-			List/* String */modifiedCpElements = newConfig.getClasspathElementsWithModifiedContents();
+-			for (Iterator iterator = modifiedCpElements.iterator(); iterator.hasNext();) {
+-				File cpElement = new File((String) iterator.next());
++			List<String> modifiedCpElements = newConfig.getClasspathElementsWithModifiedContents();
++			for (Iterator<String> iterator = modifiedCpElements.iterator(); iterator.hasNext();) {
++				File cpElement = new File(iterator.next());
+ 				if (cpElement.exists() && !cpElement.isDirectory()) {
+ 					if (cpElement.lastModified() > lastSuccessfulBuildTime) {
+ 						return true;
+@@ -958,7 +952,6 @@ public class AjState implements CompilerConfigurationChangeFlags {
+ 	}
+ 
+ 	private File getOutputLocationFor(AjBuildConfig config, File aResourceFile) {
+-		new ArrayList();
+ 		if (config.getCompilationResultDestinationManager() != null) {
+ 			File outputLoc = config.getCompilationResultDestinationManager().getOutputLocationForResource(aResourceFile);
+ 			if (outputLoc != null) {
+@@ -983,8 +976,8 @@ public class AjState implements CompilerConfigurationChangeFlags {
+ 	 * @param outputLocs the output locations that should be ignored if they occur on the paths being compared
+ 	 * @return true if a change is detected that requires a full build
+ 	 */
+-	private boolean changedAndNeedsFullBuild(List oldPath, List newPath, boolean checkClassFiles, List outputLocs,
+-			Set alreadyAnalysedPaths, int pathid) {
++	private boolean changedAndNeedsFullBuild(List oldPath, List newPath, boolean checkClassFiles, List<File> outputLocs,
++			Set<String> alreadyAnalysedPaths, int pathid) {
+ 		if (oldPath.size() != newPath.size()) {
+ 			return true;
+ 		}
+@@ -1010,8 +1003,8 @@ public class AjState implements CompilerConfigurationChangeFlags {
+ 				// that should save a massive amount of processing for incremental builds in a multi project scenario
+ 
+ 				boolean foundMatch = false;
+-				for (Iterator iterator = outputLocs.iterator(); !foundMatch && iterator.hasNext();) {
+-					File dir = (File) iterator.next();
++				for (Iterator<File> iterator = outputLocs.iterator(); !foundMatch && iterator.hasNext();) {
++					File dir = iterator.next();
+ 					if (f.equals(dir)) {
+ 						foundMatch = true;
+ 					}
+@@ -1041,8 +1034,8 @@ public class AjState implements CompilerConfigurationChangeFlags {
+ 	 * @param outputLocs the output locations that should be ignored if they occur on the paths being compared
+ 	 * @return true if a change is detected that requires a full build
+ 	 */
+-	private boolean classpathChangedAndNeedsFullBuild(List oldPath, List newPath, boolean checkClassFiles, List outputLocs,
+-			Set alreadyAnalysedPaths) {
++	private boolean classpathChangedAndNeedsFullBuild(List<String> oldPath, List<String> newPath, boolean checkClassFiles,
++			List<File> outputLocs, Set<String> alreadyAnalysedPaths) {
+ 		if (oldPath.size() != newPath.size()) {
+ 			return true;
+ 		}
+@@ -1050,7 +1043,7 @@ public class AjState implements CompilerConfigurationChangeFlags {
+ 			if (!oldPath.get(i).equals(newPath.get(i))) {
+ 				return true;
+ 			}
+-			File f = new File((String) oldPath.get(i));
++			File f = new File(oldPath.get(i));
+ 			if (f.exists() && !f.isDirectory() && (f.lastModified() >= lastSuccessfulBuildTime)) {
+ 				return true;
+ 			}
+@@ -1062,8 +1055,8 @@ public class AjState implements CompilerConfigurationChangeFlags {
+ 				// that should save a massive amount of processing for incremental builds in a multi project scenario
+ 
+ 				boolean foundMatch = false;
+-				for (Iterator iterator = outputLocs.iterator(); !foundMatch && iterator.hasNext();) {
+-					File dir = (File) iterator.next();
++				for (Iterator<File> iterator = outputLocs.iterator(); !foundMatch && iterator.hasNext();) {
++					File dir = iterator.next();
+ 					if (f.equals(dir)) {
+ 						foundMatch = true;
+ 					}
+@@ -1082,7 +1075,7 @@ public class AjState implements CompilerConfigurationChangeFlags {
+ 		return false;
+ 	}
+ 
+-	public Set getFilesToCompile(boolean firstPass) {
++	public Set<File> getFilesToCompile(boolean firstPass) {
+ 		Set<File> thisTime = new HashSet<File>();
+ 		if (firstPass) {
+ 			compiledSourceFiles = new HashSet<File>();
+@@ -1162,10 +1155,9 @@ public class AjState implements CompilerConfigurationChangeFlags {
+ 	 */
+ 	private void removeAllResultsOfLastBuild() {
+ 		// remove all binarySourceFiles, and all classesFromName...
+-		for (Iterator iter = this.inputClassFilesBySource.values().iterator(); iter.hasNext();) {
+-			List cfs = (List) iter.next();
+-			for (Iterator iterator = cfs.iterator(); iterator.hasNext();) {
+-				ClassFile cf = (ClassFile) iterator.next();
++		for (Iterator<List<ClassFile>> iter = this.inputClassFilesBySource.values().iterator(); iter.hasNext();) {
++			List<ClassFile> cfs = iter.next();
++			for (ClassFile cf : cfs) {
+ 				cf.deleteFromFileSystem(buildConfig);
+ 			}
+ 		}
+@@ -1195,16 +1187,14 @@ public class AjState implements CompilerConfigurationChangeFlags {
+ 		if (deletedFiles == null) {
+ 			return;
+ 		}
+-		for (Iterator i = deletedFiles.iterator(); i.hasNext();) {
+-			File deletedFile = (File) i.next();
++		for (File deletedFile : deletedFiles) {
+ 			addDependentsOf(deletedFile);
+ 
+-			List cfs = this.fullyQualifiedTypeNamesResultingFromCompilationUnit.get(deletedFile);
++			List<ClassFile> cfs = this.fullyQualifiedTypeNamesResultingFromCompilationUnit.get(deletedFile);
+ 			this.fullyQualifiedTypeNamesResultingFromCompilationUnit.remove(deletedFile);
+ 
+ 			if (cfs != null) {
+-				for (Iterator iter = cfs.iterator(); iter.hasNext();) {
+-					ClassFile cf = (ClassFile) iter.next();
++				for (ClassFile cf : cfs) {
+ 					deleteClassFile(cf);
+ 				}
+ 			}
+@@ -1386,24 +1376,22 @@ public class AjState implements CompilerConfigurationChangeFlags {
+ 	 */
+ 	private void deleteTypesThatWereInThisCompilationUnitLastTimeRoundButHaveBeenDeletedInThisIncrement(File sourceFile,
+ 			UnwovenClassFile[] unwovenClassFiles) {
+-		List classFiles = this.fullyQualifiedTypeNamesResultingFromCompilationUnit.get(sourceFile);
++		List<ClassFile> classFiles = this.fullyQualifiedTypeNamesResultingFromCompilationUnit.get(sourceFile);
+ 		if (classFiles != null) {
+ 			for (int i = 0; i < unwovenClassFiles.length; i++) {
+ 				// deleting also deletes types from the weaver... don't do this if they are
+ 				// still present this time around...
+ 				removeFromClassFilesIfPresent(unwovenClassFiles[i].getClassName(), classFiles);
+ 			}
+-			for (Iterator iter = classFiles.iterator(); iter.hasNext();) {
+-				ClassFile cf = (ClassFile) iter.next();
++			for (ClassFile cf : classFiles) {
+ 				deleteClassFile(cf);
+ 			}
+ 		}
+ 	}
+ 
+-	private void removeFromClassFilesIfPresent(String className, List classFiles) {
++	private void removeFromClassFilesIfPresent(String className, List<ClassFile> classFiles) {
+ 		ClassFile victim = null;
+-		for (Iterator iter = classFiles.iterator(); iter.hasNext();) {
+-			ClassFile cf = (ClassFile) iter.next();
++		for (ClassFile cf : classFiles) {
+ 			if (cf.fullyQualifiedTypeName.equals(className)) {
+ 				victim = cf;
+ 				break;
+@@ -1441,8 +1429,8 @@ public class AjState implements CompilerConfigurationChangeFlags {
+ 		if (cr != null) {
+ 			Map compiledTypes = cr.compiledTypes;
+ 			if (compiledTypes != null) {
+-				for (Iterator iterator = compiledTypes.keySet().iterator(); iterator.hasNext();) {
+-					char[] className = (char[]) iterator.next();
++				for (Iterator<char[]> iterator = compiledTypes.keySet().iterator(); iterator.hasNext();) {
++					char[] className = iterator.next();
+ 					String typeName = new String(className).replace('/', '.');
+ 					if (typeName.indexOf(BcelWeaver.SYNTHETIC_CLASS_POSTFIX) == -1) {
+ 						ResolvedType rt = world.resolve(typeName);
+@@ -1494,7 +1482,7 @@ public class AjState implements CompilerConfigurationChangeFlags {
+ 			return;
+ 		}
+ 
+-		CompactTypeStructureRepresentation existingStructure = (CompactTypeStructureRepresentation) this.resolvedTypeStructuresFromLastBuild
++		CompactTypeStructureRepresentation existingStructure = this.resolvedTypeStructuresFromLastBuild
+ 				.get(thisTime.getClassName());
+ 		ResolvedType newResolvedType = world.resolve(thisTime.getClassName());
+ 		if (!newResolvedType.isMissing()) {
+@@ -1766,6 +1754,24 @@ public class AjState implements CompilerConfigurationChangeFlags {
+ 			return true; // (no match found)
+ 		}
+ 
++		// check for differences in inner types
++		// TODO could make order insensitive
++		IBinaryNestedType[] binaryNestedTypes = reader.getMemberTypes();
++		IBinaryNestedType[] existingBinaryNestedTypes = existingType.getMemberTypes();
++		if ((binaryNestedTypes == null && existingBinaryNestedTypes != null)
++				|| (binaryNestedTypes != null && existingBinaryNestedTypes == null)) {
++			return true;
++		}
++		if (binaryNestedTypes != null) {
++			int bnLength = binaryNestedTypes.length;
++			for (int m = 0; m < bnLength; m++) {
++				IBinaryNestedType bnt = binaryNestedTypes[m];
++				IBinaryNestedType existingBnt = existingBinaryNestedTypes[m];
++				if (!CharOperation.equals(bnt.getName(), existingBnt.getName())) {
++					return true;
++				}
++			}
++		}
+ 		return false;
+ 	}
+ 
+@@ -1812,10 +1818,10 @@ public class AjState implements CompilerConfigurationChangeFlags {
+ 	// return ret;
+ 	// }
+ 
+-	private String stringifyList(Set l) {
++	private String stringifySet(Set<?> l) {
+ 		StringBuffer sb = new StringBuffer();
+ 		sb.append("{");
+-		for (Iterator iter = l.iterator(); iter.hasNext();) {
++		for (Iterator<?> iter = l.iterator(); iter.hasNext();) {
+ 			Object el = iter.next();
+ 			sb.append(el);
+ 			if (iter.hasNext()) {
+@@ -1826,14 +1832,14 @@ public class AjState implements CompilerConfigurationChangeFlags {
+ 		return sb.toString();
+ 	}
+ 
+-	protected void addAffectedSourceFiles(Set addTo, Set lastTimeSources) {
++	protected void addAffectedSourceFiles(Set<File> addTo, Set<File> lastTimeSources) {
+ 		if (qualifiedStrings.elementSize == 0 && simpleStrings.elementSize == 0) {
+ 			return;
+ 		}
+ 		if (listenerDefined()) {
+ 			getListener().recordDecision(
+ 					"Examining whether any other files now need compilation based on just compiling: '"
+-							+ stringifyList(lastTimeSources) + "'");
++							+ stringifySet(lastTimeSources) + "'");
+ 		}
+ 		// the qualifiedStrings are of the form 'p1/p2' & the simpleStrings are just 'X'
+ 		char[][][] qualifiedNames = ReferenceCollection.internQualifiedNames(qualifiedStrings);
+@@ -1850,11 +1856,11 @@ public class AjState implements CompilerConfigurationChangeFlags {
+ 		// System.err.println("simple: " + simpleStrings);
+ 		// System.err.println("qualif: " + qualifiedStrings);
+ 
+-		for (Iterator i = references.entrySet().iterator(); i.hasNext();) {
+-			Map.Entry entry = (Map.Entry) i.next();
+-			ReferenceCollection refs = (ReferenceCollection) entry.getValue();
++		for (Iterator<Map.Entry<File, ReferenceCollection>> i = references.entrySet().iterator(); i.hasNext();) {
++			Map.Entry<File, ReferenceCollection> entry = i.next();
++			ReferenceCollection refs = entry.getValue();
+ 			if (refs != null && refs.includes(qualifiedNames, simpleNames)) {
+-				File file = (File) entry.getKey();
++				File file = entry.getKey();
+ 				if (file.exists()) {
+ 					if (!lastTimeSources.contains(file)) { // ??? O(n**2)
+ 						if (listenerDefined()) {
+@@ -1909,15 +1915,12 @@ public class AjState implements CompilerConfigurationChangeFlags {
+ 	}
+ 
+ 	protected void addDependentsOf(File sourceFile) {
+-		List cfs = this.fullyQualifiedTypeNamesResultingFromCompilationUnit.get(sourceFile);
+-
++		List<ClassFile> cfs = this.fullyQualifiedTypeNamesResultingFromCompilationUnit.get(sourceFile);
+ 		if (cfs != null) {
+-			for (Iterator iter = cfs.iterator(); iter.hasNext();) {
+-				ClassFile cf = (ClassFile) iter.next();
++			for (ClassFile cf : cfs) {
+ 				recordTypeChanged(cf.fullyQualifiedTypeName);
+ 			}
+ 		}
+-
+ 	}
+ 
+ 	public void setStructureModel(AsmManager structureModel) {
+@@ -1975,15 +1978,14 @@ public class AjState implements CompilerConfigurationChangeFlags {
+ 	}
+ 
+ 	public void clearBinarySourceFiles() {
+-		this.binarySourceFiles = new HashMap();
++		this.binarySourceFiles = new HashMap<String, List<UnwovenClassFile>>();
+ 	}
+ 
+-	public void recordBinarySource(String fromPathName, List unwovenClassFiles) {
++	public void recordBinarySource(String fromPathName, List<UnwovenClassFile> unwovenClassFiles) {
+ 		this.binarySourceFiles.put(fromPathName, unwovenClassFiles);
+ 		if (this.maybeIncremental()) {
+-			List simpleClassFiles = new LinkedList();
+-			for (Iterator iter = unwovenClassFiles.iterator(); iter.hasNext();) {
+-				UnwovenClassFile ucf = (UnwovenClassFile) iter.next();
++			List<ClassFile> simpleClassFiles = new LinkedList<ClassFile>();
++			for (UnwovenClassFile ucf : unwovenClassFiles) {
+ 				ClassFile cf = getClassFileFor(ucf);
+ 				simpleClassFiles.add(cf);
+ 			}
+@@ -1999,7 +2001,7 @@ public class AjState implements CompilerConfigurationChangeFlags {
+ 		return new ClassFile(ucf.getClassName(), new File(ucf.getFilename()));
+ 	}
+ 
+-	public Map getBinarySourceMap() {
++	public Map<String, List<UnwovenClassFile>> getBinarySourceMap() {
+ 		return this.binarySourceFiles;
+ 	}
+ 
+@@ -2018,14 +2020,14 @@ public class AjState implements CompilerConfigurationChangeFlags {
+ 	/**
+ 	 * @return Returns the addedFiles.
+ 	 */
+-	public Set getAddedFiles() {
++	public Set<File> getAddedFiles() {
+ 		return this.addedFiles;
+ 	}
+ 
+ 	/**
+ 	 * @return Returns the deletedFiles.
+ 	 */
+-	public Set getDeletedFiles() {
++	public Set<File> getDeletedFiles() {
+ 		return this.deletedFiles;
+ 	}
+ 
+@@ -2085,7 +2087,7 @@ public class AjState implements CompilerConfigurationChangeFlags {
+ 	}
+ 
+ 	public void initializeAspectNamesToFileNameMap() {
+-		this.aspectsFromFileNames = new HashMap();
++		this.aspectsFromFileNames = new HashMap<String, char[]>();
+ 	}
+ 
+ 	// Will allow us to record decisions made during incremental processing, hopefully aid in debugging
+@@ -2098,7 +2100,7 @@ public class AjState implements CompilerConfigurationChangeFlags {
+ 	}
+ 
+ 	public IBinaryType checkPreviousBuild(String name) {
+-		return (IBinaryType) resolvedTypeStructuresFromLastBuild.get(name);
++		return resolvedTypeStructuresFromLastBuild.get(name);
+ 	}
+ 
+ 	public AjBuildManager getAjBuildManager() {
+@@ -16,111 +16,107 @@ import java.util.List;
+ 
+ import junit.framework.TestCase;
+ 
+-
+ public class AjStateTest extends TestCase {
+ 
+-    private AjState aRightState;
+-    private AjBuildConfig oldConfig;
+-    private AjBuildConfig newConfig;
+-    
+-    public void testNoChange() {
+-    	aRightState.setCouldBeSubsequentIncrementalBuild(true);
+-        assertTrue("Can do incremental",aRightState.prepareForNextBuild(newConfig));
+-    }
+-    
+-    public void testAddEntryToClasspath() {
+-        newConfig.getClasspath().add("anotherEntry");
+-        assertFalse("Can do incremental",aRightState.prepareForNextBuild(newConfig));
+-    }
+-    
+-    public void testRemoveEntryFromClasspath() {
+-        newConfig.getClasspath().remove(0);
+-        assertFalse("Can do incremental",aRightState.prepareForNextBuild(newConfig));               
+-    }
+-    
+-    public void testReorderClasspath() {
+-        Object o = newConfig.getClasspath().remove(0);
+-        newConfig.getClasspath().add(o);
+-        assertFalse("Can do incremental",aRightState.prepareForNextBuild(newConfig));                       
+-    }
+-
+-    public void testAddEntryToAspectpath() {
+-        newConfig.getAspectpath().add(new File("anotherEntry.jar"));
+-        assertFalse("Can do incremental",aRightState.prepareForNextBuild(newConfig));
+-    }
+-    
+-    public void testRemoveEntryFromAspectpath() {
+-        newConfig.getAspectpath().remove(0);
+-        assertFalse("Can do incremental",aRightState.prepareForNextBuild(newConfig));               
+-    }
+-    
+-    public void testReorderAspectpath() {
+-        Object o = newConfig.getClasspath().remove(0);
+-        newConfig.getAspectpath().add(o);
+-        assertFalse("Can do incremental",aRightState.prepareForNextBuild(newConfig));                       
+-    }
+-
+-    public void testAddEntryToInpath() {
+-        newConfig.getInpath().add(new File("anotherEntry"));
+-        assertFalse("Can do incremental",aRightState.prepareForNextBuild(newConfig));
+-    }
+-    
+-    public void testRemoveEntryFromInpath() {
+-        newConfig.getInpath().remove(0);
+-        assertFalse("Can do incremental",aRightState.prepareForNextBuild(newConfig));               
+-    }
+-    
+-    public void testReorderInpath() {
+-        Object o = newConfig.getClasspath().remove(0);
+-        newConfig.getInpath().add(o);
+-        assertFalse("Can do incremental",aRightState.prepareForNextBuild(newConfig));                       
+-    }
+-    
+-    public void testAddEntryToInjars() {
+-        newConfig.getInJars().add(new File("anotherEntry.jar"));
+-        assertFalse("Can do incremental",aRightState.prepareForNextBuild(newConfig));
+-    }
+-    
+-    public void testRemoveEntryFromInjars() {
+-        newConfig.getInJars().remove(0);
+-        assertFalse("Can do incremental",aRightState.prepareForNextBuild(newConfig));               
+-    }
+-    
+-    public void testReorderInjars() {
+-        Object o = newConfig.getClasspath().remove(0);
+-        newConfig.getInJars().add(o);
+-        assertFalse("Can do incremental",aRightState.prepareForNextBuild(newConfig));                       
+-    }
+-    
+-    /* (non-Javadoc)
+-     * @see junit.framework.TestCase#setUp()
+-     */
+-    protected void setUp() throws Exception {
+-        super.setUp();
+-        aRightState = new AjState(null);
+-        oldConfig = new AjBuildConfig();
+-        newConfig = new AjBuildConfig();
+-        List cp = new ArrayList();
+-        cp.add("adir");
+-        cp.add("ajar.jar");
+-        oldConfig.setClasspath(cp);
+-        newConfig.setClasspath(new ArrayList(cp));
+-        List ap = new ArrayList();
+-        ap.add(new File("aLib.jar"));
+-        ap.add(new File("anotherLib.jar"));
+-        oldConfig.setAspectpath(ap);
+-        newConfig.setAspectpath(new ArrayList(ap));
+-        List ip = new ArrayList();
+-        ip.add(new File("adir"));
+-        ip.add(new File("ajar.jar"));
+-        oldConfig.setInPath(ip);
+-        newConfig.setInPath(new ArrayList(ip));
+-        List ij = new ArrayList();
+-        ij.add(new File("aLib.jar"));
+-        ij.add(new File("anotherLib.jar"));
+-        oldConfig.setInJars(ij);
+-        newConfig.setInJars(new ArrayList(ij));
+-        aRightState.prepareForNextBuild(oldConfig);
+-        aRightState.successfulCompile(oldConfig,true);
+-    }
++	private AjState aRightState;
++	private AjBuildConfig oldConfig;
++	private AjBuildConfig newConfig;
++
++	public void testNoChange() {
++		aRightState.setCouldBeSubsequentIncrementalBuild(true);
++		assertTrue("Can do incremental", aRightState.prepareForNextBuild(newConfig));
++	}
++
++	public void testAddEntryToClasspath() {
++		newConfig.getClasspath().add("anotherEntry");
++		assertFalse("Can do incremental", aRightState.prepareForNextBuild(newConfig));
++	}
++
++	public void testRemoveEntryFromClasspath() {
++		newConfig.getClasspath().remove(0);
++		assertFalse("Can do incremental", aRightState.prepareForNextBuild(newConfig));
++	}
++
++	public void testReorderClasspath() {
++		String o = newConfig.getClasspath().remove(0);
++		newConfig.getClasspath().add(o);
++		assertFalse("Can do incremental", aRightState.prepareForNextBuild(newConfig));
++	}
++
++	public void testAddEntryToAspectpath() {
++		newConfig.getAspectpath().add(new File("anotherEntry.jar"));
++		assertFalse("Can do incremental", aRightState.prepareForNextBuild(newConfig));
++	}
++
++	public void testRemoveEntryFromAspectpath() {
++		newConfig.getAspectpath().remove(0);
++		assertFalse("Can do incremental", aRightState.prepareForNextBuild(newConfig));
++	}
++
++	public void testReorderAspectpath() {
++		String o = newConfig.getClasspath().remove(0);
++		newConfig.getAspectpath().add(new File(o));
++		assertFalse("Can do incremental", aRightState.prepareForNextBuild(newConfig));
++	}
++
++	public void testAddEntryToInpath() {
++		newConfig.getInpath().add(new File("anotherEntry"));
++		assertFalse("Can do incremental", aRightState.prepareForNextBuild(newConfig));
++	}
++
++	public void testRemoveEntryFromInpath() {
++		newConfig.getInpath().remove(0);
++		assertFalse("Can do incremental", aRightState.prepareForNextBuild(newConfig));
++	}
++
++	public void testReorderInpath() {
++		String o = newConfig.getClasspath().remove(0);
++		newConfig.getInpath().add(new File(o));
++		assertFalse("Can do incremental", aRightState.prepareForNextBuild(newConfig));
++	}
++
++	public void testAddEntryToInjars() {
++		newConfig.getInJars().add(new File("anotherEntry.jar"));
++		assertFalse("Can do incremental", aRightState.prepareForNextBuild(newConfig));
++	}
++
++	public void testRemoveEntryFromInjars() {
++		newConfig.getInJars().remove(0);
++		assertFalse("Can do incremental", aRightState.prepareForNextBuild(newConfig));
++	}
++
++	public void testReorderInjars() {
++		String o = newConfig.getClasspath().remove(0);
++		newConfig.getInJars().add(new File(o));
++		assertFalse("Can do incremental", aRightState.prepareForNextBuild(newConfig));
++	}
++
++	protected void setUp() throws Exception {
++		super.setUp();
++		aRightState = new AjState(null);
++		oldConfig = new AjBuildConfig();
++		newConfig = new AjBuildConfig();
++		List<String> cp = new ArrayList<String>();
++		cp.add("adir");
++		cp.add("ajar.jar");
++		oldConfig.setClasspath(cp);
++		newConfig.setClasspath(new ArrayList<String>(cp));
++		List<File> ap = new ArrayList<File>();
++		ap.add(new File("aLib.jar"));
++		ap.add(new File("anotherLib.jar"));
++		oldConfig.setAspectpath(ap);
++		newConfig.setAspectpath(new ArrayList<File>(ap));
++		List<File> ip = new ArrayList<File>();
++		ip.add(new File("adir"));
++		ip.add(new File("ajar.jar"));
++		oldConfig.setInPath(ip);
++		newConfig.setInPath(new ArrayList<File>(ip));
++		List<File> ij = new ArrayList<File>();
++		ij.add(new File("aLib.jar"));
++		ij.add(new File("anotherLib.jar"));
++		oldConfig.setInJars(ij);
++		newConfig.setInJars(new ArrayList<File>(ij));
++		aRightState.prepareForNextBuild(oldConfig);
++		aRightState.successfulCompile(oldConfig, true);
++	}
+ }
+@@ -0,0 +1,5 @@
++public class A {
++  public static void main(String []argv) {
++    new B.C();
++  }
++}
+@@ -0,0 +1,4 @@
++public class B {
++  public static class C {
++  }
++}
+@@ -0,0 +1,2 @@
++public class B {
++}
+@@ -0,0 +1,5 @@
++public class A {
++  public static void main(String []argv) {
++    new B.C("abc");
++  }
++}
+@@ -0,0 +1,5 @@
++public class B {
++  public static class C {
++    public C(String s) {}
++  }
++}
+@@ -0,0 +1,4 @@
++public class B {
++  public static class C {
++  }
++}
+@@ -109,4 +109,32 @@ public class IncrementalCompilationTests extends AbstractMultiProjectIncremental
+ 		assertEquals(1, getErrorMessages(p).size());
+ 		assertContains("Type mismatch: cannot convert from element type Integer to String", getErrorMessages(p).get(0));
+ 	}
++
++	// removing static inner class
++	public void testInnerClassChanges_318884_7() throws Exception {
++		String p = "pr318884_7";
++		initialiseProject(p);
++		build(p);
++		checkWasFullBuild();
++		checkCompileWeaveCount(p, 2, 3);
++		alter(p, "inc1");
++		build(p);
++		checkWasntFullBuild();
++		assertEquals(1, getErrorMessages(p).size());
++		assertContains("B.C cannot be resolved to a type", getErrorMessages(p).get(0));
++	}
++
++	// removing constructor from a static inner class
++	public void testInnerClassChanges_318884_8() throws Exception {
++		String p = "pr318884_8";
++		initialiseProject(p);
++		build(p);
++		checkWasFullBuild();
++		checkCompileWeaveCount(p, 2, 3);
++		alter(p, "inc1");
++		build(p);
++		checkWasntFullBuild();
++		assertEquals(1, getErrorMessages(p).size());
++		assertContains("The constructor B.C(String) is undefined", getErrorMessages(p).get(0));
++	}
+ }
+@@ -1636,12 +1636,25 @@ public class AjState implements CompilerConfigurationChangeFlags {
+ 			char[] fieldName = field.getName();
+ 			for (int j = 0; j < existingFs.length; j++) {
+ 				if (CharOperation.equals(existingFs[j].getName(), fieldName)) {
+-					if (!modifiersEqual(field.getModifiers(), existingFs[j].getModifiers())) {
++					IBinaryField existing = existingFs[j];
++					if (!modifiersEqual(field.getModifiers(), existing.getModifiers())) {
+ 						return true;
+ 					}
+-					if (!CharOperation.equals(existingFs[j].getTypeName(), field.getTypeName())) {
++					if (!CharOperation.equals(existing.getTypeName(), field.getTypeName())) {
+ 						return true;
+ 					}
++
++					char[] existingGSig = existing.getGenericSignature();
++					char[] fieldGSig = field.getGenericSignature();
++					if ((existingGSig == null && fieldGSig != null) || (existingGSig != null && fieldGSig == null)) {
++						return true;
++					}
++					if (existingGSig != null) {
++						if (!CharOperation.equals(existingGSig, fieldGSig)) {
++							return true;
++						}
++					}
++
+ 					continue new_field_loop;
+ 				}
+ 			}
+@@ -0,0 +1,8 @@
++import java.util.*;
++
++public class A extends B {
++  public void m() {
++    for (String s: ss) {
++    }
++  }
++}
+@@ -0,0 +1,5 @@
++import java.util.*;
++
++public class B {
++  List<String> ss;
++}
+@@ -0,0 +1,5 @@
++import java.util.*;
++
++public class B {
++  List<Integer> ss;
++}
+@@ -53,7 +53,7 @@ public class IncrementalCompilationTests extends AbstractMultiProjectIncremental
+ 	}
+ 
+ 	// changing method return type parameterization
+-	public void testModifiedGenericParameterTypeShouldTriggerError_318884_3() throws Exception {
++	public void testModifiedMethodReturnTypeGenericTypeParameterShouldTriggerError_318884_3() throws Exception {
+ 		String p = "pr318884_3";
+ 		initialiseProject(p);
+ 		build(p);
+@@ -67,7 +67,7 @@ public class IncrementalCompilationTests extends AbstractMultiProjectIncremental
+ 	}
+ 
+ 	// changing method parameter type parameterization
+-	public void testModifiedGenericParameterTypeShouldTriggerError_318884_4() throws Exception {
++	public void testModifiedMethodParameterGenericTypeParameterShouldTriggerError_318884_4() throws Exception {
+ 		String p = "pr318884_4";
+ 		initialiseProject(p);
+ 		build(p);
+@@ -83,7 +83,7 @@ public class IncrementalCompilationTests extends AbstractMultiProjectIncremental
+ 	}
+ 
+ 	// changing constructor parameter type parameterization
+-	public void testModifiedGenericParameterTypeShouldTriggerError_318884_5() throws Exception {
++	public void testModifiedConstructorParameterGenericTypeParameterShouldTriggerError_318884_5() throws Exception {
+ 		String p = "pr318884_5";
+ 		initialiseProject(p);
+ 		build(p);
+@@ -95,4 +95,18 @@ public class IncrementalCompilationTests extends AbstractMultiProjectIncremental
+ 		assertEquals(1, getErrorMessages(p).size());
+ 		assertContains("The constructor B(List<String>) is undefined", getErrorMessages(p).get(0));
+ 	}
++
++	// changing field type parameterization
++	public void testModifiedFieldTypeGenericTypeParameterShouldTriggerError_318884_6() throws Exception {
++		String p = "pr318884_6";
++		initialiseProject(p);
++		build(p);
++		checkWasFullBuild();
++		checkCompileWeaveCount(p, 2, 2);
++		alter(p, "inc1");
++		build(p);
++		checkWasntFullBuild();
++		assertEquals(1, getErrorMessages(p).size());
++		assertContains("Type mismatch: cannot convert from element type Integer to String", getErrorMessages(p).get(0));
++	}
+ }
+@@ -649,12 +649,12 @@ public class AjBuildManager implements IOutputClassFileNameProvider, IBinarySour
+ 		String filename = buildConfig.getOutxmlName();
+ 		// System.err.println("? AjBuildManager.writeOutxmlFile() outxml=" + filename);
+ 
+-		Map outputDirsAndAspects = findOutputDirsForAspects();
+-		Set outputDirs = outputDirsAndAspects.entrySet();
+-		for (Iterator iterator = outputDirs.iterator(); iterator.hasNext();) {
+-			Map.Entry entry = (Map.Entry) iterator.next();
+-			File outputDir = (File) entry.getKey();
+-			List aspects = (List) entry.getValue();
++		Map<File, List<String>> outputDirsAndAspects = findOutputDirsForAspects();
++		Set<Map.Entry<File, List<String>>> outputDirs = outputDirsAndAspects.entrySet();
++		for (Iterator<Map.Entry<File, List<String>>> iterator = outputDirs.iterator(); iterator.hasNext();) {
++			Map.Entry<File, List<String>> entry = iterator.next();
++			File outputDir = entry.getKey();
++			List<String> aspects = entry.getValue();
+ 			ByteArrayOutputStream baos = getOutxmlContents(aspects);
+ 			if (zos != null) {
+ 				ZipEntry newEntry = new ZipEntry(filename);
+@@ -697,9 +697,9 @@ public class AjBuildManager implements IOutputClassFileNameProvider, IBinarySour
+ 	 * Returns a map where the keys are File objects corresponding to all the output directories and the values are a list of
+ 	 * aspects which are sent to that ouptut directory
+ 	 */
+-	private Map /* File --> List (String) */findOutputDirsForAspects() {
+-		Map outputDirsToAspects = new HashMap();
+-		Map aspectNamesToFileNames = state.getAspectNamesToFileNameMap();
++	private Map<File, List<String>> findOutputDirsForAspects() {
++		Map<File, List<String>> outputDirsToAspects = new HashMap<File, List<String>>();
++		Map<String, char[]> aspectNamesToFileNames = state.getAspectNamesToFileNameMap();
+ 		if (buildConfig.getCompilationResultDestinationManager() == null
+ 				|| buildConfig.getCompilationResultDestinationManager().getAllOutputLocations().size() == 1) {
+ 			// we only have one output directory...which simplifies things
+@@ -707,11 +707,10 @@ public class AjBuildManager implements IOutputClassFileNameProvider, IBinarySour
+ 			if (buildConfig.getCompilationResultDestinationManager() != null) {
+ 				outputDir = buildConfig.getCompilationResultDestinationManager().getDefaultOutputLocation();
+ 			}
+-			List aspectNames = new ArrayList();
++			List<String> aspectNames = new ArrayList<String>();
+ 			if (aspectNamesToFileNames != null) {
+-				Set keys = aspectNamesToFileNames.keySet();
+-				for (Iterator iterator = keys.iterator(); iterator.hasNext();) {
+-					String name = (String) iterator.next();
++				Set<String> keys = aspectNamesToFileNames.keySet();
++				for (String name : keys) {
+ 					aspectNames.add(name);
+ 				}
+ 			}
+@@ -720,17 +719,17 @@ public class AjBuildManager implements IOutputClassFileNameProvider, IBinarySour
+ 			List outputDirs = buildConfig.getCompilationResultDestinationManager().getAllOutputLocations();
+ 			for (Iterator iterator = outputDirs.iterator(); iterator.hasNext();) {
+ 				File outputDir = (File) iterator.next();
+-				outputDirsToAspects.put(outputDir, new ArrayList());
++				outputDirsToAspects.put(outputDir, new ArrayList<String>());
+ 			}
+-			Set entrySet = aspectNamesToFileNames.entrySet();
+-			for (Iterator iterator = entrySet.iterator(); iterator.hasNext();) {
+-				Map.Entry entry = (Map.Entry) iterator.next();
+-				String aspectName = (String) entry.getKey();
+-				char[] fileName = (char[]) entry.getValue();
++			Set<Map.Entry<String, char[]>> entrySet = aspectNamesToFileNames.entrySet();
++			for (Iterator<Map.Entry<String, char[]>> iterator = entrySet.iterator(); iterator.hasNext();) {
++				Map.Entry<String, char[]> entry = iterator.next();
++				String aspectName = entry.getKey();
++				char[] fileName = entry.getValue();
+ 				File outputDir = buildConfig.getCompilationResultDestinationManager().getOutputLocationForClass(
+ 						new File(new String(fileName)));
+ 				if (!outputDirsToAspects.containsKey(outputDir)) {
+-					outputDirsToAspects.put(outputDir, new ArrayList());
++					outputDirsToAspects.put(outputDir, new ArrayList<String>());
+ 				}
+ 				((List) outputDirsToAspects.get(outputDir)).add(aspectName);
+ 			}
+@@ -792,7 +791,7 @@ public class AjBuildManager implements IOutputClassFileNameProvider, IBinarySour
+ 		// state.setRelationshipMap(AsmManager.getDefault().getRelationshipMap());
+ 	}
+ 
+-	//    
++	//
+ 	// private void dumplist(List l) {
+ 	// System.err.println("---- "+l.size());
+ 	// for (int i =0 ;i<l.size();i++) System.err.println(i+"\t "+l.get(i));
+@@ -973,7 +972,7 @@ public class AjBuildManager implements IOutputClassFileNameProvider, IBinarySour
+ 		return System.getProperty("user.dir"); //$NON-NLS-1$
+ 	}
+ 
+-	public void performCompilation(Collection files) {
++	public void performCompilation(Collection<File> files) {
+ 		if (progressListener != null) {
+ 			compiledCount = 0;
+ 			sourceFileCount = files.size();
+@@ -983,8 +982,8 @@ public class AjBuildManager implements IOutputClassFileNameProvider, IBinarySour
+ 		// Translate from strings to File objects
+ 		String[] filenames = new String[files.size()];
+ 		int idx = 0;
+-		for (Iterator fIterator = files.iterator(); fIterator.hasNext();) {
+-			File f = (File) fIterator.next();
++		for (Iterator<File> fIterator = files.iterator(); fIterator.hasNext();) {
++			File f = fIterator.next();
+ 			filenames[idx++] = f.getPath();
+ 		}
+ 
+@@ -1185,7 +1184,7 @@ public class AjBuildManager implements IOutputClassFileNameProvider, IBinarySour
+ 	// ClassFile classFile = (ClassFile) classFiles.nextElement();
+ 	// String filename = new String(classFile.fileName());
+ 	// filename = filename.replace('/', File.separatorChar) + ".class";
+-	//				
++	//
+ 	// File destinationPath = buildConfig.getOutputDir();
+ 	// if (destinationPath == null) {
+ 	// filename = new File(filename).getName();
+@@ -1193,7 +1192,7 @@ public class AjBuildManager implements IOutputClassFileNameProvider, IBinarySour
+ 	// } else {
+ 	// filename = new File(destinationPath, filename).getPath();
+ 	// }
+-	//				
++	//
+ 	// //System.out.println("classfile: " + filename);
+ 	// unwovenClassFiles.add(new UnwovenClassFile(filename, classFile.getBytes()));
+ 	// }
+@@ -1210,7 +1209,7 @@ public class AjBuildManager implements IOutputClassFileNameProvider, IBinarySour
+ 	// state.noteClassesFromFile(null, sourceFileName, Collections.EMPTY_LIST);
+ 	// }
+ 	// }
+-	//    
++	//
+ 
+ 	private void setBuildConfig(AjBuildConfig buildConfig) {
+ 		this.buildConfig = buildConfig;
+@@ -133,17 +133,13 @@ public class AjState implements CompilerConfigurationChangeFlags {
+ 	 * Note :- the ClassFile objects contain no byte code, they are simply a Filename,typename pair.
+ 	 * 
+ 	 * Populated in noteResult and used in addDependentsOf(File)
+-	 * 
+-	 * Added by AMC during state refactoring, 1Q06.
+ 	 */
+-	private final Map/* <File, List<ClassFile> */fullyQualifiedTypeNamesResultingFromCompilationUnit = new HashMap();
++	private final Map<File, List<ClassFile>> fullyQualifiedTypeNamesResultingFromCompilationUnit = new HashMap<File, List<ClassFile>>();
+ 
+ 	/**
+ 	 * Source files defining aspects
+ 	 * 
+ 	 * Populated in noteResult and used in processDeletedFiles
+-	 * 
+-	 * Added by AMC during state refactoring, 1Q06.
+ 	 */
+ 	private final Set/* <File> */sourceFilesDefiningAspects = new HashSet();
+ 
+@@ -172,14 +168,14 @@ public class AjState implements CompilerConfigurationChangeFlags {
+ 	 * input file has changed.
+ 	 * 
+ 	 */
+-	private Map/* File, List<UnwovenClassFile> */binarySourceFiles = new HashMap();
++	private Map<String, List<UnwovenClassFile>> binarySourceFiles = new HashMap<String, List<UnwovenClassFile>>();
+ 
+ 	/**
+ 	 * Initially a duplicate of the information held in binarySourceFiles, with the key difference that the values are ClassFiles
+ 	 * (type name, File) not UnwovenClassFiles (which also have all the byte code in them). After a batch build, binarySourceFiles
+ 	 * is cleared, leaving just this much lighter weight map to use in processing subsequent incremental builds.
+ 	 */
+-	private final Map/* <File,List<ClassFile> */inputClassFilesBySource = new HashMap();
++	private final Map<String, List<ClassFile>> inputClassFilesBySource = new HashMap<String, List<ClassFile>>();
+ 
+ 	/**
+ 	 * A list of the .class files created by this state that contain aspects.
+@@ -200,7 +196,7 @@ public class AjState implements CompilerConfigurationChangeFlags {
+ 	 * 
+ 	 * Passed into StatefulNameEnvironment during incremental compilation to support findType lookups.
+ 	 */
+-	private final Map/* <String, File> */classesFromName = new HashMap();
++	private final Map<String, File> classesFromName = new HashMap();
+ 
+ 	/**
+ 	 * Populated by AjBuildManager to record the aspects with the file name in which they're contained. This is later used when
+@@ -208,10 +204,10 @@ public class AjState implements CompilerConfigurationChangeFlags {
+ 	 * output directories and in order to ask the OutputLocationManager for the output location for a given aspect we need the file
+ 	 * in which it is contained.
+ 	 */
+-	private Map /* <String, char[]> */aspectsFromFileNames;
++	private Map<String, char[]> aspectsFromFileNames;
+ 
+ 	private Set/* File */compiledSourceFiles = new HashSet();
+-	private final Map/* String,File sourcelocation */resources = new HashMap();
++	private final Map<String, File> resources = new HashMap<String, File>();
+ 
+ 	SoftHashMap/* <baseDir,SoftHashMap<theFile,className>> */fileToClassNameMap = new SoftHashMap();
+ 
+@@ -369,7 +365,7 @@ public class AjState implements CompilerConfigurationChangeFlags {
+ 				}
+ 				return false;
+ 			}
+-			List/* ClassFile */classes = (List) fullyQualifiedTypeNamesResultingFromCompilationUnit.get(aDeletedFile);
++			List/* ClassFile */classes = fullyQualifiedTypeNamesResultingFromCompilationUnit.get(aDeletedFile);
+ 			if (classes != null) {
+ 				for (Iterator iterator = classes.iterator(); iterator.hasNext();) {
+ 					ClassFile element = (ClassFile) iterator.next();
+@@ -380,7 +376,7 @@ public class AjState implements CompilerConfigurationChangeFlags {
+ 		return true;
+ 	}
+ 
+-	private Collection getModifiedFiles() {
++	private Collection<File> getModifiedFiles() {
+ 		return getModifiedFiles(lastSuccessfulBuildTime);
+ 	}
+ 
+@@ -936,8 +932,8 @@ public class AjState implements CompilerConfigurationChangeFlags {
+ 	 * @param config the build configuration for which the output locations should be determined
+ 	 * @return a list of file objects
+ 	 */
+-	private List /* File */getOutputLocations(AjBuildConfig config) {
+-		List outputLocs = new ArrayList();
++	private List<File> getOutputLocations(AjBuildConfig config) {
++		List<File> outputLocs = new ArrayList<File>();
+ 		// Is there a default location?
+ 		if (config.getOutputDir() != null) {
+ 			try {
+@@ -946,9 +942,9 @@ public class AjState implements CompilerConfigurationChangeFlags {
+ 			}
+ 		}
+ 		if (config.getCompilationResultDestinationManager() != null) {
+-			List dirs = config.getCompilationResultDestinationManager().getAllOutputLocations();
+-			for (Iterator iterator = dirs.iterator(); iterator.hasNext();) {
+-				File f = (File) iterator.next();
++			List<File> dirs = config.getCompilationResultDestinationManager().getAllOutputLocations();
++			for (Iterator<File> iterator = dirs.iterator(); iterator.hasNext();) {
++				File f = iterator.next();
+ 				try {
+ 					File cf = f.getCanonicalFile();
+ 					if (!outputLocs.contains(cf)) {
+@@ -1087,10 +1083,10 @@ public class AjState implements CompilerConfigurationChangeFlags {
+ 	}
+ 
+ 	public Set getFilesToCompile(boolean firstPass) {
+-		Set thisTime = new HashSet();
++		Set<File> thisTime = new HashSet<File>();
+ 		if (firstPass) {
+-			compiledSourceFiles = new HashSet();
+-			Collection modifiedFiles = getModifiedFiles();
++			compiledSourceFiles = new HashSet<File>();
++			Collection<File> modifiedFiles = getModifiedFiles();
+ 			// System.out.println("modified: " + modifiedFiles);
+ 			thisTime.addAll(modifiedFiles);
+ 			// ??? eclipse IncrementalImageBuilder appears to do this
+@@ -1100,8 +1096,9 @@ public class AjState implements CompilerConfigurationChangeFlags {
+ 			// }
+ 
+ 			if (addedFiles != null) {
+-				for (Iterator fIter = addedFiles.iterator(); fIter.hasNext();) {
+-					Object o = fIter.next();
++				for (Iterator<File> fIter = addedFiles.iterator(); fIter.hasNext();) {
++					File o = fIter.next();
++					// TODO isn't it a set?? why do this
+ 					if (!thisTime.contains(o)) {
+ 						thisTime.add(o);
+ 					}
+@@ -1128,27 +1125,27 @@ public class AjState implements CompilerConfigurationChangeFlags {
+ 		return (FORCE_INCREMENTAL_DURING_TESTING || this.couldBeSubsequentIncrementalBuild);
+ 	}
+ 
+-	public Map /* String -> List<ucf> */getBinaryFilesToCompile(boolean firstTime) {
++	public Map<String, List<UnwovenClassFile>> getBinaryFilesToCompile(boolean firstTime) {
+ 		if (lastSuccessfulBuildTime == -1 || buildConfig == null || !maybeIncremental()) {
+ 			return binarySourceFiles;
+ 		}
+ 		// else incremental...
+-		Map toWeave = new HashMap();
++		Map<String, List<UnwovenClassFile>> toWeave = new HashMap<String, List<UnwovenClassFile>>();
+ 		if (firstTime) {
+-			List addedOrModified = new ArrayList();
++			List<BinarySourceFile> addedOrModified = new ArrayList<BinarySourceFile>();
+ 			addedOrModified.addAll(addedBinaryFiles);
+ 			addedOrModified.addAll(getModifiedBinaryFiles());
+-			for (Iterator iter = addedOrModified.iterator(); iter.hasNext();) {
+-				AjBuildConfig.BinarySourceFile bsf = (AjBuildConfig.BinarySourceFile) iter.next();
++			for (Iterator<BinarySourceFile> iter = addedOrModified.iterator(); iter.hasNext();) {
++				AjBuildConfig.BinarySourceFile bsf = iter.next();
+ 				UnwovenClassFile ucf = createUnwovenClassFile(bsf);
+ 				if (ucf == null) {
+ 					continue;
+ 				}
+-				List ucfs = new ArrayList();
++				List<UnwovenClassFile> ucfs = new ArrayList<UnwovenClassFile>();
+ 				ucfs.add(ucf);
+ 				recordTypeChanged(ucf.getClassName());
+ 				binarySourceFiles.put(bsf.binSrc.getPath(), ucfs);
+-				List cfs = new ArrayList(1);
++				List<ClassFile> cfs = new ArrayList<ClassFile>(1);
+ 				cfs.add(getClassFileFor(ucf));
+ 				this.inputClassFilesBySource.put(bsf.binSrc.getPath(), cfs);
+ 				toWeave.put(bsf.binSrc.getPath(), ucfs);
+@@ -1172,17 +1169,17 @@ public class AjState implements CompilerConfigurationChangeFlags {
+ 				cf.deleteFromFileSystem(buildConfig);
+ 			}
+ 		}
+-		for (Iterator iterator = classesFromName.values().iterator(); iterator.hasNext();) {
+-			File f = (File) iterator.next();
++		for (Iterator<File> iterator = classesFromName.values().iterator(); iterator.hasNext();) {
++			File f = iterator.next();
+ 			new ClassFile("", f).deleteFromFileSystem(buildConfig);
+ 		}
+-		Set resourceEntries = resources.entrySet();
+-		for (Iterator iter = resourceEntries.iterator(); iter.hasNext();) {
+-			Map.Entry resourcePair = (Map.Entry) iter.next();
+-			File sourcePath = (File) resourcePair.getValue();
++		Set<Map.Entry<String, File>> resourceEntries = resources.entrySet();
++		for (Iterator<Map.Entry<String, File>> iter = resourceEntries.iterator(); iter.hasNext();) {
++			Map.Entry<String, File> resourcePair = iter.next();
++			File sourcePath = resourcePair.getValue();
+ 			File outputLoc = getOutputLocationFor(buildConfig, sourcePath);
+ 			if (outputLoc != null) {
+-				outputLoc = new File(outputLoc, (String) resourcePair.getKey());
++				outputLoc = new File(outputLoc, resourcePair.getKey());
+ 				if (!outputLoc.getPath().equals(sourcePath.getPath()) && outputLoc.exists()) {
+ 					outputLoc.delete();
+ 					if (buildConfig.getCompilationResultDestinationManager() != null) {
+@@ -1202,7 +1199,7 @@ public class AjState implements CompilerConfigurationChangeFlags {
+ 			File deletedFile = (File) i.next();
+ 			addDependentsOf(deletedFile);
+ 
+-			List cfs = (List) this.fullyQualifiedTypeNamesResultingFromCompilationUnit.get(deletedFile);
++			List cfs = this.fullyQualifiedTypeNamesResultingFromCompilationUnit.get(deletedFile);
+ 			this.fullyQualifiedTypeNamesResultingFromCompilationUnit.remove(deletedFile);
+ 
+ 			if (cfs != null) {
+@@ -1217,11 +1214,10 @@ public class AjState implements CompilerConfigurationChangeFlags {
+ 
+ 	private void deleteBinaryClassFiles() {
+ 		// range of bsf is ucfs, domain is files (.class and jars) in inpath/jars
+-		for (Iterator iter = deletedBinaryFiles.iterator(); iter.hasNext();) {
+-			AjBuildConfig.BinarySourceFile deletedFile = (AjBuildConfig.BinarySourceFile) iter.next();
+-			List cfs = (List) this.inputClassFilesBySource.get(deletedFile.binSrc.getPath());
+-			for (Iterator iterator = cfs.iterator(); iterator.hasNext();) {
+-				deleteClassFile((ClassFile) iterator.next());
++		for (BinarySourceFile deletedFile : deletedBinaryFiles) {
++			List<ClassFile> cfs = this.inputClassFilesBySource.get(deletedFile.binSrc.getPath());
++			for (Iterator<ClassFile> iterator = cfs.iterator(); iterator.hasNext();) {
++				deleteClassFile(iterator.next());
+ 			}
+ 			this.inputClassFilesBySource.remove(deletedFile.binSrc.getPath());
+ 		}
+@@ -1339,7 +1335,7 @@ public class AjState implements CompilerConfigurationChangeFlags {
+ 
+ 		UnwovenClassFile[] unwovenClassFiles = result.unwovenClassFiles();
+ 		for (int i = 0; i < unwovenClassFiles.length; i++) {
+-			File lastTimeRound = (File) classesFromName.get(unwovenClassFiles[i].getClassName());
++			File lastTimeRound = classesFromName.get(unwovenClassFiles[i].getClassName());
+ 			recordClassFile(unwovenClassFiles[i], lastTimeRound);
+ 			String name = unwovenClassFiles[i].getClassName();
+ 			if (lastTimeRound == null) {
+@@ -1390,7 +1386,7 @@ public class AjState implements CompilerConfigurationChangeFlags {
+ 	 */
+ 	private void deleteTypesThatWereInThisCompilationUnitLastTimeRoundButHaveBeenDeletedInThisIncrement(File sourceFile,
+ 			UnwovenClassFile[] unwovenClassFiles) {
+-		List classFiles = (List) this.fullyQualifiedTypeNamesResultingFromCompilationUnit.get(sourceFile);
++		List classFiles = this.fullyQualifiedTypeNamesResultingFromCompilationUnit.get(sourceFile);
+ 		if (classFiles != null) {
+ 			for (int i = 0; i < unwovenClassFiles.length; i++) {
+ 				// deleting also deletes types from the weaver... don't do this if they are
+@@ -1425,7 +1421,7 @@ public class AjState implements CompilerConfigurationChangeFlags {
+ 	 * @param icr, the CompilationResult from compiling it
+ 	 */
+ 	private void recordFQNsResultingFromCompilationUnit(File sourceFile, InterimCompilationResult icr) {
+-		List classFiles = new ArrayList();
++		List<ClassFile> classFiles = new ArrayList<ClassFile>();
+ 		UnwovenClassFile[] types = icr.unwovenClassFiles();
+ 		for (int i = 0; i < types.length; i++) {
+ 			classFiles.add(new ClassFile(types[i].getClassName(), new File(types[i].getFilename())));
+@@ -1730,12 +1726,26 @@ public class AjState implements CompilerConfigurationChangeFlags {
+ 						continue; // might be overloading
+ 					} else {
+ 						// matching sigs
+-						if (!modifiersEqual(method.getModifiers(), existingMs[j].getModifiers())) {
++						IBinaryMethod existing = existingMs[j];
++						if (!modifiersEqual(method.getModifiers(), existing.getModifiers())) {
++							return true;
++						}
++
++						if (exceptionClausesDiffer(existing, method)) {
+ 							return true;
+ 						}
+-						if (exceptionClausesDiffer(existingMs[j], method)) {
++
++						char[] existingGSig = existing.getGenericSignature();
++						char[] methodGSig = method.getGenericSignature();
++						if ((existingGSig == null && methodGSig != null) || (existingGSig != null && methodGSig == null)) {
+ 							return true;
+ 						}
++						if (existingGSig != null) {
++							if (!CharOperation.equals(existingGSig, methodGSig)) {
++								return true;
++							}
++						}
++
+ 						continue new_method_loop;
+ 					}
+ 				}
+@@ -1886,7 +1896,7 @@ public class AjState implements CompilerConfigurationChangeFlags {
+ 	}
+ 
+ 	protected void addDependentsOf(File sourceFile) {
+-		List cfs = (List) this.fullyQualifiedTypeNamesResultingFromCompilationUnit.get(sourceFile);
++		List cfs = this.fullyQualifiedTypeNamesResultingFromCompilationUnit.get(sourceFile);
+ 
+ 		if (cfs != null) {
+ 			for (Iterator iter = cfs.iterator(); iter.hasNext();) {
+@@ -1980,7 +1990,7 @@ public class AjState implements CompilerConfigurationChangeFlags {
+ 		return this.binarySourceFiles;
+ 	}
+ 
+-	public Map getClassNameToFileMap() {
++	public Map<String, File> getClassNameToFileMap() {
+ 		return this.classesFromName;
+ 	}
+ 
+@@ -2057,7 +2067,7 @@ public class AjState implements CompilerConfigurationChangeFlags {
+ 		// buildManager.setStructureModel(null);
+ 	}
+ 
+-	public Map getAspectNamesToFileNameMap() {
++	public Map<String, char[]> getAspectNamesToFileNameMap() {
+ 		return aspectsFromFileNames;
+ 	}
+ 
+@@ -0,0 +1,7 @@
++import java.util.*;
++
++public class A extends B {
++  public List<String> foo() {
++    return null;
++  }
++}
+@@ -0,0 +1,7 @@
++import java.util.*;
++
++public class B {
++  public List<String> foo() {
++    return null;
++  }
++}
+@@ -0,0 +1,7 @@
++import java.util.*;
++
++public class B {
++  public List<Integer> foo() {
++    return null;
++  }
++}
+@@ -0,0 +1,6 @@
++import java.util.*;
++
++public class A extends B {
++  public void foo(List<String> ls) {
++  }
++}
+@@ -0,0 +1,6 @@
++import java.util.*;
++
++public class B {
++  public void foo(List<String> ls) {
++  }
++}
+@@ -0,0 +1,6 @@
++import java.util.*;
++
++public class B {
++  public void foo(List<Integer> ln) {
++  }
++}
+@@ -0,0 +1,7 @@
++import java.util.*;
++
++public class A extends B {
++  A(List<String> ls) {
++    super(ls);
++  }
++}
+@@ -0,0 +1,5 @@
++import java.util.*;
++
++public class B {
++  B(List<String> ls) {}
++}
+@@ -0,0 +1,6 @@
++import java.util.*;
++
++public class B {
++  B(List<Integer> ln) {
++  }
++}
+@@ -51,4 +51,48 @@ public class IncrementalCompilationTests extends AbstractMultiProjectIncremental
+ 		assertEquals(1, getErrorMessages(p).size());
+ 		assertContains("B.java:4:0::0 Unhandled exception type Exception", getErrorMessages(p).get(0));
+ 	}
++
++	// changing method return type parameterization
++	public void testModifiedGenericParameterTypeShouldTriggerError_318884_3() throws Exception {
++		String p = "pr318884_3";
++		initialiseProject(p);
++		build(p);
++		checkWasFullBuild();
++		checkCompileWeaveCount(p, 2, 2);
++		alter(p, "inc1");
++		build(p);
++		checkWasntFullBuild();
++		assertEquals(1, getErrorMessages(p).size());
++		assertContains("The return type is incompatible with B.foo()", getErrorMessages(p).get(0));
++	}
++
++	// changing method parameter type parameterization
++	public void testModifiedGenericParameterTypeShouldTriggerError_318884_4() throws Exception {
++		String p = "pr318884_4";
++		initialiseProject(p);
++		build(p);
++		checkWasFullBuild();
++		checkCompileWeaveCount(p, 2, 2);
++		alter(p, "inc1");
++		build(p);
++		checkWasntFullBuild();
++		assertEquals(1, getErrorMessages(p).size());
++		assertContains(
++				"Name clash: The method foo(List<String>) of type A has the same erasure as foo(List<Integer>) of type B but does not override it",
++				getErrorMessages(p).get(0));
++	}
++
++	// changing constructor parameter type parameterization
++	public void testModifiedGenericParameterTypeShouldTriggerError_318884_5() throws Exception {
++		String p = "pr318884_5";
++		initialiseProject(p);
++		build(p);
++		checkWasFullBuild();
++		checkCompileWeaveCount(p, 2, 2);
++		alter(p, "inc1");
++		build(p);
++		checkWasntFullBuild();
++		assertEquals(1, getErrorMessages(p).size());
++		assertContains("The constructor B(List<String>) is undefined", getErrorMessages(p).get(0));
++	}
+ }
+@@ -146,11 +146,11 @@ public class BuildArgParser extends Main {
+ 
+ 			boolean incrementalMode = buildConfig.isIncrementalMode() || buildConfig.isIncrementalFileMode();
+ 
+-			List xmlfileList = new ArrayList();
++			List<File> xmlfileList = new ArrayList<File>();
+ 			xmlfileList.addAll(parser.getXmlFiles());
+ 
+-			List fileList = new ArrayList();
+-			List files = parser.getFiles();
++			List<File> fileList = new ArrayList<File>();
++			List<File> files = parser.getFiles();
+ 			if (!LangUtil.isEmpty(files)) {
+ 				if (incrementalMode) {
+ 					MessageUtil.error(handler, "incremental mode only handles source files using -sourceroots");
+@@ -159,7 +159,7 @@ public class BuildArgParser extends Main {
+ 				}
+ 			}
+ 
+-			List javaArgList = new ArrayList();
++			List<String> javaArgList = new ArrayList<String>();
+ 			// disable all special eclipse warnings by default - why???
+ 			// ??? might want to instead override getDefaultOptions()
+ 			javaArgList.add("-warn:none");
+@@ -171,7 +171,7 @@ public class BuildArgParser extends Main {
+ 			javaArgList.add("-bootclasspath");
+ 			javaArgList.add(System.getProperty("user.dir"));
+ 			javaArgList.addAll(parser.getUnparsedArgs());
+-			super.configure((String[]) javaArgList.toArray(new String[javaArgList.size()]));
++			super.configure(javaArgList.toArray(new String[javaArgList.size()]));
+ 
+ 			if (!proceed) {
+ 				buildConfig.doNotProceed();
+@@ -571,7 +571,7 @@ public class BuildArgParser extends Main {
+ 			} else if (arg.startsWith("-Xset:")) {
+ 				buildConfig.setXconfigurationInfo(arg.substring(6));
+ 			} else if (arg.startsWith("-aspectj.pushin=")) {
+-			    // a little dirty but this should never be used in the IDE
++				// a little dirty but this should never be used in the IDE
+ 				try {
+ 					System.setProperty("aspectj.pushin", arg.substring(16));
+ 				} catch (Exception e) {
+@@ -25,16 +25,16 @@ import java.util.List;
+ public class ConfigParser {
+ 	Location location;
+ 	protected File relativeDirectory = null;
+-	protected List files = new LinkedList();
+-	protected List xmlfiles = new ArrayList();
++	protected List<File> files = new LinkedList<File>();
++	protected List<File> xmlfiles = new ArrayList<File>();
+ 	private boolean fileParsed = false;
+ 	protected static String CONFIG_MSG = "build config error: ";
+ 
+-	public List getFiles() {
++	public List<File> getFiles() {
+ 		return files;
+ 	}
+ 
+-	public List getXmlFiles() {
++	public List<File> getXmlFiles() {
+ 		return xmlfiles;
+ 	}
+ 
+@@ -73,8 +73,9 @@ public class ConfigParser {
+ 			while ((line = stream.readLine()) != null) {
+ 				lineNum += 1;
+ 				line = stripWhitespaceAndComments(line);
+-				if (line.length() == 0)
++				if (line.length() == 0) {
+ 					continue;
++				}
+ 				args.add(new Arg(line, new CPSourceLocation(configFile, lineNum)));
+ 			}
+ 			stream.close();
+@@ -95,10 +96,11 @@ public class ConfigParser {
+ 
+ 	String stripSingleLineComment(String s, String commentString) {
+ 		int commentStart = s.indexOf(commentString);
+-		if (commentStart == -1)
++		if (commentStart == -1) {
+ 			return s;
+-		else
++		} else {
+ 			return s.substring(0, commentStart);
++		}
+ 	}
+ 
+ 	String stripWhitespaceAndComments(String s) {
+@@ -155,8 +157,9 @@ public class ConfigParser {
+ 	}
+ 
+ 	void addFiles(File dir, FileFilter filter) {
+-		if (dir == null)
++		if (dir == null) {
+ 			dir = new File(System.getProperty("user.dir"));
++		}
+ 
+ 		if (!dir.isDirectory()) {
+ 			showError("can't find " + dir.getPath());
+@@ -189,8 +192,9 @@ public class ConfigParser {
+ 	}
+ 
+ 	void parseArgs(LinkedList args) {
+-		while (args.size() > 0)
++		while (args.size() > 0) {
+ 			parseOneArg(args);
++		}
+ 	}
+ 
+ 	protected Arg removeArg(LinkedList args) {
+@@ -204,8 +208,9 @@ public class ConfigParser {
+ 
+ 	protected String removeStringArg(LinkedList args) {
+ 		Arg arg = removeArg(args);
+-		if (arg == null)
++		if (arg == null) {
+ 			return null;
++		}
+ 		return arg.getValue();
+ 	}
+ 
+@@ -217,10 +222,12 @@ public class ConfigParser {
+ 	}
+ 
+ 	boolean isSourceFileName(String s) {
+-		if (s.endsWith(".java"))
++		if (s.endsWith(".java")) {
+ 			return true;
+-		if (s.endsWith(".aj"))
++		}
++		if (s.endsWith(".aj")) {
+ 			return true;
++		}
+ 		// if (s.endsWith(".ajava")) {
+ 		// showWarning(".ajava is deprecated, replace with .aj or .java: " + s);
+ 		// return true;
+@@ -362,14 +369,16 @@ public class ConfigParser {
+ 		}
+ 
+ 		public int getLine() {
+-			if (location == null)
++			if (location == null) {
+ 				return -1;
++			}
+ 			return location.getLine();
+ 		}
+ 
+ 		public File getFile() {
+-			if (location == null)
++			if (location == null) {
+ 				return null;
++			}
+ 			return location.getFile();
+ 		}
+ 	}
+@@ -46,9 +46,9 @@ public class AjBuildConfig implements CompilerConfigurationChangeFlags {
+ 	private CompilationResultDestinationManager compilationResultDestinationManager = null;
+ 	private List/* File */sourceRoots = new ArrayList();
+ 	private List/* File */changedFiles;
+-	private List/* File */files = new ArrayList();
+-	private List/* File */xmlfiles = new ArrayList();
+-	private List /* File */binaryFiles = new ArrayList(); // .class files in indirs...
++	private List<File> files = new ArrayList<File>();
++	private List<File> xmlfiles = new ArrayList<File>();
++	private List<BinarySourceFile> binaryFiles = new ArrayList<BinarySourceFile>(); // .class files in indirs...
+ 	private List/* File */inJars = new ArrayList();
+ 	private List/* File */inPath = new ArrayList();
+ 	private Map/* String->File */sourcePathResources = new HashMap();
+@@ -117,11 +117,11 @@ public class AjBuildConfig implements CompilerConfigurationChangeFlags {
+ 	 * 
+ 	 * @return all source files that should be compiled.
+ 	 */
+-	public List/* File */getFiles() {
++	public List<File> getFiles() {
+ 		return files;
+ 	}
+ 
+-	public List/* File */getXmlFiles() {
++	public List<File> getXmlFiles() {
+ 		return xmlfiles;
+ 	}
+ 
+@@ -129,7 +129,7 @@ public class AjBuildConfig implements CompilerConfigurationChangeFlags {
+ 	 * returned files includes all .class files found in a directory on the inpath, but does not include .class files contained
+ 	 * within jars.
+ 	 */
+-	public List/* BinarySourceFile */getBinaryFiles() {
++	public List<BinarySourceFile> getBinaryFiles() {
+ 		return binaryFiles;
+ 	}
+ 
+@@ -145,11 +145,11 @@ public class AjBuildConfig implements CompilerConfigurationChangeFlags {
+ 		this.compilationResultDestinationManager = mgr;
+ 	}
+ 
+-	public void setFiles(List files) {
++	public void setFiles(List<File> files) {
+ 		this.files = files;
+ 	}
+ 
+-	public void setXmlFiles(List xmlfiles) {
++	public void setXmlFiles(List<File> xmlfiles) {
+ 		this.xmlfiles = xmlfiles;
+ 	}
+ 
+@@ -217,7 +217,7 @@ public class AjBuildConfig implements CompilerConfigurationChangeFlags {
+ 		inPath = dirsOrJars;
+ 
+ 		// remember all the class files in directories on the inpath
+-		binaryFiles = new ArrayList();
++		binaryFiles = new ArrayList<BinarySourceFile>();
+ 		FileFilter filter = new FileFilter() {
+ 			public boolean accept(File pathname) {
+ 				return pathname.getPath().endsWith(".class");
+@@ -34,6 +34,7 @@ import java.util.Set;
+ 
+ import org.aspectj.ajdt.internal.compiler.CompilationResultDestinationManager;
+ import org.aspectj.ajdt.internal.compiler.InterimCompilationResult;
++import org.aspectj.ajdt.internal.core.builder.AjBuildConfig.BinarySourceFile;
+ import org.aspectj.asm.AsmManager;
+ import org.aspectj.bridge.IMessage;
+ import org.aspectj.bridge.Message;
+@@ -91,7 +92,7 @@ public class AjState implements CompilerConfigurationChangeFlags {
+ 	 * When looking at changes on the classpath, this set accumulates files in our state instance that affected by those changes.
+ 	 * Then if we can do an incremental build - these must be compiled.
+ 	 */
+-	private final Set affectedFiles = new HashSet();
++	private final Set<File> affectedFiles = new HashSet<File>();
+ 
+ 	// these are references created on a particular compile run - when looping round in
+ 	// addAffectedSourceFiles(), if some have been created then we look at which source files
+@@ -100,10 +101,10 @@ public class AjState implements CompilerConfigurationChangeFlags {
+ 
+ 	private StringSet simpleStrings = new StringSet(3);
+ 
+-	private Set addedFiles;
+-	private Set deletedFiles;
+-	private Set /* BinarySourceFile */addedBinaryFiles;
+-	private Set /* BinarySourceFile */deletedBinaryFiles;
++	private Set<File> addedFiles;
++	private Set<File> deletedFiles;
++	private Set<BinarySourceFile> addedBinaryFiles;
++	private Set<BinarySourceFile> deletedBinaryFiles;
+ 	// For a particular build run, this set records the changes to classesFromName
+ 	public final Set deltaAddedClasses = new HashSet();
+ 
+@@ -151,7 +152,7 @@ public class AjState implements CompilerConfigurationChangeFlags {
+ 	 * 
+ 	 * Refered to during addAffectedSourceFiles when calculating incremental compilation set.
+ 	 */
+-	private final Map/* <File, ReferenceCollection> */references = new HashMap();
++	private final Map<File, ReferenceCollection> references = new HashMap<File, ReferenceCollection>();
+ 
+ 	/**
+ 	 * Holds UnwovenClassFiles (byte[]s) originating from the given file source. This could be a jar file, a directory, or an
+@@ -316,24 +317,24 @@ public class AjState implements CompilerConfigurationChangeFlags {
+ 		}
+ 
+ 		if ((newBuildConfig.getChanged() & PROJECTSOURCEFILES_CHANGED) == 0) {
+-			addedFiles = Collections.EMPTY_SET;
+-			deletedFiles = Collections.EMPTY_SET;
++			addedFiles = Collections.emptySet();
++			deletedFiles = Collections.emptySet();
+ 		} else {
+-			Set oldFiles = new HashSet(buildConfig.getFiles());
+-			Set newFiles = new HashSet(newBuildConfig.getFiles());
++			Set<File> oldFiles = new HashSet<File>(buildConfig.getFiles());
++			Set<File> newFiles = new HashSet<File>(newBuildConfig.getFiles());
+ 
+-			addedFiles = new HashSet(newFiles);
++			addedFiles = new HashSet<File>(newFiles);
+ 			addedFiles.removeAll(oldFiles);
+-			deletedFiles = new HashSet(oldFiles);
++			deletedFiles = new HashSet<File>(oldFiles);
+ 			deletedFiles.removeAll(newFiles);
+ 		}
+ 
+-		Set oldBinaryFiles = new HashSet(buildConfig.getBinaryFiles());
+-		Set newBinaryFiles = new HashSet(newBuildConfig.getBinaryFiles());
++		Set<BinarySourceFile> oldBinaryFiles = new HashSet<BinarySourceFile>(buildConfig.getBinaryFiles());
++		Set<BinarySourceFile> newBinaryFiles = new HashSet<BinarySourceFile>(newBuildConfig.getBinaryFiles());
+ 
+-		addedBinaryFiles = new HashSet(newBinaryFiles);
++		addedBinaryFiles = new HashSet<BinarySourceFile>(newBinaryFiles);
+ 		addedBinaryFiles.removeAll(oldBinaryFiles);
+-		deletedBinaryFiles = new HashSet(oldBinaryFiles);
++		deletedBinaryFiles = new HashSet<BinarySourceFile>(oldBinaryFiles);
+ 		deletedBinaryFiles.removeAll(newBinaryFiles);
+ 
+ 		boolean couldStillBeIncremental = processDeletedFiles(deletedFiles);
+@@ -383,17 +384,17 @@ public class AjState implements CompilerConfigurationChangeFlags {
+ 		return getModifiedFiles(lastSuccessfulBuildTime);
+ 	}
+ 
+-	Collection getModifiedFiles(long lastBuildTime) {
+-		Set ret = new HashSet();
++	Collection<File> getModifiedFiles(long lastBuildTime) {
++		Set<File> ret = new HashSet<File>();
+ 
+ 		// Check if the build configuration knows what files have changed...
+-		List/* File */modifiedFiles = buildConfig.getModifiedFiles();
++		List<File> modifiedFiles = buildConfig.getModifiedFiles();
+ 
+ 		if (modifiedFiles == null) {
+ 			// do not know, so need to go looking
+ 			// not our job to account for new and deleted files
+-			for (Iterator i = buildConfig.getFiles().iterator(); i.hasNext();) {
+-				File file = (File) i.next();
++			for (Iterator<File> i = buildConfig.getFiles().iterator(); i.hasNext();) {
++				File file = i.next();
+ 				if (!file.exists()) {
+ 					continue;
+ 				}
+@@ -769,9 +770,9 @@ public class AjState implements CompilerConfigurationChangeFlags {
+ 			simpleNames = ReferenceCollection.internSimpleNames(simpleNames, true);
+ 		}
+ 		int newlyAffectedFiles = 0;
+-		for (Iterator i = references.entrySet().iterator(); i.hasNext();) {
+-			Map.Entry entry = (Map.Entry) i.next();
+-			ReferenceCollection refs = (ReferenceCollection) entry.getValue();
++		for (Iterator<Map.Entry<File, ReferenceCollection>> i = references.entrySet().iterator(); i.hasNext();) {
++			Map.Entry<File, ReferenceCollection> entry = i.next();
++			ReferenceCollection refs = entry.getValue();
+ 			if (refs != null && refs.includes(qualifiedNames, simpleNames)) {
+ 				if (listenerDefined()) {
+ 					getListener().recordDecision(
+@@ -1481,7 +1482,7 @@ public class AjState implements CompilerConfigurationChangeFlags {
+ 	private void recordClassFile(UnwovenClassFile thisTime, File lastTime) {
+ 		if (simpleStrings == null) {
+ 			// batch build
+-			// record resolved type for structural comparisions in future increments
++			// record resolved type for structural comparisons in future increments
+ 			// this records a second reference to a structure already held in memory
+ 			// by the world.
+ 			ResolvedType rType = world.resolve(thisTime.getClassName());
+@@ -1546,8 +1547,6 @@ public class AjState implements CompilerConfigurationChangeFlags {
+ 	 * creates to support the language - for non-static inner types it also mangles ctors to be prefixed with an instance of the
+ 	 * surrounding type.
+ 	 * 
+-	 * Warning : long but boring method implementation...
+-	 * 
+ 	 * @param reader
+ 	 * @param existingType
+ 	 * @return
+@@ -1679,8 +1678,8 @@ public class AjState implements CompilerConfigurationChangeFlags {
+ 		// sb.append("(L").append(new String(enclosingTypeName)).append(";");
+ 		// skippableDescriptorPrefix = sb.toString().toCharArray();
+ 		// }
+-		//		
+-		//		
++		//
++		//
+ 		// // remove the aspectOf, hasAspect, clinit and ajc$XXX methods
+ 		// // from those we compare with the existing methods - bug 129163
+ 		// List nonGenMethods = new ArrayList();
+@@ -1734,6 +1733,9 @@ public class AjState implements CompilerConfigurationChangeFlags {
+ 						if (!modifiersEqual(method.getModifiers(), existingMs[j].getModifiers())) {
+ 							return true;
+ 						}
++						if (exceptionClausesDiffer(existingMs[j], method)) {
++							return true;
++						}
+ 						continue new_method_loop;
+ 					}
+ 				}
+@@ -1744,6 +1746,31 @@ public class AjState implements CompilerConfigurationChangeFlags {
+ 		return false;
+ 	}
+ 
++	/**
++	 * For two methods, discover if there has been a change in the exception types specified.
++	 * 
++	 * @return true if the exception types have changed
++	 */
++	private boolean exceptionClausesDiffer(IBinaryMethod lastMethod, IBinaryMethod newMethod) {
++		char[][] previousExceptionTypeNames = lastMethod.getExceptionTypeNames();
++		char[][] newExceptionTypeNames = newMethod.getExceptionTypeNames();
++		int pLength = previousExceptionTypeNames.length;
++		int nLength = newExceptionTypeNames.length;
++		if (pLength != nLength) {
++			return true;
++		}
++		if (pLength == 0) {
++			return false;
++		}
++		// TODO could be insensitive to an order change
++		for (int i = 0; i < pLength; i++) {
++			if (!CharOperation.equals(previousExceptionTypeNames[i], newExceptionTypeNames[i])) {
++				return true;
++			}
++		}
++		return false;
++	}
++
+ 	private boolean modifiersEqual(int eclipseModifiers, int resolvedTypeModifiers) {
+ 		resolvedTypeModifiers = resolvedTypeModifiers & ExtraCompilerModifiers.AccJustFlag;
+ 		eclipseModifiers = eclipseModifiers & ExtraCompilerModifiers.AccJustFlag;
+@@ -0,0 +1,4 @@
++public class A {
++  public void m() {
++  }
++}
+@@ -0,0 +1,6 @@
++public class B {
++  public static void main(String []argv) {
++    A a = new A();
++    a.m();
++  }
++}
+@@ -0,0 +1,4 @@
++public class A {
++  public void m() throws java.io.IOException {
++  }
++}
+@@ -0,0 +1,4 @@
++public class A {
++  public void m() throws java.io.IOException {
++  }
++}
+@@ -0,0 +1,6 @@
++public class B {
++  public static void main(String []argv) throws java.io.IOException {
++    A a = new A();
++    a.m();
++  }
++}
+@@ -0,0 +1,4 @@
++public class A {
++  public void m() throws Exception {
++  }
++}
+@@ -12,6 +12,7 @@ import org.aspectj.systemtest.ajc151.AllTestsAspectJ151;
+ import org.aspectj.systemtest.ajc152.AllTestsAspectJ152;
+ import org.aspectj.systemtest.ajc153.AllTestsAspectJ153;
+ import org.aspectj.systemtest.ajc154.AllTestsAspectJ154;
++import org.aspectj.systemtest.incremental.tools.IncrementalCompilationTests;
+ import org.aspectj.systemtest.incremental.tools.IncrementalOutputLocationManagerTests;
+ import org.aspectj.systemtest.incremental.tools.IncrementalPerformanceTests;
+ import org.aspectj.systemtest.incremental.tools.MoreOutputLocationManagerTests;
+@@ -37,6 +38,7 @@ public class AllTests15 {
+ 		 * issues and are excluded on the build machine so moving them here loses nothing for the moment.
+ 		 */
+ 		suite.addTestSuite(MultiProjectIncrementalTests.class);
++		suite.addTestSuite(IncrementalCompilationTests.class);
+ 		suite.addTestSuite(IncrementalPerformanceTests.class);
+ 		suite.addTestSuite(MoreOutputLocationManagerTests.class);
+ 		suite.addTestSuite(IncrementalOutputLocationManagerTests.class);
+@@ -0,0 +1,36 @@
++/*******************************************************************************
++ * Copyright (c) 2008 Contributors 
++ * All rights reserved. This program and the accompanying materials
++ * are made available under the terms of the Eclipse Public License v1.0
++ * which accompanies this distribution, and is available at
++ * http://www.eclipse.org/legal/epl-v10.html
++ *
++ * Contributors:
++ *    Andy Clement - initial API and implementation
++ *******************************************************************************/
++package org.aspectj.systemtest.ajc1610;
++
++import java.io.File;
++
++import junit.framework.Test;
++
++import org.aspectj.testing.XMLBasedAjcTestCase;
++
++public class Ajc1610Tests extends org.aspectj.testing.XMLBasedAjcTestCase {
++
++	// public void testMessyDecp_318241() {
++	// runTest("messy decp");
++	// }
++
++	// ---
++
++	public static Test suite() {
++		return XMLBasedAjcTestCase.loadSuite(Ajc1610Tests.class);
++	}
++
++	@Override
++	protected File getSpecFile() {
++		return new File("../tests/src/org/aspectj/systemtest/ajc169/ajc169.xml");
++	}
++
++}
+\ No newline at end of file
+@@ -0,0 +1,25 @@
++/*******************************************************************************
++ * Copyright (c) 2008 Contributors
++ * All rights reserved. This program and the accompanying materials
++ * are made available under the terms of the Eclipse Public License v1.0
++ * which accompanies this distribution, and is available at
++ * http://www.eclipse.org/legal/epl-v10.html
++ *
++ * Contributors:
++ *    Andy Clement - initial API and implementation
++ *******************************************************************************/
++package org.aspectj.systemtest.ajc1610;
++
++import junit.framework.Test;
++import junit.framework.TestSuite;
++
++public class AllTestsAspectJ1610 {
++
++	public static Test suite() {
++		TestSuite suite = new TestSuite("AspectJ 1.6.10 tests");
++		// $JUnit-BEGIN$
++		suite.addTest(Ajc1610Tests.suite());
++		// $JUnit-END$
++		return suite;
++	}
++}
+@@ -0,0 +1,413 @@
++<!DOCTYPE suite SYSTEM "../tests/ajcTestSuite.dtd"[]>
++
++<suite>
++
++  <ajc-test dir="bugs169/pr318241" title="messy decp">
++    <compile files="PkItd.aj Two.aj SomeClass.java Pk.java SomeAnnotation.java" options="-1.5">
++    </compile>
++  </ajc-test>
++
++  <ajc-test dir="bugs169/pr287613" title="compound declare patterns - method - 2">
++  	 <compile files="DAMethod2.java" options="-1.5 -showWeaveInfo">
++  	 	<message kind="weave" text="'public void Person.foo()' (DAMethod2.java:11) is annotated with @Annot method annotation from 'DAMethod2' (DAMethod2.java:26)"/>
++  	 	<message kind="weave" text="public boolean Person.bar()' (DAMethod2.java:13) is annotated with @Annot method annotation from 'DAMethod2' (DAMethod2.java:26)"/>
++  	 	<message kind="weave" text="public boolean Person.isSet()' (DAMethod2.java:17) is annotated with @Annot method annotation from 'DAMethod2' (DAMethod2.java:26)"/>
++  	 	<message kind="weave" text="public void Person.isNotReturningBoolean()' (DAMethod2.java:19) is annotated with @Annot method annotation from 'DAMethod2' (DAMethod2.java:26)"/>
++  	 	<message kind="weave" text="'public void Person.getin()' (DAMethod2.java:21) is annotated with @Annot method annotation from 'DAMethod2' (DAMethod2.java:28)"/>
++  	 </compile>
++  </ajc-test>
++  
++  <ajc-test dir="bugs169/pr287613" title="compound declare patterns - method - 1">
++  	 <compile files="DAMethod1.java" options="-1.5 -showWeaveInfo">
++  	 	<message kind="weave" text="'public java.lang.String Person.getString()' (DAMethod1.java:9) is annotated with @Annot method annotation from 'DAMethod1' (DAMethod1.java:15)"/>
++  	 	<message kind="weave" text="'public boolean Person.isSet()' (DAMethod1.java:10) is annotated with @Annot method annotation from 'DAMethod1' (DAMethod1.java:15)"/>
++  	 </compile>
++  </ajc-test>
++  
++  <ajc-test dir="bugs169/pr315820" title="multiple annos running - 1">
++  	 <compile files="MultiAnno2.java" options="-1.5"/>
++  	 <run class="MultiAnno2">
++  	 <stdout>
++  	 <line text="XXX"/>
++  	 </stdout>
++  	 </run>
++  </ajc-test>
++  
++  <ajc-test dir="bugs169/pr315820" title="multiple annos parsing">
++  	 <compile files="MultiAnno.java" options="-1.5"/>
++  </ajc-test>
++  
++  <ajc-test dir="bugs169/pr287613" title="compound declare patterns - fields - 2">
++  	 <compile files="Target.java" options="-1.5"/>
++  	 <run class="Target">
++  	 <stdout>
++  	 <line text="Field one"/>
++  	 <line text="@Annot1()"/>
++  	 <line text="@Annot1()"/>
++  	 <line text="Field two"/>
++  	 <line text="@Annot2()"/>
++  	 <line text="no annotations"/>
++  	 <line text="Field three"/>
++  	 <line text="@Annot3()"/>
++  	 <line text="@Annot3()"/>
++  	 </stdout></run>
++  </ajc-test>
++  
++  <ajc-test dir="bugs169/pr287613" title="compound declare patterns - fields - 1">
++  	 <compile files="DeclareAnnot.java" options="-1.5"/>
++  </ajc-test>
++  
++  <ajc-test dir="bugs169/pr287613" title="compound declare patterns - methodctor - 1">
++  	 <compile files="DeclareAnnotMethodCtor.java" options="-1.5"/>
++  </ajc-test>
++  
++  <ajc-test dir="bugs169/pr310506" title="optional aspects">
++     <compile files="Anno.java" outjar="anno.jar" options="-1.5"/>
++     <compile files="AspectA.java" classpath="anno.jar" outjar="aspect.jar" options="-Xlint:ignore -1.5"/>
++     <compile files="AspectB.java" outjar="aspect2.jar" options="-Xlint:ignore -1.5"/>
++     <compile files="Code.java" classpath="code.jar;aspect.jar;aspect2.jar" options="-1.5"/>
++     <file deletefile="anno.jar"/>
++     <run class="Code" ltw="META-INF/aop.xml" classpath=".;aspect.jar;aspect2.jar">
++     <stderr>
++     <line text="AspectJ Weaver Version"/>
++     <line text="register classloader"/>
++     <line text="using configuration"/>
++     <line text="register aspect"/>
++     <line text="deactivating aspect"/>
++     <line text="register aspect"/>     
++     <line text="processing reweavable"/>
++     </stderr>
++     <stdout>
++     <line text="staticinitialization"/>
++     <line text="abcde"/>
++     </stdout>
++     </run>
++  </ajc-test>
++  
++  <ajc-test dir="bugs169/pr310506" title="optional aspects 2">
++     <compile files="Anno.java" outjar="anno.jar" options="-1.5"/>
++     <compile files="AspectA.java" classpath="anno.jar" outjar="aspect.jar" options="-Xlint:ignore -1.5"/>
++     <compile files="AspectB.java" outjar="aspect2.jar" options="-Xlint:ignore -1.5"/>
++     <compile files="Code.java Code2.java" classpath="anno.jar;code.jar;aspect.jar;aspect2.jar" options="-1.5"/>
++     <run class="Code2" ltw="META-INF/aop.xml" classpath=".;aspect.jar;aspect2.jar">
++     <stderr>
++     <line text="AspectJ Weaver Version"/>
++     <line text="register classloader"/>
++     <line text="using configuration"/>
++     <line text="register aspect"/>
++     <line text="register aspect"/>     
++     <line text="processing reweavable"/>
++     <line text="processing reweavable"/>
++     </stderr>
++     <stdout>
++     <line text="staticinitialization"/>
++     <line text="A"/>
++     <line text="abcde"/>
++     </stdout>
++     </run>
++  </ajc-test>
++
++  <ajc-test dir="bugs169/pr315651" title="infinite loop">
++     <compile files="test/Profiling.aj test/Main.java" options="-1.5"/>
++     <run class="test.Main"/>
++  </ajc-test>
++
++  <ajc-test dir="bugs169/pr314965" title="anno typo">
++     <compile files="MinimalExample.java" options="-1.5">
++       <message kind="warning" text="no match for this type name: AnnotationWithParamAndTypo [Xlint:invalidAbsoluteTypeName]"/>
++     </compile>
++  </ajc-test>
++  
++  <ajc-test dir="bugs169/pr314840" title="validate branch recursion">
++     <compile files="Arguments.aj Test1.java Test2.java Test.java" options="-1.5"/>
++  </ajc-test>
++  
++  <ajc-test dir="bugs169/pr313026/one" title="clashing declare annos">
++     <compile files="Target.java Asp.java Bsp.java Wibble.java Precedence1.java" options="-1.5 -Xlint:ignore"/>
++     <run class="Target">
++       <stdout>
++         <line text="@Wibble(value=abc)"/>
++       </stdout>
++     </run>
++  </ajc-test>
++  
++  <ajc-test dir="bugs169/pr312839/one" title="class file size - 1">
++     <compile files="Class.java X.aj" options="-1.5"/>
++     <run class="com.wibble.foo.Class">
++       <stdout>
++         <line text="Hello Andy"/>
++       </stdout>
++     </run>
++  </ajc-test>
++  
++  <ajc-test dir="bugs169/pr122460/one" title="scoping ltw - 3">
++     <compile files="A.java" options="-1.5 -Xlint:ignore" outjar="aspects.jar"/>
++     <compile files="Code.java Runner.java"/>
++     <run class="code.Code" ltw="aop_none.xml" classpath="aspects.jar">
++     <stdout>
++     <line text="running"/>
++     </stdout>
++     </run>
++  </ajc-test>
++  
++  <ajc-test dir="bugs169/pr122460/one" title="scoping ltw - 1">
++     <compile files="A.java" options="-1.5 -Xlint:ignore" outjar="aspects.jar"/>
++     <compile files="Code.java Runner.java"/>
++     <run class="code.Code" ltw="aop.xml" classpath="aspects.jar">
++     <stdout>
++     <line text="intercepted class code.Code"/>
++     <line text="intercepted class runner.Runner"/>
++     <line text="running"/>
++     </stdout>
++     </run>
++  </ajc-test>
++  
++  <ajc-test dir="bugs169/pr122460/one" title="scoping ltw - 2">
++     <compile files="A.java" options="-1.5 -Xlint:ignore" outjar="aspects.jar"/>
++     <compile files="Code.java Runner.java"/>
++     <run class="code.Code" ltw="aop_codeonly.xml" classpath="aspects.jar">
++     <stdout>
++     <line text="intercepted class code.Code"/>
++     <line text="running"/>
++     </stdout>
++     </run>
++  </ajc-test>
++  
++   <ajc-test dir="bugs169/pr307009" title="declare soft and call - 1">
++   	<compile files="Test.java Test2.java Ann.java Bug.aj" options="-1.5 -showWeaveInfo">
++   		<message kind="weave" text="Softening exceptions in type 'Test' (Test.java:4) as defined by aspect 'Bug' (Bug.aj:3)"/>
++   	</compile>
++   </ajc-test>
++
++   <ajc-test dir="bugs169/pr307009" title="declare soft and call - 2">
++   	<compile files="Test2.java Test.java Ann.java Bug.aj" options="-1.5 -showWeaveInfo">
++   		<message kind="weave" text="Softening exceptions in type 'Test' (Test.java:4) as defined by aspect 'Bug' (Bug.aj:3)"/>
++   	</compile>
++   </ajc-test>
++   
++   <ajc-test dir="bugs169/pr310043" title="rogue error">
++   	<compile files="B.java" classpath="code.jar" aspectpath="code.jar"/>
++   </ajc-test>
++   
++   <ajc-test dir="bugs169/pr309743" title="itd marker annotations - 1">
++     <compile files="A.java" options="-1.5"/>
++     <run class="A">
++       <stdout>
++         <line text="foo"/>
++       </stdout>
++     </run>
++  </ajc-test>
++  
++   <ajc-test dir="bugs169/pr309743" title="itd marker annotations - 2">
++     <compile files="B.java" options="-1.5"/>
++     <run class="B">
++       <stdout>
++         <line text="boo"/>
++       </stdout>
++     </run>
++  </ajc-test>
++  
++   <ajc-test dir="bugs169/pr309336" title="pipelining and generics">
++     <compile files="NoSystemStreams.aj UseOperators.java Operators.java" options="-1.5">
++       <message kind="warning" text="No system.out"/>
++     </compile>
++  </ajc-test>
++  
++   <ajc-test dir="bugs169/pr308773" title="subtle generics problem">
++     <compile files="Aspy.aj Zzz.java Top.java Middle.java" options="-1.5"/>
++  </ajc-test>
++  
++   <ajc-test dir="bugs169/pr307147" title="advising privileged access method">
++     <compile files="B.java Test2.java" options="-showWeaveInfo">
++       <message kind="weave" text="Type 'B' (B.java) has intertyped method from 'Test'"/>
++       <message kind="weave" text="Join point 'field-get(int A.goo)' in Type 'Test'"/>
++     </compile>
++  </ajc-test>
++  
++   <ajc-test dir="bugs169/pr307120" title="advising privileged access member">
++     <compile files="A.java Test.java" options="-showWeaveInfo">
++       <message kind="weave" text="Type 'A' (A.java) has intertyped method from 'Test'"/> <!-- getFoo and getGoo -->
++       <message kind="weave" text="Join point 'field-get(int A.goo)' in Type 'Test'"/>
++       <message kind="weave" text="Join point 'field-get(int A.foo)' in Type 'Test'"/>
++     </compile>
++  </ajc-test>
++  
++   <ajc-test dir="bugs169/pr309440" title="crash param annos">
++     <compile files="foobar/ExportMode.java" classpath="jsr305.jar" options="-1.6"/>
++     <compile files="foobar/CrashAspectJCompiler.java" classpath="jsr305.jar" options="-1.6"/>
++  </ajc-test>
++  
++   <ajc-test dir="bugs169/pr307120" title="advising privileged access member - 2">
++     <compile files="Test.java A.java" options="-showWeaveInfo">
++       <message kind="weave" text="Type 'A' (A.java) has intertyped method from 'Test'"/> <!-- getFoo and getGoo -->
++       <message kind="weave" text="Join point 'field-get(int A.goo)' in Type 'Test'"/>
++       <message kind="weave" text="Join point 'field-get(int A.foo)' in Type 'Test'"/>
++     </compile>
++  </ajc-test>
++  
++   <ajc-test dir="bugs169/pr292262" title="if with statically recognizable code">
++     <compile files="A.java">
++       <message kind="weave" text="Join point 'staticinitialization(void SimpleClass.&lt;clinit&gt;())' in Type 'SimpleClass'"/>
++     </compile>
++  </ajc-test>
++  
++   <ajc-test dir="bugs169/pr44365" title="type category type patterns - class">
++     <compile files="SimpleClass.java" options="-1.5 -showWeaveInfo">
++       <message kind="weave" text="Join point 'staticinitialization(void SimpleClass.&lt;clinit&gt;())' in Type 'SimpleClass'"/>
++       <message kind="weave" text="Join point 'staticinitialization(void Bar.&lt;clinit&gt;())' in Type 'Bar'"/>
++     </compile>
++  </ajc-test>
++  
++   <ajc-test dir="bugs169/pr44365" title="type category type patterns - interface">
++     <compile files="SimpleInterface.java" options="-1.5 -showWeaveInfo">
++       <message kind="weave" text="Join point 'staticinitialization(void Foo.&lt;clinit&gt;())' in Type 'Foo'"/>
++     </compile>
++  </ajc-test>
++  
++   <ajc-test dir="bugs169/pr44365" title="type category type patterns - enum">
++     <compile files="SimpleEnum.java" options="-1.5 -showWeaveInfo">
++       <message kind="weave" text="Join point 'staticinitialization(void Foo.&lt;clinit&gt;())' in Type 'Foo'"/>
++     </compile>
++  </ajc-test>
++   
++   <ajc-test dir="bugs169/pr44365" title="type category type patterns - annotation">
++     <compile files="SimpleAnnotation.java" options="-1.5 -showWeaveInfo">
++       <message kind="weave" text="Join point 'staticinitialization(void WibbleAnno.&lt;clinit&gt;())' in Type 'WibbleAnno'"/>
++     </compile>
++  </ajc-test>
++  
++  <ajc-test dir="bugs169/pr44365" title="type category type patterns - anonymous">
++     <compile files="SimpleAnonymous.java" options="-1.5 -showWeaveInfo">
++       <message kind="weave" text="Join point 'staticinitialization(void Bar$1.&lt;clinit&gt;())' in Type 'Bar$1'"/>
++     </compile>
++  </ajc-test>
++  
++   <ajc-test dir="bugs169/pr44365" title="type category type patterns - inner">
++     <compile files="SimpleInner.java" options="-1.5 -showWeaveInfo">
++       <message kind="weave" text="Join point 'staticinitialization(void Bar$Inner.&lt;clinit&gt;())' in Type 'Bar$Inner'"/>
++       <message kind="weave" text="Join point 'staticinitialization(void Bar$1.&lt;clinit&gt;())' in Type 'Bar$1'"/>
++     </compile>
++  </ajc-test>
++  
++   <ajc-test dir="bugs169/pr44365" title="type category type patterns - inner - 2">
++     <compile files="SimpleInner2.java" options="-1.5 -showWeaveInfo">
++       <message kind="weave" text="Join point 'staticinitialization(void Bar$Inner.&lt;clinit&gt;())' in Type 'Bar$Inner'"/>
++     </compile>
++  </ajc-test>
++  
++   <ajc-test dir="bugs169/pr44365" title="type category type patterns - inner - 3">
++     <compile files="SimpleInner3.java" options="-1.5 -showWeaveInfo">
++       <message kind="weave" text="Join point 'method-execution(void Bar$Inner.foo())' in Type 'Bar$Inner' (SimpleInner3.java:12) advised"/>
++     </compile>
++  </ajc-test>
++   
++   <ajc-test dir="bugs169/pr44365" title="type category type patterns - aspect">
++     <compile files="SimpleAspect.java" options="-1.5 -showWeaveInfo">
++       <message kind="weave" text="Join point 'staticinitialization(void X.&lt;clinit&gt;())' in Type 'X'"/>
++     </compile>
++  </ajc-test>
++  
++   <ajc-test dir="bugs169/pr44365" title="type category type patterns - e1">
++     <compile files="Errors1.java" options="-1.5 -showWeaveInfo">
++       <message kind="error" text="Syntax error on token &quot;(&quot;, &quot;)"/>
++     </compile>
++  </ajc-test>
++  
++   <ajc-test dir="bugs169/pr44365" title="type category type patterns - e2">
++     <compile files="Errors5.java" options="-1.5 -showWeaveInfo">
++       <message kind="error" text="Syntax error on token &quot;)&quot;, &quot;(&quot; expected"/>
++     </compile>
++  </ajc-test>
++  
++   <ajc-test dir="bugs169/pr44365" title="type category type patterns - e3">
++     <compile files="Errors2.java" options="-1.5 -showWeaveInfo">
++       <message kind="weave" text="Join point 'method-execution(void Errors2.is(java.lang.String))' in Type"/>
++     </compile>
++  </ajc-test>
++
++   <ajc-test dir="bugs169/pr48080" title="inserts in messages">
++     <compile files="Warnings.java" options="-1.5">
++       <message kind="warning" text="UNKNOWN_KEY{}foobar"/>
++       <message kind="warning" text="{}wibble"/>
++       <message kind="warning" text="signature name for method is m"/>
++       <message kind="warning" text="joinpoint declaring type is p.A"/>
++       <message kind="warning" text="joinpoint signature is void p.A.m()"/>
++       <message kind="warning" text="joinpoint line is '23'"/>
++       <message kind="warning" text="joinpoint kind is method-execution"/>
++       <message kind="warning" text="joinpoint kind is 'method-execution'"/>
++       <message kind="warning" text="joinpoint is method-execution(void p.A.m())"/>
++       <message kind="warning" text="joinpoint location is"/>
++       <message kind="warning" text="signature name for field is i"/>
++       <message kind="warning" text="joinpoint signature is int p.A.i"/>
++       <message kind="warning" text="aspect is p.Checker"/>
++       <message kind="warning" text="advice sourcelocation is"/>
++       <message kind="warning" text="test 18{}23"/>
++     </compile>
++  </ajc-test>
++  
++   <ajc-test dir="bugs169/pr299062" title="verifyerror on atAj">
++     <compile files="Test.java Work.java SmartAspect.java Idempotent.java" options="-1.5"/>
++     <run class="Test">
++     </run>
++  </ajc-test>
++  
++   <ajc-test dir="bugs169/pr298665" title="ambiguous method">
++     <compile files="Main.java" options="-1.5"/>
++     <run class="Main">
++     </run>
++  </ajc-test>
++  
++   <ajc-test dir="bugs169/pr298388" title="declare mixin and generics">
++     <compile files="PR298388.java" options="-1.5"/>
++     <run class="PR298388">
++       <stdout>
++         <line text="done"/>
++       </stdout>
++     </run>
++  </ajc-test>
++  
++   <ajc-test dir="bugs169/pr295491" title="model annotation npe">
++     <compile files="SpringConfigurableMixin.java" options="-1.5 -emacssym"/>
++  </ajc-test>
++  
++   <ajc-test dir="bugs169/pr292584" title="annotation around advice verifyerror">
++     <compile files="AbstractAspect.java,ClassWithJoinPoint.java,ConcreteAspect.java" options="-1.5"/>
++     <run class="ClassWithJoinPoint">
++       <stdout>
++         <line text="Testing annotation style (should print &quot;true&quot;):"/>
++         <line text="true"/>
++       </stdout>
++     </run>
++  </ajc-test>
++  
++  <!-- declare type warning -->
++  
++  <ajc-test dir="bugs169/pr291206" title="declare type warning - 1">
++     <compile files="One.java" options="-1.5">
++       <message kind="warning" line="8" text="Nothing should be"/>
++     </compile>
++  </ajc-test>
++  
++  <ajc-test dir="bugs169/pr291206" title="declare type warning - 2">
++     <compile files="Two.java" options="-1.5">
++       <message kind="warning" line="7" text="Missing foo()"/>
++       <message kind="warning" line="13" text="Missing foo()"/>
++     </compile>
++  </ajc-test>
++  
++  <!-- testing build of model with one of these in -->
++  <ajc-test dir="bugs169/pr291206" title="declare type warning - 3">
++     <compile files="Two.java" options="-1.5 -emacssym">
++       <message kind="warning" line="7" text="Missing foo()"/>
++       <message kind="warning" line="13" text="Missing foo()"/>
++     </compile>
++  </ajc-test>
++  
++  <ajc-test dir="bugs169/pr291206" title="declare type error - 1">
++     <compile files="Three.java" options="-1.5">
++       <message kind="error" line="7" text="Missing foo()"/>
++       <message kind="error" line="13" text="Missing foo()"/>
++     </compile>
++  </ajc-test>
++  
++</suite>
+\ No newline at end of file
+@@ -203,4 +203,11 @@ public class AbstractMultiProjectIncrementalAjdeInteractionTestbed extends AjdeI
+ 					+ " in the aop.xml file but found " + aspectCount + " occurrences");
+ 		}
+ 	}
++
++	protected void assertContains(String expectedSubstring, Object object) {
++		String actualString = object.toString();
++		if (actualString.indexOf(expectedSubstring) == -1) {
++			fail("Expected to find '" + expectedSubstring + "' in '" + actualString + "'");
++		}
++	}
+ }
+@@ -0,0 +1,54 @@
++/********************************************************************
++ * Copyright (c) 2010 Contributors. All rights reserved. 
++ * This program and the accompanying materials are made available 
++ * under the terms of the Eclipse Public License v1.0 
++ * which accompanies this distribution and is available at 
++ * http://eclipse.org/legal/epl-v10.html 
++ *  
++ * Contributors: 
++ *     Andy Clement (SpringSource)         initial implementation
++ *******************************************************************/
++package org.aspectj.systemtest.incremental.tools;
++
++/**
++ * Incremental compilation tests. MultiProjectIncrementalTests was getting unwieldy - started this new test class for 1.6.10.
++ * 
++ * @author Andy Clement
++ * @since 1.6.10
++ */
++public class IncrementalCompilationTests extends AbstractMultiProjectIncrementalAjdeInteractionTestbed {
++
++	/**
++	 * Build a pair of files, then change the throws clause in the first one (add a throws clause where there wasnt one). The second
++	 * file should now have a 'unhandled exception' error on it.
++	 */
++	public void testModifiedThrowsClauseShouldTriggerError_318884() throws Exception {
++		String p = "pr318884_1";
++		initialiseProject(p);
++		build(p);
++		checkWasFullBuild();
++		checkCompileWeaveCount(p, 2, 2);
++		alter(p, "inc1");
++		build(p);
++		checkWasntFullBuild();
++		assertEquals(1, getErrorMessages(p).size());
++		assertContains("B.java:4:0::0 Unhandled exception type IOException", getErrorMessages(p).get(0));
++	}
++
++	/**
++	 * Build a pair of files, then change the throws clause in the first one (change the type of the thrown exception). The second
++	 * file should now have a 'unhandled exception' error on it.
++	 */
++	public void testModifiedThrowsClauseShouldTriggerError_318884_2() throws Exception {
++		String p = "pr318884_2";
++		initialiseProject(p);
++		build(p);
++		checkWasFullBuild();
++		checkCompileWeaveCount(p, 2, 2);
++		alter(p, "inc1");
++		build(p);
++		checkWasntFullBuild();
++		assertEquals(1, getErrorMessages(p).size());
++		assertContains("B.java:4:0::0 Unhandled exception type Exception", getErrorMessages(p).get(0));
++	}
++}

@@ -1,0 +1,669 @@
+@@ -0,0 +1,3 @@
++package somepackage;
++
++public class Pk {}
+@@ -0,0 +1,8 @@
++package somepackage;
++
++privileged aspect PkItd {
++
++	declare parents: Pk implements java.io.Serializable;
++
++	private static final long Pk.serialVersionUID = -3602111784930992656L;
++}
+@@ -0,0 +1,13 @@
++package somepackage;
++
++import java.io.Serializable;
++import java.lang.annotation.ElementType;
++import java.lang.annotation.Retention;
++import java.lang.annotation.RetentionPolicy;
++import java.lang.annotation.Target;
++
++@Target(ElementType.TYPE)
++@Retention(RetentionPolicy.SOURCE)
++public @interface SomeAnnotation {
++	Class<? extends Serializable> value() default Long.class;
++}
+@@ -0,0 +1,5 @@
++package somepackage;
++
++@SomeAnnotation(value = Pk.class)
++public class SomeClass {
++}
+@@ -0,0 +1,10 @@
++import java.lang.annotation.*;
++
++public aspect Two {
++  declare parents: @Foo * implements II;
++}
++
++interface II {}
++
++@Retention(RetentionPolicy.RUNTIME)
++@interface Foo {}
+@@ -18,6 +18,10 @@ import org.aspectj.testing.XMLBasedAjcTestCase;
+ 
+ public class Ajc169Tests extends org.aspectj.testing.XMLBasedAjcTestCase {
+ 
++	public void testMessyDecp_318241() {
++		runTest("messy decp");
++	}
++
+ 	// public void testMultiAnnosRunning_pr315820_1() {
+ 	// runTest("multiple annos running - 1");
+ 	// }
+@@ -2,6 +2,11 @@
+ 
+ <suite>
+ 
++  <ajc-test dir="bugs169/pr318241" title="messy decp">
++    <compile files="PkItd.aj Two.aj SomeClass.java Pk.java SomeAnnotation.java" options="-1.5">
++    </compile>
++  </ajc-test>
++
+   <ajc-test dir="bugs169/pr287613" title="compound declare patterns - method - 2">
+   	 <compile files="DAMethod2.java" options="-1.5 -showWeaveInfo">
+   	 	<message kind="weave" text="'public void Person.foo()' (DAMethod2.java:11) is annotated with @Annot method annotation from 'DAMethod2' (DAMethod2.java:26)"/>
+@@ -122,7 +122,7 @@ public class AjdeInteractionTestbed extends TestCase {
+ 	}
+ 
+ 	public static void configureInPath(String projectName, File inpath) {
+-		Set s = new HashSet();
++		Set<File> s = new HashSet<File>();
+ 		s.add(inpath);
+ 		AjCompiler compiler = CompilerFactory.getCompilerForProjectWithDir(sandboxDir + File.separator + projectName);
+ 		((MultiProjTestCompilerConfiguration) compiler.getCompilerConfiguration()).setInpath(s);
+@@ -230,12 +230,14 @@ public class AjdeInteractionTestbed extends TestCase {
+ 		collectUpFiles(projectBase, projectBase, filesForCompilation);
+ 		boolean changed = false;
+ 		for (int i = 0; i < filesForCompilation.size(); i++) {
+-			if (!currentFiles.contains(filesForCompilation.get(i)))
++			if (!currentFiles.contains(filesForCompilation.get(i))) {
+ 				changed = true;
++			}
+ 		}
+ 		for (int i = 0; i < currentFiles.size(); i++) {
+-			if (!filesForCompilation.contains(currentFiles.get(i)))
++			if (!filesForCompilation.contains(currentFiles.get(i))) {
+ 				changed = true;
++			}
+ 		}
+ 		if (changed) {
+ 			((MultiProjTestCompilerConfiguration) icc).setProjectSourceFiles(filesForCompilation);
+@@ -250,12 +252,14 @@ public class AjdeInteractionTestbed extends TestCase {
+ 		collectUpXmlFiles(projectBase, projectBase, collector);
+ 		boolean changed = false;
+ 		for (int i = 0; i < collector.size(); i++) {
+-			if (!currentXmlFiles.contains(collector.get(i)))
++			if (!currentXmlFiles.contains(collector.get(i))) {
+ 				changed = true;
++			}
+ 		}
+ 		for (int i = 0; i < currentXmlFiles.size(); i++) {
+-			if (!collector.contains(currentXmlFiles.get(i)))
++			if (!collector.contains(currentXmlFiles.get(i))) {
+ 				changed = true;
++			}
+ 		}
+ 		if (changed) {
+ 			((MultiProjTestCompilerConfiguration) icc).setProjectXmlConfigFiles(collector);
+@@ -264,8 +268,9 @@ public class AjdeInteractionTestbed extends TestCase {
+ 
+ 	private void collectUpFiles(File location, File base, List collectionPoint) {
+ 		String contents[] = location.list();
+-		if (contents == null)
++		if (contents == null) {
+ 			return;
++		}
+ 		for (int i = 0; i < contents.length; i++) {
+ 			String string = contents[i];
+ 			File f = new File(location, string);
+@@ -288,8 +293,9 @@ public class AjdeInteractionTestbed extends TestCase {
+ 
+ 	private void collectUpXmlFiles(File location, File base, List collectionPoint) {
+ 		String contents[] = location.list();
+-		if (contents == null)
++		if (contents == null) {
+ 			return;
++		}
+ 		for (int i = 0; i < contents.length; i++) {
+ 			String string = contents[i];
+ 			File f = new File(location, string);
+@@ -314,25 +320,25 @@ public class AjdeInteractionTestbed extends TestCase {
+ 		MultiProjTestMessageHandler handler = (MultiProjTestMessageHandler) compiler.getMessageHandler();
+ 		if (handler.hasErrorMessages()) {
+ 			System.err.println("Build errors:");
+-			for (Iterator iter = handler.getErrorMessages().iterator(); iter.hasNext();) {
+-				IMessage element = (IMessage) iter.next();
++			for (Iterator<IMessage> iter = handler.getErrorMessages().iterator(); iter.hasNext();) {
++				IMessage element = iter.next();
+ 				System.err.println(element);
+ 			}
+ 			System.err.println("---------");
+ 		}
+ 	}
+ 
+-	public List getErrorMessages(String projectName) {
++	public List<IMessage> getErrorMessages(String projectName) {
+ 		AjCompiler compiler = CompilerFactory.getCompilerForProjectWithDir(sandboxDir + File.separator + projectName);
+ 		return ((MultiProjTestMessageHandler) compiler.getMessageHandler()).getErrorMessages();
+ 	}
+ 
+-	public List getWarningMessages(String projectName) {
++	public List<IMessage> getWarningMessages(String projectName) {
+ 		AjCompiler compiler = CompilerFactory.getCompilerForProjectWithDir(sandboxDir + File.separator + projectName);
+ 		return ((MultiProjTestMessageHandler) compiler.getMessageHandler()).getWarningMessages();
+ 	}
+ 
+-	public List getWeavingMessages(String projectName) {
++	public List<IMessage> getWeavingMessages(String projectName) {
+ 		AjCompiler compiler = CompilerFactory.getCompilerForProjectWithDir(sandboxDir + File.separator + projectName);
+ 		return ((MultiProjTestMessageHandler) compiler.getMessageHandler()).getWeavingMessages();
+ 	}
+@@ -344,11 +350,12 @@ public class AjdeInteractionTestbed extends TestCase {
+ 
+ 	public void checkForError(String projectName, String anError) {
+ 		AjCompiler compiler = CompilerFactory.getCompilerForProjectWithDir(sandboxDir + File.separator + projectName);
+-		List messages = ((MultiProjTestMessageHandler) compiler.getMessageHandler()).getErrorMessages();
+-		for (Iterator iter = messages.iterator(); iter.hasNext();) {
+-			IMessage element = (IMessage) iter.next();
+-			if (element.getMessage().indexOf(anError) != -1)
++		List<IMessage> messages = ((MultiProjTestMessageHandler) compiler.getMessageHandler()).getErrorMessages();
++		for (Iterator<IMessage> iter = messages.iterator(); iter.hasNext();) {
++			IMessage element = iter.next();
++			if (element.getMessage().indexOf(anError) != -1) {
+ 				return;
++			}
+ 		}
+ 		fail("Didn't find the error message:\n'" + anError + "'.\nErrors that occurred:\n" + messages);
+ 	}
+@@ -368,8 +375,9 @@ public class AjdeInteractionTestbed extends TestCase {
+ 	 */
+ 	public String printCompiledAndWovenFiles(String projectName) {
+ 		StringBuffer sb = new StringBuffer();
+-		if (getCompiledFiles(projectName).size() == 0 && getWovenClasses(projectName).size() == 0)
++		if (getCompiledFiles(projectName).size() == 0 && getWovenClasses(projectName).size() == 0) {
+ 			sb.append("No files were compiled or woven\n");
++		}
+ 		for (Iterator iter = getCompiledFiles(projectName).iterator(); iter.hasNext();) {
+ 			Object element = iter.next();
+ 			sb.append("compiled: " + element + "\n");
+@@ -397,8 +405,9 @@ public class AjdeInteractionTestbed extends TestCase {
+ 		for (Iterator iter = woven.iterator(); iter.hasNext();) {
+ 			System.out.println("    :" + iter.next());
+ 		}
+-		if (wasFullBuild())
++		if (wasFullBuild()) {
+ 			System.out.println("It was a batch (full) build");
++		}
+ 		System.out.println("=============================================");
+ 	}
+ 
+@@ -406,12 +415,14 @@ public class AjdeInteractionTestbed extends TestCase {
+ 	 * Check we compiled/wove the right number of files, passing '-1' indicates you don't care about that number.
+ 	 */
+ 	public void checkCompileWeaveCount(String projectName, int expCompile, int expWoven) {
+-		if (expCompile != -1 && getCompiledFiles(projectName).size() != expCompile)
++		if (expCompile != -1 && getCompiledFiles(projectName).size() != expCompile) {
+ 			fail("Expected compilation of " + expCompile + " files but compiled " + getCompiledFiles(projectName).size() + "\n"
+ 					+ printCompiledAndWovenFiles(projectName));
+-		if (expWoven != -1 && getWovenClasses(projectName).size() != expWoven)
++		}
++		if (expWoven != -1 && getWovenClasses(projectName).size() != expWoven) {
+ 			fail("Expected weaving of " + expWoven + " files but wove " + getWovenClasses(projectName).size() + "\n"
+ 					+ printCompiledAndWovenFiles(projectName));
++		}
+ 	}
+ 
+ 	public void checkWasntFullBuild() {
+@@ -433,7 +444,7 @@ public class AjdeInteractionTestbed extends TestCase {
+ 		return ((MultiProjTestBuildProgressMonitor) compiler.getBuildProgressMonitor()).getTimeTaken();
+ 	}
+ 
+-	public List getCompiledFiles(String projectName) {
++	public List<String> getCompiledFiles(String projectName) {
+ 		AjCompiler compiler = CompilerFactory.getCompilerForProjectWithDir(sandboxDir + File.separator + projectName);
+ 		return ((MultiProjTestBuildProgressMonitor) compiler.getBuildProgressMonitor()).getCompiledFiles();
+ 	}
+@@ -443,7 +454,7 @@ public class AjdeInteractionTestbed extends TestCase {
+ 		return compiler.getModel();
+ 	}
+ 
+-	public List getWovenClasses(String projectName) {
++	public List<String> getWovenClasses(String projectName) {
+ 		AjCompiler compiler = CompilerFactory.getCompilerForProjectWithDir(sandboxDir + File.separator + projectName);
+ 		return ((MultiProjTestBuildProgressMonitor) compiler.getBuildProgressMonitor()).getWovenClasses();
+ 	}
+@@ -451,13 +462,15 @@ public class AjdeInteractionTestbed extends TestCase {
+ 	// Infrastructure below here
+ 
+ 	private static void log(String msg) {
+-		if (VERBOSE)
++		if (VERBOSE) {
+ 			System.out.println(msg);
++		}
+ 	}
+ 
+ 	private static void lognoln(String msg) {
+-		if (VERBOSE)
++		if (VERBOSE) {
+ 			System.out.print(msg);
++		}
+ 	}
+ 
+ 	/** Return the *full* path to this file which is taken relative to the project dir */
+@@ -486,8 +499,9 @@ public class AjdeInteractionTestbed extends TestCase {
+ 			informedAboutKindOfBuild = false;
+ 			decisions = new StringBuffer();
+ 			fullBuildOccurred = false;
+-			if (detectedDeletions != null)
++			if (detectedDeletions != null) {
+ 				detectedDeletions.clear();
++			}
+ 		}
+ 
+ 		public boolean pathChange = false;
+@@ -517,8 +531,9 @@ public class AjdeInteractionTestbed extends TestCase {
+ 		}
+ 
+ 		public static boolean wasFullBuild() {
+-			if (!informedAboutKindOfBuild)
++			if (!informedAboutKindOfBuild) {
+ 				throw new RuntimeException("I never heard about what kind of build it was!!");
++			}
+ 			return fullBuildOccurred;
+ 		}
+ 
+@@ -16,25 +16,24 @@ import java.util.List;
+ import org.aspectj.ajde.core.IBuildProgressMonitor;
+ 
+ /**
+- * IBuildProgressMonitor that records how many files were compiled and
+- * woven as well as whether or not the build was a full build. Will print
+- * progress information to the screen if VERBOSE is true.
++ * IBuildProgressMonitor that records how many files were compiled and woven as well as whether or not the build was a full build.
++ * Will print progress information to the screen if VERBOSE is true.
+  */
+ public class MultiProjTestBuildProgressMonitor implements IBuildProgressMonitor {
+ 
+ 	public boolean VERBOSE = false;
+-	
+-	private List compiledFiles=new ArrayList();
+-	private List wovenClasses=new ArrayList();
+-	
++
++	private List<String> compiledFiles = new ArrayList<String>();
++	private List<String> wovenClasses = new ArrayList<String>();
++
+ 	private long starttime = 0;
+ 	private long totaltimetaken = 0;
+ 	private boolean wasFullBuild = true;
+-	
++
+ 	public void finish(boolean wasFullBuild) {
+ 		log("IBuildProgressMonitor.finish(" + wasFullBuild + ")");
+ 		this.wasFullBuild = wasFullBuild;
+-		totaltimetaken=(System.currentTimeMillis()-starttime);	
++		totaltimetaken = (System.currentTimeMillis() - starttime);
+ 	}
+ 
+ 	public boolean isCancelRequested() {
+@@ -43,32 +42,39 @@ public class MultiProjTestBuildProgressMonitor implements IBuildProgressMonitor
+ 	}
+ 
+ 	public void setProgress(double percentDone) {
+-		log("IBuildProgressMonitor.setProgress("+percentDone+")");
++		log("IBuildProgressMonitor.setProgress(" + percentDone + ")");
+ 	}
+ 
+ 	public void setProgressText(String text) {
+-		log("BuildProgressMonitor.setProgressText("+text+")");
++		log("BuildProgressMonitor.setProgressText(" + text + ")");
+ 		if (text.startsWith("compiled: ")) {
+ 			compiledFiles.add(text.substring(10));
+ 		} else if (text.startsWith("woven class ")) {
+-			wovenClasses.add(text.substring(12));	
++			wovenClasses.add(text.substring(12));
+ 		} else if (text.startsWith("woven aspect ")) {
+ 			wovenClasses.add(text.substring(13));
+-		}	
++		}
+ 	}
+ 
+ 	public void begin() {
+ 		starttime = System.currentTimeMillis();
+-		log("IBuildProgressMonitor.start()");	
++		log("IBuildProgressMonitor.start()");
++	}
++
++	public List<String> getCompiledFiles() {
++		return compiledFiles;
+ 	}
+ 
+-	public List getCompiledFiles() { return compiledFiles;}
+-	public List getWovenClasses()  { return wovenClasses; }
++	public List<String> getWovenClasses() {
++		return wovenClasses;
++	}
+ 
+ 	public void log(String s) {
+-		if (VERBOSE) System.out.println(s);
++		if (VERBOSE) {
++			System.out.println(s);
++		}
+ 	}
+-	
++
+ 	public long getTimeTaken() {
+ 		return totaltimetaken;
+ 	}
+@@ -76,9 +82,9 @@ public class MultiProjTestBuildProgressMonitor implements IBuildProgressMonitor
+ 	public boolean wasFullBuild() {
+ 		return wasFullBuild;
+ 	}
+-	
++
+ 	public void reset() {
+-		wasFullBuild=true;
++		wasFullBuild = true;
+ 		compiledFiles.clear();
+ 		wovenClasses.clear();
+ 	}
+@@ -19,105 +19,112 @@ import org.aspectj.bridge.IMessage;
+ import org.aspectj.bridge.IMessage.Kind;
+ 
+ /**
+- * IMessageHandler which by default ignores INFO and WEAVEINFO messages.
+- * Records the warning, weaving, compiler errors and error messages and 
+- * provides methods to get them.
++ * IMessageHandler which by default ignores INFO and WEAVEINFO messages. Records the warning, weaving, compiler errors and error
++ * messages and provides methods to get them.
+  */
+ public class MultiProjTestMessageHandler implements IBuildMessageHandler {
+ 
+ 	private final boolean VERBOSE = false;
+-	
++
+ 	private boolean receivedNonIncrementalBuildMessage = false;
+ 	private boolean receivedBatchBuildMessage = false;
+-	
+-	private List errorMessages;
+-	private List warningMessages;
+-	private List weavingMessages;
++
++	private List<IMessage> errorMessages;
++	private List<IMessage> warningMessages;
++	private List<IMessage> weavingMessages;
+ 	private List compilerErrors;
+ 	private List ignoring;
+-	
++
+ 	public MultiProjTestMessageHandler() {
+ 		ignoring = new ArrayList();
+-		errorMessages = new ArrayList();
+-		warningMessages = new ArrayList();
+-		weavingMessages = new ArrayList();
++		errorMessages = new ArrayList<IMessage>();
++		warningMessages = new ArrayList<IMessage>();
++		weavingMessages = new ArrayList<IMessage>();
+ 		compilerErrors = new ArrayList();
+-        ignore(IMessage.INFO);
+-        ignore(IMessage.WEAVEINFO);
++		ignore(IMessage.INFO);
++		ignore(IMessage.WEAVEINFO);
+ 	}
+-	
++
+ 	public boolean handleMessage(IMessage message) throws AbortException {
+-        IMessage.Kind kind = message.getKind(); 
+-        if (isIgnoring(kind)) {
+-            return true;
+-        }
+-        if (kind.equals(IMessage.ABORT) || message.getThrown() != null) {
+-        	log("> AjCompiler error: "+message.getMessage() +", " + message.getThrown() + ")"); //$NON-NLS-1$
+-    		message.getThrown().printStackTrace();
+-    		compilerErrors.add(message + ", (" + message.getThrown() +")");
+-			if (VERBOSE && (message.getThrown() != null)) message.getThrown().printStackTrace();
++		IMessage.Kind kind = message.getKind();
++		if (isIgnoring(kind)) {
+ 			return true;
+-        }
+-		if (message.getKind()==IMessage.ERROR) errorMessages.add(message);
+-		if (message.getKind()==IMessage.WARNING) warningMessages.add(message);
+-		if (message.getKind()==IMessage.WEAVEINFO) weavingMessages.add(message);
+-		log("IMessageHandler.handleMessage("+message+")");
++		}
++		if (kind.equals(IMessage.ABORT) || message.getThrown() != null) {
++			log("> AjCompiler error: " + message.getMessage() + ", " + message.getThrown() + ")"); //$NON-NLS-1$
++			message.getThrown().printStackTrace();
++			compilerErrors.add(message + ", (" + message.getThrown() + ")");
++			if (VERBOSE && (message.getThrown() != null)) {
++				message.getThrown().printStackTrace();
++			}
++			return true;
++		}
++		if (message.getKind() == IMessage.ERROR) {
++			errorMessages.add(message);
++		}
++		if (message.getKind() == IMessage.WARNING) {
++			warningMessages.add(message);
++		}
++		if (message.getKind() == IMessage.WEAVEINFO) {
++			weavingMessages.add(message);
++		}
++		log("IMessageHandler.handleMessage(" + message + ")");
+ 		return true;
+ 	}
+ 
+ 	public void dontIgnore(Kind kind) {
+-	    if (null != kind) {
+-	        ignoring.remove(kind);
+-	    }
++		if (null != kind) {
++			ignoring.remove(kind);
++		}
+ 	}
+ 
+ 	public boolean isIgnoring(Kind kind) {
+ 		return ((null != kind) && (ignoring.contains(kind)));
+ 	}
+-	
++
+ 	public void ignore(Kind kind) {
+-	    if ((null != kind) && (!ignoring.contains(kind))) {
+-	        ignoring.add(kind);
+-	    }	
++		if ((null != kind) && (!ignoring.contains(kind))) {
++			ignoring.add(kind);
++		}
+ 	}
+-	
++
+ 	public boolean hasWarning() {
+ 		return !warningMessages.isEmpty();
+ 	}
+-	
++
+ 	public boolean hasErrorMessages() {
+ 		return !errorMessages.isEmpty();
+ 	}
+-	
++
+ 	public boolean hasCompilerErrorMessages() {
+ 		return !compilerErrors.isEmpty();
+ 	}
+-	
+-	public List/*IMessage*/ getErrorMessages() {
++
++	public List<IMessage> getErrorMessages() {
+ 		return errorMessages;
+ 	}
+-	
+-	public List/*IMessage*/ getWarningMessages() {
++
++	public List<IMessage> getWarningMessages() {
+ 		return warningMessages;
+ 	}
+-	
+-	public List/*IMessage*/ getWeavingMessages() {
++
++	public List<IMessage> getWeavingMessages() {
+ 		return weavingMessages;
+ 	}
+-	
+-	public List/*IMessage*/ getCompilerErrors() {
++
++	public List/* IMessage */getCompilerErrors() {
+ 		return compilerErrors;
+ 	}
+-	
+-	
++
+ 	public void log(String s) {
+-		if (VERBOSE) System.out.println(s);
++		if (VERBOSE) {
++			System.out.println(s);
++		}
+ 	}
+ 
+-	
+ 	public void reset() {
+-		receivedNonIncrementalBuildMessage=false;
+-		receivedBatchBuildMessage=false;
++		receivedNonIncrementalBuildMessage = false;
++		receivedBatchBuildMessage = false;
+ 		errorMessages.clear();
+ 		warningMessages.clear();
+ 		weavingMessages.clear();
+@@ -1,5 +1,5 @@
+ /* *******************************************************************
+- * Copyright (c) 2002 Palo Alto Research Center, Incorporated (PARC).
++ * Copyright (c) 2002,2010 Contributors
+  * All rights reserved.
+  * This program and the accompanying materials are made available
+  * under the terms of the Eclipse Public License v1.0
+@@ -85,6 +85,7 @@ import org.aspectj.weaver.patterns.Pointcut;
+  * Supports viewing eclipse TypeDeclarations/SourceTypeBindings as a ResolvedType
+  * 
+  * @author Jim Hugunin
++ * @author Andy Clement
+  */
+ public class EclipseSourceType extends AbstractReferenceTypeDelegate {
+ 	private static final char[] pointcutSig = "Lorg/aspectj/lang/annotation/Pointcut;".toCharArray();
+@@ -101,13 +102,13 @@ public class EclipseSourceType extends AbstractReferenceTypeDelegate {
+ 	private final SourceTypeBinding binding;
+ 	private final TypeDeclaration declaration;
+ 	private final CompilationUnitDeclaration unit;
+-	private boolean annotationsResolved = false;
+-	private ResolvedType[] resolvedAnnotations = null;
++	private boolean annotationsFullyResolved = false;
++	private boolean annotationTypesAreResolved = false;
++	private ResolvedType[] annotationTypes = null;
+ 
+ 	private boolean discoveredAnnotationTargetKinds = false;
+ 	private AnnotationTargetKind[] annotationTargetKinds;
+ 	private AnnotationAJ[] annotations = null;
+-	private final static ResolvedType[] NO_ANNOTATION_TYPES = new ResolvedType[0];
+ 
+ 	protected EclipseFactory eclipseWorld() {
+ 		return factory;
+@@ -587,27 +588,34 @@ public class EclipseSourceType extends AbstractReferenceTypeDelegate {
+ 		return annotationTargetKinds;
+ 	}
+ 
+-	public boolean hasAnnotation(UnresolvedType ofType) {
+-
+-		// Make sure they are resolved
+-		if (!annotationsResolved) {
+-			TypeDeclaration.resolveAnnotations(declaration.staticInitializerScope, declaration.annotations, binding);
+-			annotationsResolved = true;
+-		}
+-		Annotation[] as = declaration.annotations;
+-		if (as == null) {
+-			return false;
+-		}
+-		for (int i = 0; i < as.length; i++) {
+-			Annotation annotation = as[i];
+-			if (annotation.resolvedType == null) {
+-				// Something has gone wrong - probably we have a 1.4 rt.jar
+-				// around
+-				// which will result in a separate error message.
+-				return false;
++	/**
++	 * Ensure the annotation types have been resolved, where resolved means the eclipse type bindings have been converted to their
++	 * ResolvedType representations. This does not deeply resolve the annotations, it only does the type names.
++	 */
++	private void ensureAnnotationTypesResolved() {
++		if (!annotationTypesAreResolved) {
++			Annotation[] as = declaration.annotations;
++			if (as == null) {
++				annotationTypes = ResolvedType.NONE;
++			} else {
++				annotationTypes = new ResolvedType[as.length];
++				for (int a = 0; a < as.length; a++) {
++					TypeBinding tb = as[a].type.resolveType(declaration.staticInitializerScope);
++					if (tb == null) {
++						annotationTypes[a] = ResolvedType.MISSING;
++					} else {
++						annotationTypes[a] = factory.fromTypeBindingToRTX(tb);
++					}
++				}
+ 			}
+-			String tname = CharOperation.charToString(annotation.resolvedType.constantPoolName());
+-			if (UnresolvedType.forName(tname).equals(ofType)) {
++			annotationTypesAreResolved = true;
++		}
++	}
++
++	public boolean hasAnnotation(UnresolvedType ofType) {
++		ensureAnnotationTypesResolved();
++		for (int a = 0, max = annotationTypes.length; a < max; a++) {
++			if (ofType.equals(annotationTypes[a])) {
+ 				return true;
+ 			}
+ 		}
+@@ -633,7 +641,10 @@ public class EclipseSourceType extends AbstractReferenceTypeDelegate {
+ 		if (annotations != null) {
+ 			return annotations; // only do this once
+ 		}
+-		getAnnotationTypes(); // forces resolution and sets resolvedAnnotations
++		if (!annotationsFullyResolved) {
++			TypeDeclaration.resolveAnnotations(declaration.staticInitializerScope, declaration.annotations, binding);
++			annotationsFullyResolved = true;
++		}
+ 		Annotation[] as = declaration.annotations;
+ 		if (as == null || as.length == 0) {
+ 			annotations = AnnotationAJ.EMPTY_ARRAY;
+@@ -844,29 +855,9 @@ public class EclipseSourceType extends AbstractReferenceTypeDelegate {
+ 		}
+ 	}
+ 
+-	// ---------------------------------
+-
+ 	public ResolvedType[] getAnnotationTypes() {
+-		if (resolvedAnnotations != null) {
+-			return resolvedAnnotations;
+-		}
+-		// Make sure they are resolved
+-		if (!annotationsResolved) {
+-			TypeDeclaration.resolveAnnotations(declaration.staticInitializerScope, declaration.annotations, binding);
+-			annotationsResolved = true;
+-		}
+-
+-		if (declaration.annotations == null) {
+-			resolvedAnnotations = NO_ANNOTATION_TYPES;// new ResolvedType[0];
+-		} else {
+-			resolvedAnnotations = new ResolvedType[declaration.annotations.length];
+-			Annotation[] as = declaration.annotations;
+-			for (int i = 0; i < as.length; i++) {
+-				Annotation annotation = as[i];
+-				resolvedAnnotations[i] = factory.fromTypeBindingToRTX(annotation.type.resolvedType);
+-			}
+-		}
+-		return resolvedAnnotations;
++		ensureAnnotationTypesResolved();
++		return annotationTypes;
+ 	}
+ 
+ 	public PerClause getPerClause() {

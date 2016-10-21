@@ -1,0 +1,170 @@
+@@ -0,0 +1,38 @@
++class Child extends Parent{
++
++    public String mParent = "John";
++    
++    public Child(String parent) {
++        this.mParent = parent;
++    }
++    
++    public String getParent()
++    {
++        return this.mParent;
++    }
++}
++
++class Parent {
++    private String mName = "John";
++    private int mAge = 50;
++    
++    public int getAge(){
++        return mAge;
++    }
++}
++
++aspect MyTest {
++
++    public Child.new(String parent, int age) {
++        this(parent);
++        
++        System.out.println("Get Age:" + super.getAge());
++        System.out.println("Child Name:" + this.mParent);
++    }
++}
++
++public class Code {
++  public static void main(String []argv) {
++    new Child("Andy",5);
++  }
++}
+@@ -10,12 +10,14 @@ import org.aspectj.systemtest.ajc170.AllTestsAspectJ170;
+ import org.aspectj.systemtest.ajc171.AllTestsAspectJ171;
+ import org.aspectj.systemtest.ajc172.AllTestsAspectJ172;
+ import org.aspectj.systemtest.ajc173.AllTestsAspectJ173;
++import org.aspectj.systemtest.ajc174.AllTestsAspectJ174;
+ 
+ public class AllTests17 {
+ 
+ 	public static Test suite() {
+ 		TestSuite suite = new TestSuite("AspectJ System Test Suite - 1.7");
+ 		// $JUnit-BEGIN$
++		suite.addTest(AllTestsAspectJ174.suite()); 
+ 		suite.addTest(AllTestsAspectJ173.suite()); 
+ 		suite.addTest(AllTestsAspectJ172.suite());
+ 		suite.addTest(AllTestsAspectJ171.suite());
+@@ -0,0 +1,39 @@
++/*******************************************************************************
++ * Copyright (c) 2013 Contributors
++ * All rights reserved. This program and the accompanying materials
++ * are made available under the terms of the Eclipse Public License v1.0
++ * which accompanies this distribution, and is available at
++ * http://www.eclipse.org/legal/epl-v10.html
++ *
++ * Contributors:
++ *    Andy Clement - initial API and implementation
++ *******************************************************************************/
++package org.aspectj.systemtest.ajc174;
++
++import java.io.File;
++
++import junit.framework.Test;
++
++import org.aspectj.testing.XMLBasedAjcTestCase;
++
++/**
++ * @author Andy Clement
++ */
++public class Ajc174Tests extends org.aspectj.testing.XMLBasedAjcTestCase {
++	
++	public void testSuperItdCtor_413378() throws Exception {
++		runTest("super itd ctor");
++	}
++	
++	// ---
++
++	public static Test suite() {
++		return XMLBasedAjcTestCase.loadSuite(Ajc174Tests.class);
++	}
++
++	@Override
++	protected File getSpecFile() {
++		return new File("../tests/src/org/aspectj/systemtest/ajc174/ajc174.xml");
++	}
++
++}
+@@ -0,0 +1,25 @@
++/*******************************************************************************
++ * Copyright (c) 2013 Contributors
++ * All rights reserved. This program and the accompanying materials
++ * are made available under the terms of the Eclipse Public License v1.0
++ * which accompanies this distribution, and is available at
++ * http://www.eclipse.org/legal/epl-v10.html
++ *
++ * Contributors:
++ *    Andy Clement - initial API and implementation
++ *******************************************************************************/
++package org.aspectj.systemtest.ajc174;
++
++import junit.framework.Test;
++import junit.framework.TestSuite;
++
++public class AllTestsAspectJ174 {
++
++	public static Test suite() {
++		TestSuite suite = new TestSuite("AspectJ 1.7.4 tests");
++		// $JUnit-BEGIN$
++		suite.addTest(Ajc174Tests.suite());
++		// $JUnit-END$
++		return suite;
++	}
++}
+@@ -0,0 +1,17 @@
++<!DOCTYPE suite SYSTEM "../tests/ajcTestSuite.dtd"[]>
++
++<suite>
++
++	<ajc-test dir="bugs174/pr413378" title="super itd ctor">
++		<compile files="Code.java" options="-1.5 -showWeaveInfo">
++			<message kind="weave" text="Type 'Child' (Code.java) has intertyped constructor from 'MyTest' (Code.java:'void Child.&lt;init&gt;(java.lang.String, int)')"/>
++		</compile>
++		<run class="Code">
++		<stdout>
++		<line text="Get Age:50"/>
++		<line text="Child Name:Andy"/>
++		</stdout>
++		</run>
++	</ajc-test>
++
++</suite>
+@@ -1594,12 +1594,9 @@ public class BcelTypeMunger extends ConcreteTypeMunger {
+ 
+ 	private void addNeededSuperCallMethods(BcelClassWeaver weaver, ResolvedType onType, Set<ResolvedMember> neededSuperCalls) {
+ 		LazyClassGen gen = weaver.getLazyClassGen();
+-
+-		for (Iterator<ResolvedMember> iter = neededSuperCalls.iterator(); iter.hasNext();) {
+-			ResolvedMember superMethod = iter.next();
++		for (ResolvedMember superMethod: neededSuperCalls) {
+ 			if (weaver.addDispatchTarget(superMethod)) {
+-				// System.err.println("super type: " +
+-				// superMethod.getDeclaringType() + ", " + gen.getType());
++				// System.err.println("super type: " + superMethod.getDeclaringType() + ", " + gen.getType());
+ 				boolean isSuper = !superMethod.getDeclaringType().equals(gen.getType());
+ 				String dispatchName;
+ 				if (isSuper) {
+@@ -1609,7 +1606,6 @@ public class BcelTypeMunger extends ConcreteTypeMunger {
+ 				}
+ 				superMethod = superMethod.resolve(weaver.getWorld());
+ 				LazyMethodGen dispatcher = makeDispatcher(gen, dispatchName, superMethod, weaver.getWorld(), isSuper);
+-
+ 				weaver.addLazyMethodGen(dispatcher);
+ 			}
+ 		}
+@@ -1773,6 +1769,8 @@ public class BcelTypeMunger extends ConcreteTypeMunger {
+ 		// don't forget to return!!
+ 		body.append(InstructionConstants.RETURN);
+ 
++		addNeededSuperCallMethods(weaver, onType, munger.getSuperMethodsCalled());
++		
+ 		return true;
+ 	}
+ 

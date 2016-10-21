@@ -1,0 +1,274 @@
+@@ -4,7 +4,7 @@
+      The -Xlintfile:lint.properties allows fine-grained control. In tools.jar, see
+      org/aspectj/weaver/XlintDefault.properties for the default behavior and a template to copy. 
+ ### AspectJ-specific messages 
+-compiler.name = AspectJ Compiler 1.8.4
++compiler.name = AspectJ Compiler 1.8.5
+ compiler.version = Eclipse Compiler BETA_JAVA8_2b07958, 3.11
+ compiler.copyright = 
+ 
+@@ -104,13 +104,25 @@ public class InterTypeMethodBinding extends MethodBinding {
+ 			// it is a privileged aspect
+ 			return true;
+ 		}
+-
++		
+ 		if (isProtected()) {
+ 			throw new RuntimeException("unimplemented");
+ 		}
+ 
+ 		// XXX make sure this walks correctly
+ 		if (isPrivate()) {
++			// Possibly the call is made from an inner type within the privileged aspect
++			// TODO should check the first outer aspect we come across and stop at that point?
++			if (invocationType.isNestedType()) {
++				TypeBinding enclosingType = invocationType.enclosingType();
++				while (enclosingType != null) {
++					if ((enclosingType instanceof SourceTypeBinding) && ((SourceTypeBinding)enclosingType).privilegedHandler != null) {
++						return true;
++					}
++					enclosingType = enclosingType.enclosingType();
++				}
++			}
++
+ 			// answer true if the receiverType is the declaringClass
+ 			// AND the invocationType and the declaringClass have a common enclosingType
+ 			// if (receiverType != declaringClass) return false;
+@@ -0,0 +1,31 @@
++
++public class Code2 {
++  public static void main(String []argv) {
++    new Bar().foo();
++  }
++}
++interface Common { }
++
++interface Allergies extends Common { 
++  default public void foo() {
++  }
++}
++
++class Bar implements Allergies { }
++
++aspect Y {
++  private boolean Common.instancesInvariant() {
++    return false;
++  }
++}
++
++privileged aspect AspectJMLRac_allergies_Allergies {
++  before(final Allergies object$rac): execution(* Allergies+.*(..)) && this(object$rac) {
++    Runnable r = new Runnable() {
++      public void run() {
++        boolean b = object$rac.instancesInvariant();
++      }
++    };
++    boolean b = object$rac.instancesInvariant();
++  }
++}
+@@ -24,7 +24,12 @@ public class Ajc185Tests extends org.aspectj.testing.XMLBasedAjcTestCase {
+ 	public void testITDInterface_451966() throws Exception {
+ 		runTest("itd interface");
+ 	}
+-	
++
++	public void testITDInterface_451966_2() throws Exception {
++		// call made from inner type
++		runTest("itd interface - 2");
++	}
++
+ 	// ---
+ 
+ 	public static Test suite() {
+@@ -2,11 +2,16 @@
+ 
+ <suite>
+ 
+-
+ <ajc-test dir="bugs185/451966" title="itd interface">
+ <compile files="Code.java" options="-1.8"/>
+ <run class="Code">
+ </run>
+ </ajc-test>
+ 
++<ajc-test dir="bugs185/451966" title="itd interface - 2">
++<compile files="Code2.java" options="-1.8"/>
++<run class="Code2">
++</run>
++</ajc-test>
++
+ </suite>
+@@ -14,6 +14,7 @@ package org.aspectj.ajdt.internal.compiler.lookup;
+ 
+ import org.aspectj.ajdt.internal.compiler.ast.InterTypeMethodDeclaration;
+ import org.aspectj.org.eclipse.jdt.internal.compiler.ast.AbstractMethodDeclaration;
++import org.aspectj.org.eclipse.jdt.internal.compiler.lookup.IPrivilegedHandler;
+ import org.aspectj.org.eclipse.jdt.internal.compiler.lookup.InvocationSite;
+ import org.aspectj.org.eclipse.jdt.internal.compiler.lookup.MethodBinding;
+ import org.aspectj.org.eclipse.jdt.internal.compiler.lookup.ReferenceBinding;
+@@ -99,10 +100,10 @@ public class InterTypeMethodBinding extends MethodBinding {
+ 		if (invocationType == declaringClass)
+ 			return true;
+ 
+-		// if (invocationType.isPrivileged) {
+-		// System.out.println("privileged access to: " + this);
+-		// return true;
+-		// }
++		if (invocationType.privilegedHandler != null) {
++			// it is a privileged aspect
++			return true;
++		}
+ 
+ 		if (isProtected()) {
+ 			throw new RuntimeException("unimplemented");
+@@ -1,7 +1,17 @@
+ 
++public class Code {
++  public static void main(String []argv) {
++    new Bar().foo();
++  }
++}
+ interface Common { }
+ 
+-interface Allergies extends Common { }
++interface Allergies extends Common { 
++  default public void foo() {
++  }
++}
++
++class Bar implements Allergies { }
+ 
+ aspect Y {
+   private boolean Common.instancesInvariant() {
+@@ -5,12 +5,7 @@
+ 
+ <ajc-test dir="bugs185/451966" title="itd interface">
+ <compile files="Code.java" options="-1.8"/>
+-<run class="One">
+-  <stdout>
+-  <line text="In instance check method doit()"/>
+-  <line text="In advice()"/>
+-  <line text="Method m() running"/>
+-  </stdout>
++<run class="Code">
+ </run>
+ </ajc-test>
+ 
+@@ -0,0 +1,16 @@
++
++interface Common { }
++
++interface Allergies extends Common { }
++
++aspect Y {
++  private boolean Common.instancesInvariant() {
++    return false;
++  }
++}
++
++privileged aspect AspectJMLRac_allergies_Allergies {
++  before(final Allergies object$rac): execution(* Allergies+.*(..)) && this(object$rac) {
++    boolean b = object$rac.instancesInvariant();
++  }
++}
+@@ -18,12 +18,14 @@ import org.aspectj.systemtest.ajc181.AllTestsAspectJ181;
+ import org.aspectj.systemtest.ajc182.AllTestsAspectJ182; 
+ import org.aspectj.systemtest.ajc183.AllTestsAspectJ183;
+ import org.aspectj.systemtest.ajc184.AllTestsAspectJ184;
++import org.aspectj.systemtest.ajc185.AllTestsAspectJ185;
+ 
+ public class AllTests18 {
+ 
+ 	public static Test suite() {
+ 		TestSuite suite = new TestSuite("AspectJ System Test Suite - 1.8");
+ 		// $JUnit-BEGIN$ 
++		suite.addTest(AllTestsAspectJ185.suite()); 
+ 		suite.addTest(AllTestsAspectJ184.suite()); 
+ 		suite.addTest(AllTestsAspectJ183.suite()); 
+ 		suite.addTest(AllTestsAspectJ182.suite()); 
+@@ -0,0 +1,39 @@
++/*******************************************************************************
++ * Copyright (c) 2014 Contributors
++ * All rights reserved. This program and the accompanying materials
++ * are made available under the terms of the Eclipse Public License v1.0
++ * which accompanies this distribution, and is available at
++ * http://www.eclipse.org/legal/epl-v10.html
++ *
++ * Contributors:
++ *    Andy Clement - initial API and implementation
++ *******************************************************************************/
++package org.aspectj.systemtest.ajc185;
++
++import java.io.File;
++
++import junit.framework.Test;
++
++import org.aspectj.testing.XMLBasedAjcTestCase;
++
++/**
++ * @author Andy Clement
++ */
++public class Ajc185Tests extends org.aspectj.testing.XMLBasedAjcTestCase {
++
++	public void testITDInterface_451966() throws Exception {
++		runTest("itd interface");
++	}
++	
++	// ---
++
++	public static Test suite() {
++		return XMLBasedAjcTestCase.loadSuite(Ajc185Tests.class);
++	}
++
++	@Override
++	protected File getSpecFile() {
++        return getClassResource("ajc185.xml");
++	}
++
++}
+@@ -0,0 +1,27 @@
++/*******************************************************************************
++ * Copyright (c) 2014 Contributors
++ * All rights reserved. This program and the accompanying materials
++ * are made available under the terms of the Eclipse Public License v1.0
++ * which accompanies this distribution, and is available at
++ * http://www.eclipse.org/legal/epl-v10.html
++ *
++ * Contributors:
++ *    Andy Clement - initial API and implementation
++ *******************************************************************************/
++package org.aspectj.systemtest.ajc185;
++
++import junit.framework.Test;
++import junit.framework.TestSuite;
++import org.aspectj.systemtest.apt.AptTests;
++
++public class AllTestsAspectJ185 {
++
++	public static Test suite() {
++		TestSuite suite = new TestSuite("AspectJ 1.8.5 tests");
++		// $JUnit-BEGIN$
++		suite.addTest(Ajc185Tests.suite());
++		suite.addTest(AptTests.suite());
++		// $JUnit-END$
++		return suite;
++	}
++}
+@@ -0,0 +1,17 @@
++<!DOCTYPE suite SYSTEM "../tests/ajcTestSuite.dtd"[]>
++
++<suite>
++
++
++<ajc-test dir="bugs185/451966" title="itd interface">
++<compile files="Code.java" options="-1.8"/>
++<run class="One">
++  <stdout>
++  <line text="In instance check method doit()"/>
++  <line text="In advice()"/>
++  <line text="Method m() running"/>
++  </stdout>
++</run>
++</ajc-test>
++
++</suite>

@@ -1,0 +1,140 @@
+@@ -0,0 +1,21 @@
++package com.test;
++
++import org.aspectj.lang.ProceedingJoinPoint;
++import org.aspectj.lang.annotation.*;
++import org.aspectj.lang.annotation.Pointcut;
++
++public aspect Arguments {
++
++//    @Pointcut("execution(@Test * *(..)) && @annotation(test) && @within( test1) && this(test2)")
++ //   public void unit(Test2 test2, Test1 test1, Test test) {
++  //  }
++
++    @Around("execution(@Test * *(..)) && @annotation(test) && @within( test1 ) && this(test2)")
++    public void test( ProceedingJoinPoint pjp,
++              Test test2,
++                      Test1 test1,
++                      Test test){
++
++    }
++}
++
+@@ -0,0 +1,12 @@
++package com.test;
++
++import java.lang.annotation.ElementType;
++import java.lang.annotation.Retention;
++import java.lang.annotation.RetentionPolicy;
++import java.lang.annotation.Target;
++
++@Retention( RetentionPolicy.RUNTIME )
++@Target({ ElementType.METHOD })
++public @interface Test {
++
++}
+@@ -0,0 +1,12 @@
++package com.test;
++
++import java.lang.annotation.ElementType;
++import java.lang.annotation.Retention;
++import java.lang.annotation.RetentionPolicy;
++import java.lang.annotation.Target;
++
++@Retention( RetentionPolicy.RUNTIME )
++//@Target({ ElementType.METHOD })
++public @interface Test1 {
++
++}
+@@ -0,0 +1,8 @@
++package com.test;
++
++@Test1
++public class Test2 {
++
++  @Test
++  public void m() { }
++}
+@@ -18,6 +18,14 @@ import org.aspectj.testing.XMLBasedAjcTestCase;
+ 
+ public class Ajc169Tests extends org.aspectj.testing.XMLBasedAjcTestCase {
+ 
++	public void testValidateBranchRecursion_314840() {
++		runTest("validate branch recursion");
++	}
++
++	public void testClashingDeclareAnnos_313026_1() {
++		runTest("clashing declare annos");
++	}
++
+ 	public void testClassFileSize_312839_1() {
+ 		runTest("class file size - 1");
+ 		// 2531 (0x404): 1.6.9.M2 size of Class.class
+@@ -32,7 +40,7 @@ public class Ajc169Tests extends org.aspectj.testing.XMLBasedAjcTestCase {
+ 		// Aspect size (X.class) down from 6459 to 4722
+ 		// 4551: changed exact type pattern writing to use constant pool, and
+ 		// changed typepatternlist to not both writing/reading location
+-		
++
+ 		// TODO actually test something :)
+ 	}
+ 
+@@ -2,6 +2,19 @@
+ 
+ <suite>
+ 
++  <ajc-test dir="bugs169/pr314840" title="validate branch recursion">
++     <compile files="Arguments.aj Test1.java Test2.java Test.java" options="-1.5"/>
++  </ajc-test>
++  
++  <ajc-test dir="bugs169/pr313026/one" title="clashing declare annos">
++     <compile files="Target.java Asp.java Bsp.java Wibble.java Precedence1.java" options="-1.5 -Xlint:ignore"/>
++     <run class="Target">
++       <stdout>
++         <line text="@Wibble(value=abc)"/>
++       </stdout>
++     </run>
++  </ajc-test>
++  
+   <ajc-test dir="bugs169/pr312839/one" title="class file size - 1">
+      <compile files="Class.java X.aj" options="-1.5"/>
+      <run class="com.wibble.foo.Class">
+@@ -609,8 +609,9 @@ public class BcelWeaver {
+ 					// an @AJ aspect (it could have been inherited from a code
+ 					// style aspect) then
+ 					// evaluate the alternative set of formals. pr125699
+-					if (advice.getConcreteAspect().isAnnotationStyleAspect() && advice.getDeclaringAspect() != null
+-							&& advice.getDeclaringAspect().resolve(world).isAnnotationStyleAspect()) {
++					if ((advice.getConcreteAspect().isAnnotationStyleAspect() && advice.getDeclaringAspect() != null && advice
++							.getDeclaringAspect().resolve(world).isAnnotationStyleAspect())
++							|| advice.isAnnotationStyle()) {
+ 						numFormals = advice.getBaseParameterCount();
+ 						int numArgs = advice.getSignature().getParameterTypes().length;
+ 						if (numFormals > 0) {
+@@ -27,6 +27,7 @@ public abstract class Advice extends ShadowMunger {
+ 	protected AjAttribute.AdviceAttribute attribute;
+ 	protected transient AdviceKind kind; // alias for attribute.getKind()
+ 	protected Member signature;
++	private boolean isAnnotationStyle;
+ 
+ 	// not necessarily declaring aspect, this is a semantics change from 1.0
+ 	protected ResolvedType concreteAspect; // null until after concretize
+@@ -93,6 +94,7 @@ public abstract class Advice extends ShadowMunger {
+ 	public Advice(AjAttribute.AdviceAttribute attribute, Pointcut pointcut, Member signature) {
+ 		super(pointcut, attribute.getStart(), attribute.getEnd(), attribute.getSourceContext(), ShadowMungerAdvice);
+ 		this.attribute = attribute;
++		this.isAnnotationStyle = signature != null && !signature.getName().startsWith("ajc$");
+ 		this.kind = attribute.getKind(); // alias
+ 		this.signature = signature;
+ 		if (signature != null) {
+@@ -478,6 +480,10 @@ public abstract class Advice extends ShadowMunger {
+ 		start = lexicalPosition;
+ 	}
+ 
++	public boolean isAnnotationStyle() {
++		return isAnnotationStyle;
++	}
++
+ 	public ResolvedType getConcreteAspect() {
+ 		return concreteAspect;
+ 	}

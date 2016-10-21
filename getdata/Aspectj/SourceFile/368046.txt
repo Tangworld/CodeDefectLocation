@@ -1,0 +1,618 @@
+@@ -14,12 +14,14 @@ package org.aspectj.weaver.loadtime;
+ import java.lang.ref.ReferenceQueue;
+ import java.lang.ref.WeakReference;
+ import java.security.ProtectionDomain;
++import java.util.ArrayList;
+ import java.util.Collections;
+ import java.util.HashMap;
+ import java.util.Iterator;
+-import java.util.LinkedHashMap;
++import java.util.List;
+ import java.util.Map;
+ import java.util.Set;
++import java.util.StringTokenizer;
+ 
+ import org.aspectj.bridge.context.CompilationAndWeavingContext;
+ import org.aspectj.weaver.Dump;
+@@ -76,7 +78,7 @@ public class Aj implements ClassPreProcessor {
+ 	 * @param className
+ 	 * @param bytes
+ 	 * @param loader
+-	 * @return weaved bytes
++	 * @return woven bytes
+ 	 */
+ 	public byte[] preProcess(String className, byte[] bytes, ClassLoader loader, ProtectionDomain protectionDomain) {
+ 		// TODO AV needs to doc that
+@@ -84,6 +86,14 @@ public class Aj implements ClassPreProcessor {
+ 			// skip boot loader, null classes (hibernate), or those from a reflection loader
+ 			return bytes;
+ 		}
++		
++		if (loadersToSkip != null) {
++			// Check whether to reject it
++			if (loadersToSkip.contains(loader.getClass().getName())) {
++//				System.out.println("debug: no weaver created for loader '"+loader.getClass().getName()+"'");
++				return bytes;
++			}
++		}
+ 
+ 		if (trace.isTraceEnabled())
+ 			trace.enter("preProcess", this, new Object[] { className, bytes, loader });
+@@ -248,10 +258,28 @@ public class Aj implements ClassPreProcessor {
+ 			}
+ 		}
+ 	}
++	
++	public static List<String> loadersToSkip = null;
+ 
+ 	static {
+ 		// pr271840 - touch the types early and outside the locks
+ 		new ExplicitlyInitializedClassLoaderWeavingAdaptor(new ClassLoaderWeavingAdaptor());
++		try {
++			String loadersToSkipProperty = System.getProperty("aj.weaving.loadersToSkip","");
++			StringTokenizer st = new StringTokenizer(loadersToSkipProperty, ",");
++			if (loadersToSkipProperty != null && loadersToSkip == null) {
++				if (st.hasMoreTokens()) {
++//					System.out.println("aj.weaving.loadersToSkip is set. Skipping loaders: '"+loadersToSkipProperty+"'");
++					loadersToSkip = new ArrayList<String>();
++				}
++				while (st.hasMoreTokens()) {
++					String nextLoader = st.nextToken();
++					loadersToSkip.add(nextLoader);
++				}
++			}
++		} catch (Exception e) {
++			// Likely security issue related to property access...
++		}
+ 	}
+ 
+ 	/**
+@@ -23,6 +23,7 @@ import java.util.*;
+ 
+ import org.aspectj.bridge.AbortException;
+ import org.aspectj.bridge.Constants;
++import org.aspectj.bridge.MessageUtil;
+ import org.aspectj.util.LangUtil;
+ import org.aspectj.weaver.Lint;
+ import org.aspectj.weaver.Lint.Kind;
+@@ -345,6 +346,12 @@ public class ClassLoaderWeavingAdaptor extends WeavingAdaptor {
+ 		world.setOptionalJoinpoints(weaverOption.optionalJoinpoints);
+ 		world.setPinpointMode(weaverOption.pinpoint);
+ 		weaver.setReweavableMode(weaverOption.notReWeavable);
++		if (weaverOption.loadersToSkip != null && weaverOption.loadersToSkip.length() > 0) {
++			Aj.loadersToSkip = LangUtil.anySplit(weaverOption.loadersToSkip, ",");
++		}
++		if (Aj.loadersToSkip != null) {
++			MessageUtil.info(world.getMessageHandler(),"no longer creating weavers for these classloaders: "+Aj.loadersToSkip);
++		}
+ 		world.performExtraConfiguration(weaverOption.xSet);
+ 		world.setXnoInline(weaverOption.noInline);
+ 		// AMC - autodetect as per line below, needed for AtAjLTWTests.testLTWUnweavable
+@@ -47,6 +47,7 @@ public class Options {
+ 	private static final String OPTIONVALUED_joinpoints = "-Xjoinpoints:";
+ 	private static final String OPTIONVALUED_Xset = "-Xset:";
+ 	private static final String OPTION_timers = "-timers";
++	private static final String OPTIONVALUED_loadersToSkip = "-loadersToSkip:";
+ 
+ 	public static WeaverOption parse(String options, ClassLoader laoder, IMessageHandler imh) {
+ 		WeaverOption weaverOption = new WeaverOption(imh);
+@@ -55,12 +56,12 @@ public class Options {
+ 			return weaverOption;
+ 		}
+ 		// the first option wins
+-		List flags = LangUtil.anySplit(options, " ");
++		List<String> flags = LangUtil.anySplit(options, " ");
+ 		Collections.reverse(flags);
+ 
+ 		// do a first round on the message handler since it will report the options themselves
+-		for (Iterator iterator = flags.iterator(); iterator.hasNext();) {
+-			String arg = (String) iterator.next();
++		for (Iterator<String> iterator = flags.iterator(); iterator.hasNext();) {
++			String arg = iterator.next();
+ 			if (arg.startsWith(OPTIONVALUED_messageHandler)) {
+ 				if (arg.length() > OPTIONVALUED_messageHandler.length()) {
+ 					String handlerClass = arg.substring(OPTIONVALUED_messageHandler.length()).trim();
+@@ -76,7 +77,7 @@ public class Options {
+ 		}
+ 
+ 		// configure the other options
+-		for (Iterator iterator = flags.iterator(); iterator.hasNext();) {
++		for (Iterator<String> iterator = flags.iterator(); iterator.hasNext();) {
+ 			String arg = (String) iterator.next();
+ 			if (arg.equals(OPTION_15)) {
+ 				weaverOption.java5 = true;
+@@ -122,6 +123,11 @@ public class Options {
+ 				}
+ 			} else if (arg.equalsIgnoreCase(OPTION_timers)) {
+ 				weaverOption.timers = true;
++			} else if (arg.startsWith(OPTIONVALUED_loadersToSkip)) {
++				if (arg.length() > OPTIONVALUED_loadersToSkip.length()) {
++					String value = arg.substring(OPTIONVALUED_loadersToSkip.length()).trim();
++					weaverOption.loadersToSkip = value;
++				}
+ 			} else {
+ 				weaverOption.messageHandler.handleMessage(new Message("Cannot configure weaver with option '" + arg
+ 						+ "': unknown option", IMessage.WARNING, null, null));
+@@ -164,6 +170,7 @@ public class Options {
+ 		String lint;
+ 		String lintFile;
+ 		String xSet;
++		String loadersToSkip;
+ 
+ 		public WeaverOption(IMessageHandler imh) {
+ 			// messageHandler = new DefaultMessageHandler();//default
+@@ -0,0 +1,5 @@
++public aspect Azpect {
++  before(): execution(* *(..)) {
++    System.out.println("advice");
++  }
++}
+@@ -0,0 +1,5 @@
++public class Code {
++  public static void main(String []argv) {
++    System.out.println("running");
++  }
++}
+@@ -0,0 +1,6 @@
++<aspectj>
++ <aspects>
++  <aspect name="Azpect"/>
++ </aspects>
++ <weaver options="-verbose"/>
++</aspectj>
+@@ -0,0 +1,6 @@
++<aspectj>
++ <aspects>
++  <aspect name="Azpect"/>
++ </aspects>
++ <weaver options="-verbose -loadersToSkip:com.foo.Bar"/>
++</aspectj>
+@@ -0,0 +1,6 @@
++<aspectj>
++ <aspects>
++  <aspect name="Azpect"/>
++ </aspects>
++ <weaver options="-verbose -loadersToSkip:org.aspectj.weaver.loadtime.WeavingURLClassLoader"/>
++</aspectj>
+@@ -25,6 +25,33 @@ public class Ajc174Tests extends org.aspectj.testing.XMLBasedAjcTestCase {
+ 		runTest("super itd ctor");
+ 	}
+ 
++	// no exclusion, this is how it should work
++	public void testCLExclusion_pr368046_1_noskippedloaders() {
++		runTest("classloader exclusion - 1");
++	}
++
++	public void testCLExclusion_pr368046_1_syspropset() {
++		try {
++			System.setProperty("aj.weaving.loadersToSkip", "foo");
++			runTest("classloader exclusion - 2");
++		} finally {
++			System.setProperty("aj.weaving.loadersToSkip", "");
++		}
++	}
++
++	// final repeat this test, to confirm no lingering static
++	public void testCLExclusion_pr368046_1_again_noskippedloaders() {
++		runTest("classloader exclusion - 3");
++	}
++	
++	public void testCLExclusion_pr368046_2_usingaopxml() {
++		runTest("classloader exclusion - 4");
++	}
++
++	public void testCLExclusion_pr368046_2_usingaopxmlReal() {
++		runTest("classloader exclusion - 5");
++	}
++	
+ 	// ---
+ 
+ 	public static Test suite() {
+@@ -13,5 +13,98 @@
+ 		</stdout>
+ 		</run>
+ 	</ajc-test>
++	
++	<ajc-test dir="bugs174/pr368046" title="classloader exclusion - 1">
++	  <compile files="Azpect.java" outjar="foo.jar"/>
++      <compile files="Code.java" classpath="$sandbox/foo.jar"/>
++      <run class="Code" classpath="$sandbox/foo.jar" ltw="aop1.xml">
++        <stdout>
++          <line text="advice"/>
++          <line text="running"/>
++ 	    </stdout>
++ 	    <stderr>
++ 	    <line text="AspectJ Weaver"/>
++ 	    <line text="register classloader"/>
++ 	    <line text="using configuration"/>
++ 	    <line text="register aspect"/>
++ 	    <line text="processing reweavable"/>
++ 	    </stderr>
++      </run>
++	</ajc-test>
++	
++	<ajc-test dir="bugs174/pr368046" title="classloader exclusion - 2">
++	  <compile files="Azpect.java" outjar="foo.jar"/>
++      <compile files="Code.java" classpath="$sandbox/foo.jar"/>
++      <run class="Code" classpath="$sandbox/foo.jar" ltw="aop1.xml">
++        <stdout>
++          <line text="advice"/>
++          <line text="running"/>
++ 	    </stdout>
++ 	    <stderr>
++ 	    <line text="AspectJ Weaver"/>
++ 	    <line text="register classloader"/>
++ 	    <line text="using configuration"/>
++ 	    <line text="no longer creating weavers for these classloaders: [foo]"/>
++ 	    <line text="register aspect"/>
++ 	    <line text="processing reweavable"/>
++ 	    </stderr>
++      </run>
++	</ajc-test>
++	
++	<ajc-test dir="bugs174/pr368046" title="classloader exclusion - 3">
++	  <compile files="Azpect.java" outjar="foo.jar"/>
++      <compile files="Code.java" classpath="$sandbox/foo.jar"/>
++      <run class="Code" classpath="$sandbox/foo.jar" ltw="aop1.xml">
++        <stdout>
++          <line text="advice"/>
++          <line text="running"/>
++ 	    </stdout>
++ 	    <stderr>
++ 	    <line text="AspectJ Weaver"/>
++ 	    <line text="register classloader"/>
++ 	    <line text="using configuration"/>
++ 	    <line text="register aspect"/>
++ 	    <line text="processing reweavable"/>
++ 	    </stderr>
++      </run>
++	</ajc-test>
++	
++	<ajc-test dir="bugs174/pr368046" title="classloader exclusion - 4">
++	  <compile files="Azpect.java" outjar="foo.jar"/>
++      <compile files="Code.java" classpath="$sandbox/foo.jar"/>
++      <run class="Code" classpath="$sandbox/foo.jar" ltw="aop2.xml">
++        <stdout>
++          <line text="advice"/>
++          <line text="running"/>
++ 	    </stdout>
++ 	    <stderr>
++ 	    <line text="AspectJ Weaver"/>
++ 	    <line text="register classloader"/>
++ 	    <line text="using configuration"/>
++ 	    <line text="no longer creating weavers for these classloaders: [com.foo.Bar]"/>
++ 	    <line text="register aspect"/>
++ 	    <line text="processing reweavable"/>
++ 	    </stderr>
++      </run>
++	</ajc-test>
++	
++	<ajc-test dir="bugs174/pr368046" title="classloader exclusion - 5">
++	  <compile files="Azpect.java" outjar="foo.jar"/>
++      <compile files="Code.java" classpath="$sandbox/foo.jar"/>
++      <run class="Code" classpath="$sandbox/foo.jar" ltw="aop3.xml">
++        <stdout>
++          <line text="advice"/>
++          <line text="running"/>
++ 	    </stdout>
++ 	    <stderr>
++ 	    <line text="AspectJ Weaver"/>
++ 	    <line text="register classloader"/>
++ 	    <line text="using configuration"/>
++ 	    <line text="no longer creating weavers for these classloaders: [org.aspectj.weaver.loadtime.WeavingURLClassLoader]"/>
++ 	    <line text="register aspect"/>
++ 	    <line text="processing reweavable"/>
++ 	    </stderr>
++      </run>
++	</ajc-test>
+ 
+ </suite>
+@@ -14,12 +14,14 @@ package org.aspectj.weaver.loadtime;
+ import java.lang.ref.ReferenceQueue;
+ import java.lang.ref.WeakReference;
+ import java.security.ProtectionDomain;
++import java.util.ArrayList;
+ import java.util.Collections;
+ import java.util.HashMap;
+ import java.util.Iterator;
+-import java.util.LinkedHashMap;
++import java.util.List;
+ import java.util.Map;
+ import java.util.Set;
++import java.util.StringTokenizer;
+ 
+ import org.aspectj.bridge.context.CompilationAndWeavingContext;
+ import org.aspectj.weaver.Dump;
+@@ -76,7 +78,7 @@ public class Aj implements ClassPreProcessor {
+ 	 * @param className
+ 	 * @param bytes
+ 	 * @param loader
+-	 * @return weaved bytes
++	 * @return woven bytes
+ 	 */
+ 	public byte[] preProcess(String className, byte[] bytes, ClassLoader loader, ProtectionDomain protectionDomain) {
+ 		// TODO AV needs to doc that
+@@ -84,6 +86,14 @@ public class Aj implements ClassPreProcessor {
+ 			// skip boot loader, null classes (hibernate), or those from a reflection loader
+ 			return bytes;
+ 		}
++		
++		if (loadersToSkip != null) {
++			// Check whether to reject it
++			if (loadersToSkip.contains(loader.getClass().getName())) {
++//				System.out.println("debug: no weaver created for loader '"+loader.getClass().getName()+"'");
++				return bytes;
++			}
++		}
+ 
+ 		if (trace.isTraceEnabled())
+ 			trace.enter("preProcess", this, new Object[] { className, bytes, loader });
+@@ -248,10 +258,28 @@ public class Aj implements ClassPreProcessor {
+ 			}
+ 		}
+ 	}
++	
++	public static List<String> loadersToSkip = null;
+ 
+ 	static {
+ 		// pr271840 - touch the types early and outside the locks
+ 		new ExplicitlyInitializedClassLoaderWeavingAdaptor(new ClassLoaderWeavingAdaptor());
++		try {
++			String loadersToSkipProperty = System.getProperty("aj.weaving.loadersToSkip","");
++			StringTokenizer st = new StringTokenizer(loadersToSkipProperty, ",");
++			if (loadersToSkipProperty != null && loadersToSkip == null) {
++				if (st.hasMoreTokens()) {
++//					System.out.println("aj.weaving.loadersToSkip is set. Skipping loaders: '"+loadersToSkipProperty+"'");
++					loadersToSkip = new ArrayList<String>();
++				}
++				while (st.hasMoreTokens()) {
++					String nextLoader = st.nextToken();
++					loadersToSkip.add(nextLoader);
++				}
++			}
++		} catch (Exception e) {
++			// Likely security issue related to property access...
++		}
+ 	}
+ 
+ 	/**
+@@ -23,6 +23,7 @@ import java.util.*;
+ 
+ import org.aspectj.bridge.AbortException;
+ import org.aspectj.bridge.Constants;
++import org.aspectj.bridge.MessageUtil;
+ import org.aspectj.util.LangUtil;
+ import org.aspectj.weaver.Lint;
+ import org.aspectj.weaver.Lint.Kind;
+@@ -345,6 +346,12 @@ public class ClassLoaderWeavingAdaptor extends WeavingAdaptor {
+ 		world.setOptionalJoinpoints(weaverOption.optionalJoinpoints);
+ 		world.setPinpointMode(weaverOption.pinpoint);
+ 		weaver.setReweavableMode(weaverOption.notReWeavable);
++		if (weaverOption.loadersToSkip != null && weaverOption.loadersToSkip.length() > 0) {
++			Aj.loadersToSkip = LangUtil.anySplit(weaverOption.loadersToSkip, ",");
++		}
++		if (Aj.loadersToSkip != null) {
++			MessageUtil.info(world.getMessageHandler(),"no longer creating weavers for these classloaders: "+Aj.loadersToSkip);
++		}
+ 		world.performExtraConfiguration(weaverOption.xSet);
+ 		world.setXnoInline(weaverOption.noInline);
+ 		// AMC - autodetect as per line below, needed for AtAjLTWTests.testLTWUnweavable
+@@ -47,6 +47,7 @@ public class Options {
+ 	private static final String OPTIONVALUED_joinpoints = "-Xjoinpoints:";
+ 	private static final String OPTIONVALUED_Xset = "-Xset:";
+ 	private static final String OPTION_timers = "-timers";
++	private static final String OPTIONVALUED_loadersToSkip = "-loadersToSkip:";
+ 
+ 	public static WeaverOption parse(String options, ClassLoader laoder, IMessageHandler imh) {
+ 		WeaverOption weaverOption = new WeaverOption(imh);
+@@ -55,12 +56,12 @@ public class Options {
+ 			return weaverOption;
+ 		}
+ 		// the first option wins
+-		List flags = LangUtil.anySplit(options, " ");
++		List<String> flags = LangUtil.anySplit(options, " ");
+ 		Collections.reverse(flags);
+ 
+ 		// do a first round on the message handler since it will report the options themselves
+-		for (Iterator iterator = flags.iterator(); iterator.hasNext();) {
+-			String arg = (String) iterator.next();
++		for (Iterator<String> iterator = flags.iterator(); iterator.hasNext();) {
++			String arg = iterator.next();
+ 			if (arg.startsWith(OPTIONVALUED_messageHandler)) {
+ 				if (arg.length() > OPTIONVALUED_messageHandler.length()) {
+ 					String handlerClass = arg.substring(OPTIONVALUED_messageHandler.length()).trim();
+@@ -76,7 +77,7 @@ public class Options {
+ 		}
+ 
+ 		// configure the other options
+-		for (Iterator iterator = flags.iterator(); iterator.hasNext();) {
++		for (Iterator<String> iterator = flags.iterator(); iterator.hasNext();) {
+ 			String arg = (String) iterator.next();
+ 			if (arg.equals(OPTION_15)) {
+ 				weaverOption.java5 = true;
+@@ -122,6 +123,11 @@ public class Options {
+ 				}
+ 			} else if (arg.equalsIgnoreCase(OPTION_timers)) {
+ 				weaverOption.timers = true;
++			} else if (arg.startsWith(OPTIONVALUED_loadersToSkip)) {
++				if (arg.length() > OPTIONVALUED_loadersToSkip.length()) {
++					String value = arg.substring(OPTIONVALUED_loadersToSkip.length()).trim();
++					weaverOption.loadersToSkip = value;
++				}
+ 			} else {
+ 				weaverOption.messageHandler.handleMessage(new Message("Cannot configure weaver with option '" + arg
+ 						+ "': unknown option", IMessage.WARNING, null, null));
+@@ -164,6 +170,7 @@ public class Options {
+ 		String lint;
+ 		String lintFile;
+ 		String xSet;
++		String loadersToSkip;
+ 
+ 		public WeaverOption(IMessageHandler imh) {
+ 			// messageHandler = new DefaultMessageHandler();//default
+@@ -0,0 +1,5 @@
++public aspect Azpect {
++  before(): execution(* *(..)) {
++    System.out.println("advice");
++  }
++}
+@@ -0,0 +1,5 @@
++public class Code {
++  public static void main(String []argv) {
++    System.out.println("running");
++  }
++}
+@@ -0,0 +1,6 @@
++<aspectj>
++ <aspects>
++  <aspect name="Azpect"/>
++ </aspects>
++ <weaver options="-verbose"/>
++</aspectj>
+@@ -0,0 +1,6 @@
++<aspectj>
++ <aspects>
++  <aspect name="Azpect"/>
++ </aspects>
++ <weaver options="-verbose -loadersToSkip:com.foo.Bar"/>
++</aspectj>
+@@ -0,0 +1,6 @@
++<aspectj>
++ <aspects>
++  <aspect name="Azpect"/>
++ </aspects>
++ <weaver options="-verbose -loadersToSkip:org.aspectj.weaver.loadtime.WeavingURLClassLoader"/>
++</aspectj>
+@@ -25,6 +25,33 @@ public class Ajc174Tests extends org.aspectj.testing.XMLBasedAjcTestCase {
+ 		runTest("super itd ctor");
+ 	}
+ 
++	// no exclusion, this is how it should work
++	public void testCLExclusion_pr368046_1_noskippedloaders() {
++		runTest("classloader exclusion - 1");
++	}
++
++	public void testCLExclusion_pr368046_1_syspropset() {
++		try {
++			System.setProperty("aj.weaving.loadersToSkip", "foo");
++			runTest("classloader exclusion - 2");
++		} finally {
++			System.setProperty("aj.weaving.loadersToSkip", "");
++		}
++	}
++
++	// final repeat this test, to confirm no lingering static
++	public void testCLExclusion_pr368046_1_again_noskippedloaders() {
++		runTest("classloader exclusion - 3");
++	}
++	
++	public void testCLExclusion_pr368046_2_usingaopxml() {
++		runTest("classloader exclusion - 4");
++	}
++
++	public void testCLExclusion_pr368046_2_usingaopxmlReal() {
++		runTest("classloader exclusion - 5");
++	}
++	
+ 	// ---
+ 
+ 	public static Test suite() {
+@@ -13,5 +13,98 @@
+ 		</stdout>
+ 		</run>
+ 	</ajc-test>
++	
++	<ajc-test dir="bugs174/pr368046" title="classloader exclusion - 1">
++	  <compile files="Azpect.java" outjar="foo.jar"/>
++      <compile files="Code.java" classpath="$sandbox/foo.jar"/>
++      <run class="Code" classpath="$sandbox/foo.jar" ltw="aop1.xml">
++        <stdout>
++          <line text="advice"/>
++          <line text="running"/>
++ 	    </stdout>
++ 	    <stderr>
++ 	    <line text="AspectJ Weaver"/>
++ 	    <line text="register classloader"/>
++ 	    <line text="using configuration"/>
++ 	    <line text="register aspect"/>
++ 	    <line text="processing reweavable"/>
++ 	    </stderr>
++      </run>
++	</ajc-test>
++	
++	<ajc-test dir="bugs174/pr368046" title="classloader exclusion - 2">
++	  <compile files="Azpect.java" outjar="foo.jar"/>
++      <compile files="Code.java" classpath="$sandbox/foo.jar"/>
++      <run class="Code" classpath="$sandbox/foo.jar" ltw="aop1.xml">
++        <stdout>
++          <line text="advice"/>
++          <line text="running"/>
++ 	    </stdout>
++ 	    <stderr>
++ 	    <line text="AspectJ Weaver"/>
++ 	    <line text="register classloader"/>
++ 	    <line text="using configuration"/>
++ 	    <line text="no longer creating weavers for these classloaders: [foo]"/>
++ 	    <line text="register aspect"/>
++ 	    <line text="processing reweavable"/>
++ 	    </stderr>
++      </run>
++	</ajc-test>
++	
++	<ajc-test dir="bugs174/pr368046" title="classloader exclusion - 3">
++	  <compile files="Azpect.java" outjar="foo.jar"/>
++      <compile files="Code.java" classpath="$sandbox/foo.jar"/>
++      <run class="Code" classpath="$sandbox/foo.jar" ltw="aop1.xml">
++        <stdout>
++          <line text="advice"/>
++          <line text="running"/>
++ 	    </stdout>
++ 	    <stderr>
++ 	    <line text="AspectJ Weaver"/>
++ 	    <line text="register classloader"/>
++ 	    <line text="using configuration"/>
++ 	    <line text="register aspect"/>
++ 	    <line text="processing reweavable"/>
++ 	    </stderr>
++      </run>
++	</ajc-test>
++	
++	<ajc-test dir="bugs174/pr368046" title="classloader exclusion - 4">
++	  <compile files="Azpect.java" outjar="foo.jar"/>
++      <compile files="Code.java" classpath="$sandbox/foo.jar"/>
++      <run class="Code" classpath="$sandbox/foo.jar" ltw="aop2.xml">
++        <stdout>
++          <line text="advice"/>
++          <line text="running"/>
++ 	    </stdout>
++ 	    <stderr>
++ 	    <line text="AspectJ Weaver"/>
++ 	    <line text="register classloader"/>
++ 	    <line text="using configuration"/>
++ 	    <line text="no longer creating weavers for these classloaders: [com.foo.Bar]"/>
++ 	    <line text="register aspect"/>
++ 	    <line text="processing reweavable"/>
++ 	    </stderr>
++      </run>
++	</ajc-test>
++	
++	<ajc-test dir="bugs174/pr368046" title="classloader exclusion - 5">
++	  <compile files="Azpect.java" outjar="foo.jar"/>
++      <compile files="Code.java" classpath="$sandbox/foo.jar"/>
++      <run class="Code" classpath="$sandbox/foo.jar" ltw="aop3.xml">
++        <stdout>
++          <line text="advice"/>
++          <line text="running"/>
++ 	    </stdout>
++ 	    <stderr>
++ 	    <line text="AspectJ Weaver"/>
++ 	    <line text="register classloader"/>
++ 	    <line text="using configuration"/>
++ 	    <line text="no longer creating weavers for these classloaders: [org.aspectj.weaver.loadtime.WeavingURLClassLoader]"/>
++ 	    <line text="register aspect"/>
++ 	    <line text="processing reweavable"/>
++ 	    </stderr>
++      </run>
++	</ajc-test>
+ 
+ </suite>

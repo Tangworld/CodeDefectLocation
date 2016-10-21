@@ -1,0 +1,79 @@
+@@ -50,6 +50,7 @@ import org.aspectj.weaver.bcel.BcelTypeMunger;
+ import org.aspectj.weaver.patterns.DeclareErrorOrWarning;
+ import org.aspectj.weaver.patterns.DeclareParents;
+ import org.aspectj.weaver.patterns.Pointcut;
++import org.aspectj.weaver.patterns.TypePatternList;
+ 
+ public class AsmRelationshipProvider {
+ 
+@@ -786,9 +787,19 @@ public class AsmRelationshipProvider {
+ 		IProgramElement decpElement = new ProgramElement(model, "declare parents", IProgramElement.Kind.DECLARE_PARENTS,
+ 				getBinarySourceLocation(decp.getDeclaringType(), decp.getSourceLocation()), Modifier.PUBLIC, null,
+ 				Collections.EMPTY_LIST);
++		setParentTypesOnDeclareParentsNode(decp, decpElement);
+ 		return decpElement;
+ 	}
+ 
++	private static void setParentTypesOnDeclareParentsNode(DeclareParents decp, IProgramElement decpElement) {
++		TypePatternList tpl = decp.getParents();
++		List<String> parents = new ArrayList<String>();
++		for (int i = 0; i < tpl.size(); i++) {
++			parents.add(tpl.get(i).getExactType().getName().replaceAll("\\$", "."));
++		}
++		decpElement.setParentTypes(parents);
++	}
++
+ 	public static String getHandle(AsmManager asm, Advice advice) {
+ 		if (null == advice.handle) {
+ 			ISourceLocation sl = advice.getSourceLocation();
+@@ -260,6 +260,31 @@ public class MultiProjectIncrementalTests extends AbstractMultiProjectIncrementa
+ 		assertEquals("{Code=[I]}", thisAspectNode.getDeclareParentsMap().toString());
+ 	}
+ 
++	public void testBinaryAspectsAndTheModel_343001() throws Exception {
++		String lib = "pr343001_lib";
++		initialiseProject(lib);
++		build(lib);
++		
++		// Check the 'standard build' - the library also has a type affected by the decp so we can check what happens on an 'all source' build
++		IProgramElement theAspect = getModelFor(lib).getHierarchy().findElementForHandleOrCreate("=pr343001_lib<{Super.java'Super",false);
++		assertNotNull(theAspect);
++		IProgramElement sourcelevelDecp = getModelFor(lib).getHierarchy().findElementForHandleOrCreate("=pr343001_lib<{Super.java'Super`declare parents",false);
++		assertNotNull(sourcelevelDecp);
++		assertEquals("[java.io.Serializable]",sourcelevelDecp.getParentTypes().toString());
++		
++		String p = "pr343001";
++		initialiseProject(p);
++		configureAspectPath(p, getProjectRelativePath(lib, "bin"));
++		build(p);
++		
++		IProgramElement theBinaryAspect = getModelFor(p).getHierarchy().findElementForHandleOrCreate("=pr343001/binaries<(Super.class'Super",false);
++		assertNotNull(theBinaryAspect);
++		IProgramElement binaryDecp = getModelFor(p).getHierarchy().findElementForHandleOrCreate("=pr343001/binaries<(Super.class'Super`declare parents",false);
++		assertNotNull(binaryDecp);
++		assertEquals("[java.io.Serializable]",(binaryDecp.getParentTypes()==null?"":binaryDecp.getParentTypes().toString()));
++	}
++
++
+ 	// found whilst looking at 322446 hence that is the testdata name
+ 	public void testAspectInheritance_322664() throws Exception {
+ 		AjdeInteractionTestbed.VERBOSE = true;
+@@ -0,0 +1,3 @@
++@Anno
++class Type  {
++}
+@@ -0,0 +1,5 @@
++import java.lang.annotation.*;
++
++@Retention(RetentionPolicy.RUNTIME)
++@interface Anno {
++}
+@@ -0,0 +1,4 @@
++
++aspect Super {
++  declare parents: (@Anno *) implements java.io.Serializable;
++}
+@@ -0,0 +1,3 @@
++@Anno
++class TT  {
++}

@@ -1,0 +1,130 @@
+@@ -132,6 +132,7 @@ public abstract class World implements Dump.INode {
+ 	private boolean synchronizationPointcutsInUse = false;
+ 	// Xset'table options
+ 	private boolean runMinimalMemory = false;
++	private boolean transientTjpFields = false;
+ 	private boolean runMinimalMemorySet = false;
+ 	private boolean shouldPipelineCompilation = true;
+ 	private boolean shouldGenerateStackMaps = false;
+@@ -944,6 +945,7 @@ public abstract class World implements Dump.INode {
+ 	// false
+ 	public final static String xsetDEBUG_BRIDGING = "debugBridging"; // default
+ 	// false
++	public final static String xsetTRANSIENT_TJP_FIELDS = "makeTjpFieldsTransient"; // default false
+ 	public final static String xsetBCEL_REPOSITORY_CACHING = "bcelRepositoryCaching";
+ 	public final static String xsetPIPELINE_COMPILATION = "pipelineCompilation";
+ 	public final static String xsetGENERATE_STACKMAPS = "generateStackMaps";
+@@ -1615,6 +1617,9 @@ public abstract class World implements Dump.INode {
+ 
+ 				s = p.getProperty(xsetDEBUG_STRUCTURAL_CHANGES_CODE, "false");
+ 				forDEBUG_structuralChangesCode = s.equalsIgnoreCase("true");
++				
++				s = p.getProperty(xsetTRANSIENT_TJP_FIELDS,"false");
++				transientTjpFields = s.equalsIgnoreCase("true");
+ 
+ 				s = p.getProperty(xsetDEBUG_BRIDGING, "false");
+ 				forDEBUG_bridgingCode = s.equalsIgnoreCase("true");
+@@ -1669,6 +1674,11 @@ public abstract class World implements Dump.INode {
+ 		ensureAdvancedConfigurationProcessed();
+ 		return runMinimalMemory;
+ 	}
++	
++	public boolean isTransientTjpFields() {
++		ensureAdvancedConfigurationProcessed();
++		return transientTjpFields;
++	}
+ 
+ 	public boolean isRunMinimalMemorySet() {
+ 		ensureAdvancedConfigurationProcessed();
+@@ -0,0 +1,12 @@
++public class Code {
++  public void m() {
++  }
++
++  public void n() {
++  }
++  
++}
++
++aspect X {
++  before(): execution(* Code.*(..)) {System.out.println(thisJoinPointStaticPart);}
++}
+@@ -14,17 +14,32 @@ import java.io.File;
+ 
+ import junit.framework.Test;
+ 
++import org.aspectj.apache.bcel.classfile.Field;
++import org.aspectj.apache.bcel.classfile.JavaClass;
+ import org.aspectj.testing.XMLBasedAjcTestCase;
+ import org.aspectj.weaver.TypeFactory;
+ import org.aspectj.weaver.UnresolvedType;
+ 
+ /**
+  * @author Andy Clement
+- */
++ */ 
+ public class Ajc170Tests extends org.aspectj.testing.XMLBasedAjcTestCase {
+ 
+ 	public void testBCExceptionAnnoDecp_371998() {
+ 		runTest("BCException anno decp");
++    }
++
++	public void testTransientTjpFields()throws Exception {
++		runTest("transient tjp fields");
++		JavaClass jc = getClassFrom(ajc.getSandboxDirectory(), "Code");
++		Field[] fs = jc.getFields();
++		//private static final org.aspectj.lang.JoinPoint$StaticPart ajc$tjp_0 [Synthetic]
++		//private static final org.aspectj.lang.JoinPoint$StaticPart ajc$tjp_1 [Synthetic]
++		for (Field f: fs) {
++			if (!f.isTransient()) {
++				fail("Field should be transient: "+f);
++			}
++		}
+ 	}
+ 
+ 	public void testGenericsWithTwoTypeParamsOneWildcard() {
+@@ -159,4 +174,4 @@ public class Ajc170Tests extends org.aspectj.testing.XMLBasedAjcTestCase {
+ 		return new File("../tests/src/org/aspectj/systemtest/ajc170/ajc170.xml");
+ 	}
+ 
+-}
+\ No newline at end of file
++}
+@@ -12,6 +12,11 @@
+    	 <run class="AspectTest"/>
+    </ajc-test>
+ 
++   <ajc-test dir="bugs170/transientTjpFields" title="transient tjp fields">
++      <compile files="Code.java" options="-Xset:makeTjpFieldsTransient=true">
++      </compile>
++   </ajc-test>
++
+    <ajc-test dir="bugs170/language" title="perthis">
+    	<compile files="PerThis.java" options="-1.7">
+    	</compile>
+@@ -142,4 +147,4 @@
+      </compile>
+    </ajc-test>
+ 
+-</suite>
+\ No newline at end of file
++</suite>
+@@ -981,7 +981,7 @@ public final class LazyClassGen {
+ 			return tjpField;
+ 		}
+ 
+-		int modifiers = Modifier.STATIC | Modifier.FINAL;
++		int modifiers = Modifier.STATIC | Modifier.FINAL ;
+ 
+ 		// XXX - Do we ever inline before or after advice? If we do, then we
+ 		// better include them in the check below. (or just change it to
+@@ -1034,6 +1034,9 @@ public final class LazyClassGen {
+ 				}
+ 			}
+ 		}
++		if (!isInterface() && world.isTransientTjpFields()) {
++			modifiers|=Modifier.TRANSIENT;
++		}
+ 		FieldGen fGen = new FieldGen(modifiers, jpType, "ajc$tjp_" + tjpFieldsCounter++, getConstantPool());
+ 		addField(fGen);
+ 		tjpField = fGen.getField();

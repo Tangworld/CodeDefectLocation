@@ -1,0 +1,170 @@
+@@ -0,0 +1,9 @@
++package ma;
++
++import java.lang.annotation.Retention;
++import java.lang.annotation.RetentionPolicy;
++
++@Retention(RetentionPolicy.RUNTIME)
++public @interface Annotation1 {
++
++}
+@@ -0,0 +1,16 @@
++package ma;
++
++
++public class Main {
++
++        @Annotation1
++        public int retryTranslateAndTimeLimited() {
++            System.out.println("Method call");
++            return 1;
++        }
++
++    public static void main(String[] args) {
++        new Main().retryTranslateAndTimeLimited();
++    }
++
++}
+@@ -0,0 +1,10 @@
++package ma;
++
++import org.aspectj.lang.annotation.Aspect;
++import org.aspectj.lang.annotation.DeclarePrecedence;
++
++@Aspect
++@DeclarePrecedence("ma.aspect1.Aspect1, ma.aspect3.Aspect3")
++class Precedence {
++
++}
+@@ -0,0 +1,25 @@
++package ma.aspect1;
++
++import org.aspectj.lang.ProceedingJoinPoint;
++import org.aspectj.lang.annotation.Around;
++import org.aspectj.lang.annotation.Aspect;
++
++
++@Aspect
++public class Aspect1 {
++
++    @Around("execution(@ma.Annotation1 * *(..))")
++    public Object inRetryAspect(ProceedingJoinPoint pjp) throws Throwable {
++        new InternalClass();
++        System.out.println(">In Aspect1");
++    	pjp.proceed();
++        System.out.println("=In Aspect1");
++        Object o = pjp.proceed();
++        System.out.println("<In Aspect1");
++        return o;
++    }
++
++    private static class InternalClass {
++    }
++
++}
+@@ -0,0 +1,22 @@
++package ma.aspect3;
++
++import org.aspectj.lang.ProceedingJoinPoint;
++import org.aspectj.lang.annotation.Around;
++import org.aspectj.lang.annotation.Aspect;
++
++@Aspect
++public class Aspect3 {
++
++    @Around("execution(@ma.Annotation1 * *(..))")
++    public Object inTimeLimiterAspect(ProceedingJoinPoint pjp) throws Throwable {
++       	new InnerClass2();
++        System.out.println(">In Aspect3");
++        Object returnedObject = pjp.proceed();
++        System.out.println("<In Aspect3");
++        return returnedObject;
++    }
++
++    private static class InnerClass2 {
++
++    }
++}
+@@ -0,0 +1,9 @@
++package ma2;
++
++import java.lang.annotation.Retention;
++import java.lang.annotation.RetentionPolicy;
++
++@Retention(RetentionPolicy.RUNTIME)
++public @interface Annotation1 {
++
++}
+@@ -0,0 +1,16 @@
++package ma2;
++
++
++public class Main {
++
++        @Annotation1
++        public int retryTranslateAndTimeLimited() {
++            System.out.println("Method call");
++            return 1;
++        }
++
++    public static void main(String[] args) {
++        new Main().retryTranslateAndTimeLimited();
++    }
++
++}
+@@ -0,0 +1,10 @@
++package ma2;
++
++import org.aspectj.lang.annotation.Aspect;
++import org.aspectj.lang.annotation.DeclarePrecedence;
++
++@Aspect
++@DeclarePrecedence("ma2.aspect1.Aspect1, ma2.aspect3.Aspect3")
++class Precedence {
++
++}
+@@ -0,0 +1,23 @@
++package ma2.aspect1;
++
++import org.aspectj.lang.ProceedingJoinPoint;
++import org.aspectj.lang.annotation.Around;
++import org.aspectj.lang.annotation.Aspect;
++
++
++public aspect Aspect1 {
++
++    Object around(): execution(@ma2.Annotation1 * *(..)) {
++        new InternalClass();
++        System.out.println(">In Aspect1");
++    	proceed();
++        System.out.println("=In Aspect1");
++        Object o = proceed();
++        System.out.println("<In Aspect1");
++        return o;
++    }
++
++    private static class InternalClass {
++    }
++
++}
+@@ -0,0 +1,20 @@
++package ma2.aspect3;
++
++import org.aspectj.lang.ProceedingJoinPoint;
++import org.aspectj.lang.annotation.Around;
++import org.aspectj.lang.annotation.Aspect;
++
++public aspect Aspect3 {
++
++    Object around(): execution(@ma2.Annotation1 * *(..)) {
++       	new InnerClass2();
++        System.out.println(">In Aspect3");
++        Object returnedObject = proceed();
++        System.out.println("<In Aspect3");
++        return returnedObject;
++    }
++
++    private static class InnerClass2 {
++
++    }
++}

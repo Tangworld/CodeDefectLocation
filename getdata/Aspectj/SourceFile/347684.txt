@@ -1,0 +1,535 @@
+@@ -0,0 +1,24 @@
++import java.lang.annotation.*;
++
++@Retention(RetentionPolicy.RUNTIME)
++@interface Foo {
++  int i() default 37;
++}
++
++
++public class BindingInts {
++  public static void main(String []argv) {
++    BindingInts inst = new BindingInts();
++    inst.a();
++    inst.b();
++  }
++@Foo
++void a() {}
++void b() {}
++}
++
++aspect X {
++  before(int i): execution(* a(..)) && @annotation(Foo(i)) {
++    System.out.println(thisJoinPointStaticPart+" "+i);
++  }
++}
+@@ -0,0 +1,26 @@
++import java.lang.annotation.*;
++
++@Retention(RetentionPolicy.RUNTIME)
++@interface Foo {
++  int i() default 37;
++}
++
++
++public class BindingInts2 {
++  public static void main(String []argv) {
++    BindingInts2 inst = new BindingInts2();
++    inst.a();
++    inst.b();
++  }
++
++  @Foo(i=99)
++  void a() {}
++
++  void b() {}
++}
++
++aspect X {
++  before(int i): execution(* a(..)) && @annotation(Foo(i)) {
++    System.out.println(thisJoinPointStaticPart+" "+i);
++  }
++}
+@@ -0,0 +1,26 @@
++import java.lang.annotation.*;
++
++@Retention(RetentionPolicy.RUNTIME)
++@interface Foo {
++  String i() default "abc";
++}
++
++
++public class BindingInts3 {
++  public static void main(String []argv) {
++    BindingInts3 inst = new BindingInts3();
++    inst.a();
++    inst.b();
++  }
++
++  @Foo
++  void a() {}
++
++  void b() {}
++}
++
++aspect X {
++  before(String i): execution(* a(..)) && @annotation(Foo(i)) {
++    System.out.println(thisJoinPointStaticPart+" "+i);
++  }
++}
+@@ -0,0 +1,25 @@
++import java.lang.annotation.*;
++
++@Retention(RetentionPolicy.RUNTIME)
++@interface Foo {
++  int i() default 37;
++  int j() default 48;
++}
++
++
++public class BindingInts4 {
++  public static void main(String []argv) {
++    BindingInts4 inst = new BindingInts4();
++    inst.a();
++    inst.b();
++  }
++@Foo
++void a() {}
++void b() {}
++}
++
++aspect X {
++  before(int i,int j): execution(* a(..)) && @annotation(Foo(i)) && @annotation(Foo(j)) {
++    System.out.println(thisJoinPointStaticPart+" "+i+" "+j);
++  }
++}
+@@ -0,0 +1,25 @@
++import java.lang.annotation.*;
++
++@Retention(RetentionPolicy.RUNTIME)
++@interface Foo {
++  String s() default "abc";
++  int i() default 37;
++}
++
++
++public class BindingInts5 {
++  public static void main(String []argv) {
++    BindingInts5 inst = new BindingInts5();
++    inst.a();
++    inst.b();
++  }
++@Foo
++void a() {}
++void b() {}
++}
++
++aspect X {
++  before(int i): execution(* a(..)) && @annotation(Foo(i)) {
++    System.out.println(thisJoinPointStaticPart+" "+i);
++  }
++}
+@@ -0,0 +1,31 @@
++import java.lang.annotation.*;
++
++enum Color { R,G,B; }
++
++@Retention(RetentionPolicy.RUNTIME)
++@interface Foo {
++  String s() default "abc";
++  int i() default 37;
++  Color c() default Color.G;
++  int j() default 21;
++  int k() default 101;
++  float f() default 1.0f;
++}
++
++
++public class BindingInts6 {
++  public static void main(String []argv) {
++    BindingInts6 inst = new BindingInts6();
++    inst.a();
++    inst.b();
++  }
++@Foo(j=1,k=99)
++void a() {}
++void b() {}
++}
++
++aspect X {
++  before(int i,int j, int k): execution(* a(..)) && @annotation(Foo(i)) && @annotation(Foo(j)) && @annotation(Foo(k)) {
++    System.out.println(thisJoinPointStaticPart+" "+i+" "+j+" "+k);
++  }
++}
+@@ -11,10 +11,10 @@
+  * ******************************************************************/
+ package org.aspectj.weaver.bcel;
+ 
+-import java.util.Iterator;
+ import java.util.List;
+ 
+ import org.aspectj.apache.bcel.classfile.annotation.AnnotationGen;
++import org.aspectj.apache.bcel.classfile.annotation.ElementValue;
+ import org.aspectj.apache.bcel.classfile.annotation.EnumElementValue;
+ import org.aspectj.apache.bcel.classfile.annotation.NameValuePair;
+ import org.aspectj.apache.bcel.classfile.annotation.SimpleElementValue;
+@@ -38,72 +38,134 @@ class AnnotationAccessFieldVar extends BcelVar {
+ 
+ 	private AnnotationAccessVar annoAccessor;
+ 	private ResolvedType annoFieldOfInterest;
++	private String name;
++	private int elementValueType;
+ 
+-	public AnnotationAccessFieldVar(AnnotationAccessVar aav, ResolvedType annoFieldOfInterest) {
++	public AnnotationAccessFieldVar(AnnotationAccessVar aav, ResolvedType annoFieldOfInterest, String name) {
+ 		super(annoFieldOfInterest, 0);
+ 		this.annoAccessor = aav;
++		this.name = name;
++		String sig = annoFieldOfInterest.getSignature();
++		if (sig.length() == 1) {
++			switch (sig.charAt(0)) {
++			case 'I':
++				elementValueType = ElementValue.PRIMITIVE_INT;
++				break;
++			default:
++				throw new IllegalStateException(sig);
++			}
++		} else if (sig.equals("Ljava/lang/String;")) {
++			elementValueType = ElementValue.STRING;
++		} else if (annoFieldOfInterest.isEnum()) {
++			elementValueType = ElementValue.ENUM_CONSTANT;
++		} else {
++			throw new IllegalStateException(sig);
++		}
+ 		this.annoFieldOfInterest = annoFieldOfInterest;
+ 	}
+ 
+ 	@Override
+ 	public void appendLoadAndConvert(InstructionList il, InstructionFactory fact, ResolvedType toType) {
+-		// Only possible to do annotation field value extraction at
+-		// MethodExecution
++		// Only possible to do annotation field value extraction at MethodExecution
+ 		if (annoAccessor.getKind() != Shadow.MethodExecution) {
+ 			return;
+ 		}
+ 		String annotationOfInterestSignature = annoAccessor.getType().getSignature();
+-		// So we have an entity that has an annotation on and within it is the
+-		// value we want
++		// So we have an entity that has an annotation on and within it is the value we want
+ 		Member holder = annoAccessor.getMember();
+ 		AnnotationAJ[] annos = holder.getAnnotations();
+-		for (int i = 0; i < annos.length; i++) {
+-			AnnotationGen annotation = ((BcelAnnotation) annos[i]).getBcelAnnotation();
++		for (AnnotationAJ anno : annos) {
++			AnnotationGen annotation = ((BcelAnnotation) anno).getBcelAnnotation();
++			boolean foundValueInAnnotationUsage = false;
+ 			if (annotation.getTypeSignature().equals(annotationOfInterestSignature)) {
+-				List<NameValuePair> vals = annotation.getValues();
+-				boolean doneAndDusted = false;
+-				for (Iterator<NameValuePair> iterator = vals.iterator(); iterator.hasNext();) {
+-					NameValuePair object = iterator.next();
+-					Object o = object.getValue();
++				ResolvedMember[] annotationFields = toType.getWorld()
++						.resolve(UnresolvedType.forSignature(annotation.getTypeSignature())).getDeclaredMethods();
++				// Check how many fields there are of the type we are looking for. If >1 then we'll need
++				// to use the name to choose the right one
++				int countOfType = 0;
++				for (ResolvedMember annotationField : annotationFields) {
++					if (annotationField.getType().equals(annoFieldOfInterest)) {
++						countOfType++;
++					}
++				}
++
++				// this block deals with an annotation that has actual values (i.e. not falling back to default values)
++				List<NameValuePair> nvps = annotation.getValues();
++				for (NameValuePair nvp : nvps) {
++					// If multiple of the same type, match by name
++					if (countOfType > 1) {
++						if (!nvp.getNameString().equals(name)) {
++							continue;
++						}
++					}
++					ElementValue o = nvp.getValue();
++					if (o.getElementValueType() != elementValueType) {
++						continue;
++					}
+ 					if (o instanceof EnumElementValue) {
+-						EnumElementValue v = (EnumElementValue) object.getValue();
++						EnumElementValue v = (EnumElementValue) o;
+ 						String s = v.getEnumTypeString();
+ 						ResolvedType rt = toType.getWorld().resolve(UnresolvedType.forSignature(s));
+ 						if (rt.equals(toType)) {
+ 							il.append(fact.createGetStatic(rt.getName(), v.getEnumValueString(), Type.getType(rt.getSignature())));
+-							doneAndDusted = true;
++							foundValueInAnnotationUsage = true;
+ 						}
+ 					} else if (o instanceof SimpleElementValue) {
+-						// FIXASC types other than String will go bang bang at runtime
+-						SimpleElementValue v = (SimpleElementValue) object.getValue();
+-						il.append(fact.createConstant(v.getValueString()));
+-						doneAndDusted = true;
+-						// String s = v.getEnumTypeString();
+-						// ResolvedType rt = toType.getWorld().resolve(UnresolvedType.forSignature(s));
+-						// if (rt.equals(toType)) {
+-						// il.append(fact.createGetStatic(rt.getName(), v.getEnumValueString(), Type.getType(rt.getSignature())));
+-						// doneAndDusted = true;
+-						// }
++						SimpleElementValue v = (SimpleElementValue) o;
++						switch (v.getElementValueType()) {
++						case ElementValue.PRIMITIVE_INT:
++							il.append(fact.createConstant(v.getValueInt()));
++							foundValueInAnnotationUsage = true;
++							break;
++						case ElementValue.STRING:
++							il.append(fact.createConstant(v.getValueString()));
++							foundValueInAnnotationUsage = true;
++							break;
++						default:
++							throw new IllegalStateException("NYI: Unsupported annotation value binding for " + o);
++						}
++					}
++					if (foundValueInAnnotationUsage) {
++						break;
+ 					}
+ 				}
+-				if (!doneAndDusted) {
+-					ResolvedMember[] annotationFields = toType.getWorld()
+-							.resolve(UnresolvedType.forSignature(annotation.getTypeSignature())).getDeclaredMethods();
+-
+-					// ResolvedMember[] fs = rt.getDeclaredFields();
+-					for (int ii = 0; ii < annotationFields.length; ii++) {
+-						if (annotationFields[ii].getType().equals(annoFieldOfInterest)) {
+-							String dvalue = annotationFields[ii].getAnnotationDefaultValue();
+-							// form will be LBLAHBLAHBLAH;X where X is the field
+-							// within X
++				// this block deals with default values
++				if (!foundValueInAnnotationUsage) {
++					for (ResolvedMember annotationField : annotationFields) {
++						if (countOfType > 1) {
++							if (!annotationField.getName().equals(name)) {
++								continue;
++							}
++						}
++						if (!annotationField.getType().getSignature().equals(annoFieldOfInterest.getSignature())) {
++							continue;
++						}
++						if (annotationField.getType().getSignature().equals("I")) {
++							int ivalue = Integer.parseInt(annotationField.getAnnotationDefaultValue());
++							il.append(fact.createConstant(ivalue));
++							foundValueInAnnotationUsage = true;
++							break;
++						} else if (annotationField.getType().getSignature().equals("Ljava/lang/String;")) {
++							String svalue = annotationField.getAnnotationDefaultValue();
++							il.append(fact.createConstant(svalue));
++							foundValueInAnnotationUsage = true;
++							break;
++						} else {
++							String dvalue = annotationField.getAnnotationDefaultValue();
++							// form will be LBLAHBLAHBLAH;X where X is the field within X
+ 							String typename = dvalue.substring(0, dvalue.lastIndexOf(';') + 1);
+ 							String field = dvalue.substring(dvalue.lastIndexOf(';') + 1);
+ 							ResolvedType rt = toType.getWorld().resolve(UnresolvedType.forSignature(typename));
+ 							il.append(fact.createGetStatic(rt.getName(), field, Type.getType(rt.getSignature())));
++							foundValueInAnnotationUsage = true;
++							break;
+ 						}
+ 					}
+ 				}
+ 			}
++			if (foundValueInAnnotationUsage) {
++				break;
++			}
+ 		}
+ 	}
+ 
+@@ -25,8 +25,8 @@ import org.aspectj.apache.bcel.generic.Type;
+ import org.aspectj.weaver.Member;
+ import org.aspectj.weaver.ResolvedType;
+ import org.aspectj.weaver.Shadow;
+-import org.aspectj.weaver.UnresolvedType;
+ import org.aspectj.weaver.Shadow.Kind;
++import org.aspectj.weaver.UnresolvedType;
+ import org.aspectj.weaver.ast.Var;
+ 
+ /**
+@@ -123,8 +123,7 @@ public class AnnotationAccessVar extends BcelVar {
+ 				Field annotationCachingField = shadow.getEnclosingClass().getAnnotationCachingField(shadow, toType);
+ 
+ 				// Basic idea here is to check if the cached field is null, if it is then initialize it, otherwise use it
+-				il.append(fact
+-						.createGetStatic(shadow.getEnclosingClass().getName(), annotationCachingField.getName(), jlAnnotation));
++				il.append(fact.createGetStatic(shadow.getEnclosingClass().getName(), annotationCachingField.getName(), jlAnnotation));
+ 				il.append(InstructionConstants.DUP);
+ 				InstructionBranch ifNonNull = InstructionFactory.createBranchInstruction(Constants.IFNONNULL, null);
+ 				il.append(ifNonNull);
+@@ -140,8 +139,7 @@ public class AnnotationAccessVar extends BcelVar {
+ 				il.append(fact.createInvoke("java/lang/reflect/Method", "getAnnotation", jlaAnnotation, new Type[] { jlClass },
+ 						Constants.INVOKEVIRTUAL));
+ 				il.append(InstructionConstants.DUP);
+-				il.append(fact
+-						.createPutStatic(shadow.getEnclosingClass().getName(), annotationCachingField.getName(), jlAnnotation));
++				il.append(fact.createPutStatic(shadow.getEnclosingClass().getName(), annotationCachingField.getName(), jlAnnotation));
+ 				InstructionHandle ifNullElse = il.append(InstructionConstants.NOP);
+ 				ifNonNull.setTarget(ifNullElse);
+ 
+@@ -231,10 +229,11 @@ public class AnnotationAccessVar extends BcelVar {
+ 	 * Return an object that can access a particular value of this annotation.
+ 	 * 
+ 	 * @param valueType The type from the annotation that is of interest
++	 * @param the formal name expressed in the pointcut, can be used to disambiguate
+ 	 * @return a variable that represents access to that annotation value
+ 	 */
+ 	@Override
+-	public Var getAccessorForValue(ResolvedType valueType) {
+-		return new AnnotationAccessFieldVar(this, valueType);
++	public Var getAccessorForValue(ResolvedType valueType, String formalName) {
++		return new AnnotationAccessFieldVar(this, valueType, formalName);
+ 	}
+ }
+@@ -477,6 +477,24 @@ public final class LazyMethodGen implements Traceable {
+ 			body = null;
+ 			MethodGen gen = pack();
+ 			return gen.getMethod();
++		} catch (RuntimeException re) {
++			if (re.getCause() instanceof ClassGenException) {
++				enclosingClass
++						.getBcelObjectType()
++						.getResolvedTypeX()
++						.getWorld()
++						.showMessage(
++								IMessage.ERROR,
++								WeaverMessages.format(WeaverMessages.PROBLEM_GENERATING_METHOD, this.getClassName(),
++										this.getName(), re.getCause().getMessage()),
++								this.getMemberView() == null ? null : this.getMemberView().getSourceLocation(), null);
++				// throw e; PR 70201.... let the normal problem reporting
++				// infrastructure deal with this rather than crashing.
++				body = null;
++				MethodGen gen = pack();
++				return gen.getMethod();
++			}
++			throw re;
+ 		}
+ 	}
+ 
+@@ -8,16 +8,16 @@ public class CaseFive {
+     o.a();
+   }
+ 
+-  @Anno(4) public void a() {}
++  @Anno(4.0f) public void a() {}
+ 
+ }
+ 
+ @Retention(RetentionPolicy.RUNTIME)
+-@interface Anno { int value(); }
++@interface Anno { float value(); }
+ 
+ aspect X {
+ 
+-  before(int l): execution(@Anno * *(..)) && @annotation(Anno(l)) {
++  before(float l): execution(@Anno * *(..)) && @annotation(Anno(l)) {
+     System.out.println(l);
+   }
+ }
+@@ -39,7 +39,7 @@
+ 
+    <ajc-test dir="features161/optimizedAnnotationBinding" title="case five - not an enum - compiler limitation">
+      <compile options="-1.5" files="CaseFive.java">
+-       <message kind="error" line="20" text="The field within the annotation must be an enum or string. 'int' is not"/>
++       <message kind="error" line="20" text="The field within the annotation must be an enum, string or int. 'float' is not"/>
+      </compile>
+    </ajc-test>
+ 
+@@ -25,6 +25,30 @@ public class Ajc1612Tests extends org.aspectj.testing.XMLBasedAjcTestCase {
+ 	// runTest("anno copying");
+ 	// }
+ 
++	public void testBindingInts_347684() {
++		runTest("binding ints");
++	}
++
++	public void testBindingInts_347684_2() {
++		runTest("binding ints - 2");
++	}
++
++	public void testBindingInts_347684_3() {
++		runTest("binding ints - 3");
++	}
++
++	public void testBindingInts_347684_4() {
++		runTest("binding ints - 4");
++	}
++
++	public void testBindingInts_347684_5() {
++		runTest("binding ints - 5");
++	}
++
++	public void testBindingInts_347684_6() {
++		runTest("binding ints - 6");
++	}
++
+ 	public void testIncorrectAnnos_345172() {
+ 		runTest("incorrect annos");
+ 	}
+@@ -2,6 +2,61 @@
+ 
+ <suite>
+ 
++<ajc-test dir="bugs1612/pr347684" title="binding ints">
++<compile files="BindingInts.java" options="-1.5"/>
++<run class="BindingInts">
++  <stdout>
++  <line text="execution(void BindingInts.a()) 37"/>
++  </stdout>
++</run>
++</ajc-test>
++
++<ajc-test dir="bugs1612/pr347684" title="binding ints - 2">
++<compile files="BindingInts2.java" options="-1.5"/>
++<run class="BindingInts2">
++  <stdout>
++  <line text="execution(void BindingInts2.a()) 99"/>
++  </stdout>
++</run>
++</ajc-test>
++
++<ajc-test dir="bugs1612/pr347684" title="binding ints - 3">
++<compile files="BindingInts3.java" options="-1.5"/>
++<run class="BindingInts3">
++  <stdout>
++  <line text="execution(void BindingInts3.a()) abc"/>
++  </stdout>
++</run>
++</ajc-test>
++
++<ajc-test dir="bugs1612/pr347684" title="binding ints - 4">
++<compile files="BindingInts4.java" options="-1.5"/>
++<run class="BindingInts4">
++  <stdout>
++  <line text="execution(void BindingInts4.a()) 37 48"/>
++  </stdout>
++</run>
++</ajc-test>
++
++<ajc-test dir="bugs1612/pr347684" title="binding ints - 5">
++<compile files="BindingInts5.java" options="-1.5"/>
++<run class="BindingInts5">
++  <stdout>
++  <line text="execution(void BindingInts5.a()) 37"/>
++  </stdout>
++</run>
++</ajc-test>
++
++
++<ajc-test dir="bugs1612/pr347684" title="binding ints - 6">
++<compile files="BindingInts6.java" options="-1.5"/>
++<run class="BindingInts6">
++  <stdout>
++  <line text="execution(void BindingInts6.a()) 37 1 99"/>
++  </stdout>
++</run>
++</ajc-test>
++
+ <ajc-test dir="bugs1612/pr345515" title="anno copying">
+ <compile files="Code.java" options="-1.5"/>
+ <run class="Code"></run>

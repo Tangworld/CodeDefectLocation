@@ -1,0 +1,109 @@
+@@ -0,0 +1,32 @@
++import org.aspectj.lang.annotation.Aspect;
++import org.aspectj.lang.annotation.DeclareParents;
++
++@Aspect
++public class AspectTest {
++
++    public AspectTest() {}
++
++    @DeclareParents(value="java.lang.Runnable+ || java.util.concurrent.Callable+",  defaultImpl=XImpl.class)
++    //@DeclareParents(value="java.lang.Runnable+",  defaultImpl=XImpl.class)
++    private X xImpl;
++
++    public static void main(String []argv) {
++      ((X)new Foo()).xxx();
++      ((X)new Bar()).xxx();
++    }
++
++}
++    interface X { void xxx();}
++    class XImpl implements X {
++      public XImpl() {}
++      public void xxx() {}
++    }
++
++
++class Foo implements Runnable {
++  public void run() {}
++}
++
++class Bar implements java.util.concurrent.Callable {
++  public Object call() {return null;}
++}
+@@ -11,27 +11,22 @@
+ package org.aspectj.systemtest.ajc170;
+ 
+ import java.io.File;
+-import java.util.List;
+ 
+ import junit.framework.Test;
+ 
+-import org.aspectj.apache.bcel.util.ClassPath;
+ import org.aspectj.testing.XMLBasedAjcTestCase;
+-import org.aspectj.weaver.CrosscuttingMembers;
+-import org.aspectj.weaver.ReferenceType;
+-import org.aspectj.weaver.ResolvedMember;
+-import org.aspectj.weaver.ResolvedType;
+ import org.aspectj.weaver.TypeFactory;
+-import org.aspectj.weaver.TypeVariable;
+ import org.aspectj.weaver.UnresolvedType;
+-import org.aspectj.weaver.World;
+-import org.aspectj.weaver.bcel.BcelWorld;
+ 
+ /**
+  * @author Andy Clement
+  */
+ public class Ajc170Tests extends org.aspectj.testing.XMLBasedAjcTestCase {
+ 
++	public void testBCExceptionAnnoDecp_371998() {
++		runTest("BCException anno decp");
++	}
++	
+ 	public void testGenericsWithTwoTypeParamsOneWildcard() {
+ 		UnresolvedType ut;
+ 
+@@ -2,6 +2,16 @@
+ 
+ <suite>
+ 
++   <ajc-test dir="bugs170/pr371998" title="BCException anno decp">
++     <compile files="AspectTest.java" options="-1.5 -showWeaveInfo">
++   	   <message kind="weave" text="Extending interface set for type 'Foo' (AspectTest.java) to include 'X' (AspectTest.java)"/>
++   	   <message kind="weave" text="Type 'Foo' (AspectTest.java) has intertyped method from 'AspectTest' (AspectTest.java:'void X.xxx()')"/>
++   	   <message kind="weave" text="Extending interface set for type 'Bar' (AspectTest.java) to include 'X' (AspectTest.java)"/>
++   	   <message kind="weave" text="Type 'Bar' (AspectTest.java) has intertyped method from 'AspectTest' (AspectTest.java:'void X.xxx()')"/>
++   	 </compile>
++   	 <run class="AspectTest"/>
++   </ajc-test>
++   
+    <ajc-test dir="bugs170/language" title="perthis">
+    	<compile files="PerThis.java" options="-1.7">
+    	</compile>
+@@ -66,7 +66,6 @@ import org.aspectj.weaver.UnresolvedType;
+ import org.aspectj.weaver.VersionedDataInputStream;
+ import org.aspectj.weaver.WeaverMessages;
+ import org.aspectj.weaver.World;
+-import org.aspectj.weaver.patterns.Bindings;
+ import org.aspectj.weaver.patterns.DeclareErrorOrWarning;
+ import org.aspectj.weaver.patterns.DeclareParents;
+ import org.aspectj.weaver.patterns.DeclareParentsMixin;
+@@ -735,15 +734,13 @@ public class AtAjAttributes {
+ 					List<TypePattern> parents = new ArrayList<TypePattern>(1);
+ 					parents.add(parent);
+ 					DeclareParents dp = new DeclareParents(typePattern, parents, false);
+-					dp.resolve(binding); // resolves the parent and child parts
+-					// of the decp
++					dp.resolve(binding); // resolves the parent and child parts of the decp
+ 
+ 					// resolve this so that we can use it for the
+ 					// MethodDelegateMungers below.
+ 					// eg. '@Coloured *' will change from a WildTypePattern to
+-					// an 'AnyWithAnnotationTypePattern' after this
+-					// resolution
+-					typePattern = typePattern.resolveBindings(binding, Bindings.NONE, false, false);
++					// an 'AnyWithAnnotationTypePattern' after this resolution
++					typePattern = dp.getChild(); // this retrieves the resolved version
+ 					// TODO kick ISourceLocation sl =
+ 					// struct.bField.getSourceLocation(); ??
+ 					// dp.setLocation(dp.getDeclaringType().getSourceContext(),

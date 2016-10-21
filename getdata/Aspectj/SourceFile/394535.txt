@@ -1,0 +1,138 @@
+@@ -256,8 +256,8 @@ public class TypeVariable {
+ 		sb.append(":");
+ 		sb.append(superclass.getSignature());
+ 		if (superInterfaces.length != 0) {
+-			sb.append(":");
+ 			for (int i = 0; i < superInterfaces.length; i++) {
++				sb.append(":");
+ 				UnresolvedType iBound = superInterfaces[i];
+ 				sb.append(iBound.getSignature());
+ 			}
+@@ -276,8 +276,8 @@ public class TypeVariable {
+ 			sb.append(((ResolvedType) superclass).getSignatureForAttribute());
+ 		}
+ 		if (superInterfaces.length != 0) {
+-			sb.append(":");
+ 			for (int i = 0; i < superInterfaces.length; i++) {
++				sb.append(":");
+ 				ResolvedType iBound = (ResolvedType) superInterfaces[i];
+ 				sb.append(iBound.getSignatureForAttribute());
+ 			}
+@@ -0,0 +1,23 @@
++
++aspect X {
++  declare parents: Bug.ClassA implements java.io.Serializable;
++}
++public class Bug {
++
++//    @org.springframework.beans.factory.annotation.Configurable
++    public static class ClassA<T extends Interface1 & Interface2> {
++    }
++
++    public static class ClassB extends ClassA<ClassB> implements Interface1, Interface2 {
++    }
++
++    public interface Interface1 {
++    }
++
++    public interface Interface2 {
++    }
++
++    public static void main(String[] args) throws Exception {
++        System.out.println(ClassB.class.getGenericSuperclass());
++    }
++}
+@@ -0,0 +1,19 @@
++
++public class Bug2 {
++
++    public static class ClassA2<T extends Interface12 & Interface22> implements java.io.Serializable {
++    }
++
++    public static class ClassB2 extends ClassA2<ClassB2> implements Interface12, Interface22 {
++    }
++
++    public interface Interface12 {
++    }
++
++    public interface Interface22 {
++    }
++
++    public static void main(String[] args) throws Exception {
++        System.out.println(ClassB2.class.getGenericSuperclass());
++    }
++}
+@@ -23,6 +23,19 @@ import org.aspectj.testing.XMLBasedAjcTestCase;
+  */
+ public class Ajc172Tests extends org.aspectj.testing.XMLBasedAjcTestCase {
+ 
++	// if the test is failing because the classes won't run, remove the run blocks from the ajc172.xml entry and re-run to check signatures.
++	public void testSignatures_pr394535() throws Exception {
++		runTest("signatures");
++		
++		JavaClass jc = getClassFrom(ajc.getSandboxDirectory(),"Bug2$ClassA2"); // the working one
++		String sss = jc.getSignatureAttribute().getSignature();
++		assertEquals("<T::LBug2$Interface12;:LBug2$Interface22;>Ljava/lang/Object;Ljava/io/Serializable;", sss);
++		
++		jc = getClassFrom(ajc.getSandboxDirectory(),"Bug$ClassA");
++		sss = jc.getSignatureAttribute().getSignature();
++		assertEquals("<T::LBug$Interface1;:LBug$Interface2;>Ljava/lang/Object;Ljava/io/Serializable;", sss);
++	}
++	
+ 	// extends
+ 	public void testPSignatures_pr399590() throws Exception {
+ 		runTest("p signatures 1");
+@@ -32,7 +45,6 @@ public class Ajc172Tests extends org.aspectj.testing.XMLBasedAjcTestCase {
+ 		jc = getClassFrom(ajc.getSandboxDirectory(),"Cage2");
+ 		sss = jc.getSignatureAttribute().getSignature();
+ 		assertEquals("<T:LAnimal2<+LCage2<TT;>;>;>LBar2;Ljava/io/Serializable;", sss);
+-		jc = getClassFrom(ajc.getSandboxDirectory(),"Cage2");
+ 	}
+ 
+ 	// extends two classes
+@@ -44,7 +56,6 @@ public class Ajc172Tests extends org.aspectj.testing.XMLBasedAjcTestCase {
+ 		jc = getClassFrom(ajc.getSandboxDirectory(),"Cage2");
+ 		sss = jc.getSignatureAttribute().getSignature();
+ 		assertEquals("<T:LAnimal2<+LCage2<TT;LIntf2;>;LIntf2;>;Q:Ljava/lang/Object;>LBar2;Ljava/io/Serializable;", sss);
+-		jc = getClassFrom(ajc.getSandboxDirectory(),"Cage2");
+ 	}
+ 
+ 	// super
+@@ -56,7 +67,6 @@ public class Ajc172Tests extends org.aspectj.testing.XMLBasedAjcTestCase {
+ 		jc = getClassFrom(ajc.getSandboxDirectory(),"Cage2");
+ 		sss = jc.getSignatureAttribute().getSignature();
+ 		assertEquals("<T:LAnimal2<-LXXX2<TT;>;>;>LBar2;Ljava/io/Serializable;", sss);
+-		jc = getClassFrom(ajc.getSandboxDirectory(),"Cage2");
+ 	}
+ 
+ 	// super
+@@ -68,7 +78,6 @@ public class Ajc172Tests extends org.aspectj.testing.XMLBasedAjcTestCase {
+ 		jc = getClassFrom(ajc.getSandboxDirectory(),"Cage2");
+ 		sss = jc.getSignatureAttribute().getSignature();
+ 		assertEquals("<T:LAnimal2<-LXXX2<TT;>;LYYY2;>;>LBar2;Ljava/io/Serializable;", sss);
+-		jc = getClassFrom(ajc.getSandboxDirectory(),"Cage2");
+ 	}
+ 
+ 	// unbound
+@@ -80,7 +89,6 @@ public class Ajc172Tests extends org.aspectj.testing.XMLBasedAjcTestCase {
+ 		jc = getClassFrom(ajc.getSandboxDirectory(),"Cage2");
+ 		sss = jc.getSignatureAttribute().getSignature();
+ 		assertEquals("<T:LAnimal2<*>;>LBar2;Ljava/io/Serializable;", sss);
+-		jc = getClassFrom(ajc.getSandboxDirectory(),"Cage2");
+ 	}
+ 
+ 	public void testIfPointcutNames_pr398246() throws Exception {
+@@ -2,6 +2,13 @@
+ 
+ <suite>
+ 
++	<ajc-test dir="bugs172/pr394535" title="signatures">
++      <compile files="Bug.java" options="-1.5"/>
++      <compile files="Bug2.java" options="-1.5"/>
++      <run class="Bug2"/>
++      <run class="Bug"/>
++    </ajc-test>
++    
+ 	<ajc-test dir="bugs172/pr399590" title="p signatures 1">
+       <compile files="Cage.java" options="-1.5"/>
+       <compile files="Cage2.java" options="-1.5"/>

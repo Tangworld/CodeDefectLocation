@@ -1,0 +1,464 @@
+@@ -2,15 +2,15 @@
+ import java.lang.annotation.*;
+ 
+ aspect X {
+-declare parents: 
+-  @SomeAnnotation(a = @Foo(value="123")) * implements java.io.Serializable;
++  declare parents: @Bar(value = "123") * implements java.io.Serializable;
+ }
+ 
+-  @SomeAnnotation(a = @Foo(value="123"))
+-  public class Example { 
++@Bar(value="123")
++@NamedQuery(name = "Department.findAll",query = "select d from Department d order by d.name ASC",hints = {@QueryHint(name = "org.hibernate.cacheable",value = "true")})
++public class Example2 { 
+ 
+   public static void main(String []argv) {
+-    Example e = new Example();
++    Example2 e = new Example2();
+     if (e instanceof java.io.Serializable) {
+       System.out.println("yes");
+     } else {
+@@ -21,12 +21,21 @@ declare parents:
+ }
+ 
+ @Retention(RetentionPolicy.RUNTIME)
+-@interface Foo {
++@interface QueryHint {
++  String name();
+   String value();
+ }
+ 
+ @Retention(RetentionPolicy.RUNTIME)
+-@interface SomeAnnotation {
+-  Foo a();
++@interface NamedQuery {
++  String name();
++  String query();
++  QueryHint[] hints();
+ }
+ 
++@Retention(RetentionPolicy.RUNTIME)
++@interface Bar {
++  String value();
++}
++
++
+@@ -25,9 +25,9 @@ public class Ajc170Tests extends org.aspectj.testing.XMLBasedAjcTestCase {
+ 		runTest("missing impl");
+ 	}
+ 
+-	// public void testMissingImpl_363979_2() {
+-	// runTest("missing impl 2");
+-	// }
++	public void testMissingImpl_363979_2() {
++		runTest("missing impl 2");
++	}
+ 
+ 	// ---
+ 
+@@ -34,6 +34,7 @@ import org.aspectj.org.eclipse.jdt.internal.compiler.ast.Argument;
+ import org.aspectj.org.eclipse.jdt.internal.compiler.ast.ArrayInitializer;
+ import org.aspectj.org.eclipse.jdt.internal.compiler.ast.CompilationUnitDeclaration;
+ import org.aspectj.org.eclipse.jdt.internal.compiler.ast.Expression;
++import org.aspectj.org.eclipse.jdt.internal.compiler.ast.Literal;
+ import org.aspectj.org.eclipse.jdt.internal.compiler.ast.MarkerAnnotation;
+ import org.aspectj.org.eclipse.jdt.internal.compiler.ast.MemberValuePair;
+ import org.aspectj.org.eclipse.jdt.internal.compiler.ast.NameReference;
+@@ -46,6 +47,7 @@ import org.aspectj.org.eclipse.jdt.internal.compiler.ast.TypeDeclaration;
+ import org.aspectj.org.eclipse.jdt.internal.compiler.ast.TypeParameter;
+ import org.aspectj.org.eclipse.jdt.internal.compiler.impl.Constant;
+ import org.aspectj.org.eclipse.jdt.internal.compiler.lookup.AnnotationBinding;
++import org.aspectj.org.eclipse.jdt.internal.compiler.lookup.ArrayBinding;
+ import org.aspectj.org.eclipse.jdt.internal.compiler.lookup.BinaryTypeBinding;
+ import org.aspectj.org.eclipse.jdt.internal.compiler.lookup.Binding;
+ import org.aspectj.org.eclipse.jdt.internal.compiler.lookup.ExtraCompilerModifiers;
+@@ -712,8 +714,42 @@ public class EclipseSourceType extends AbstractReferenceTypeDelegate {
+ 							AnnotationValue av = new AnnotationAnnotationValue(ajAnnotation);
+ 							AnnotationNameValuePair anvp = new AnnotationNameValuePair(new String(memberValuePair.name), av);
+ 							annotationAJ.addNameValuePair(anvp);
++							// } else if (memberValuePair.value instanceof NormalAnnotation) {
++							// NormalAnnotation eNormalAnnotation = (NormalAnnotation) memberValuePair.value;
++							// AnnotationBinding eMarkerAnnotationBinding = eNormalAnnotation.getCompilerAnnotation();
++							// ReferenceBinding eAnnotationType = eMarkerAnnotationBinding.getAnnotationType();
++							// ResolvedType ajAnnotationType = factory.fromTypeBindingToRTX(eAnnotationType);
++							// boolean isRuntimeVisible = (eNormalAnnotation.bits & TagBits.AnnotationRetentionMASK) ==
++							// TagBits.AnnotationRuntimeRetention;
++							// StandardAnnotation ajAnnotation = new StandardAnnotation(ajAnnotationType, isRuntimeVisible);
++							// MemberValuePair[] pairs = eNormalAnnotation.memberValuePairs;
++							// if (pairs != null) {
++							// for (int p = 0; p < pairs.length; p++) {
++							// MemberValuePair pair = pairs[p];
++							// throw new IllegalStateException("nyi");
++							//
++							// }
++							// }
++							// AnnotationValue av = new AnnotationAnnotationValue(ajAnnotation);
++							// AnnotationNameValuePair anvp = new AnnotationNameValuePair(new String(memberValuePair.name), av);
++							// annotationAJ.addNameValuePair(anvp);
++						} else if (memberValuePair.value instanceof Literal) {
++							AnnotationValue av = generateElementValue(memberValuePair.value,
++									((Literal) memberValuePair.value).resolvedType);
++							AnnotationNameValuePair anvp = new AnnotationNameValuePair(new String(memberValuePair.name), av);
++							annotationAJ.addNameValuePair(anvp);
++						} else if (memberValuePair.value instanceof ArrayInitializer) {
++							ArrayInitializer arrayInitializer = (ArrayInitializer) memberValuePair.value;
++							Expression[] expressions = arrayInitializer.expressions;
++							AnnotationValue[] arrayValues = new AnnotationValue[expressions.length];
++							for (int e = 0; e < expressions.length; e++) {
++								arrayValues[e] = generateElementValue(expressions[e],
++										((ArrayBinding) arrayInitializer.resolvedType).leafComponentType);
++							}
++							AnnotationValue array = new ArrayAnnotationValue(arrayValues);
++							AnnotationNameValuePair anvp = new AnnotationNameValuePair(new String(memberValuePair.name), array);
++							annotationAJ.addNameValuePair(anvp);
+ 						} else {
+-
+ 							throw new MissingImplementationException(
+ 									"Please raise an AspectJ bug.  AspectJ does not know how to convert this annotation ["
+ 											+ annotation + "]");
+@@ -814,6 +850,27 @@ public class EclipseSourceType extends AbstractReferenceTypeDelegate {
+ 							ajAnnotationType.isAnnotationWithRuntimeRetention());
+ 					AnnotationValue av = new AnnotationAnnotationValue(ajAnnotation);
+ 					return av;
++				} else if (defaultValue instanceof NormalAnnotation) {
++					NormalAnnotation normalAnnotation = (NormalAnnotation) defaultValue;
++					ResolvedType ajAnnotationType = factory.fromTypeBindingToRTX(defaultValueBinding);
++					StandardAnnotation ajAnnotation = new StandardAnnotation(ajAnnotationType,
++							ajAnnotationType.isAnnotationWithRuntimeRetention());
++					MemberValuePair[] pairs = normalAnnotation.memberValuePairs;
++					if (pairs != null) {
++						for (int p = 0; p < pairs.length; p++) {
++							MemberValuePair pair = pairs[p];
++							Expression valueEx = pair.value;
++							AnnotationValue pairValue = null;
++							if (valueEx instanceof Literal) {
++								pairValue = generateElementValue(valueEx, ((Literal) valueEx).resolvedType);
++							} else {
++								pairValue = generateElementValue(pair.value, pair.binding.returnType);
++							}
++							ajAnnotation.addNameValuePair(new AnnotationNameValuePair(new String(pair.name), pairValue));
++						}
++					}
++					AnnotationValue av = new AnnotationAnnotationValue(ajAnnotation);
++					return av;
+ 				} else {
+ 					throw new MissingImplementationException(
+ 							"Please raise an AspectJ bug.  AspectJ does not know how to convert this annotation value ["
+@@ -0,0 +1,29 @@
++import java.lang.annotation.*;
++
++aspect X {
++declare parents: 
++  @SomeAnnotation(a = @Foo) * implements java.io.Serializable;
++}
++
++  @SomeAnnotation(a = @Foo)
++  public class Example { 
++
++public static void main(String []argv) {
++  Example e = new Example();
++if (e instanceof java.io.Serializable) {
++System.out.println("yes");
++} else {
++System.out.println("no");
++}
++}
++
++}
++
++@Retention(RetentionPolicy.RUNTIME)
++@interface Foo {}
++
++@Retention(RetentionPolicy.RUNTIME)
++@interface SomeAnnotation {
++  Foo a();
++}
++
+@@ -0,0 +1,32 @@
++// nested values, more complex than just a marker
++import java.lang.annotation.*;
++
++aspect X {
++declare parents: 
++  @SomeAnnotation(a = @Foo(value="123")) * implements java.io.Serializable;
++}
++
++  @SomeAnnotation(a = @Foo(value="123"))
++  public class Example { 
++
++  public static void main(String []argv) {
++    Example e = new Example();
++    if (e instanceof java.io.Serializable) {
++      System.out.println("yes");
++    } else {
++      System.out.println("no");
++    }
++  }
++
++}
++
++@Retention(RetentionPolicy.RUNTIME)
++@interface Foo {
++  String value();
++}
++
++@Retention(RetentionPolicy.RUNTIME)
++@interface SomeAnnotation {
++  Foo a();
++}
++
+@@ -37,7 +37,6 @@ public class AllTests16 {
+ 		suite.addTest(AllTestsAspectJ1610.suite());
+ 		suite.addTest(AllTestsAspectJ1611.suite());
+ 		suite.addTest(AllTestsAspectJ1612.suite());
+-		suite.addTest(AllTests15.suite());
+ 		// $JUnit-END$
+ 		return suite;
+ 	}
+@@ -0,0 +1,22 @@
++/*
++ * Created on 19-01-2005
++ */
++package org.aspectj.systemtest;
++
++import junit.framework.Test;
++import junit.framework.TestSuite;
++
++import org.aspectj.systemtest.ajc170.AllTestsAspectJ170;
++
++public class AllTests17 {
++
++	public static Test suite() {
++		TestSuite suite = new TestSuite("AspectJ System Test Suite - JDK 1.7");
++		// $JUnit-BEGIN$
++		suite.addTest(AllTestsAspectJ170.suite());
++		suite.addTest(AllTests16.suite());
++		suite.addTest(AllTests15.suite());
++		// $JUnit-END$
++		return suite;
++	}
++}
+@@ -0,0 +1,43 @@
++/*******************************************************************************
++ * Copyright (c) 2008 Contributors
++ * All rights reserved. This program and the accompanying materials
++ * are made available under the terms of the Eclipse Public License v1.0
++ * which accompanies this distribution, and is available at
++ * http://www.eclipse.org/legal/epl-v10.html
++ *
++ * Contributors:
++ *    Andy Clement - initial API and implementation
++ *******************************************************************************/
++package org.aspectj.systemtest.ajc170;
++
++import java.io.File;
++
++import junit.framework.Test;
++
++import org.aspectj.testing.XMLBasedAjcTestCase;
++
++/**
++ * @author Andy Clement
++ */
++public class Ajc170Tests extends org.aspectj.testing.XMLBasedAjcTestCase {
++
++	public void testMissingImpl_363979() {
++		runTest("missing impl");
++	}
++
++	// public void testMissingImpl_363979_2() {
++	// runTest("missing impl 2");
++	// }
++
++	// ---
++
++	public static Test suite() {
++		return XMLBasedAjcTestCase.loadSuite(Ajc170Tests.class);
++	}
++
++	@Override
++	protected File getSpecFile() {
++		return new File("../tests/src/org/aspectj/systemtest/ajc170/ajc170.xml");
++	}
++
++}
+\ No newline at end of file
+@@ -0,0 +1,25 @@
++/*******************************************************************************
++ * Copyright (c) 2008 Contributors
++ * All rights reserved. This program and the accompanying materials
++ * are made available under the terms of the Eclipse Public License v1.0
++ * which accompanies this distribution, and is available at
++ * http://www.eclipse.org/legal/epl-v10.html
++ *
++ * Contributors:
++ *    Andy Clement - initial API and implementation
++ *******************************************************************************/
++package org.aspectj.systemtest.ajc170;
++
++import junit.framework.Test;
++import junit.framework.TestSuite;
++
++public class AllTestsAspectJ170 {
++
++	public static Test suite() {
++		TestSuite suite = new TestSuite("AspectJ 1.7.0 tests");
++		// $JUnit-BEGIN$
++		suite.addTest(Ajc170Tests.suite());
++		// $JUnit-END$
++		return suite;
++	}
++}
+@@ -0,0 +1,24 @@
++<!DOCTYPE suite SYSTEM "../tests/ajcTestSuite.dtd"[]>
++
++<suite>
++
++   <ajc-test dir="bugs170/pr363979" title="missing impl">
++     <compile files="Example.java" options="-1.5"/>
++     <run class="Example">
++	     <stdout>
++	    	 <line text="yes"/>
++	     </stdout>
++     </run>
++   </ajc-test>
++   
++   <ajc-test dir="bugs170/pr363979" title="missing impl 2">
++     <compile files="Example2.java" options="-1.5"/>
++     <run class="Example2">
++	     <stdout>
++	    	 <line text="yes"/>
++	     </stdout>
++     </run>
++   </ajc-test>
++   
++  
++</suite>
+\ No newline at end of file
+@@ -18,6 +18,7 @@ import java.util.Set;
+ import org.aspectj.bridge.IMessage;
+ import org.aspectj.bridge.MessageUtil;
+ import org.aspectj.util.FuzzyBoolean;
++import org.aspectj.weaver.AjAttribute.WeaverVersionInfo;
+ import org.aspectj.weaver.AnnotatedElement;
+ import org.aspectj.weaver.BCException;
+ import org.aspectj.weaver.CompressingDataOutputStream;
+@@ -28,7 +29,6 @@ import org.aspectj.weaver.UnresolvedType;
+ import org.aspectj.weaver.VersionedDataInputStream;
+ import org.aspectj.weaver.WeaverMessages;
+ import org.aspectj.weaver.World;
+-import org.aspectj.weaver.AjAttribute.WeaverVersionInfo;
+ 
+ /**
+  * @author colyer
+@@ -206,7 +206,24 @@ public class WildAnnotationTypePattern extends AnnotationTypePattern {
+ 						}
+ 						annotationValues.put(k, rt.getSignature());
+ 					} else {
+-						throw new RuntimeException("Compiler limitation: annotation value support not implemented for type " + t);
++						if (t.isAnnotation()) {
++							if (v.indexOf("(") != -1) {
++								throw new RuntimeException(
++										"Compiler limitation: annotation values can only currently be marker annotations (no values): "
++												+ v);
++							}
++							String typename = v.substring(1);
++							ResolvedType rt = scope.lookupType(typename, this).resolve(scope.getWorld());
++							if (rt.isMissing()) {
++								IMessage m = MessageUtil.error(
++										"Unable to resolve type '" + v + "' specified for value '" + k + "'", getSourceLocation());
++								scope.getWorld().getMessageHandler().handleMessage(m);
++							}
++							annotationValues.put(k, rt.getSignature());
++						} else {
++							throw new RuntimeException("Compiler limitation: annotation value support not implemented for type "
++									+ t);
++						}
+ 					}
+ 				}
+ 			}
+@@ -45,6 +45,7 @@ import org.aspectj.org.eclipse.jdt.internal.compiler.ast.StringLiteral;
+ import org.aspectj.org.eclipse.jdt.internal.compiler.ast.TypeDeclaration;
+ import org.aspectj.org.eclipse.jdt.internal.compiler.ast.TypeParameter;
+ import org.aspectj.org.eclipse.jdt.internal.compiler.impl.Constant;
++import org.aspectj.org.eclipse.jdt.internal.compiler.lookup.AnnotationBinding;
+ import org.aspectj.org.eclipse.jdt.internal.compiler.lookup.BinaryTypeBinding;
+ import org.aspectj.org.eclipse.jdt.internal.compiler.lookup.Binding;
+ import org.aspectj.org.eclipse.jdt.internal.compiler.lookup.ExtraCompilerModifiers;
+@@ -56,6 +57,7 @@ import org.aspectj.org.eclipse.jdt.internal.compiler.lookup.TagBits;
+ import org.aspectj.org.eclipse.jdt.internal.compiler.lookup.TypeBinding;
+ import org.aspectj.weaver.AbstractReferenceTypeDelegate;
+ import org.aspectj.weaver.AnnotationAJ;
++import org.aspectj.weaver.AnnotationAnnotationValue;
+ import org.aspectj.weaver.AnnotationNameValuePair;
+ import org.aspectj.weaver.AnnotationTargetKind;
+ import org.aspectj.weaver.AnnotationValue;
+@@ -673,7 +675,7 @@ public class EclipseSourceType extends AbstractReferenceTypeDelegate {
+ 		// long bs = (eclipseAnnotation.bits & TagBits.AnnotationRetentionMASK);
+ 		boolean isRuntimeVisible = (eclipseAnnotation.bits & TagBits.AnnotationRetentionMASK) == TagBits.AnnotationRuntimeRetention;
+ 		StandardAnnotation annotationAJ = new StandardAnnotation(annotationType, isRuntimeVisible);
+-		generateAnnotation(eclipseAnnotation, annotationAJ);
++		generateAnnotation(eclipseAnnotation, annotationAJ, w);
+ 		return annotationAJ;
+ 	}
+ 
+@@ -689,7 +691,7 @@ public class EclipseSourceType extends AbstractReferenceTypeDelegate {
+ 	 * @param annotation eclipse based annotation representation
+ 	 * @param annotationAJ AspectJ based annotation representation
+ 	 */
+-	private void generateAnnotation(Annotation annotation, StandardAnnotation annotationAJ) {
++	private void generateAnnotation(Annotation annotation, StandardAnnotation annotationAJ, World w) {
+ 		if (annotation instanceof NormalAnnotation) {
+ 			NormalAnnotation normalAnnotation = (NormalAnnotation) annotation;
+ 			MemberValuePair[] memberValuePairs = normalAnnotation.memberValuePairs;
+@@ -700,9 +702,22 @@ public class EclipseSourceType extends AbstractReferenceTypeDelegate {
+ 					MethodBinding methodBinding = memberValuePair.binding;
+ 					if (methodBinding == null) {
+ 						// is this just a marker annotation?
+-						throw new MissingImplementationException(
+-								"Please raise an AspectJ bug.  AspectJ does not know how to convert this annotation [" + annotation
+-										+ "]");
++						if (memberValuePair.value instanceof MarkerAnnotation) {
++							MarkerAnnotation eMarkerAnnotation = (MarkerAnnotation) memberValuePair.value;
++							AnnotationBinding eMarkerAnnotationBinding = eMarkerAnnotation.getCompilerAnnotation();
++							ReferenceBinding eAnnotationType = eMarkerAnnotationBinding.getAnnotationType();
++							ResolvedType ajAnnotationType = factory.fromTypeBindingToRTX(eAnnotationType);
++							boolean isRuntimeVisible = (eMarkerAnnotation.bits & TagBits.AnnotationRetentionMASK) == TagBits.AnnotationRuntimeRetention;
++							StandardAnnotation ajAnnotation = new StandardAnnotation(ajAnnotationType, isRuntimeVisible);
++							AnnotationValue av = new AnnotationAnnotationValue(ajAnnotation);
++							AnnotationNameValuePair anvp = new AnnotationNameValuePair(new String(memberValuePair.name), av);
++							annotationAJ.addNameValuePair(anvp);
++						} else {
++
++							throw new MissingImplementationException(
++									"Please raise an AspectJ bug.  AspectJ does not know how to convert this annotation ["
++											+ annotation + "]");
++						}
+ 					} else {
+ 						AnnotationValue av = generateElementValue(memberValuePair.value, methodBinding.returnType);
+ 						AnnotationNameValuePair anvp = new AnnotationNameValuePair(new String(memberValuePair.name), av);
+@@ -793,12 +808,17 @@ public class EclipseSourceType extends AbstractReferenceTypeDelegate {
+ 						"Please raise an AspectJ bug.  AspectJ does not know how to convert this annotation value [" + defaultValue
+ 								+ "]");
+ 			} else if (defaultValueBinding.isAnnotationType()) {
+-				throw new MissingImplementationException(
+-						"Please raise an AspectJ bug.  AspectJ does not know how to convert this annotation value [" + defaultValue
+-								+ "]");
+-				// contents[contentsOffset++] = (byte) '@';
+-				// generateAnnotation((Annotation) defaultValue,
+-				// attributeOffset);
++				if (defaultValue instanceof MarkerAnnotation) {
++					ResolvedType ajAnnotationType = factory.fromTypeBindingToRTX(defaultValueBinding);
++					StandardAnnotation ajAnnotation = new StandardAnnotation(ajAnnotationType,
++							ajAnnotationType.isAnnotationWithRuntimeRetention());
++					AnnotationValue av = new AnnotationAnnotationValue(ajAnnotation);
++					return av;
++				} else {
++					throw new MissingImplementationException(
++							"Please raise an AspectJ bug.  AspectJ does not know how to convert this annotation value ["
++									+ defaultValue + "]");
++				}
+ 			} else if (defaultValueBinding.isArrayType()) {
+ 				// array type
+ 				if (defaultValue instanceof ArrayInitializer) {

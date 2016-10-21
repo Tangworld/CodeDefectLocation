@@ -1,0 +1,66 @@
+@@ -1,6 +1,6 @@
+ /* *******************************************************************
+- * Copyright (c) 2002 Palo Alto Research Center, Incorporated (PARC).
+- *               2004 contributors
++ * Copyright (c) 2002-2014 Palo Alto Research Center, Incorporated (PARC) 
++ *               and Contributors
+  * All rights reserved. 
+  * This program and the accompanying materials are made available 
+  * under the terms of the Eclipse Public License v1.0 
+@@ -169,7 +169,8 @@ public class Proceed extends MessageSend {
+ 		}
+ 		checkInvocationArguments(scope,null,this.actualReceiverType,binding,
+ 				this.arguments,binding.parameters,argsContainCast,this);
+-		
++
++		this.resolvedType = binding.returnType;
+ 		return binding.returnType;
+ 	}
+ 
+@@ -0,0 +1,16 @@
++public aspect Test {
++
++	Object around(String s): call(public Object foo(String)) && args(s) {
++		return proceed(s);
++	}
++
++}
++
++class C {
++  public void m() {
++    foo("abc");
++  }
++  public Object foo(String s) {
++    return s;
++  }
++}
+\ No newline at end of file
+@@ -1,5 +1,5 @@
+ /*******************************************************************************
+- * Copyright (c) 2013 Contributors
++ * Copyright (c) 2013-2014 Contributors
+  * All rights reserved. This program and the accompanying materials
+  * are made available under the terms of the Eclipse Public License v1.0
+  * which accompanies this distribution, and is available at
+@@ -21,6 +21,10 @@ import org.aspectj.testing.XMLBasedAjcTestCase;
+  */
+ public class Ajc180Tests extends org.aspectj.testing.XMLBasedAjcTestCase {
+ 
++	public void testNullAnnotationMatching_431541() {
++		runTest("NullAnnotationMatching exception");
++	}
++	
+ 	public void testAnnosWith18Flags_415957() {
+ 		runTest("annotations with 1.8 flags");
+ 	}
+@@ -2,6 +2,10 @@
+ 
+ <suite>
+ 
++	<ajc-test dir="bugs180/pr431541" title="NullAnnotationMatching exception">
++		<compile options="-1.8" files="Test.aj"/>
++	</ajc-test>
++	
+ 	<ajc-test dir="bugs180/415957" title="annotations with 1.8 flags">
+ 		<compile files="MyAspect.aj MyClass.java" options="-1.8 -showWeaveInfo">
+ 			<message kind="weave" text="Join point 'method-execution(void MyClass.method())' in Type 'MyClass' (MyClass.java:3) advised by before advice from 'MyAspect' (MyAspect.aj:5)"/>

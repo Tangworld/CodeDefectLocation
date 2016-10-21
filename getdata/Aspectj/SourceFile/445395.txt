@@ -1,0 +1,574 @@
+@@ -0,0 +1,15 @@
++import java.util.*;
++
++public class Code {
++  public void m() { }
++  public static void main(String []argv) {
++    new Code().m();
++  }
++}
++
++aspect X {
++  void around(): execution(* m(..)) {
++    Arrays.asList(4, 5, 6).forEach((i) -> { System.out.println(i);});
++  }
++}
++
+@@ -0,0 +1,75 @@
++//package org.acmsl.pocs.lambdafor;
++
++import java.util.ArrayList;
++import java.util.Collection;
++import java.util.List;
++import java.util.function.Function;
++import java.util.stream.Collectors;
++
++public class ControlFlow
++{
++    public <C extends Collection<I>, I, R> Collection<R> forloop( final C items, final Function<I, R> lambda)
++    {
++        return functionalForLoop(items, lambda);
++    }
++
++    public <C extends Collection<I>, I, R> Collection<R> functionalForLoop( final C items,  final Function<I, R> lambda)
++    {
++        return items.stream().map(lambda::apply).collect(Collectors.toList());
++    }
++
++    
++    public Collection iterativeForloop( final Collection items,  final Function lambda)
++    {
++         final List<Object> result = new ArrayList<>();
++
++        for (final Object item: items)
++        {
++            result.add(lambda.<Object>apply(item));
++        }
++
++        return result;
++    }
++
++    public <C extends Collection<I>, I, R> Collection<R> externallyDrivenForloop(
++         final ControlFlowDriver driver,  final C items,  final Function<I, R> lambda)
++    {
++         final List<R> result = new ArrayList<>(items.size());
++
++         final List<I> list = new ArrayList<>(items);
++
++        int position = -1;
++
++        while (true)
++        {
++            ControlFlowCommand command = driver.waitForCommand();
++
++            switch (command)
++            {
++                case NEXT:
++                    position++;
++                    break;
++                case PREVIOUS:
++                    position++;
++                    break;
++                case RELOAD:
++                    break;
++                default:
++                    break;
++            }
++
++            if (position < 0)
++            {
++                position = 0;
++            }
++            else if (position > list.size() - 1)
++            {
++                break;
++            }
++
++            result.set(position, lambda.apply(list.get(position)));
++        }
++
++        return result;
++    }
++}
+@@ -0,0 +1,7 @@
++//package org.acmsl.pocs.lambdafor;
++
++public enum ControlFlowCommand {
++    NEXT,
++    PREVIOUS,
++    RELOAD;
++}
+@@ -0,0 +1,75 @@
++//package org.acmsl.pocs.lambdafor;
++
++import java.util.ArrayList;
++import java.util.Collection;
++import java.util.List;
++import java.util.function.Function;
++
++public class ControlFlowDriver {
++
++	private static boolean m__bUsed = false;
++
++	public ControlFlowDriver() {
++	}
++
++	protected static void immutableSetUsed(final boolean used) {
++		m__bUsed = used;
++	}
++
++	protected static void setUsed(final boolean used) {
++		immutableSetUsed(used);
++	}
++
++	public static boolean isUsed() {
++		return m__bUsed;
++	}
++
++	public <C extends Collection<I>, I, R> Collection<R> forloop(final C items,
++			final Function<I, R> lambda) {
++		setUsed(true);
++
++		final List<R> result = new ArrayList<R>(items.size());
++
++		final List<I> list = new ArrayList<I>(items);
++
++		int position = -1;
++
++		while (true) {
++			ControlFlowCommand command = waitForCommand();
++
++			switch (command) {
++			case NEXT:
++				position++;
++				break;
++			case PREVIOUS:
++				position++;
++				break;
++			case RELOAD:
++				break;
++			default:
++				break;
++			}
++
++			if (position < 0) {
++				position = 0;
++			} else if (position > list.size() - 1) {
++				break;
++			}
++
++			result.set(position, lambda.apply(list.get(position)));
++		}
++
++		return result;
++	}
++
++	protected ControlFlowCommand waitForCommand() {
++		try {
++			Thread.sleep(1000);
++		} catch (final InterruptedException interruptedException) {
++			// whatever
++		}
++
++		return ControlFlowCommand.NEXT;
++	}
++
++}
+@@ -0,0 +1,44 @@
++//package org.acmsl.pocs.lambdafor;
++
++import java.util.Arrays;
++
++public aspect ForReplacer
++{
++    /**
++     * Intercepting for loop constructs.
++     */
++    pointcut forLoopPointcut():
++//        execution(* Sample.sampleCode(..)); // -> error
++        execution(* forloop(..));
++//        && args(Collect, ..);
++
++    /**
++     * Replacing the loop construct.
++     */
++    Object around() : forLoopPointcut()
++    {
++//        return proceed();
++//        Collection<Integer> result = new ArrayList<>();
++//        result.addAll(new ControlFlow().externallyDrivenForloop(new ControlFlowDriver(), Arrays.asList(4, 5, 6), (i) -> { System.out.println(i); return i;}));
++//        return result;
++        return new ControlFlow().externallyDrivenForloop(new ControlFlowDriver(), Arrays.asList(4, 5, 6), (i) -> { System.out.println(i); return i;});
++    }
++
++    /**
++     * Intercepting for loop constructs.
++     *
++    pointcut forLoopPointcut(ControlFlow loop):
++        call(* ControlFlow.forloop(..))
++        && target(loop);
++//        && args(items, ..);
++
++    /**
++     * Replacing the loop construct.
++     *
++    Collection around(ControlFlow loop) : forLoopPointcut(loop)
++    {
++        return loop.externallyDrivenForloop(new ControlFlowDriver(), Arrays.asList(4, 5, 6), (i) -> { System.out.println(i); return i;});
++//        return new ControlFlow().externallyDrivenForloop(new ControlFlowDriver(), Arrays.asList(4, 5, 6), (i) -> { System.out.println(i); return i;});
++    }
++     */
++}
+@@ -21,6 +21,14 @@ import org.aspectj.testing.XMLBasedAjcTestCase;
+  */
+ public class Ajc183Tests extends org.aspectj.testing.XMLBasedAjcTestCase {
+ 
++	public void testConstantPool_445395_0() {
++		runTest("constant pool 0");
++	}
++
++	public void testConstantPool_445395() {
++		runTest("constant pool");
++	}
++	
+ 	public void testAbstractAspectNPE_444398() {
+ 		runTest("abstract aspect npe");
+ 	}
+@@ -2,6 +2,23 @@
+ 
+ <suite>
+ 
++	<ajc-test dir="bugs183/445395" title="constant pool 0">
++		<compile options="-1.8" files="Code.java">
++		</compile>
++		<run class="Code">
++		<stdout>
++		<line text="4"/>
++		<line text="5"/>
++		<line text="6"/>
++		</stdout>
++		</run>
++	</ajc-test>
++
++	<ajc-test dir="bugs183/445395" title="constant pool">
++		<compile options="-1.8" files="ControlFlow.java ForReplacer.java ControlFlowCommand.java ControlFlowDriver.java">
++		</compile>
++	</ajc-test>
++	
+ 	<ajc-test dir="bugs183/444398" title="abstract aspect npe">
+ 		<compile options="-1.8" files="Bottom.java Middle.java Top.java">
+ 		</compile>
+@@ -19,12 +19,14 @@ import java.util.Collection;
+ import java.util.Collections;
+ import java.util.Map;
+ 
++import org.aspectj.apache.bcel.Constants;
+ import org.aspectj.apache.bcel.classfile.LocalVariable;
+ import org.aspectj.apache.bcel.classfile.LocalVariableTable;
+ import org.aspectj.apache.bcel.generic.InstructionConstants;
+ import org.aspectj.apache.bcel.generic.InstructionFactory;
+ import org.aspectj.apache.bcel.generic.InstructionHandle;
+ import org.aspectj.apache.bcel.generic.InstructionList;
++import org.aspectj.apache.bcel.generic.InvokeDynamic;
+ import org.aspectj.apache.bcel.generic.LineNumberTag;
+ import org.aspectj.apache.bcel.generic.LocalVariableTag;
+ import org.aspectj.bridge.ISourceLocation;
+@@ -69,7 +71,8 @@ class BcelAdvice extends Advice {
+ 	 */
+ 	private Test runtimeTest;
+ 	private ExposedState exposedState;
+-
++	private int containsInvokedynamic = 0;// 0 = dontknow, 1=no, 2=yes
++	
+ 	public BcelAdvice(AjAttribute.AdviceAttribute attribute, Pointcut pointcut, Member adviceSignature, ResolvedType concreteAspect) {
+ 		super(attribute, pointcut, simplify(attribute.getKind(), adviceSignature));
+ 		this.concreteAspect = concreteAspect;
+@@ -233,6 +236,24 @@ class BcelAdvice extends Advice {
+ 			// Could be a symptom that the aspect failed to build last build... return the default answer of false
+ 			return false;
+ 		}
++		// Need isJava8 check
++		// Does the advice contain invokedynamic...
++		if (boType.javaClass.getMajor() == Constants.MAJOR_1_8) {
++			if (containsInvokedynamic == 0) {
++				containsInvokedynamic = 1;
++				LazyMethodGen lmg = boType.getLazyClassGen().getLazyMethodGen(this.signature);
++				InstructionList ilist = lmg.getBody();
++				for (InstructionHandle src = ilist.getStart(); src != null; src = src.getNext()) {
++					if (src.getInstruction().opcode == Constants.INVOKEDYNAMIC) {
++						containsInvokedynamic = 2;
++						break;
++					}
++				}
++			}
++		}
++		if (containsInvokedynamic == 2) {
++			return false;
++		}
+ 		return boType.getLazyClassGen().isWoven();
+ 	}
+ 
+@@ -27,6 +27,11 @@ import java.util.Properties;
+ import java.util.Set;
+ 
+ import org.aspectj.apache.bcel.Constants;
++import org.aspectj.apache.bcel.classfile.Attribute;
++import org.aspectj.apache.bcel.classfile.BootstrapMethods;
++import org.aspectj.apache.bcel.classfile.ConstantInvokeDynamic;
++import org.aspectj.apache.bcel.classfile.ConstantMethodHandle;
++import org.aspectj.apache.bcel.classfile.ConstantMethodref;
+ import org.aspectj.apache.bcel.classfile.ConstantPool;
+ import org.aspectj.apache.bcel.classfile.Method;
+ import org.aspectj.apache.bcel.classfile.annotation.AnnotationGen;
+@@ -42,6 +47,7 @@ import org.aspectj.apache.bcel.generic.InstructionLV;
+ import org.aspectj.apache.bcel.generic.InstructionList;
+ import org.aspectj.apache.bcel.generic.InstructionSelect;
+ import org.aspectj.apache.bcel.generic.InstructionTargeter;
++import org.aspectj.apache.bcel.generic.InvokeDynamic;
+ import org.aspectj.apache.bcel.generic.InvokeInstruction;
+ import org.aspectj.apache.bcel.generic.LineNumberTag;
+ import org.aspectj.apache.bcel.generic.LocalVariableTag;
+@@ -2204,7 +2210,7 @@ class BcelClassWeaver implements IClassWeaver {
+ 		ConstantPool recipientCpg = recipient.getEnclosingClass().getConstantPool();
+ 
+ 		boolean isAcrossClass = donorCpg != recipientCpg;
+-
++		BootstrapMethods bootstrapMethods = null;
+ 		// first pass: copy the instructions directly, populate the srcToDest
+ 		// map,
+ 		// fix frame instructions
+@@ -2214,13 +2220,60 @@ class BcelClassWeaver implements IClassWeaver {
+ 
+ 			// OPTIMIZE optimize this stuff?
+ 			if (fresh.isConstantPoolInstruction()) {
+-				// need to reset index to go to new constant pool. This is
+-				// totally
++				// need to reset index to go to new constant pool. This is totally
+ 				// a computation leak... we're testing this LOTS of times. Sigh.
+ 				if (isAcrossClass) {
+ 					InstructionCP cpi = (InstructionCP) fresh;
+ 					cpi.setIndex(recipientCpg.addConstant(donorCpg.getConstant(cpi.getIndex()), donorCpg));
+ 				}
++				// May need to copy bootstrapmethods across too.
++//				if (fresh instanceof InvokeDynamic) {
++//					InvokeDynamic id = (InvokeDynamic)fresh;
++//					ConstantInvokeDynamic cid = (ConstantInvokeDynamic)donorCpg.getConstant(src.getInstruction().getIndex());
++//					int bmaIndex = cid.getBootstrapMethodAttrIndex();
++//					if (bootstrapMethods == null) {
++//						Collection<Attribute> attributes = donor.getEnclosingClass().getAttributes();
++//						if (attributes != null) {
++//							for (Attribute attribute: attributes) {
++//								if (attribute instanceof BootstrapMethods) {
++//									bootstrapMethods = (BootstrapMethods)attribute;
++//								}
++//							}
++//						}
++//						BootstrapMethods.BootstrapMethod bootstrapMethod = 
++//								bootstrapMethods.getBootstrapMethods()[bmaIndex];
++//						ConstantMethodHandle methodhandle = (ConstantMethodHandle)donorCpg.getConstant(bootstrapMethod.getBootstrapMethodRef());
++//						int bootstrapMethodArguments[] = bootstrapMethod.getBootstrapArguments();
++//						
++//						// Finally have all we need to build the new one...
++//						
++//						int newMethodHandleIndex = recipientCpg.addConstant(methodhandle, donorCpg);
++//						int[] newMethodArguments = new int[bootstrapMethodArguments.length];
++//						for (int a=0; a<bootstrapMethodArguments.length; a++) {
++//							newMethodArguments[a] = recipientCpg.addConstant(donorCpg.getConstant(bootstrapMethodArguments[a]),donorCpg);
++//						}
++//						BootstrapMethods.BootstrapMethod newBootstrapMethod = 
++//								new BootstrapMethods.BootstrapMethod(newMethodHandleIndex,newMethodArguments);
++//						
++//						Collection<Attribute> newAttributes = recipient.getEnclosingClass().getAttributes();
++//						BootstrapMethods newBootstrapMethods = null;
++//						for (Attribute attr: newAttributes) {
++//							if (attr instanceof BootstrapMethods) {
++//								newBootstrapMethods = (BootstrapMethods)newBootstrapMethods;
++//							}
++//						}
++//						if (newBootstrapMethods == null) {
++//							newBootstrapMethods = 
++//									new BootstrapMethods(recipientCpg.addUtf8("BootstrapMethods"),
++//											2+newBootstrapMethod.getLength(),
++//											new BootstrapMethods.BootstrapMethod[] {newBootstrapMethod},
++//											recipientCpg);
++//							recipient.getEnclosingClass().addAttribute(newBootstrapMethods);
++//						}
++// TODO need to copy over lambda$0 support methods too...
++//					}
++//					
++//				}
+ 			}
+ 			if (src.getInstruction() == Range.RANGEINSTRUCTION) {
+ 				dest = ret.append(Range.RANGEINSTRUCTION);
+@@ -20,6 +20,7 @@ import java.io.IOException;
+ import java.io.PrintStream;
+ import java.lang.reflect.Modifier;
+ import java.util.ArrayList;
++import java.util.Collection;
+ import java.util.Collections;
+ import java.util.Comparator;
+ import java.util.HashMap;
+@@ -1582,6 +1583,14 @@ public final class LazyClassGen {
+ 	public void addAttribute(AjAttribute attribute) {
+ 		myGen.addAttribute(Utility.bcelAttribute(attribute, getConstantPool()));
+ 	}
++	
++	public void addAttribute(Attribute attribute) {
++		myGen.addAttribute(attribute);
++	}
++	
++	public Collection<Attribute> getAttributes() {
++		return myGen.getAttributes();
++	}
+ 
+ 	// this test is like asking:
+ 	// if
+@@ -337,6 +337,11 @@ public class ConstantsInitializer {
+ 				| Constants.INDEXED;
+ 		Constants.instExcs[Constants.INVOKEVIRTUAL] = ExceptionConstants.EXCS_INTERFACE_METHOD_RESOLUTION_INVOKESPECIAL_INVOKEVIRTUAL;
+ 
++		Constants.instFlags[Constants.INVOKEDYNAMIC] = Constants.EXCEPTION_THROWER | Constants.CP_INST | Constants.LOADCLASS_INST
++				| Constants.INDEXED;
++		// TBD
++		// Constants.instExcs[Constants.INVOKEDYNAMIC] = ExceptionConstants.EXCS_INTERFACE_METHOD_RESOLUTION_INVOKESPECIAL_INVOKEVIRTUAL;
++
+ 		//@formatter:off
+ 		char[] lengths = // . = varies in length, / = undefined
+ 		("1111111111111111" + // nop > dconst_1
+@@ -135,6 +135,7 @@ public interface ExceptionConstants {
+ 			ILLEGAL_ACCESS_ERROR, ABSTRACT_METHOD_ERROR, UNSATISFIED_LINK_ERROR };
+ 	public static final Class[] EXCS_INTERFACE_METHOD_RESOLUTION_INVOKESPECIAL_INVOKEVIRTUAL = { INCOMPATIBLE_CLASS_CHANGE_ERROR,
+ 			NULL_POINTER_EXCEPTION, ABSTRACT_METHOD_ERROR, UNSATISFIED_LINK_ERROR };
++//	public static final Class[] EXCS_INVOKEDYNAMIC = { BOOTSTRAP_METHOD_ERROR};
+ 
+ 	public static final Class[] EXCS_INTERFACE_METHOD_RESOLUTION_INVOKESTATIC = { INCOMPATIBLE_CLASS_CHANGE_ERROR,
+ 			UNSATISFIED_LINK_ERROR };
+@@ -99,7 +99,7 @@ public final class BootstrapMethods extends Attribute {
+ 		isInPackedState = true;
+ 	}
+ 
+-	static class BootstrapMethod {
++	public static class BootstrapMethod {
+ 		private int bootstrapMethodRef;
+ 		private int[] bootstrapArguments;
+ 
+@@ -116,7 +116,7 @@ public final class BootstrapMethods extends Attribute {
+ 			return bootstrapArguments;
+ 		}
+ 
+-		BootstrapMethod(int bootstrapMethodRef, int[] bootstrapArguments) {
++		public BootstrapMethod(int bootstrapMethodRef, int[] bootstrapArguments) {
+ 			this.bootstrapMethodRef = bootstrapMethodRef;
+ 			this.bootstrapArguments = bootstrapArguments;
+ 		}
+@@ -138,6 +138,12 @@ public final class BootstrapMethods extends Attribute {
+ 			}
+ 		}
+ 
++		public final int getLength() {
++			return 2 /*bootstrapMethodRef*/+
++					2 /*number of arguments*/+
++					2 * bootstrapArguments.length;
++		}
++		
+ 	}
+ 
+ 	// Unpacks the byte array into the table
+@@ -109,6 +109,10 @@ public final class ConstantInvokeDynamic extends Constant {
+ 	public final int getNameAndTypeIndex() {
+ 		return nameAndTypeIndex;
+ 	}
++	
++	public final int getBootstrapMethodAttrIndex() {
++		return bootstrapMethodAttrIndex;
++	}
+ 
+ 	@Override
+ 	public final String toString() {
+@@ -586,6 +586,20 @@ public class ConstantPool implements Node {
+ 
+ 			return addNameAndType(u8.getValue(), u8_2.getValue());
+ 		}
++		
++		case Constants.CONSTANT_InvokeDynamic: {
++			ConstantInvokeDynamic cid = (ConstantInvokeDynamic)c;
++			int index1 = cid.getBootstrapMethodAttrIndex();
++			ConstantNameAndType cnat = (ConstantNameAndType)constants[cid.getNameAndTypeIndex()];
++			ConstantUtf8 name = (ConstantUtf8) constants[cnat.getNameIndex()];
++			ConstantUtf8 signature = (ConstantUtf8) constants[cnat.getSignatureIndex()];
++			int index2 = addNameAndType(name.getValue(), signature.getValue());
++			return addInvokeDynamic(index1,index2);
++		}
++		
++		case Constants.CONSTANT_MethodHandle:
++			ConstantMethodHandle cmh = (ConstantMethodHandle)c;
++			return addMethodHandle(cmh.getReferenceKind(),addConstant(constants[cmh.getReferenceIndex()],cp));
+ 
+ 		case Constants.CONSTANT_Utf8:
+ 			return addUtf8(((ConstantUtf8) c).getValue());
+@@ -601,6 +615,10 @@ public class ConstantPool implements Node {
+ 
+ 		case Constants.CONSTANT_Integer:
+ 			return addInteger(((ConstantInteger) c).getValue());
++			
++		case Constants.CONSTANT_MethodType:
++			ConstantMethodType cmt = (ConstantMethodType)c;
++			return addMethodType(addConstant(constants[cmt.getDescriptorIndex()],cp));
+ 
+ 		case Constants.CONSTANT_InterfaceMethodref:
+ 		case Constants.CONSTANT_Methodref:
+@@ -636,6 +654,20 @@ public class ConstantPool implements Node {
+ 			throw new RuntimeException("Unknown constant type " + c);
+ 		}
+ 	}
++	
++	public int addMethodHandle(byte referenceKind, int referenceIndex) {
++		adjustSize();
++		int ret = poolSize;
++		pool[poolSize++] = new ConstantMethodHandle(referenceKind, referenceIndex);
++		return ret;
++	}
++	
++	public int addMethodType(int descriptorIndex) {
++		adjustSize();
++		int ret = poolSize;
++		pool[poolSize++] = new ConstantMethodType(descriptorIndex);
++		return ret;
++	}
+ 
+ 	// OPTIMIZE should put it in the cache now
+ 	public int addMethodref(String class_name, String method_name, String signature) {
+@@ -651,6 +683,13 @@ public class ConstantPool implements Node {
+ 		pool[poolSize++] = new ConstantMethodref(class_index, name_and_type_index);
+ 		return ret;
+ 	}
++	
++	public int addInvokeDynamic(int bootstrapMethodIndex, int constantNameAndTypeIndex) {
++		adjustSize();
++		int ret = poolSize;
++		pool[poolSize++] = new ConstantInvokeDynamic(bootstrapMethodIndex, constantNameAndTypeIndex);
++		return ret;
++	}
+ 
+ 	public int addInterfaceMethodref(String class_name, String method_name, String signature) {
+ 		int ret = lookupInterfaceMethodref(class_name, method_name, signature);
+@@ -1150,7 +1150,6 @@ public class InstructionList implements Serializable {
+ 	public void replaceConstantPool(ConstantPool old_cp, ConstantPool new_cp) {
+ 		for (InstructionHandle ih = start; ih != null; ih = ih.next) {
+ 			Instruction i = ih.instruction;
+-
+ 			if (i.isConstantPoolInstruction()) {
+ 				InstructionCP ci = (InstructionCP) i;
+ 				Constant c = old_cp.getConstant(ci.getIndex());
+@@ -1165,7 +1164,7 @@ public class InstructionList implements Serializable {
+ 	}
+ 
+ 	/**
+-	 * Delete contents of list. Provides besser memory utilization, because the system then may reuse the instruction handles. This
++	 * Delete contents of list. Provides better memory utilization, because the system then may reuse the instruction handles. This
+ 	 * method is typically called right after <href="MethodGen.html#getMethod()">MethodGen.getMethod()</a>.
+ 	 */
+ 	public void dispose() {
+Binary files differ
+Binary files differ
+Binary files differ

@@ -1,0 +1,70 @@
+@@ -141,6 +141,8 @@ public class WeaverMessages {
+ 	public static final String CANT_DECP_TO_MAKE_ANNOTATION_SUPERTYPE = "cantDecpToMakeAnnotationSupertype";
+ 	public static final String REFERENCE_TO_NON_ANNOTATION_TYPE = "referenceToNonAnnotationType";
+ 	public static final String BINDING_NON_RUNTIME_RETENTION_ANNOTATION = "bindingNonRuntimeRetentionAnnotation";
++	
++	public static final String UNSUPPORTED_ANNOTATION_VALUE_TYPE = "unsupportedAnnotationValueType";
+ 
+ 	public static final String INCORRECT_TARGET_FOR_DECLARE_ANNOTATION = "incorrectTargetForDeclareAnnotation";
+ 	public static final String NO_MATCH_BECAUSE_SOURCE_RETENTION = "noMatchBecauseSourceRetention";
+@@ -228,8 +228,8 @@ public class WildAnnotationTypePattern extends AnnotationTypePattern {
+ 							replacementValues.put(k, rt.getSignature());
+ 							break;
+ 						} else {
+-							throw new RuntimeException("Compiler limitation: annotation value support not implemented for type "
+-									+ t);
++							scope.message(MessageUtil.error(WeaverMessages.format(WeaverMessages.UNSUPPORTED_ANNOTATION_VALUE_TYPE,t), getSourceLocation()));
++							replacementValues.put(k,"");
+ 						}
+ 					}
+ 				}
+@@ -111,6 +111,7 @@ noAroundOnSynchronization=Around advice is not supported on the lock and unlock
+ aroundOnPreInit=around on pre-initialization not supported (compiler limitation)
+ aroundOnInit=around on initialization not supported (compiler limitation)
+ aroundOnInterfaceStaticInit=around on staticinitialization of interface ''{0}'' not supported (compiler limitation)
++unsupportedAnnotationValueType=Compiler limitation: annotation value support not implemented for type {0}
+ 
+ # Bytecode generation nasties...
+ problemGeneratingMethod=problem generating method {0}.{1} : {2}
+@@ -0,0 +1,17 @@
++import java.lang.annotation.*;
++
++@Retention(RetentionPolicy.RUNTIME)
++@interface Anno {
++  String[] value();
++}
++
++aspect Code {
++
++  @Anno({"xyz","abc"})
++  public void m() {}
++
++  pointcut p(): execution(public * @Anno(value="xyz=abc") *..*(..));
++
++  before() : p() { }
++
++}
+@@ -23,6 +23,10 @@ import org.aspectj.testing.XMLBasedAjcTestCase;
+  */
+ public class Ajc172Tests extends org.aspectj.testing.XMLBasedAjcTestCase {
+ 
++	public void testUnsupportedShouldBeNormalError_pr391384() {
++		runTest("unsupported should be normal error");
++	}
++	
+ 	// if the test is failing because the classes won't run, remove the run blocks from the ajc172.xml entry and re-run to check signatures.
+ 	public void testSignatures_pr394535() throws Exception {
+ 		runTest("signatures");
+@@ -2,6 +2,12 @@
+ 
+ <suite>
+ 
++	<ajc-test dir="bugs172/pr391384" title="unsupported should be normal error">
++      <compile files="Code.java" options="-1.5">
++      	<message kind="error" text="Compiler limitation: annotation value support not implemented for type java.lang.String[]"/>
++      </compile>
++    </ajc-test>
++    
+ 	<ajc-test dir="bugs172/pr394535" title="signatures">
+       <compile files="Bug.java" options="-1.5"/>
+       <compile files="Bug2.java" options="-1.5"/>

@@ -1,0 +1,639 @@
+@@ -206,7 +206,14 @@ public class CrosscuttingMembers {
+ 	public void addPrivilegedAccesses(Collection<ResolvedMember> accessedMembers) {
+ 		int version = inAspect.getCompilerVersion();
+ 		for (ResolvedMember member : accessedMembers) {
+-			PrivilegedAccessMunger privilegedAccessMunger = new PrivilegedAccessMunger(member,
++			// Looking it up ensures we get the annotations - the accessedMembers are just retrieved from the attribute and
++			// don't have that information
++			ResolvedMember resolvedMember = world.resolve(member);
++			if (resolvedMember == null) {
++				// can happen for ITDs - are there many privileged access ITDs??
++				resolvedMember = member;
++			}
++			PrivilegedAccessMunger privilegedAccessMunger = new PrivilegedAccessMunger(resolvedMember,
+ 					version >= WeaverVersionInfo.WEAVER_VERSION_AJ169);
+ 			ConcreteTypeMunger concreteTypeMunger = world.getWeavingSupport().concreteTypeMunger(privilegedAccessMunger, inAspect);
+ 			addTypeMunger(concreteTypeMunger);
+@@ -33,6 +33,7 @@ public class PrivilegedAccessMunger extends ResolvedTypeMunger {
+ 		this.shortSyntax = shortSyntax;
+ 	}
+ 
++	@Override
+ 	public void write(DataOutputStream s) throws IOException {
+ 		throw new RuntimeException("should not be serialized");
+ 	}
+@@ -41,28 +42,34 @@ public class PrivilegedAccessMunger extends ResolvedTypeMunger {
+ 		return getSignature();
+ 	}
+ 
++	@Override
+ 	public ResolvedMember getMatchingSyntheticMember(Member member, ResolvedType aspectType) {
+ 		ResolvedMember ret;
+ 		// assert if shortSyntax then aspectType.getCompilerVersion()>=169
+ 		if (getSignature().getKind() == Member.FIELD) {
+ 			ret = AjcMemberMaker.privilegedAccessMethodForFieldGet(aspectType, getSignature(), shortSyntax);
+-			if (ResolvedType.matches(ret, member))
++			if (ResolvedType.matches(ret, member)) {
+ 				return getSignature();
++			}
+ 			ret = AjcMemberMaker.privilegedAccessMethodForFieldSet(aspectType, getSignature(), shortSyntax);
+-			if (ResolvedType.matches(ret, member))
++			if (ResolvedType.matches(ret, member)) {
+ 				return getSignature();
++			}
+ 		} else {
+ 			// System.err.println("sig: " + getSignature());
+ 			ret = AjcMemberMaker.privilegedAccessMethodForMethod(aspectType, getSignature());
+-			if (ResolvedType.matches(ret, member))
++			if (ResolvedType.matches(ret, member)) {
+ 				return getSignature();
++			}
+ 		}
+ 		return null;
+ 	}
+ 
++	@Override
+ 	public boolean equals(Object other) {
+-		if (!(other instanceof PrivilegedAccessMunger))
++		if (!(other instanceof PrivilegedAccessMunger)) {
+ 			return false;
++		}
+ 		PrivilegedAccessMunger o = (PrivilegedAccessMunger) other;
+ 		return kind.equals(o.kind)
+ 				&& ((o.signature == null) ? (signature == null) : signature.equals(o.signature))
+@@ -71,6 +78,7 @@ public class PrivilegedAccessMunger extends ResolvedTypeMunger {
+ 						.equals(o.typeVariableAliases));
+ 	}
+ 
++	@Override
+ 	public int hashCode() {
+ 		int result = 17;
+ 		result = 37 * result + kind.hashCode();
+@@ -80,6 +88,7 @@ public class PrivilegedAccessMunger extends ResolvedTypeMunger {
+ 		return result;
+ 	}
+ 
++	@Override
+ 	public boolean existsToSupportShadowMunging() {
+ 		return true;
+ 	}
+@@ -0,0 +1,9 @@
++aspect Advisor {
++//  Object around(Object o): get(@Anno * *) && this(o) {
++//    return proceed(o);
++//  }
++
++  Object around(Object o,Object newval): set(@Anno * *) && this(o) && args(newval) {
++    return proceed(o,newval);
++  }
++}
+@@ -0,0 +1,4 @@
++import java.lang.annotation.*;
++
++@Retention(RetentionPolicy.RUNTIME)
++@interface Anno {}
+@@ -0,0 +1,4 @@
++class Target {
++  @Anno
++  private String it;
++}
+@@ -0,0 +1,9 @@
++privileged aspect TargetAugmenter {
++//  public String Target.getIt() {
++//    return it;
++//  }
++
++  public void Target.setIt(String newit) {
++    this.it = newit;
++  }
++}
+@@ -0,0 +1,9 @@
++privileged aspect TargetAugmenter {
++//  public String Target.getIt() {
++//    return it;
++//  }
++
++  public void Target.setIt(String newit) {
++    this.it = newit;
++  }
++}
+@@ -0,0 +1,9 @@
++aspect Advisor {
++//  Object around(Object o): get(@Anno * *) && this(o) {
++//    return proceed(o);
++//  }
++
++  Object around(Object o,Object newval): set(* *) && !set(@Anno * *) && this(o) && args(newval) {
++    return proceed(o,newval);
++  }
++}
+@@ -0,0 +1,4 @@
++import java.lang.annotation.*;
++
++@Retention(RetentionPolicy.RUNTIME)
++@interface Anno {}
+@@ -0,0 +1,4 @@
++class Target {
++  @Anno
++  private String it;
++}
+@@ -0,0 +1,9 @@
++privileged aspect TargetAugmenter {
++//  public String Target.getIt() {
++//    return it;
++//  }
++
++  public void Target.setIt(String newit) {
++    this.it = newit;
++  }
++}
+@@ -0,0 +1,9 @@
++privileged aspect TargetAugmenter {
++//  public String Target.getIt() {
++//    return it;
++//  }
++
++  public void Target.setIt(String newit) {
++    this.it = newit;
++  }
++}
+@@ -256,27 +256,102 @@ public class MultiProjectIncrementalTests extends AbstractMultiProjectIncrementa
+ 		assertEquals(4, getRelationshipCount(p));
+ 	}
+ 
++	public void testIncrementalAdvisingItdJoinpointsAccessingPrivFields_307120_pipelineOff() throws Exception {
++		String p = "pr307120";
++		initialiseProject(p);
++		configureNonStandardCompileOptions(p, "-Xset:pipelineCompilation=false");
++		build(p);
++		// Hid:1:(targets=1) =pr307120<{Test.java}Test)A.getFoo?field-get(int A.foo) (advised by) =pr307120<{Test.java}Test&before
++		// Hid:2:(targets=1) =pr307120<{A.java[A (aspect declarations) =pr307120<{Test.java}Test)A.getFoo
++		// Hid:3:(targets=1) =pr307120<{Test.java}Test&before (advises) =pr307120<{Test.java}Test)A.getFoo?field-get(int A.foo)
++		// Hid:4:(targets=1) =pr307120<{Test.java}Test)A.getFoo (declared on) =pr307120<{A.java[A
++		alter(p, "inc1");
++		assertEquals(4, getRelationshipCount(p));
++		build(p);
++		// Hid:1:(targets=1) =pr307120<{A.java[A (aspect declarations) =pr307120<{Test.java}Test)A.getFoo
++		// Hid:2:(targets=1) =pr307120<{Test.java}Test)A.getFoo (declared on) =pr307120<{A.java[A
++		// These two are missing without the fix:
++		// Hid:1:(targets=1) =pr307120<{Test.java}Test)A.getFoo?field-get(int A.foo) (advised by) =pr307120<{Test.java}Test&before
++		// Hid:7:(targets=1) =pr307120<{Test.java}Test&before (advises) =pr307120<{Test.java}Test)A.getFoo?field-get(int A.foo)
++		assertNoErrors(p);
++		assertEquals(4, getRelationshipCount(p));
++	}
++
++	// More sophisticated variant of above.
++	public void testIncrementalAdvisingItdJoinpointsAccessingPrivFields_307120_2_pipelineOff() throws Exception {
++		String p = "pr307120_3";
++		initialiseProject(p);
++		configureNonStandardCompileOptions(p, "-Xset:pipelineCompilation=false");
++		build(p);
++		assertNoErrors(p);
++		// Hid:1:(targets=1) =pr307120_3<{TargetAugmenter.java}TargetAugmenter)Target.setIt)QString; (declared on)
++		// =pr307120_3<{Target.java[Target
++
++		// Hid:2:(targets=1) =pr307120_3<{Target.java[Target (aspect declarations)
++		// =pr307120_3<{TargetAugmenter.java}TargetAugmenter)Target.setIt)QString;
++
++		// these are missing under this bug:
++
++		// Hid:3:(targets=1) =pr307120_3<{Advisor.java}Advisor&around&QObject;&QObject; (advises)
++		// =pr307120_3<{TargetAugmenter.java}TargetAugmenter)Target.setIt)QString;?field-set(java.lang.String Target.it)
++
++		// Hid:4:(targets=1) =pr307120_3<{TargetAugmenter.java}TargetAugmenter)Target.setIt)QString;?field-set(java.lang.String
++		// Target.it) (advised by) =pr307120_3<{Advisor.java}Advisor&around&QObject;&QObject;
++
++		assertEquals(4, getRelationshipCount(p));
++		alter(p, "inc1");
++		build(p);
++
++		assertEquals(4, getRelationshipCount(p));
++		assertNoErrors(p);
++	}
++
+ 	// More sophisticated variant of above.
+ 	public void testIncrementalAdvisingItdJoinpointsAccessingPrivFields_307120_2() throws Exception {
+ 		String p = "pr307120_2";
+ 		initialiseProject(p);
+ 		build(p);
+ 		assertNoErrors(p);
+-		//		Hid:2:(targets=1) =pr307120_2<{TargetAugmenter.java}TargetAugmenter)Target.setIt)QString; (declared on) =pr307120_2<{Target.java[Target
+-		//		Hid:8:(targets=1) =pr307120_2<{TargetAugmenter.java}TargetAugmenter)Target.getIt (declared on) =pr307120_2<{Target.java[Target
+-		//		Hid:5:(targets=2) =pr307120_2<{Target.java[Target (aspect declarations) =pr307120_2<{TargetAugmenter.java}TargetAugmenter)Target.getIt
+-		//		Hid:6:(targets=2) =pr307120_2<{Target.java[Target (aspect declarations) =pr307120_2<{TargetAugmenter.java}TargetAugmenter)Target.setIt)QString;		
+-		//		Hid:1:(targets=1) =pr307120_2<{TargetAugmenter.java}TargetAugmenter)Target.setIt)QString;?field-set(java.lang.String Target.it) (advised by) =pr307120_2<{Advisor.java}Advisor&around&QObject;&QObject;
+-		//		Hid:3:(targets=1) =pr307120_2<{TargetAugmenter.java}TargetAugmenter)Target.getIt?field-get(java.lang.String Target.it) (advised by) =pr307120_2<{Advisor.java}Advisor&around&QObject;
+-		//		Hid:4:(targets=1) =pr307120_2<{Advisor.java}Advisor&around&QObject; (advises) =pr307120_2<{TargetAugmenter.java}TargetAugmenter)Target.getIt?field-get(java.lang.String Target.it)
+-		//		Hid:7:(targets=1) =pr307120_2<{Advisor.java}Advisor&around&QObject;&QObject; (advises) =pr307120_2<{TargetAugmenter.java}TargetAugmenter)Target.setIt)QString;?field-set(java.lang.String Target.it)
++		// Hid:2:(targets=1) =pr307120_2<{TargetAugmenter.java}TargetAugmenter)Target.setIt)QString; (declared on)
++		// =pr307120_2<{Target.java[Target
++		// Hid:8:(targets=1) =pr307120_2<{TargetAugmenter.java}TargetAugmenter)Target.getIt (declared on)
++		// =pr307120_2<{Target.java[Target
++		// Hid:5:(targets=2) =pr307120_2<{Target.java[Target (aspect declarations)
++		// =pr307120_2<{TargetAugmenter.java}TargetAugmenter)Target.getIt
++		// Hid:6:(targets=2) =pr307120_2<{Target.java[Target (aspect declarations)
++		// =pr307120_2<{TargetAugmenter.java}TargetAugmenter)Target.setIt)QString;
++		// Hid:1:(targets=1) =pr307120_2<{TargetAugmenter.java}TargetAugmenter)Target.setIt)QString;?field-set(java.lang.String
++		// Target.it) (advised by) =pr307120_2<{Advisor.java}Advisor&around&QObject;&QObject;
++		// Hid:3:(targets=1) =pr307120_2<{TargetAugmenter.java}TargetAugmenter)Target.getIt?field-get(java.lang.String Target.it)
++		// (advised by) =pr307120_2<{Advisor.java}Advisor&around&QObject;
++		// Hid:4:(targets=1) =pr307120_2<{Advisor.java}Advisor&around&QObject; (advises)
++		// =pr307120_2<{TargetAugmenter.java}TargetAugmenter)Target.getIt?field-get(java.lang.String Target.it)
++		// Hid:7:(targets=1) =pr307120_2<{Advisor.java}Advisor&around&QObject;&QObject; (advises)
++		// =pr307120_2<{TargetAugmenter.java}TargetAugmenter)Target.setIt)QString;?field-set(java.lang.String Target.it)
+ 		assertEquals(8, getRelationshipCount(p));
+ 		alter(p, "inc1");
+ 		build(p);
+-		assertEquals(8, getRelationshipCount(p));		
++		assertEquals(8, getRelationshipCount(p));
+ 		assertNoErrors(p);
+ 	}
+ 
++	// // More sophisticated variant of above.
++	// public void testIncrementalAdvisingItdJoinpointsAccessingPrivFields_307120_4_pipelineOff() throws Exception {
++	// String p = "pr307120_4";
++	// initialiseProject(p);
++	// configureNonStandardCompileOptions(p, "-Xset:pipelineCompilation=false");
++	// build(p);
++	// assertNoErrors(p);
++	//
++	// printModel(p);
++	// assertEquals(4, getRelationshipCount(p));
++	// alter(p, "inc1");
++	// build(p);
++	//
++	// assertEquals(4, getRelationshipCount(p));
++	// assertNoErrors(p);
++	// }
++
+ 	// modified aspect so target is fully qualified on the incremental change
+ 	public void testIncrementalFqItds_280380_2() throws Exception {
+ 		String p = "pr280380";
+@@ -149,7 +149,7 @@
+ 		<compile files="Test.java, Util.java"/>
+         <run class="Test"/>
+ 		<compile files="Test.java, Util.java, PrivilegedAspect.aj" options="-Xlint:warning">
+-            <message kind="warning" line="1"/>
++            <message kind="warning" line="0"/>
+ 		</compile>
+         <run class="Util" options="-fail"/>
+ 	</ajc-test>
+@@ -0,0 +1,9 @@
++aspect Advisor {
++  Object around(Object o): get(@Anno * *) && this(o) {
++    return proceed(o);
++  }
++
++  Object around(Object o,Object newval): set(@Anno * *) && this(o) && args(newval) {
++    return proceed(o,newval);
++  }
++}
+@@ -0,0 +1,4 @@
++import java.lang.annotation.*;
++
++@Retention(RetentionPolicy.RUNTIME)
++@interface Anno {}
+@@ -0,0 +1,4 @@
++class Target {
++  @Anno
++  private String it;
++}
+@@ -0,0 +1,9 @@
++privileged aspect TargetAugmenter {
++  public String Target.getIt() {
++    return it;
++  }
++
++  public void Target.setIt(String newit) {
++    this.it = newit;
++  }
++}
+@@ -0,0 +1,9 @@
++privileged aspect TargetAugmenter {
++  public String Target.getIt() {
++    return it;
++  }
++
++  public void Target.setIt(String newit) {
++    this.it = newit;
++  }
++}
+@@ -256,6 +256,27 @@ public class MultiProjectIncrementalTests extends AbstractMultiProjectIncrementa
+ 		assertEquals(4, getRelationshipCount(p));
+ 	}
+ 
++	// More sophisticated variant of above.
++	public void testIncrementalAdvisingItdJoinpointsAccessingPrivFields_307120_2() throws Exception {
++		String p = "pr307120_2";
++		initialiseProject(p);
++		build(p);
++		assertNoErrors(p);
++		//		Hid:2:(targets=1) =pr307120_2<{TargetAugmenter.java}TargetAugmenter)Target.setIt)QString; (declared on) =pr307120_2<{Target.java[Target
++		//		Hid:8:(targets=1) =pr307120_2<{TargetAugmenter.java}TargetAugmenter)Target.getIt (declared on) =pr307120_2<{Target.java[Target
++		//		Hid:5:(targets=2) =pr307120_2<{Target.java[Target (aspect declarations) =pr307120_2<{TargetAugmenter.java}TargetAugmenter)Target.getIt
++		//		Hid:6:(targets=2) =pr307120_2<{Target.java[Target (aspect declarations) =pr307120_2<{TargetAugmenter.java}TargetAugmenter)Target.setIt)QString;		
++		//		Hid:1:(targets=1) =pr307120_2<{TargetAugmenter.java}TargetAugmenter)Target.setIt)QString;?field-set(java.lang.String Target.it) (advised by) =pr307120_2<{Advisor.java}Advisor&around&QObject;&QObject;
++		//		Hid:3:(targets=1) =pr307120_2<{TargetAugmenter.java}TargetAugmenter)Target.getIt?field-get(java.lang.String Target.it) (advised by) =pr307120_2<{Advisor.java}Advisor&around&QObject;
++		//		Hid:4:(targets=1) =pr307120_2<{Advisor.java}Advisor&around&QObject; (advises) =pr307120_2<{TargetAugmenter.java}TargetAugmenter)Target.getIt?field-get(java.lang.String Target.it)
++		//		Hid:7:(targets=1) =pr307120_2<{Advisor.java}Advisor&around&QObject;&QObject; (advises) =pr307120_2<{TargetAugmenter.java}TargetAugmenter)Target.setIt)QString;?field-set(java.lang.String Target.it)
++		assertEquals(8, getRelationshipCount(p));
++		alter(p, "inc1");
++		build(p);
++		assertEquals(8, getRelationshipCount(p));		
++		assertNoErrors(p);
++	}
++
+ 	// modified aspect so target is fully qualified on the incremental change
+ 	public void testIncrementalFqItds_280380_2() throws Exception {
+ 		String p = "pr280380";
+@@ -34,10 +34,13 @@ import org.aspectj.org.eclipse.jdt.internal.compiler.lookup.TypeBinding;
+ import org.aspectj.weaver.AnnotationAJ;
+ import org.aspectj.weaver.BCException;
+ import org.aspectj.weaver.MemberKind;
++import org.aspectj.weaver.ReferenceType;
++import org.aspectj.weaver.ResolvedMember;
+ import org.aspectj.weaver.ResolvedMemberImpl;
+ import org.aspectj.weaver.ResolvedType;
+ import org.aspectj.weaver.UnresolvedType;
+ import org.aspectj.weaver.World;
++import org.aspectj.weaver.bcel.BcelObjectType;
+ 
+ /**
+  * In the pipeline world, we can be weaving before all types have come through from compilation. In some cases this means the weaver
+@@ -83,37 +86,74 @@ public class EclipseResolvedMember extends ResolvedMemberImpl {
+ 	}
+ 
+ 	public AnnotationAJ[] getAnnotations() {
+-		// long abits =
+-		realBinding.getAnnotationTagBits(); // ensure resolved
+-		Annotation[] annos = getEclipseAnnotations();
+-		if (annos == null) {
++		if (isTypeDeclarationAvailable()) {
++			// long abits =
++			realBinding.getAnnotationTagBits(); // ensure resolved
++			Annotation[] annos = getEclipseAnnotations();
++			if (annos == null) {
++				return null;
++			}
++			AnnotationAJ[] annoAJs = new AnnotationAJ[annos.length];
++			for (int i = 0; i < annos.length; i++) {
++				annoAJs[i] = EclipseAnnotationConvertor.convertEclipseAnnotation(annos[i], w, eclipseFactory);
++			}
++			return annoAJs;
++		} else {
++			UnresolvedType declaringType = this.getDeclaringType();
++			if (declaringType instanceof ReferenceType) {
++				ReferenceType referenceDeclaringType = (ReferenceType)declaringType;
++				if (referenceDeclaringType.getDelegate() instanceof BcelObjectType) {
++					// worth a look!
++					ResolvedMember field = ((ResolvedType)declaringType).lookupField(this);
++					if (field!=null) {
++						return field.getAnnotations();						
++					}
++				}
++			}
+ 			return null;
+ 		}
+-		AnnotationAJ[] annoAJs = new AnnotationAJ[annos.length];
+-		for (int i = 0; i < annos.length; i++) {
+-			annoAJs[i] = EclipseAnnotationConvertor.convertEclipseAnnotation(annos[i], w, eclipseFactory);
+-		}
+-		return annoAJs;
+ 	}
+ 
+ 	public AnnotationAJ getAnnotationOfType(UnresolvedType ofType) {
+-		// long abits =
+-		realBinding.getAnnotationTagBits(); // ensure resolved
+-		Annotation[] annos = getEclipseAnnotations();
+-		if (annos == null)
+-			return null;
+-		for (int i = 0; i < annos.length; i++) {
+-			Annotation anno = annos[i];
+-			UnresolvedType ut = UnresolvedType.forSignature(new String(anno.resolvedType.signature()));
+-			if (w.resolve(ut).equals(ofType)) {
+-				// Found the one
+-				return EclipseAnnotationConvertor.convertEclipseAnnotation(anno, w, eclipseFactory);
++		if (isTypeDeclarationAvailable()) {
++			// long abits =
++			realBinding.getAnnotationTagBits(); // ensure resolved
++			Annotation[] annos = getEclipseAnnotations();
++			if (annos == null)
++				return null;
++			for (int i = 0; i < annos.length; i++) {
++				Annotation anno = annos[i];
++				UnresolvedType ut = UnresolvedType.forSignature(new String(anno.resolvedType.signature()));
++				if (w.resolve(ut).equals(ofType)) {
++					// Found the one
++					return EclipseAnnotationConvertor.convertEclipseAnnotation(anno, w, eclipseFactory);
++				}
++			}
++		} else {		
++			UnresolvedType declaringType = this.getDeclaringType();
++			if (declaringType instanceof ReferenceType) {
++				ReferenceType referenceDeclaringType = (ReferenceType)declaringType;
++				if (referenceDeclaringType.getDelegate() instanceof BcelObjectType) {
++					// worth a look!
++					ResolvedMember field = ((ResolvedType)declaringType).lookupField(this);
++					if (field!=null) {
++						return field.getAnnotationOfType(ofType);						
++					}
++				}
+ 			}
+ 		}
+ 		return null;
+ 	}
+ 
+ 	public String getAnnotationDefaultValue() {
++		// Andy, if you are debugging in here and your problem is some kind of incremental build failure where a match on
++		// a member annotation value is failing then you should look at bug 307120.  Under that bug you discovered that
++		// for privileged field accesses from ITDs, an EclipseResolvedMember may be created (inside the privileged munger - see
++		// PrivilegedHandler) and then later when the annotations are looked up on it, that fails because we can't find the
++		// declaration for the member.  This is because on the incremental build the member will likely represent something
++		// inside a binary type (BinaryTypeBinding) - and when that happens we should not look on the type declaration but
++		// instead on the delegate for the declaringClass because it will likely be a BcelObjectType with the right stuff
++		// in it - see the other checks on BcelObjectType in this class.
+ 		if (realBinding instanceof MethodBinding) {
+ 			AbstractMethodDeclaration methodDecl = getTypeDeclaration().declarationOf((MethodBinding) realBinding);
+ 			if (methodDecl instanceof AnnotationMethodDeclaration) {
+@@ -153,24 +193,40 @@ public class EclipseResolvedMember extends ResolvedMemberImpl {
+ 		if (cachedAnnotationTypes == null) {
+ 			// long abits =
+ 			realBinding.getAnnotationTagBits(); // ensure resolved
+-			Annotation[] annos = getEclipseAnnotations();
+-			if (annos == null) {
+-				cachedAnnotationTypes = ResolvedType.EMPTY_RESOLVED_TYPE_ARRAY;
++			if (isTypeDeclarationAvailable()) {
++				Annotation[] annos = getEclipseAnnotations();
++				if (annos == null) {
++					cachedAnnotationTypes = ResolvedType.EMPTY_RESOLVED_TYPE_ARRAY;
++				} else {
++					cachedAnnotationTypes = new ResolvedType[annos.length];
++					for (int i = 0; i < annos.length; i++) {
++						Annotation type = annos[i];
++						TypeBinding typebinding = type.resolvedType;
++						// If there was a problem resolving the annotation (the import couldn't be found) then that can manifest
++						// here as typebinding == null. Normally errors are reported prior to weaving (so weaving is avoided and
++						// the null is not encountered) but the use of hasfield/hasmethod can cause early attempts to look at
++						// annotations and if we NPE here then the real error will not get reported.
++						if (typebinding == null) {
++							// Give up now - expect proper error to be reported
++							cachedAnnotationTypes = ResolvedType.EMPTY_RESOLVED_TYPE_ARRAY;
++							return cachedAnnotationTypes;
++						}
++						cachedAnnotationTypes[i] = w.resolve(UnresolvedType.forSignature(new String(typebinding.signature())));
++					}
++				}
+ 			} else {
+-				cachedAnnotationTypes = new ResolvedType[annos.length];
+-				for (int i = 0; i < annos.length; i++) {
+-					Annotation type = annos[i];
+-					TypeBinding typebinding = type.resolvedType;
+-					// If there was a problem resolving the annotation (the import couldn't be found) then that can manifest
+-					// here as typebinding == null. Normally errors are reported prior to weaving (so weaving is avoided and
+-					// the null is not encountered) but the use of hasfield/hasmethod can cause early attempts to look at
+-					// annotations and if we NPE here then the real error will not get reported.
+-					if (typebinding == null) {
+-						// Give up now - expect proper error to be reported
+-						cachedAnnotationTypes = ResolvedType.EMPTY_RESOLVED_TYPE_ARRAY;
+-						return cachedAnnotationTypes;
++				// annotations may be accessible through the declaringClass if there is a bcel object behind it...
++				cachedAnnotationTypes = ResolvedType.EMPTY_RESOLVED_TYPE_ARRAY;
++				UnresolvedType declaringType = this.getDeclaringType();
++				if (declaringType instanceof ReferenceType) {
++					ReferenceType referenceDeclaringType = (ReferenceType)declaringType;
++					if (referenceDeclaringType.getDelegate() instanceof BcelObjectType) {
++						// worth a look!
++						ResolvedMember field = ((ResolvedType)declaringType).lookupField(this);
++						if (field!=null) {
++							cachedAnnotationTypes = field.getAnnotationTypes();						
++						}
+ 					}
+-					cachedAnnotationTypes[i] = w.resolve(UnresolvedType.forSignature(new String(typebinding.signature())));
+ 				}
+ 			}
+ 		}
+@@ -208,9 +264,18 @@ public class EclipseResolvedMember extends ResolvedMemberImpl {
+ 		return argumentNames;
+ 	}
+ 
++	/**
++	 * Discover the (eclipse form) annotations on this resolved member.  This is done by going to the type declaration,
++	 * looking up the member (field/method) then grabbing the annotations.
++	 * 
++	 * @return an array of (eclipse form) annotations on this member
++	 */
+ 	private Annotation[] getEclipseAnnotations() {
+ 		TypeDeclaration tDecl = getTypeDeclaration();
+-		if (tDecl != null) {// if the code is broken then tDecl may be null
++		// two possible reasons for it being null:
++		// 1. code is broken
++		// 2. this resolvedmember is an EclipseResolvedMember created up front to represent a privileged'd accessed member
++		if (tDecl != null) {
+ 			if (realBinding instanceof MethodBinding) {
+ 				MethodBinding methodBinding = (MethodBinding) realBinding;
+ 				AbstractMethodDeclaration methodDecl = tDecl.declarationOf(methodBinding);
+@@ -243,7 +308,15 @@ public class EclipseResolvedMember extends ResolvedMemberImpl {
+ 		}
+ 		return null;
+ 	}
++	
++	private boolean isTypeDeclarationAvailable() {
++		return getTypeDeclaration()!=null;
++	}
+ 
++	/**
++	 * @return the type declaration that contained this member, or NULL if it is not available (eg. this isn't currently related to
++	 * a SOURCE-FORM artifact, it is instead related to a BINARY-FORM artifact)
++	 */
+ 	private TypeDeclaration getTypeDeclaration() {
+ 		if (realBinding instanceof MethodBinding) {
+ 			MethodBinding mb = (MethodBinding) realBinding;
+@@ -0,0 +1,5 @@
++class A {
++        private
++        int foo;
++        int goo;
++}
+@@ -0,0 +1,14 @@
++privileged aspect Test {
++
++        before(): get(* foo) {}
++
++//        before(): get(* goo) {}
++
++        public int A.getFoo() {
++                return foo;
++        }
++
++//      public int A.getGoo() {
++//              return goo;
++//      }
++}
+@@ -0,0 +1,14 @@
++privileged aspect Test {
++
++        before(): get(* foo) {}
++
++//        before(): get(* goo) {}
++
++        public int A.getFoo() {
++                return foo;
++        }
++
++//      public int A.getGoo() {
++//              return goo;
++//      }
++}
+@@ -31,8 +31,6 @@ import org.aspectj.weaver.AjcMemberMaker;
+ import org.aspectj.weaver.Lint;
+ import org.aspectj.weaver.Member;
+ import org.aspectj.weaver.PrivilegedAccessMunger;
+-import org.aspectj.weaver.ReferenceType;
+-import org.aspectj.weaver.ReferenceTypeDelegate;
+ import org.aspectj.weaver.ResolvedMember;
+ import org.aspectj.weaver.ResolvedMemberImpl;
+ import org.aspectj.weaver.ResolvedType;
+@@ -68,11 +66,12 @@ public class PrivilegedHandler implements IPrivilegedHandler {
+ 			accessors.put(key, ret);
+ 		// 307120
+ 		ResolvedType rt = inAspect.factory.fromEclipse(baseField.declaringClass);
+-		if (rt!=null) {
+-			ReferenceTypeDelegate rtd = ((ReferenceType)rt).getDelegate();
+-			if (rtd instanceof EclipseSourceType) {
+-				rt.addInterTypeMunger(new EclipseTypeMunger(inAspect.factory,new PrivilegedAccessMunger(key, true),inAspect.typeX,null), true);
+-			}
++		if (rt != null) {
++			// ReferenceTypeDelegate rtd = ((ReferenceType) rt).getDelegate();
++			// if (rtd instanceof EclipseSourceType) {
++			rt.addInterTypeMunger(new EclipseTypeMunger(inAspect.factory, new PrivilegedAccessMunger(key, true), inAspect.typeX,
++					null), true);
++			// }
+ 		}
+ 		return ret;
+ 	}
+@@ -101,15 +100,16 @@ public class PrivilegedHandler implements IPrivilegedHandler {
+ 		}
+ 		checkWeaveAccess(key.getDeclaringType(), location);
+ 		accessors.put(key, ret);
+-//		if (!baseMethod.isConstructor()) {
+-//			ResolvedType rt = inAspect.factory.fromEclipse(baseMethod.declaringClass);
+-//			if (rt!=null) {
+-//				ReferenceTypeDelegate rtd = ((ReferenceType)rt).getDelegate();
+-//				if (rtd instanceof EclipseSourceType) {
+-//					rt.addInterTypeMunger(new EclipseTypeMunger(inAspect.factory,new PrivilegedAccessMunger(key, true),inAspect.typeX,null), true);
+-//				}
+-//			}
+-//		}
++		// if (!baseMethod.isConstructor()) {
++		// ResolvedType rt = inAspect.factory.fromEclipse(baseMethod.declaringClass);
++		// if (rt!=null) {
++		// ReferenceTypeDelegate rtd = ((ReferenceType)rt).getDelegate();
++		// if (rtd instanceof EclipseSourceType) {
++		// rt.addInterTypeMunger(new EclipseTypeMunger(inAspect.factory,new PrivilegedAccessMunger(key, true),inAspect.typeX,null),
++		// true);
++		// }
++		// }
++		// }
+ 		return ret;
+ 	}
+ 

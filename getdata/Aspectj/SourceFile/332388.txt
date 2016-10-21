@@ -1,0 +1,226 @@
+@@ -14,7 +14,6 @@ package org.aspectj.weaver.bcel;
+ import java.util.HashMap;
+ import java.util.Map;
+ 
+-import org.aspectj.bridge.Message;
+ import org.aspectj.util.GenericSignature;
+ import org.aspectj.util.GenericSignature.SimpleClassTypeSignature;
+ import org.aspectj.weaver.BoundedReferenceType;
+@@ -164,8 +163,7 @@ public class BcelGenericSignatureToTypeXConverter {
+ 					inProgressTypeVariableResolutions);
+ 			ResolvedType resolvedBound = world.resolve(bound);
+ 			if (resolvedBound.isMissing()) {
+-				world.getMessageHandler().handleMessage(
+-						new Message("Unable to find type (for bound): " + resolvedBound.getName(), null, true));
++				world.getLint().cantFindType.signal("Unable to find type (for bound): " + resolvedBound.getName(), null);
+ 				resolvedBound = world.resolve(UnresolvedType.OBJECT);
+ 			}
+ 			ReferenceType rBound = (ReferenceType) resolvedBound;
+@@ -175,8 +173,7 @@ public class BcelGenericSignatureToTypeXConverter {
+ 					inProgressTypeVariableResolutions);
+ 			ResolvedType resolvedBound = world.resolve(bound);
+ 			if (resolvedBound.isMissing()) {
+-				world.getMessageHandler().handleMessage(
+-						new Message("Unable to find type (for bound): " + resolvedBound.getName(), null, true));
++				world.getLint().cantFindType.signal("Unable to find type (for bound): " + resolvedBound.getName(), null);
+ 				resolvedBound = world.resolve(UnresolvedType.OBJECT);
+ 			}
+ 			ReferenceType rBound = (ReferenceType) resolvedBound;
+@@ -9,7 +9,6 @@
+ package org.aspectj.weaver;
+ 
+ import java.util.Map;
+-import org.aspectj.bridge.Message;
+ 
+ /**
+  * ReferenceType representing a type variable. The delegate for this reference type is the upperbound on the type variable (so
+@@ -47,9 +46,9 @@ public class TypeVariableReferenceType extends ReferenceType implements TypeVari
+ 			if (resolvedFirstBound.isMissing()) {
+ 				brtd = new BoundedReferenceTypeDelegate((ReferenceType) world.resolve(UnresolvedType.OBJECT));
+ 				setDelegate(brtd); // set now because getSourceLocation() below will cause a recursive step to discover the delegate
+-				world.getMessageHandler().handleMessage(
+-						new Message("Unable to find type for generic bound.  Missing type is " + resolvedFirstBound.getName(),
+-								getSourceLocation(), true));
++				world.getLint().cantFindType.signal(
++						"Unable to find type for generic bound.  Missing type is " + resolvedFirstBound.getName(),
++						getSourceLocation());
+ 			} else {
+ 				brtd = new BoundedReferenceTypeDelegate((ReferenceType) resolvedFirstBound);
+ 				setDelegate(brtd);
+@@ -18,7 +18,7 @@
+      <compile files="A.java B.java" classpath="M.jar" outjar="AB.jar" options="-1.5"/>
+      <compile files="MyAspect.java" outjar="aspects.jar" options="-1.5"/>
+      <compile files="" aspectpath="aspects.jar" inpath="AB.jar" options="-1.5">
+-     <message kind="error" text="Unable to find type for generic bound.  Missing type is M"/>
++     <message kind="error" text="Unable to find type for generic bound.  Missing type is M [Xlint:cantFindType]"/>
+      </compile>
+   </ajc-test>
+ 
+@@ -27,7 +27,7 @@
+      <compile files="A.java" classpath="M.jar" outjar="A.jar" options="-1.5"/>
+      <compile files="MyAspect.java" outjar="aspects.jar" options="-1.5"/>
+      <compile files="" aspectpath="aspects.jar" inpath="A.jar" options="-1.5">
+-     <message kind="error" text="Unable to find type (for bound): M"/>
++     <message kind="error" text="Unable to find type (for bound): M [Xlint:cantFindType]"/>
+      </compile>
+   </ajc-test>
+ 
+@@ -0,0 +1,6 @@
++public class A<T> {
++  public void a(Class<? extends M> list) {}
++  public void x() {
++    a(null);
++  }
++}
+@@ -0,0 +1 @@
++public class M {}
+@@ -0,0 +1,9 @@
++import org.aspectj.lang.annotation.*;
++
++@Aspect
++public class MyAspect {
++  @Before("call(* *.*(..)) && target(x)")
++  public void myAdvice(CharSequence x) {
++    System.out.println();
++  }
++}
+@@ -25,6 +25,10 @@ public class Ajc1611Tests extends org.aspectj.testing.XMLBasedAjcTestCase {
+ 		runTest("pr332388");
+ 	}
+ 
++	public void testMissingType_332388_2() {
++		runTest("pr332388 - 2");
++	}
++
+ 	public void testDeclareField_328840() {
+ 		runTest("pr328840");
+ 	}
+@@ -22,4 +22,13 @@
+      </compile>
+   </ajc-test>
+ 
++  <ajc-test dir="bugs1611/pr332388_2" title="pr332388 - 2">
++     <compile files="M.java" outjar="M.jar" options="-1.5"/>
++     <compile files="A.java" classpath="M.jar" outjar="A.jar" options="-1.5"/>
++     <compile files="MyAspect.java" outjar="aspects.jar" options="-1.5"/>
++     <compile files="" aspectpath="aspects.jar" inpath="A.jar" options="-1.5">
++     <message kind="error" text="Unable to find type (for bound): M"/>
++     </compile>
++  </ajc-test>
++  
+ </suite>
+\ No newline at end of file
+@@ -14,6 +14,7 @@ package org.aspectj.weaver.bcel;
+ import java.util.HashMap;
+ import java.util.Map;
+ 
++import org.aspectj.bridge.Message;
+ import org.aspectj.util.GenericSignature;
+ import org.aspectj.util.GenericSignature.SimpleClassTypeSignature;
+ import org.aspectj.weaver.BoundedReferenceType;
+@@ -161,12 +162,24 @@ public class BcelGenericSignatureToTypeXConverter {
+ 		if (aTypeArgument.isMinus) {
+ 			UnresolvedType bound = fieldTypeSignature2TypeX(aTypeArgument.signature, typeParams, world,
+ 					inProgressTypeVariableResolutions);
+-			ReferenceType rBound = (ReferenceType) world.resolve(bound);
++			ResolvedType resolvedBound = world.resolve(bound);
++			if (resolvedBound.isMissing()) {
++				world.getMessageHandler().handleMessage(
++						new Message("Unable to find type (for bound): " + resolvedBound.getName(), null, true));
++				resolvedBound = world.resolve(UnresolvedType.OBJECT);
++			}
++			ReferenceType rBound = (ReferenceType) resolvedBound;
+ 			return new BoundedReferenceType(rBound, false, world);
+ 		} else if (aTypeArgument.isPlus) {
+ 			UnresolvedType bound = fieldTypeSignature2TypeX(aTypeArgument.signature, typeParams, world,
+ 					inProgressTypeVariableResolutions);
+-			ReferenceType rBound = (ReferenceType) world.resolve(bound);
++			ResolvedType resolvedBound = world.resolve(bound);
++			if (resolvedBound.isMissing()) {
++				world.getMessageHandler().handleMessage(
++						new Message("Unable to find type (for bound): " + resolvedBound.getName(), null, true));
++				resolvedBound = world.resolve(UnresolvedType.OBJECT);
++			}
++			ReferenceType rBound = (ReferenceType) resolvedBound;
+ 			return new BoundedReferenceType(rBound, true, world);
+ 		} else {
+ 			return fieldTypeSignature2TypeX(aTypeArgument.signature, typeParams, world, inProgressTypeVariableResolutions);
+@@ -0,0 +1,4 @@
++public class A<T extends M> {
++  public void a(T t) {
++  }
++}
+@@ -0,0 +1,5 @@
++public class B<T extends M> extends A<T> {
++  public void b() {
++    a(null);
++  }
++}
+@@ -0,0 +1 @@
++public class M {}
+@@ -0,0 +1,10 @@
++import java.lang.annotation.*;
++import org.aspectj.lang.annotation.*;
++
++@Aspect
++public class MyAspect {
++  @Before("call(* *.*(..))")
++  public void myAdvice() {
++    System.out.println();
++  }
++}
+@@ -21,6 +21,10 @@ import org.aspectj.testing.XMLBasedAjcTestCase;
+  */
+ public class Ajc1611Tests extends org.aspectj.testing.XMLBasedAjcTestCase {
+ 
++	public void testMissingType_332388() {
++		runTest("pr332388");
++	}
++
+ 	public void testDeclareField_328840() {
+ 		runTest("pr328840");
+ 	}
+@@ -13,4 +13,13 @@
+     </stdout></run>
+   </ajc-test>
+ 
++  <ajc-test dir="bugs1611/pr332388" title="pr332388">
++     <compile files="M.java" outjar="M.jar" options="-1.5"/>
++     <compile files="A.java B.java" classpath="M.jar" outjar="AB.jar" options="-1.5"/>
++     <compile files="MyAspect.java" outjar="aspects.jar" options="-1.5"/>
++     <compile files="" aspectpath="aspects.jar" inpath="AB.jar" options="-1.5">
++     <message kind="error" text="Unable to find type for generic bound.  Missing type is M"/>
++     </compile>
++  </ajc-test>
++  
+ </suite>
+\ No newline at end of file
+@@ -9,6 +9,7 @@
+ package org.aspectj.weaver;
+ 
+ import java.util.Map;
++import org.aspectj.bridge.Message;
+ 
+ /**
+  * ReferenceType representing a type variable. The delegate for this reference type is the upperbound on the type variable (so
+@@ -41,7 +42,19 @@ public class TypeVariableReferenceType extends ReferenceType implements TypeVari
+ 	@Override
+ 	public ReferenceTypeDelegate getDelegate() {
+ 		if (this.delegate == null) {
+-			setDelegate(new BoundedReferenceTypeDelegate((ReferenceType) typeVariable.getFirstBound().resolve(world)));
++			ResolvedType resolvedFirstBound = typeVariable.getFirstBound().resolve(world);
++			BoundedReferenceTypeDelegate brtd = null;
++			if (resolvedFirstBound.isMissing()) {
++				brtd = new BoundedReferenceTypeDelegate((ReferenceType) world.resolve(UnresolvedType.OBJECT));
++				setDelegate(brtd); // set now because getSourceLocation() below will cause a recursive step to discover the delegate
++				world.getMessageHandler().handleMessage(
++						new Message("Unable to find type for generic bound.  Missing type is " + resolvedFirstBound.getName(),
++								getSourceLocation(), true));
++			} else {
++				brtd = new BoundedReferenceTypeDelegate((ReferenceType) resolvedFirstBound);
++				setDelegate(brtd);
++			}
++
+ 		}
+ 		return this.delegate;
+ 	}

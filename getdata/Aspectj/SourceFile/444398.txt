@@ -1,0 +1,132 @@
+@@ -1031,6 +1031,10 @@ public class EclipseSourceType extends AbstractReferenceTypeDelegate {
+ 
+ 	PerClause.Kind getPerClauseForTypeDeclaration(TypeDeclaration typeDeclaration) {
+ 		Annotation[] annotations = typeDeclaration.annotations;
++		if (annotations == null) {
++			// Can happen if an aspect is extending a regular class
++			return null;
++		}
+ 		for (int i = 0; i < annotations.length; i++) {
+ 			Annotation annotation = annotations[i];
+ 			if (annotation != null && annotation.resolvedType != null
+@@ -1055,15 +1059,8 @@ public class EclipseSourceType extends AbstractReferenceTypeDelegate {
+ 					// safe
+ 					// ?
+ 					return determinePerClause(typeDeclaration, clause);
+-				} else if (annotation instanceof NormalAnnotation) { // this
+-					// kind
+-					// if it
+-					// was
+-					// added
+-					// by
+-					// the
+-					// visitor
+-					// !
++				} else if (annotation instanceof NormalAnnotation) { 
++					// this kind if it was added by the visitor!
+ 					// it is an @Aspect(...something...)
+ 					NormalAnnotation theAnnotation = (NormalAnnotation) annotation;
+ 					if (theAnnotation.memberValuePairs == null || theAnnotation.memberValuePairs.length < 1) {
+@@ -1080,8 +1077,7 @@ public class EclipseSourceType extends AbstractReferenceTypeDelegate {
+ 							"@Aspect annotation is expected to be SingleMemberAnnotation with 'String value()' as unique element",
+ 							new EclipseSourceLocation(typeDeclaration.compilationResult, typeDeclaration.sourceStart,
+ 									typeDeclaration.sourceEnd), null);
+-					return PerClause.SINGLETON;// fallback strategy just to
+-					// avoid NPE
++					return PerClause.SINGLETON;// fallback strategy just to avoid NPE
+ 				}
+ 			}
+ 		}
+@@ -0,0 +1,12 @@
++public class Coo {
++	Coo() {	
++	}
++	
++	public static void main(String[] args) {
++	}
++}
++
++aspect Azpect {
++    before(): !cflow(preinitialization(Coo.new(..))) && execution(* main(..)) {  }
++}
++
+@@ -0,0 +1,5 @@
++import org.aspectj.lang.annotation.*;
++
++@Aspect
++public abstract class Bottom extends Middle {
++}
+@@ -0,0 +1,6 @@
++import org.aspectj.lang.annotation.*;
++
++@Aspect
++
++public abstract class Middle extends Top {
++}
+@@ -0,0 +1,2 @@
++public abstract class Top {
++}
+@@ -1,5 +1,5 @@
+ /*******************************************************************************
+- * Copyright (c) 2013 Contributors 
++ * Copyright (c) 2013, 2014 Contributors 
+  * All rights reserved. This program and the accompanying materials
+  * are made available under the terms of the Eclipse Public License v1.0
+  * which accompanies this distribution, and is available at
+@@ -16,12 +16,14 @@ import junit.framework.TestSuite;
+ import org.aspectj.systemtest.ajc180.AllTestsAspectJ180;
+ import org.aspectj.systemtest.ajc181.AllTestsAspectJ181;
+ import org.aspectj.systemtest.ajc182.AllTestsAspectJ182; 
++import org.aspectj.systemtest.ajc183.AllTestsAspectJ183;
+ 
+ public class AllTests18 {
+ 
+ 	public static Test suite() {
+ 		TestSuite suite = new TestSuite("AspectJ System Test Suite - 1.8");
+ 		// $JUnit-BEGIN$ 
++		suite.addTest(AllTestsAspectJ183.suite()); 
+ 		suite.addTest(AllTestsAspectJ182.suite()); 
+ 		suite.addTest(AllTestsAspectJ181.suite()); 
+ 		suite.addTest(AllTestsAspectJ180.suite()); 
+@@ -21,9 +21,17 @@ import org.aspectj.testing.XMLBasedAjcTestCase;
+  */
+ public class Ajc183Tests extends org.aspectj.testing.XMLBasedAjcTestCase {
+ 
+-	public void testAnnoStyleDecp_442425() {
+-		runTest("anno style decp");
++	public void testAbstractAspectNPE_444398() {
++		runTest("abstract aspect npe");
+ 	}
++	
++//	public void testVerifyError_443447() {
++//		runTest("verifyerror");
++//	}
++//	
++//	public void testAnnoStyleDecp_442425() {
++//		runTest("anno style decp");
++//	}
+ 
+ 	// ---
+ 
+@@ -2,6 +2,11 @@
+ 
+ <suite>
+ 
++	<ajc-test dir="bugs183/444398" title="abstract aspect npe">
++		<compile options="-1.8" files="Bottom.java Middle.java Top.java">
++		</compile>
++	</ajc-test>
++	
+ 	<ajc-test dir="bugs183/442425" title="anno style decp">
+ 		<compile options="-1.8" files="EntityController.java IEntityController.java MyAnnotatedController.java EntityControllerAspect.java EntityMongoController.java">
+ 			<message kind="error" line="23" text="Type mismatch: cannot convert from MyAnnotatedController&lt;String&gt; to IEntityController&lt;String&gt;"/>
+@@ -22,4 +27,9 @@
+ 		-->
+ 	</ajc-test>
+ 
++	<ajc-test dir="bugs183/443477" title="verifyerror">
++	  <compile options="-1.7" files="Coo.java"/>
++	  <run class="Coo"/>
++	</ajc-test>
++	
+ </suite>

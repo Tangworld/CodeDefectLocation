@@ -1,0 +1,82 @@
+@@ -1210,4 +1210,8 @@ public class AspectDeclaration extends TypeDeclaration {
+ 	public int getDeclaredModifiers() {
+ 		return declaredModifiers;
+ 	}
++	
++	public char[] getLocalTypeNameSuffix() {
++		return name;
++	}
+ }
+Binary files differ
+Binary files differ
+@@ -0,0 +1,12 @@
++package ppp;
++privileged aspect Azpect {
++  public void Bean.foo() {
++	  Runnable r = new Runnable() {
++		    public void run() {
++		        System.out.println("aspect foo");
++		    }
++	  };
++	  r.run();
++  }
++}
++
+@@ -0,0 +1,11 @@
++package ppp;
++public class Bean {
++  public void m() {
++    Runnable r = new Runnable() { public void run() { System.out.println("class");}};
++    r.run();
++  }
++  public void n() {
++    Runnable r = new Runnable() { public void run() { System.out.println("class");}};
++    r.run();
++  }
++}
+@@ -0,0 +1,14 @@
++package ppp;
++public class Runner {
++  public static void main(String[] argv) {
++    new Runner().run();
++  }
++
++  public void run() {
++   Bean c = new Bean();
++    System.out.println("Calling regular method");
++    c.m();
++    System.out.println("Calling itd method");
++    c.foo();
++  }
++}
+@@ -21,6 +21,10 @@ import org.aspectj.testing.XMLBasedAjcTestCase;
+  */
+ public class Ajc1612Tests extends org.aspectj.testing.XMLBasedAjcTestCase {
+ 
++	public void testClashingLocalTypes_342323() {
++		runTest("clashing local types");
++	}
++
+ 	public void testITIT_338175() {
+ 		runTest("itit");
+ 	}
+@@ -2,6 +2,19 @@
+ 
+ <suite>
+ 
++
++  <ajc-test dir="bugs1612/pr342323" title="clashing local types">
++  	<compile files="Runner.java Bean.java Azpect.java" options="-1.5"/>
++  	<run class="ppp.Runner">
++  	<stdout>
++	  	<line text="Calling regular method"/>
++	  	<line text="class"/>
++	  	<line text="Calling itd method"/>
++	  	<line text="aspect foo"/>
++  	</stdout>
++  	</run>
++  </ajc-test>
++
+ <ajc-test dir="bugs1612/pr338175" title="itit">
+ <compile files="pack1/Aspect.java pack2/Java.java pack2/Java2.java" options="-1.5">
+ 	<message kind="error" text="Duplicate nested type ITIT"/>

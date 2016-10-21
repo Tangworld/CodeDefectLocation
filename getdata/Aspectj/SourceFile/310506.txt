@@ -1,0 +1,370 @@
+@@ -451,6 +451,15 @@ public class ClassLoaderWeavingAdaptor extends WeavingAdaptor {
+ 					info("register aspect " + aspectClassName);
+ 					// System.err.println("? ClassLoaderWeavingAdaptor.registerAspects() aspectName=" + aspectClassName +
+ 					// ", loader=" + loader + ", bundle=" + weavingContext.getClassLoaderName());
++					String requiredType = definition.getAspectRequires(aspectClassName);
++					if (requiredType != null) {
++						// This aspect expresses that it requires a type to be around, otherwise it should 'switch off'
++						((BcelWorld) weaver.getWorld()).addAspectRequires(aspectClassName, requiredType);
++					}
++					String definedScope = definition.getScopeForAspect(aspectClassName);
++					if (definedScope != null) {
++						((BcelWorld) weaver.getWorld()).addScopedAspect(aspectClassName, definedScope);
++					}
+ 					// ResolvedType aspect =
+ 					weaver.addLibraryAspect(aspectClassName);
+ 
+@@ -461,10 +470,6 @@ public class ClassLoaderWeavingAdaptor extends WeavingAdaptor {
+ 						namespace = namespace.append(";").append(aspectClassName);
+ 					}
+ 
+-					String definedScope = definition.getScopeForAspect(aspectClassName);
+-					if (definedScope != null) {
+-						((BcelWorld) weaver.getWorld()).addScopedAspect(aspectClassName, definedScope);
+-					}
+ 				} else {
+ 					// warn("aspect excluded: " + aspectClassName);
+ 					lint("aspectExcludedByConfiguration", new String[] { aspectClassName, getClassLoaderName(loader) });
+@@ -0,0 +1,55 @@
++/*******************************************************************************
++ * Copyright (c) 2010 Contributors 
++ * All rights reserved. This program and the accompanying materials
++ * are made available under the terms of the Eclipse Public License v1.0
++ * which accompanies this distribution, and is available at
++ * http://www.eclipse.org/legal/epl-v10.html
++ *
++ * Contributors:
++ *    Andy Clement - SpringSource
++ *******************************************************************************/
++package org.aspectj.testing;
++
++import java.io.File;
++
++import org.aspectj.tools.ajc.AjcTestCase;
++
++/**
++ * Support simple file system operations in a test spec. Example:<br>
++ * &lt;file deletefile="foo.jar"/&gt; will delete the file foo.jar from the sandbox.
++ * 
++ * @author Andy Clement
++ */
++public class FileSpec implements ITestStep {
++
++	private String toDelete;
++
++	// private String dir;
++	// private AjcTest test;
++
++	public FileSpec() {
++	}
++
++	public void setDeletefile(String file) {
++		this.toDelete = file;
++	}
++
++	public void addExpectedMessage(ExpectedMessageSpec message) {
++	}
++
++	public void execute(AjcTestCase inTestCase) {
++		File sandbox = inTestCase.getSandboxDirectory();
++		if (toDelete != null) {
++			new File(sandbox, toDelete).delete();
++		}
++	}
++
++	public void setBaseDir(String dir) {
++		// this.dir = dir;
++	}
++
++	public void setTest(AjcTest test) {
++		// this.test = test;
++	}
++
++}
+@@ -183,6 +183,9 @@ public abstract class XMLBasedAjcTestCase extends AjcTestCase {
+ 		digester.addObjectCreate("suite/ajc-test/compile", CompileSpec.class);
+ 		digester.addSetProperties("suite/ajc-test/compile");
+ 		digester.addSetNext("suite/ajc-test/compile", "addTestStep", "org.aspectj.testing.ITestStep");
++		digester.addObjectCreate("suite/ajc-test/file", FileSpec.class);
++		digester.addSetProperties("suite/ajc-test/file");
++		digester.addSetNext("suite/ajc-test/file", "addTestStep", "org.aspectj.testing.ITestStep");
+ 		digester.addObjectCreate("suite/ajc-test/run", RunSpec.class);
+ 		digester.addSetProperties("suite/ajc-test/run", "class", "classToRun");
+ 		digester.addSetProperties("suite/ajc-test/run", "ltw", "ltwFile");
+@@ -107,6 +107,7 @@ aspect
+ <!ATTLIST aspect
+     name CDATA #REQUIRED
+     scope CDATA #IMPLIED
++    requires CDATA #IMPLIED
+ >
+ <!--*****************************************************************************************************************************
+ exclude
+@@ -959,6 +959,45 @@ public class BcelWorld extends World implements Repository {
+ 		return xmlConfiguration.getScopeFor(declaringType.getName());
+ 	}
+ 
++	@Override
++	public boolean hasUnsatisfiedDependency(ResolvedType aspectType) {
++		if (!aspectRequiredTypesProcessed) {
++			if (aspectRequiredTypes != null) {
++				List<String> forRemoval = new ArrayList<String>();
++				for (Map.Entry<String, String> entry : aspectRequiredTypes.entrySet()) {
++					ResolvedType rt = this.resolve(UnresolvedType.forName(entry.getValue()));
++					if (!rt.isMissing()) {
++						forRemoval.add(entry.getKey());
++					} else {
++						if (!getMessageHandler().isIgnoring(IMessage.INFO)) {
++							getMessageHandler().handleMessage(
++									MessageUtil.info("deactivating aspect '" + aspectType.getName() + "' as it requires type '"
++											+ rt.getName() + "' which cannot be found on the classpath"));
++						}
++					}
++				}
++				for (String key : forRemoval) {
++					aspectRequiredTypes.remove(key);
++				}
++			}
++			aspectRequiredTypesProcessed = true;
++		}
++		if (aspectRequiredTypes == null) {
++			return false;
++		}
++		return aspectRequiredTypes.containsKey(aspectType.getName());
++	}
++
++	private boolean aspectRequiredTypesProcessed = false;
++	private Map<String, String> aspectRequiredTypes = null;
++
++	public void addAspectRequires(String name, String requiredType) {
++		if (aspectRequiredTypes == null) {
++			aspectRequiredTypes = new HashMap<String, String>();
++		}
++		aspectRequiredTypes.put(name, requiredType);
++	}
++
+ 	/**
+ 	 * A WeavingXmlConfig is initially a collection of definitions from XML files - once the world is ready and weaving is running
+ 	 * it will initialize and transform those definitions into an optimized set of values (eg. resolve type patterns and string
+@@ -39,6 +39,11 @@ public class Definition {
+ 	 */
+ 	private final Map<String, String> scopedAspects;
+ 
++	/**
++	 * Some aspects (from aspect libraries) will describe a type that must be around for them to function properly
++	 */
++	private final Map<String, String> requiredTypesForAspects;
++
+ 	public Definition() {
+ 		weaverOptions = new StringBuffer();
+ 		dumpBefore = false;
+@@ -51,6 +56,7 @@ public class Definition {
+ 		aspectIncludePatterns = new ArrayList<String>();
+ 		concreteAspects = new ArrayList<Definition.ConcreteAspect>();
+ 		scopedAspects = new HashMap<String, String>();
++		requiredTypesForAspects = new HashMap<String, String>();
+ 	}
+ 
+ 	public String getWeaverOptions() {
+@@ -165,4 +171,12 @@ public class Definition {
+ 		return scopedAspects.get(name);
+ 	}
+ 
++	public void setAspectRequires(String name, String requiredType) {
++		requiredTypesForAspects.put(name, requiredType);
++	}
++
++	public String getAspectRequires(String name) {
++		return requiredTypesForAspects.get(name);
++	}
++
+ }
+@@ -56,6 +56,7 @@ public class DocumentParser extends DefaultHandler {
+ 	private final static String CONCRETE_ASPECT_ELEMENT = "concrete-aspect";
+ 	private final static String NAME_ATTRIBUTE = "name";
+ 	private final static String SCOPE_ATTRIBUTE = "scope";
++	private final static String REQUIRES_ATTRIBUTE = "requires";
+ 	private final static String EXTEND_ATTRIBUTE = "extends";
+ 	private final static String PRECEDENCE_ATTRIBUTE = "precedence";
+ 	private final static String PERCLAUSE_ATTRIBUTE = "perclause";
+@@ -147,11 +148,15 @@ public class DocumentParser extends DefaultHandler {
+ 		if (ASPECT_ELEMENT.equals(qName)) {
+ 			String name = attributes.getValue(NAME_ATTRIBUTE);
+ 			String scopePattern = replaceXmlAnd(attributes.getValue(SCOPE_ATTRIBUTE));
++			String requiredType = attributes.getValue(REQUIRES_ATTRIBUTE);
+ 			if (!isNull(name)) {
+ 				m_definition.getAspectClassNames().add(name);
+ 				if (scopePattern != null) {
+ 					m_definition.addScopedAspect(name, scopePattern);
+ 				}
++				if (requiredType != null) {
++					m_definition.setAspectRequires(name, requiredType);
++				}
+ 			}
+ 		} else if (WEAVER_ELEMENT.equals(qName)) {
+ 			String options = attributes.getValue(OPTIONS_ATTRIBUTE);
+@@ -0,0 +1,7 @@
++package a.b.c;
++
++import java.lang.annotation.*;
++
++@Retention(RetentionPolicy.RUNTIME)
++public @interface Anno {
++}
+@@ -0,0 +1,5 @@
++import a.b.c.Anno;
++
++public aspect AspectA {
++  before(): execution(@Anno * *(..)) {System.out.println("A");}
++}
+@@ -0,0 +1,3 @@
++public aspect AspectB {
++  before():staticinitialization(!Aspect*) { System.out.println("staticinitialization");}
++}
+@@ -0,0 +1,11 @@
++import java.lang.annotation.*;
++
++@Blah
++public class Code {
++  public static void main(String[] argv) {
++    System.out.println("abcde");
++  }
++}
++
++@Retention(RetentionPolicy.RUNTIME)
++@interface Blah {}
+@@ -0,0 +1,11 @@
++import java.lang.annotation.*;
++import a.b.c.*;
++
++@Anno
++public class Code2 {
++  @Anno
++  public static void main(String[] argv) {
++    System.out.println("abcde");
++  }
++}
++
+@@ -0,0 +1,7 @@
++<aspectj>
++  <aspects>
++    <aspect name="AspectA" requires="a.b.c.Anno"/>
++    <aspect name="AspectB"/>
++  </aspects>
++  <weaver options="-verbose"/>
++</aspectj>
+@@ -18,24 +18,30 @@ import org.aspectj.testing.XMLBasedAjcTestCase;
+ 
+ public class Ajc169Tests extends org.aspectj.testing.XMLBasedAjcTestCase {
+ 
+-//	public void testClashingDeclareAnnos_313026_1() {
+-//		runTest("clashing declare annos");
+-//	}
++	public void testOptionalAspects_pr310506() {
++		runTest("optional aspects");
++	}
++
++	public void testOptionalAspects_pr310506_2() {
++		runTest("optional aspects 2");
++	}
++
++	// public void testClashingDeclareAnnos_313026_1() {
++	// runTest("clashing declare annos");
++	// }
+ 
+ 	public void testInfiniteLoop_pr315651() {
+ 		runTest("infinite loop");
+ 	}
+-	
++
+ 	public void testAnnoType_pr314965() {
+ 		runTest("anno typo");
+ 	}
+-	
+ 
+ 	public void testValidateBranchRecursion_314840() {
+ 		runTest("validate branch recursion");
+ 	}
+ 
+-	
+ 	public void testClassFileSize_312839_1() {
+ 		runTest("class file size - 1");
+ 		// 2531 (0x404): 1.6.9.M2 size of Class.class
+@@ -2,6 +2,52 @@
+ 
+ <suite>
+ 
++  <ajc-test dir="bugs169/pr310506" title="optional aspects">
++     <compile files="Anno.java" outjar="anno.jar" options="-1.5"/>
++     <compile files="AspectA.java" classpath="anno.jar" outjar="aspect.jar" options="-Xlint:ignore -1.5"/>
++     <compile files="AspectB.java" outjar="aspect2.jar" options="-Xlint:ignore -1.5"/>
++     <compile files="Code.java" classpath="code.jar;aspect.jar;aspect2.jar" options="-1.5"/>
++     <file deletefile="anno.jar"/>
++     <run class="Code" ltw="META-INF/aop.xml" classpath=".;aspect.jar;aspect2.jar">
++     <stderr>
++     <line text="AspectJ Weaver Version"/>
++     <line text="register classloader"/>
++     <line text="using configuration"/>
++     <line text="register aspect"/>
++     <line text="deactivating aspect"/>
++     <line text="register aspect"/>     
++     <line text="processing reweavable"/>
++     </stderr>
++     <stdout>
++     <line text="staticinitialization"/>
++     <line text="abcde"/>
++     </stdout>
++     </run>
++  </ajc-test>
++  
++  <ajc-test dir="bugs169/pr310506" title="optional aspects 2">
++     <compile files="Anno.java" outjar="anno.jar" options="-1.5"/>
++     <compile files="AspectA.java" classpath="anno.jar" outjar="aspect.jar" options="-Xlint:ignore -1.5"/>
++     <compile files="AspectB.java" outjar="aspect2.jar" options="-Xlint:ignore -1.5"/>
++     <compile files="Code.java Code2.java" classpath="anno.jar;code.jar;aspect.jar;aspect2.jar" options="-1.5"/>
++     <run class="Code2" ltw="META-INF/aop.xml" classpath=".;aspect.jar;aspect2.jar">
++     <stderr>
++     <line text="AspectJ Weaver Version"/>
++     <line text="register classloader"/>
++     <line text="using configuration"/>
++     <line text="register aspect"/>
++     <line text="register aspect"/>     
++     <line text="processing reweavable"/>
++     <line text="processing reweavable"/>
++     </stderr>
++     <stdout>
++     <line text="staticinitialization"/>
++     <line text="A"/>
++     <line text="abcde"/>
++     </stdout>
++     </run>
++  </ajc-test>
++
+   <ajc-test dir="bugs169/pr315651" title="infinite loop">
+      <compile files="test/Profiling.aj test/Main.java" options="-1.5"/>
+      <run class="test.Main"/>
+@@ -75,7 +75,7 @@ public class CrosscuttingMembersSet {
+ 	 */
+ 	public boolean addOrReplaceAspect(ResolvedType aspectType, boolean inWeavingPhase) {
+ 
+-		if (!world.isAspectIncluded(aspectType)) {
++		if (!world.isAspectIncluded(aspectType) || world.hasUnsatisfiedDependency(aspectType)) {
+ 			return false;
+ 		}
+ 
+@@ -1562,6 +1562,16 @@ public abstract class World implements Dump.INode {
+ 		return true;
+ 	}
+ 
++    /**
++     * Determine if the named aspect requires a particular type around in order to
++     * be useful.  The type is named in the aop.xml file against the aspect.
++     *
++     * @return true if there is a type missing that this aspect really needed around
++     */
++	public boolean hasUnsatisfiedDependency(ResolvedType aspectType) {
++		return false;
++	}
++
+ 	public TypePattern getAspectScope(ResolvedType declaringType) {
+ 		return null;
+ 	}

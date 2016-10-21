@@ -1,0 +1,287 @@
+@@ -76,8 +76,9 @@ import org.aspectj.apache.bcel.util.ByteSequence;
+  * 
+  * A list is finally dumped to a byte code array with <a href="#getByteCode()">getByteCode</a>.
+  * 
+- * @version $Id: InstructionList.java,v 1.10 2009/10/05 17:35:36 aclement Exp $
++ * @version $Id: InstructionList.java,v 1.11 2010/09/15 18:18:01 aclement Exp $
+  * @author <A HREF="mailto:markus.dahm@berlin.de">M. Dahm</A>
++ * @author Abraham Nevado
+  * @see Instruction
+  * @see InstructionHandle
+  * @see BranchHandle
+@@ -886,20 +887,24 @@ public class InstructionList implements Serializable {
+ 
+ 		// OPTIMIZE positions will only move around if there have been expanding instructions
+ 		// if (max_additional_bytes==0...) {
+-		//			
++		//
+ 		// }
+ 
+ 		/*
+ 		 * Pass 2: Expand the variable-length (Branch)Instructions depending on the target offset (short or int) and ensure that
+ 		 * branch targets are within this list.
+ 		 */
++		boolean nonZeroOffset = false;
+ 		int offset = 0;
+ 		for (InstructionHandle ih = start; ih != null; ih = ih.next) {
+ 			if (ih instanceof BranchHandle) {
+ 				offset += ((BranchHandle) ih).updatePosition(offset, maxAdditionalBytes);
++				if (offset != 0) {
++					nonZeroOffset = true;
++				}
+ 			}
+ 		}
+-		if (offset != 0) {
++		if (nonZeroOffset) {
+ 			/*
+ 			 * Pass 3: Update position numbers (which may have changed due to the preceding expansions), like pass 1.
+ 			 */
+@@ -0,0 +1,40 @@
++/*******************************************************************************
++ * Copyright (c) 2010 Contributors
++ * All rights reserved. This program and the accompanying materials
++ * are made available under the terms of the Eclipse Public License v1.0
++ * which accompanies this distribution, and is available at
++ * http://www.eclipse.org/legal/epl-v10.html
++ *
++ * Contributors:
++ *    Andy Clement - Repro test case
++ *    Abraham Nevado 
++ *******************************************************************************/
++
++class AtomicAction  {
++  int status() { return 1; }
++  int commit(int n) { return 1; }
++}
++
++public class A {
++	public static void main(String []argv) {
++		System.out.println("It WORKS");
++	}
++	
++  AtomicAction f; 
++  
++  public void m() {
++    	switch (f.status()) {
++    	case 1:
++    		throw new RuntimeException("abc");
++      	case 2:
++    	  f.commit(1);
++    	  return;
++      	}
++        switch (f.commit(1)) {
++        case 1:
++        	throw new RuntimeException();        
++        }
++  }
++
++}
++
+@@ -0,0 +1,20 @@
++/*******************************************************************************
++ * Copyright (c) 2010 Contributors
++ * All rights reserved. This program and the accompanying materials
++ * are made available under the terms of the Eclipse Public License v1.0
++ * which accompanies this distribution, and is available at
++ * http://www.eclipse.org/legal/epl-v10.html
++ *
++ * Contributors:
++ *    Andy Clement - Repro test case
++ *    Abraham Nevado 
++ *******************************************************************************/
++
++aspect X {
++  after(): execution(* A.m()) {
++    System.out.println(thisJoinPoint.getArgs().toString());
++  }
++  before(): execution(* A.m()) {
++    System.out.println(thisJoinPointStaticPart);
++  }
++}
+@@ -0,0 +1,10 @@
++<aspectj>
++	<aspects>
++		<aspect name="X"/>
++	</aspects>
++
++	<weaver options="-Xset:targetRuntime1_6_10=true,fastWeaving=true,weaveJavaxPackages=true -XhasMember -XlazyTjp -Xreweavable">
++		<include within="*"/>
++	</weaver>
++	
++</aspectj>
+\ No newline at end of file
+@@ -0,0 +1,98 @@
++/*******************************************************************************
++ * Copyright (c) 2010 Contributors
++ * All rights reserved. This program and the accompanying materials
++ * are made available under the terms of the Eclipse Public License v1.0
++ * which accompanies this distribution, and is available at
++ * http://www.eclipse.org/legal/epl-v10.html
++ *
++ * Contributors:
++ *    Andy Clement - Repro test case
++ *    Abraham Nevado 
++ *******************************************************************************/
++
++aspect X {
++  after(): execution(* A.m()) {
++    System.out.println(thisJoinPoint.getArgs().toString());
++  }
++  before(): execution(* A.m()) {
++    System.out.println(thisJoinPointStaticPart);
++  }
++}
++
++interface LogNoi18n {
++boolean isDebugEnabled(); 
++void debug(String message);
++String getString(String key);
++}
++class AtomicAction  {
++  int status() { return 1; }
++  int abort() { return 1; }
++  int commit(int n) { return 1; }
++  Throwable getDeferredThrowable() { return null; }
++}
++class RollbackException extends RuntimeException {
++  RollbackException(String s) {
++    super(s);
++  }
++}
++
++public class A {
++public static void main(String []argv) {
++	System.out.println("It WORKS");
++int i = 1;  
++ }
++  static LogNoi18n logger;
++  AtomicAction _theTransaction; 
++  Throwable _rollbackOnlyCallerStacktrace;
++  public void m() {
++    if (logger.isDebugEnabled()) {
++      logger.debug("TransactionImple.commitAndDisassociate");
++    }
++   try {
++    if (_theTransaction!=null) {
++      switch (_theTransaction.status()) {
++      case 2:
++      case 4:
++        _theTransaction.abort();
++        throw new RollbackException(logger.getString("inactive"));
++      case 6:
++      case 7:
++        _theTransaction.commit(1);
++         return;
++      case 3:
++      case 5:
++      default:
++        break;
++      }
++        switch (_theTransaction.commit(1)) {
++           case 6:case 7:  // 188
++             break;
++           case 13: // 191
++             throw new RuntimeException();
++           case 14: // 199
++             throw new RuntimeException();
++           case 2:case 4: case 11: // 207
++             RollbackException o = new RollbackException(logger.getString("inactive"));
++             if (_rollbackOnlyCallerStacktrace!=null) {
++               o.initCause(_rollbackOnlyCallerStacktrace);
++             } else 
++               if (_theTransaction.getDeferredThrowable()!=null) {
++               o.initCause(_theTransaction.getDeferredThrowable());
++               }
++            
++             throw o;
++           default:
++             throw new RuntimeException(logger.getString("inactive"));
++        }
++     } else {
++        throw new IllegalStateException(logger.getString("inactive"));
++     }
++   } finally {
++        removeTransaction(this);
++   }
++  }
++
++  public static void removeTransaction(A o) {
++  }
++}
++
+@@ -0,0 +1,10 @@
++<aspectj>
++	<aspects>
++		<aspect name="X"/>
++	</aspects>
++
++	<weaver options="-Xset:targetRuntime1_6_10=true,fastWeaving=true,weaveJavaxPackages=true -XhasMember -XlazyTjp -Xreweavable">
++		<include within="*"/>
++	</weaver>
++	
++</aspectj>
+\ No newline at end of file
+@@ -18,9 +18,18 @@ import org.aspectj.testing.XMLBasedAjcTestCase;
+ 
+ public class Ajc1610Tests extends org.aspectj.testing.XMLBasedAjcTestCase {
+ 
++	public void testOffset0_bug324932() {
++		runTest("pr324932");
++	}
++
++	public void testOffset0_bug324932_2() {
++		runTest("pr324932 - 2");
++	}
++
+ 	public void testAbstractAspectDeclareParents_322446() {
+ 		runTest("declare parents abstract aspect");
+ 	}
++
+ 	public void testAbstractAspectAndDeclares_322272_2() {
+ 		runTest("abstract aspects and declares - 2");
+ 	}
+@@ -28,11 +37,12 @@ public class Ajc1610Tests extends org.aspectj.testing.XMLBasedAjcTestCase {
+ 	public void testAbstractAspectAndDeclares_322272() {
+ 		runTest("abstract aspects and declares");
+ 	}
++
+ 	// Interesting new behaviour on AspectJ 1.6.9 - probably due to initial inner type changes.
+ 	// Looks a real error (creating two annotations the same on a type is a bad thing)
+-	//	public void testDuplicateAnnotations() {
+-	//		runTest("duplicate annotation");
+-	//	}
++	// public void testDuplicateAnnotations() {
++	// runTest("duplicate annotation");
++	// }
+ 
+ 	public void testLoadingOldCode_319431() {
+ 		runTest("loading old code");
+@@ -2,6 +2,25 @@
+ 
+ <suite>
+ 
++  <ajc-test dir="bugs1610/pr324932" title="pr324932">
++    <compile files="A.java" options="-1.5"/>
++    <compile files="X.aj" options="-1.5 -Xlint:ignore" />
++    <run class="A" ltw="aop.xml">
++    <stdout>
++	    <line text="It WORKS"/>
++    </stdout>
++    </run>
++  </ajc-test>
++  
++  <ajc-test dir="bugs1610/pr324932_2" title="pr324932 - 2">
++    <compile files="A.java" options="-1.5"/>
++    <run class="A" ltw="aop.xml">
++    <stdout>
++	    <line text="It WORKS"/>
++    </stdout>
++    </run>
++  </ajc-test>
++  
+   <ajc-test dir="bugs1610/pr322446" title="declare parents abstract aspect">
+     <compile files="Super.java I.java" outjar="aspects.jar" options="-1.5"/>
+     <compile files="Code.java" classpath="aspects.jar" options="-1.5 -emacssym"/>
+Binary files differ
+Binary files differ
+Binary files differ

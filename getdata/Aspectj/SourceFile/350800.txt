@@ -1,0 +1,262 @@
+@@ -1597,7 +1597,7 @@ public class AtAjAttributes {
+ 					|| AjcMemberMaker.TYPEX_PROCEEDINGJOINPOINT.equals(argumentType)
+ 					|| AjcMemberMaker.TYPEX_STATICJOINPOINT.equals(argumentType)
+ 					|| AjcMemberMaker.TYPEX_ENCLOSINGSTATICJOINPOINT.equals(argumentType) || AjcMemberMaker.AROUND_CLOSURE_TYPE
+-					.equals(argumentType))) {
++						.equals(argumentType))) {
+ 				// continue;// skip
+ 				bindings.add(new FormalBinding.ImplicitFormalBinding(argumentType, argumentName, i));
+ 			} else {
+@@ -1873,7 +1873,7 @@ public class AtAjAttributes {
+ 
+ 		public LazyResolvedPointcutDefinition(UnresolvedType declaringType, int modifiers, String name,
+ 				UnresolvedType[] parameterTypes, UnresolvedType returnType, Pointcut pointcut, IScope binding) {
+-			super(declaringType, modifiers, name, parameterTypes, returnType, null);
++			super(declaringType, modifiers, name, parameterTypes, returnType, Pointcut.makeMatchesNothing(Pointcut.RESOLVED));
+ 			m_pointcutUnresolved = pointcut;
+ 			m_binding = binding;
+ 		}
+@@ -0,0 +1,9 @@
++package test.aop;
++
++import java.io.Serializable;
++
++public abstract class AbstractAdapter<T extends Serializable> {
++
++    protected abstract T execute(T message);
++
++}
+@@ -0,0 +1,22 @@
++package test.aop;
++
++import java.io.Serializable;
++
++import org.aspectj.lang.ProceedingJoinPoint;
++import org.aspectj.lang.annotation.Around;
++import org.aspectj.lang.annotation.Aspect;
++import org.aspectj.lang.annotation.Pointcut;
++
++@Aspect
++public abstract class AbstractProbingAspect<T extends Serializable> {
++  
++    @Pointcut("")
++    protected abstract void adapterMethodExecution();
++   
++    @Around("adapterMethodExecution()")
++    public T around(ProceedingJoinPoint thisJoinPoint) throws Throwable {
++        return (T) thisJoinPoint.proceed();       
++    }   
++   
++    protected abstract String extractFunctionName(T command);
++}
+@@ -0,0 +1,9 @@
++package test.aop;
++
++public class Adapter extends AbstractAdapter<String> {
++
++    @Override
++    public String execute(String message) {
++        return message;
++    }
++}
+@@ -0,0 +1,16 @@
++package test.aop;
++
++import org.aspectj.lang.annotation.Aspect;
++import org.aspectj.lang.annotation.Pointcut;
++
++@Aspect
++public class ProbingAspect extends AbstractProbingAspect<String> {
++
++    @Pointcut("execution(String test.aop.Adapter.execute(String))")
++    protected void adapterMethodExecution() {};
++       
++    @Override
++    protected String extractFunctionName(String command) {   
++        return String.valueOf(command);
++    }
++}
+@@ -0,0 +1,9 @@
++package test.aop;
++
++import java.io.Serializable;
++
++public abstract class AbstractAdapter<T extends Serializable> {
++
++    protected abstract T execute(T message);
++
++}
+@@ -0,0 +1,20 @@
++package test.aop;
++
++import java.io.Serializable;
++
++import org.aspectj.lang.ProceedingJoinPoint;
++import org.aspectj.lang.annotation.Around;
++import org.aspectj.lang.annotation.Aspect;
++import org.aspectj.lang.annotation.Pointcut;
++
++public abstract aspect AbstractProbingAspect<T extends Serializable> {
++  
++    abstract pointcut adapterMethodExecution();
++   
++ 
++    T around(): adapterMethodExecution() {
++        return (T) proceed();       
++    }   
++   
++    protected abstract String extractFunctionName(T command);
++}
+@@ -0,0 +1,9 @@
++package test.aop;
++
++public class Adapter extends AbstractAdapter<String> {
++
++    @Override
++    public String execute(String message) {
++        return message;
++    }
++}
+@@ -0,0 +1,14 @@
++package test.aop;
++
++import org.aspectj.lang.annotation.Aspect;
++import org.aspectj.lang.annotation.Pointcut;
++
++public aspect ProbingAspect extends AbstractProbingAspect<String> {
++
++    pointcut adapterMethodExecution(): execution(String test.aop.Adapter.execute(String));
++
++    @Override
++    protected String extractFunctionName(String command) {   
++        return String.valueOf(command);
++    }
++}
+@@ -0,0 +1,9 @@
++package test.aop;
++
++import java.io.Serializable;
++
++public abstract class AbstractAdapter<T extends Serializable> {
++
++    protected abstract T execute(T message);
++
++}
+@@ -0,0 +1,24 @@
++package test.aop;
++
++import java.io.Serializable;
++
++import org.aspectj.lang.ProceedingJoinPoint;
++import org.aspectj.lang.annotation.Around;
++import org.aspectj.lang.annotation.Aspect;
++import org.aspectj.lang.annotation.Pointcut;
++
++@Aspect
++public abstract class AbstractProbingAspect<T extends Serializable> {
++  
++    @Pointcut("")
++    protected abstract void adapterMethodExecution();
++   
++    @Around("adapterMethodExecution()")
++    public T around(ProceedingJoinPoint thisJoinPoint) throws Throwable {
++        T t = (T) thisJoinPoint.proceed();       
++   System.out.println(">"+extractFunctionName(t));
++        return t;
++    }   
++   
++    protected abstract String extractFunctionName(T command);
++}
+@@ -0,0 +1,14 @@
++package test.aop;
++
++public class Adapter extends AbstractAdapter<String> {
++
++    @Override
++    public String execute(String message) {
++        return message;
++    }
++
++
++  public static void main(String []argv) {
++    new Adapter().execute("hello");
++  }
++}
+@@ -0,0 +1,16 @@
++package test.aop;
++
++import org.aspectj.lang.annotation.Aspect;
++import org.aspectj.lang.annotation.Pointcut;
++
++@Aspect
++public class ProbingAspect extends AbstractProbingAspect<String> {
++
++    @Pointcut("execution(String test.aop.Adapter.execute(String))")
++    protected void adapterMethodExecution() {};
++       
++    @Override
++    protected String extractFunctionName(String command) {   
++        return String.valueOf(command);
++    }
++}
+@@ -25,6 +25,18 @@ public class Ajc1612Tests extends org.aspectj.testing.XMLBasedAjcTestCase {
+ 	// runTest("anno copying");
+ 	// }
+ 
++	public void testGenericsNpe_pr350800() {
++		runTest("generics npe");
++	}
++
++	public void testGenericsNpe_pr350800_code() {
++		runTest("generics npe - code");
++	}
++
++	public void testGenericsNpe_pr350800_3() {
++		runTest("generics npe - 3");
++	}
++
+ 	public void testOrdering_pr349961() {
+ 		runTest("ordering");
+ 	}
+@@ -32,11 +44,10 @@ public class Ajc1612Tests extends org.aspectj.testing.XMLBasedAjcTestCase {
+ 	public void testOrdering_pr349961_2() {
+ 		runTest("ordering - 2");
+ 	}
+-/*
+-	public void testVerifyError_pr347395() {
+-		runTest("verifyerror - inline");
+-	}
+-	*/
++
++	/*
++	 * public void testVerifyError_pr347395() { runTest("verifyerror - inline"); }
++	 */
+ 
+ 	public void testDuplicateMethods_349398() {
+ 		runTest("duplicate methods");
+@@ -2,6 +2,25 @@
+ 
+ <suite>
+ 
++<ajc-test dir="bugs1612/pr350800" title="generics npe">
++<compile files="AbstractAdapter.java AbstractProbingAspect.java Adapter.java ProbingAspect.java" options="-1.5"/>
++<!--  run class="com.example.MyAspectTest" -->
++</ajc-test>
++
++<ajc-test dir="bugs1612/pr350800_2" title="generics npe - code">
++<compile files="AbstractAdapter.java AbstractProbingAspect.java Adapter.java ProbingAspect.java" options="-1.5"/>
++<!--  run class="com.example.MyAspectTest" -->
++</ajc-test>
++
++<ajc-test dir="bugs1612/pr350800_3" title="generics npe - 3">
++<compile files="AbstractAdapter.java AbstractProbingAspect.java Adapter.java ProbingAspect.java" options="-1.5"/>
++<run class="test.aop.Adapter">
++<stdout>
++<line text="&gt;hello"/>
++</stdout>
++</run>
++</ajc-test>
++
+ <ajc-test dir="bugs1612/pr349961" title="ordering">
+ <compile files="MyParameterAnnotation.java MyAspect.java MyAspectTest.java A.java ABean.java" options="-1.5"/>
+ <run class="com.example.MyAspectTest">

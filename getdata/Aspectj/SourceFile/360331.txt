@@ -1,0 +1,31 @@
+@@ -170,6 +170,9 @@ public class AjBuildManager implements IOutputClassFileNameProvider, IBinarySour
+ 
+ 	public void environmentSupportsIncrementalCompilation(boolean itDoes) {
+ 		this.environmentSupportsIncrementalCompilation = itDoes;
++		if (itDoes) {
++			org.aspectj.weaver.loadtime.definition.DocumentParser.deactivateCaching();
++		}
+ 	}
+ 
+ 	/** @return true if we should generate a model as a side-effect */
+@@ -82,7 +82,7 @@ public class DocumentParser extends DefaultHandler {
+ 	private Definition.ConcreteAspect activeConcreteAspectDefinition;
+ 
+ 	private static Hashtable<String, Definition> parsedFiles = new Hashtable<String, Definition>();
+-	private static final boolean CACHE;
++	private static boolean CACHE;
+ 	private static final boolean LIGHTPARSER;
+ 
+ 	static {
+@@ -345,4 +345,11 @@ public class DocumentParser extends DefaultHandler {
+ 		return (s != null && s.equals("true"));
+ 	}
+ 
++	/**
++	 * Turn off caching
++	 */
++	public static void deactivateCaching() {
++		CACHE = false;
++	}
++
+ }

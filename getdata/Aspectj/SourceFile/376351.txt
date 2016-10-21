@@ -1,0 +1,162 @@
+@@ -0,0 +1,6 @@
++public class R{ 
++  public static void main(String[] args) {
++    R r = new R();
++    System.out.println(r.getClass().getName());
++  }
++}
+@@ -0,0 +1 @@
++public class R1 extends R {}
+@@ -0,0 +1,9 @@
++public aspect RAj
++{
++    pointcut createR() : call(R.new()) && !within(RAj);
++    Object around() : createR()
++    {
++        System.out.println("aspect running");
++        return new R1();
++    }
++}
+@@ -0,0 +1,5 @@
++<aspectj>
++<aspects>
++<aspect name="RAj"/>
++</aspects>
++</aspectj>
+@@ -31,6 +31,10 @@ import org.aspectj.weaver.tools.StandardPointcutParser;
+  */ 
+ public class Ajc170Tests extends org.aspectj.testing.XMLBasedAjcTestCase {
+ 
++	public void testAttributeErrorJ7() {
++		runTest("attribute issue with J7");
++	}
++	
+ 	public void testSwitchOnEnum() {
+ 		runTest("switch on enum");
+ 	}
+@@ -2,6 +2,24 @@
+ 
+ <suite>
+ 
++ 	<ajc-test dir="bugs170/pr376351" title="attribute issue with J7">
++     <compile files="R.java R1.java" outjar="code.jar" options="-1.5"/>
++     <compile files="RAj.java" options="-1.7 -Xlint:ignore" outjar="aspects.jar" classpath="code.jar"/>
++     <compile inpath="code.jar" aspectpath="aspects.jar" options="-showWeaveInfo">
++     <message kind="weave" text="Join point 'constructor-call(void R.&lt;init&gt;())'"/>
++     </compile>
++     <!-- 
++     if we had a 1.7 vm we could use this:
++     <compile files="RAj.java" options="-1.7 -Xlint:ignore"/>
++     <run class="R" ltw="aop.xml">
++     <stderr>
++     <line text="org.aspectj.weaver.tools.Jdk14Trace error"/>
++     <line text="Unsupported major.minor version 51.0"/>
++     <line text="java.lang.UnsupportedClassVersionError: RAj :"/>
++     </stderr>
++     </run>
++     -->
++   </ajc-test>
+ 
+  	<ajc-test dir="bugs170/pr376139" title="switch on enum">
+      <compile files="Code.java" options="-1.5"/>
+@@ -30,7 +30,7 @@ public class StackMapAdder {
+ 	public static byte[] addStackMaps(World world, byte[] data) {
+ 		try {
+ 			ClassReader cr = new ClassReader(data);
+-			ClassWriter cw = new AspectJConnectClassWriter(world);
++			ClassWriter cw = new AspectJConnectClassWriter(cr, world);
+ 			cr.accept(cw, 0);
+ 			return cw.toByteArray();
+ 		} catch (Throwable t) {
+@@ -43,8 +43,8 @@ public class StackMapAdder {
+ 	private static class AspectJConnectClassWriter extends ClassWriter {
+ 		private final World world;
+ 
+-		public AspectJConnectClassWriter(World w) {
+-			super(ClassWriter.COMPUTE_FRAMES);
++		public AspectJConnectClassWriter(ClassReader cr, World w) {
++			super(cr, ClassWriter.COMPUTE_FRAMES); // passing in cr is necessary so cpool isnt modified (see 2.2.4 of asm doc)
+ 			this.world = w;
+ 		}
+ 
+@@ -0,0 +1,6 @@
++public class R{ 
++  public static void main(String[] args) {
++    R r = new R();
++    System.out.println(r.getClass().getName());
++  }
++}
+@@ -0,0 +1 @@
++public class R1 extends R {}
+@@ -0,0 +1,9 @@
++public aspect RAj
++{
++    pointcut createR() : call(R.new()) && !within(RAj);
++    Object around() : createR()
++    {
++        System.out.println("aspect running");
++        return new R1();
++    }
++}
+@@ -0,0 +1,5 @@
++<aspectj>
++<aspects>
++<aspect name="RAj"/>
++</aspects>
++</aspectj>
+@@ -31,6 +31,10 @@ import org.aspectj.weaver.tools.StandardPointcutParser;
+  */ 
+ public class Ajc170Tests extends org.aspectj.testing.XMLBasedAjcTestCase {
+ 
++	public void testAttributeErrorJ7() {
++		runTest("attribute issue with J7");
++	}
++	
+ 	public void testSwitchOnEnum() {
+ 		runTest("switch on enum");
+ 	}
+@@ -2,6 +2,24 @@
+ 
+ <suite>
+ 
++ 	<ajc-test dir="bugs170/pr376351" title="attribute issue with J7">
++     <compile files="R.java R1.java" outjar="code.jar" options="-1.5"/>
++     <compile files="RAj.java" options="-1.7 -Xlint:ignore" outjar="aspects.jar" classpath="code.jar"/>
++     <compile inpath="code.jar" aspectpath="aspects.jar" options="-showWeaveInfo">
++     <message kind="weave" text="Join point 'constructor-call(void R.&lt;init&gt;())'"/>
++     </compile>
++     <!-- 
++     if we had a 1.7 vm we could use this:
++     <compile files="RAj.java" options="-1.7 -Xlint:ignore"/>
++     <run class="R" ltw="aop.xml">
++     <stderr>
++     <line text="org.aspectj.weaver.tools.Jdk14Trace error"/>
++     <line text="Unsupported major.minor version 51.0"/>
++     <line text="java.lang.UnsupportedClassVersionError: RAj :"/>
++     </stderr>
++     </run>
++     -->
++   </ajc-test>
+ 
+  	<ajc-test dir="bugs170/pr376139" title="switch on enum">
+      <compile files="Code.java" options="-1.5"/>
+@@ -30,7 +30,7 @@ public class StackMapAdder {
+ 	public static byte[] addStackMaps(World world, byte[] data) {
+ 		try {
+ 			ClassReader cr = new ClassReader(data);
+-			ClassWriter cw = new AspectJConnectClassWriter(world);
++			ClassWriter cw = new AspectJConnectClassWriter(cr, world);
+ 			cr.accept(cw, 0);
+ 			return cw.toByteArray();
+ 		} catch (Throwable t) {
+@@ -43,8 +43,8 @@ public class StackMapAdder {
+ 	private static class AspectJConnectClassWriter extends ClassWriter {
+ 		private final World world;
+ 
+-		public AspectJConnectClassWriter(World w) {
+-			super(ClassWriter.COMPUTE_FRAMES);
++		public AspectJConnectClassWriter(ClassReader cr, World w) {
++			super(cr, ClassWriter.COMPUTE_FRAMES); // passing in cr is necessary so cpool isnt modified (see 2.2.4 of asm doc)
+ 			this.world = w;
+ 		}
+ 

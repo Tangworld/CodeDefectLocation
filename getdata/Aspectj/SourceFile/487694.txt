@@ -1,0 +1,62 @@
+Binary files differ
+Binary files differ
+@@ -71,12 +71,17 @@ public abstract class RuntimeAnnos extends Attribute {
+ 		}
+ 	}
+ 
++	
+ 	private void inflate() {
+ 		try {
+ 			DataInputStream dis = new DataInputStream(new ByteArrayInputStream(annotation_data));
+ 			int numberOfAnnotations = dis.readUnsignedShort();
+-			for (int i = 0; i < numberOfAnnotations; i++) {
+-				annotations.add(AnnotationGen.read(dis, getConstantPool(), visible));
++			if (numberOfAnnotations > 0) {
++				List<AnnotationGen> inflatedAnnotations = new ArrayList<AnnotationGen>();
++				for (int i = 0; i < numberOfAnnotations; i++) {
++					inflatedAnnotations.add(AnnotationGen.read(dis, getConstantPool(), visible));
++				}
++				annotations = inflatedAnnotations;
+ 			}
+ 			dis.close();
+ 			inflated = true;
+@@ -87,13 +87,21 @@ public abstract class RuntimeParamAnnos extends Attribute {
+ 		try {
+ 			DataInputStream dis = new DataInputStream(new ByteArrayInputStream(annotation_data));
+ 			int numParameters = dis.readUnsignedByte();
+-			for (int i=0; i<numParameters; i++) {
+-				int numAnnotations = dis.readUnsignedShort();
+-				AnnotationGen[] annotations = new AnnotationGen[numAnnotations];
+-				for (int j=0; j<numAnnotations; j++) {
+-					annotations[j] = AnnotationGen.read(dis,getConstantPool(),visible);
++			if (numParameters > 0) {
++				List<AnnotationGen[]> inflatedParameterAnnotations = new ArrayList<AnnotationGen[]>();
++				for (int i=0; i<numParameters; i++) {
++					int numAnnotations = dis.readUnsignedShort();
++					if (numAnnotations == 0 ) {
++						inflatedParameterAnnotations.add(AnnotationGen.NO_ANNOTATIONS);
++					} else {
++						AnnotationGen[] annotations = new AnnotationGen[numAnnotations];
++						for (int j=0; j<numAnnotations; j++) {
++							annotations[j] = AnnotationGen.read(dis,getConstantPool(),visible);
++						}
++						inflatedParameterAnnotations.add(annotations);
++					}
+ 				}
+-				parameterAnnotations.add(annotations);
++				parameterAnnotations = inflatedParameterAnnotations;
+ 			}
+ 			inflated = true;
+ 		} catch (IOException ioe) {
+Binary files differ
+Binary files differ
+Binary files differ
+@@ -254,7 +254,7 @@ public class Java15AnnotationFinder implements AnnotationFinder, ArgNameFinder {
+ 			org.aspectj.apache.bcel.classfile.annotation.AnnotationGen[] anns = jc.getAnnotations();
+ 			bcelRepository.clear();
+ 			if (anns == null)
+-				return new ResolvedType[0];
++				return ResolvedType.NONE;
+ 			ResolvedType[] ret = new ResolvedType[anns.length];
+ 			for (int i = 0; i < ret.length; i++) {
+ 				ret[i] = inWorld.resolve(UnresolvedType.forSignature(anns[i].getTypeSignature()));

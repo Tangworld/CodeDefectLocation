@@ -1,0 +1,333 @@
+@@ -9,12 +9,9 @@
+  * Contributors: 
+  *     PARC     initial implementation 
+  * ******************************************************************/
+-
+- 
+- package org.aspectj.ajdt.internal.compiler.lookup;
++package org.aspectj.ajdt.internal.compiler.lookup;
+ 
+ import java.util.ArrayList;
+-import java.util.Iterator;
+ import java.util.List;
+ 
+ import org.aspectj.org.eclipse.jdt.internal.compiler.ClassFile;
+@@ -33,28 +30,26 @@ import org.aspectj.weaver.UnresolvedType;
+ public class HelperInterfaceBinding extends SourceTypeBinding {
+ 	private UnresolvedType typeX;
+ 	SourceTypeBinding enclosingType;
+-	List methods = new ArrayList();
+-	
++	List<MethodBinding> methods = new ArrayList<MethodBinding>();
++
+ 	public HelperInterfaceBinding(SourceTypeBinding enclosingType, UnresolvedType typeX) {
+ 		super();
+ 		this.fPackage = enclosingType.fPackage;
+-		//this.fileName = scope.referenceCompilationUnit().getFileName();
+-		this.modifiers = ClassFileConstants.AccPublic | ClassFileConstants.AccInterface | ClassFileConstants.AccAbstract;
++		// this.fileName = scope.referenceCompilationUnit().getFileName();
++		this.modifiers = ClassFileConstants.AccPublic | ClassFileConstants.AccInterface
++				| ClassFileConstants.AccAbstract;
+ 		this.sourceName = enclosingType.scope.referenceContext.name;
+ 		this.enclosingType = enclosingType;
+ 		this.typeX = typeX;
+ 		this.typeVariables = Binding.NO_TYPE_VARIABLES;
+-		this.scope =enclosingType.scope;
++		this.scope = enclosingType.scope;
+ 		this.superInterfaces = new ReferenceBinding[0];
+ 	}
+ 
+-	public HelperInterfaceBinding(
+-		char[][] compoundName,
+-		PackageBinding fPackage,
+-		ClassScope scope) {
++	public HelperInterfaceBinding(char[][] compoundName, PackageBinding fPackage, ClassScope scope) {
+ 		super(compoundName, fPackage, scope);
+ 	}
+-	
++
+ 	public char[] getFileName() {
+ 		return enclosingType.getFileName();
+ 	}
+@@ -62,51 +57,46 @@ public class HelperInterfaceBinding extends SourceTypeBinding {
+ 	public UnresolvedType getTypeX() {
+ 		return typeX;
+ 	}
+-	
+-	public void addMethod(EclipseFactory world , ResolvedMember member) {
++
++	public void addMethod(EclipseFactory world, ResolvedMember member) {
+ 		MethodBinding binding = world.makeMethodBinding(member);
+ 		this.methods.add(binding);
+ 	}
+-	
+-	public FieldBinding[] fields() { return new FieldBinding[0]; }
+-	
+-	public MethodBinding[] methods() { return new MethodBinding[0]; }
+-	
++
++	public FieldBinding[] fields() {
++		return new FieldBinding[0];
++	}
++
++	public MethodBinding[] methods() {
++		return new MethodBinding[0];
++	}
+ 
+ 	public char[] constantPoolName() {
+ 		String sig = typeX.getSignature();
+-		return sig.substring(1, sig.length()-1).toCharArray();
++		return sig.substring(1, sig.length() - 1).toCharArray();
+ 	}
+ 
+ 	public void generateClass(CompilationResult result, ClassFile enclosingClassFile) {
+ 		ClassFile classFile = new ClassFile(this);
+ 		classFile.initialize(this, enclosingClassFile, false);
+-		classFile.recordInnerClasses(this);
+-
+-		//classFile.addFieldInfos();
++//		classFile.recordInnerClasses(this);
++		// classFile.addFieldInfos();
+ 		classFile.contents[classFile.contentsOffset++] = (byte) 0;
+ 		classFile.contents[classFile.contentsOffset++] = (byte) 0;
+-		
+ 		classFile.setForMethodInfos();
+-		for (Iterator i = methods.iterator(); i.hasNext(); ) {
+-			MethodBinding b = (MethodBinding)i.next();
++		for (MethodBinding b: methods) {
+ 			generateMethod(classFile, b);
+ 		}
+-
+ 		classFile.addAttributes();
+-			
+ 		result.record(this.constantPoolName(), classFile);
+ 	}
+-	
+-	
++
+ 	private void generateMethod(ClassFile classFile, MethodBinding binding) {
+ 		classFile.generateMethodInfoHeader(binding);
+ 		int methodAttributeOffset = classFile.contentsOffset;
+ 		int attributeNumber = classFile.generateMethodInfoAttributes(binding);
+-		classFile.completeMethodInfo(binding,methodAttributeOffset, attributeNumber);
++		classFile.completeMethodInfo(binding, methodAttributeOffset, attributeNumber);
+ 	}
+-	
+-	
+ 
+ 	public ReferenceBinding[] superInterfaces() {
+ 		return new ReferenceBinding[0];
+@@ -0,0 +1,10 @@
++package example.kusedep;
++
++import example.dep.Dep;
++
++public class Cmd {
++  public static void main(String[] args) {
++    Dep dep = new Dep();
++    System.out.println(dep);
++  }
++}
+@@ -0,0 +1,9 @@
++package example.kusedep;
++
++import example.dep.Dep;
++
++fun main(args: Array<String>) {
++    val dep = Dep()
++    println(dep)
++    System.exit(0)
++}
+@@ -0,0 +1,5 @@
++public class Code {
++  public static void main(String []argv) { 
++    new Runnable() { public void run() {}};
++  }
++}
+@@ -0,0 +1,14 @@
++package example.dep;
++
++public class Dep {
++    private int a, b, c;
++
++    public Dep() {
++	a = 5;
++    }
++
++    public String toString() {
++
++        return "Dep";
++    }
++}
+@@ -0,0 +1,17 @@
++package example.aspect;
++
++import example.dep.Dep;
++
++public aspect FooAspect pertarget(setFieldValue(Dep)) {
++
++  // interface ajcMightHaveAspect { }
++
++  pointcut setFieldValue(Dep dep) :
++    set(private * Dep.*) && target(dep);
++
++  void around(Dep dep) : setFieldValue(dep) {
++System.out.println("advised");
++    proceed(dep);
++  }
++
++}
+@@ -0,0 +1,25 @@
++
++package example.aspect;
++
++import org.aspectj.lang.*;
++import org.aspectj.lang.annotation.*;
++
++import example.dep.Dep;
++
++@Aspect("pertarget(setFieldValue(example.dep.Dep))")
++public class FooAspect {
++
++  // interface ajcMightHaveAspect { }
++
++  @Pointcut("set(private * example.dep.Dep.*) && target(dep)")
++  public void setFieldValue(Dep dep) {}
++  //pointcut setFieldValue(Dep dep) : set(private * Dep.*) && target(dep);
++
++  @Around("setFieldValue(dep)")
++  public void foo(Dep dep, ProceedingJoinPoint pjp) {
++  //void around(Dep dep) : setFieldValue(dep) {
++System.out.println("advised");
++    pjp.proceed(new Object[]{dep});
++  }
++
++}
+@@ -14,6 +14,14 @@ import java.io.File;
+ 
+ import junit.framework.Test;
+ 
++import org.aspectj.apache.bcel.Constants;
++import org.aspectj.apache.bcel.classfile.Attribute;
++import org.aspectj.apache.bcel.classfile.Constant;
++import org.aspectj.apache.bcel.classfile.ConstantClass;
++import org.aspectj.apache.bcel.classfile.ConstantPool;
++import org.aspectj.apache.bcel.classfile.ConstantUtf8;
++import org.aspectj.apache.bcel.classfile.InnerClass;
++import org.aspectj.apache.bcel.classfile.InnerClasses;
+ import org.aspectj.apache.bcel.classfile.JavaClass;
+ import org.aspectj.testing.XMLBasedAjcTestCase;
+ 
+@@ -25,6 +33,101 @@ public class Ajc1810Tests extends org.aspectj.testing.XMLBasedAjcTestCase {
+ 	public void testInvokeDynamic_490315() {
+ 		runTest("indy");
+ 	}
++
++	// http://docs.oracle.com/javase/specs/jvms/se8/html/jvms-4.html#jvms-4.7.6
++	public void testInnerClassesAttributeStructure_493554() throws Exception {
++		runTest("pertarget");
++		
++		// Testcode commented out below is for full analysis of the inner class attribute but under
++		// 493554 we are going to remove that attribute for this class
++		JavaClass jc = getClassFrom(ajc.getSandboxDirectory(), "example/aspect/FooAspect$ajcMightHaveAspect");
++		assertNotNull(jc);
++		assertEquals(Constants.ACC_PUBLIC | Constants.ACC_INTERFACE | Constants.ACC_ABSTRACT,jc.getModifiers());
++		Attribute[] attributes = jc.getAttributes();
++		for (Attribute attribute: attributes) {
++			if (attribute.getName().equals("InnerClasses")) {
++				fail("Did not expect to find InnerClasses attribute");
++			}
++		}
++
++//		// Is InnerClasses attribute well formed for the pertarget interface?
++//		JavaClass jc = getClassFrom(ajc.getSandboxDirectory(), "example/aspect/FooAspect$ajcMightHaveAspect");
++//		assertNotNull(jc);
++//		assertEquals(Constants.ACC_PUBLIC | Constants.ACC_INTERFACE | Constants.ACC_ABSTRACT,jc.getModifiers());
++//		Attribute attr = getAttributeStartsWith(jc.getAttributes(), "InnerClasses");
++//		assertNotNull(attr);
++//		InnerClasses innerClasses = (InnerClasses)attr;
++//		InnerClass[] innerClassArray = innerClasses.getInnerClasses();
++//		assertEquals(1,innerClassArray.length);
++//		InnerClass innerClass = innerClassArray[0];
++//		ConstantPool cp = jc.getConstantPool();
++//
++//		// The value of the inner_class_info_index item must be a valid index into the 
++//		// constant_pool table. The constant_pool entry at that index must be a CONSTANT_Class_info 
++//		// structure representing C.
++//		int innerClassIndex = innerClass.getInnerClassIndex();
++//		ConstantClass cc = (ConstantClass)cp.getConstant(innerClassIndex);
++//		ConstantUtf8 utf8 = cp.getConstantUtf8(cc.getNameIndex());
++//		assertEquals("example/aspect/FooAspect$ajcMightHaveAspect",utf8.getStringValue());
++//		
++//		// The remaining items in the classes array entry give information about C.
++//		// The value of the outer_class_info_index item must be a valid index into the 
++//		// constant_pool table, and the entry at that index must be a CONSTANT_Class_info
++//		// structure representing the class or interface of which C is a member.
++//		int outerClassIndex = innerClass.getOuterClassIndex();
++//		cc = (ConstantClass)cp.getConstant(outerClassIndex);
++//		utf8 = cp.getConstantUtf8(cc.getNameIndex());
++//		assertEquals("example/aspect/FooAspect",utf8.getStringValue());
++//		
++//		// The value of the inner_name_index item must be a valid index into the constant_pool table, 
++//		// and the entry at that index must be a CONSTANT_Utf8_info structure (§4.4.7) that represents 
++//		// the original simple name of C, as given in the source code from which this class file was compiled.
++//		int innerNameIndex = innerClass.getInnerNameIndex();
++//		utf8 = cp.getConstantUtf8(innerNameIndex);
++//		assertEquals("ajcMightHaveAspect",utf8.getStringValue());
++//		
++//		int innerAccessFlags = innerClass.getInnerAccessFlags();
++//		assertEquals(Constants.ACC_PUBLIC | Constants.ACC_ABSTRACT | Constants.ACC_INTERFACE | Constants.ACC_STATIC,innerAccessFlags);
++//		
++//		// Is InnerClasses attribute well formed for the containing type?
++//		jc = getClassFrom(ajc.getSandboxDirectory(), "example/aspect/FooAspect");
++//		assertNotNull(jc);
++//		attr = getAttributeStartsWith(jc.getAttributes(), "InnerClasses");
++//		assertNotNull(attr);
++//		innerClasses = (InnerClasses)attr;
++//		innerClassArray = innerClasses.getInnerClasses();
++//		assertEquals(1,innerClassArray.length);
++//		innerClass = innerClassArray[0];
++//		cp = jc.getConstantPool();
++//		System.out.println(innerClass);
++//		
++//		// inner class name
++//		innerClassIndex = innerClass.getInnerClassIndex();
++//		cc = (ConstantClass)cp.getConstant(innerClassIndex);
++//		utf8 = cp.getConstantUtf8(cc.getNameIndex());
++//		assertEquals("example/aspect/FooAspect$ajcMightHaveAspect",utf8.getStringValue());
++//		
++//		// outer class name
++//		outerClassIndex = innerClass.getOuterClassIndex();
++//		cc = (ConstantClass)cp.getConstant(outerClassIndex);
++//		utf8 = cp.getConstantUtf8(cc.getNameIndex());
++//		assertEquals("example/aspect/FooAspect",utf8.getStringValue());
++//
++//		// Simple name
++//		innerNameIndex = innerClass.getInnerNameIndex();
++//		utf8 = cp.getConstantUtf8(innerNameIndex);
++//		assertEquals("ajcMightHaveAspect",utf8.getStringValue());
++//		
++//		// inner modifiers
++//		innerAccessFlags = innerClass.getInnerAccessFlags();
++//		assertEquals(Constants.ACC_ABSTRACT | Constants.ACC_INTERFACE | Constants.ACC_STATIC,innerAccessFlags);
++//				
++//		// Reflection work getDeclaredClasses?
++//		
++//		// What about other interfaces?
++	}
++	
++	
+ 
+ //	public void testOverweaving_352389() throws Exception {
+ //		runTest("overweaving");
+@@ -6,4 +6,10 @@
+ 		<compile options="-1.8" files="FailingAspect.java SomeAnno.java SomeContext.java SomeCriteria.java SomeDTO.java SomeEnum.java SomePiece.java SomePropertyDTO.java SomeService.java SomeServiceImpl.java"/>
+ 	</ajc-test>
+ 
++	<ajc-test dir="bugs1810/493554" title="pertarget">
++		<compile options="-1.8" files="Dep.java FooAspect.aj Cmd.java"/>
++		<run class="example.kusedep.Cmd"></run>
++	</ajc-test>
++
++
+ </suite>

@@ -1,0 +1,42 @@
+Binary files differ
+Binary files differ
+@@ -194,7 +194,11 @@ public class AntSpec implements ITestStep {
+ 			m_stdOutSpec.matchAgainst(stdout.toString());
+ 		}
+ 		if (m_stdErrSpec != null) {
+-			m_stdErrSpec.matchAgainst(stderr.toString());
++			String stderr2 = stderr.toString();
++			if (stderr2.indexOf("Class JavaLaunchHelper is implemented in both")!=-1 && stderr2.indexOf('\n')!=-1) {
++				stderr2 = stderr2.substring(stderr2.indexOf('\n')+1);
++			}
++			m_stdErrSpec.matchAgainst(stderr2);
+ 		}
+ 	}
+ 
+@@ -28,6 +28,7 @@ import junit.framework.Test;
+ import junit.framework.TestSuite;
+ 
+ import org.apache.commons.digester.Digester;
++import org.aspectj.apache.bcel.classfile.Attribute;
+ import org.aspectj.apache.bcel.classfile.JavaClass;
+ import org.aspectj.apache.bcel.classfile.LocalVariable;
+ import org.aspectj.apache.bcel.classfile.LocalVariableTable;
+@@ -322,6 +323,18 @@ public abstract class XMLBasedAjcTestCase extends AjcTestCase {
+ 		return getMethodStartsWith(jc,prefix,1);
+ 	}
+ 
++	protected Attribute getAttributeStartsWith(Attribute[] attributes, String prefix) {
++		StringBuilder buf = new StringBuilder();
++		for (Attribute a: attributes) {
++			if (a.getName().startsWith(prefix)) {
++				return a;
++			}
++			buf.append(a.toString()).append("\n");
++		}
++		fail("Failed to find '"+prefix+"' in attributes:\n"+buf.toString());
++		return null;
++	}
++	
+ 	protected Method getMethodStartsWith(JavaClass jc, String prefix, int whichone) {
+ 		Method[] meths = jc.getMethods();
+ 		for (int i = 0; i < meths.length; i++) {

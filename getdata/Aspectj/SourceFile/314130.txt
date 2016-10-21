@@ -1,0 +1,57 @@
+@@ -376,8 +376,8 @@ public class BcelObjectType extends AbstractReferenceTypeDelegate {
+ 		List<AjAttribute> l = null;
+ 		try {
+ 			l = Utility.readAjAttributes(className, javaClass.getAttributes(), getResolvedTypeX().getSourceContext(),
+-					getResolvedTypeX().getWorld(), AjAttribute.WeaverVersionInfo.UNKNOWN, new BcelConstantPoolReader(
+-							javaClass.getConstantPool()));
++					getResolvedTypeX().getWorld(), AjAttribute.WeaverVersionInfo.UNKNOWN, new BcelConstantPoolReader(javaClass
++							.getConstantPool()));
+ 		} catch (RuntimeException re) {
+ 			throw new RuntimeException("Problem processing attributes in " + javaClass.getFileName(), re);
+ 		}
+@@ -942,7 +942,6 @@ public class BcelObjectType extends AbstractReferenceTypeDelegate {
+ 				fields[i].evictWeavingState();
+ 			}
+ 			javaClass = null;
+-
+ 			this.artificial = true;
+ 			// setSourceContext(SourceContextImpl.UNKNOWN_SOURCE_CONTEXT); //
+ 			// bit naughty
+@@ -471,7 +471,6 @@ public class BcelWorld extends World implements Repository {
+ 	public BcelObjectType addSourceObjectType(String classname, byte[] bytes, boolean artificial) {
+ 		BcelObjectType ret = null;
+ 		String signature = UnresolvedType.forName(classname).getSignature();
+-
+ 		ResolvedType fromTheMap = typeMap.get(signature);
+ 
+ 		if (fromTheMap != null && !(fromTheMap instanceof ReferenceType)) {
+@@ -508,9 +507,11 @@ public class BcelWorld extends World implements Repository {
+ 			ret = (BcelObjectType) o;
+ 			// byte[] bs = ret.javaClass.getBytes();
+ 			// if (bs.length != bytes.length) {
+-			// throw new RuntimeException("Shit");
++			// throw new RuntimeException("");
+ 			// }
+-			if (ret.isArtificial()) {
++			// If the type is already exposed to the weaver (ret.isExposedToWeaver()) then this is likely
++			// to be a hotswap reweave so build a new delegate, dont accidentally use the old data
++			if (ret.isArtificial() || ret.isExposedToWeaver()) {
+ 				// System.out.println("Rebuilding " + nameTypeX.getName());
+ 				ret = buildBcelDelegate(nameTypeX, Utility.makeJavaClass(classname, bytes), artificial, true);
+ 			} else {
+@@ -275,10 +275,12 @@ public class WeavingAdaptor implements IMessageContext {
+ 	 * @exception IOException weave failed
+ 	 */
+ 	public byte[] weaveClass(String name, byte[] bytes, boolean mustWeave) throws IOException {
+-		if (trace==null) {
++		if (trace == null) {
+ 			// Pr231945: we are likely to be under tomcat and ENABLE_CLEAR_REFERENCES hasn't been set
+-			System.err.println("AspectJ Weaver cannot continue to weave, static state has been cleared.  Are you under Tomcat? In order to weave '"+name+
+-					"' during shutdown, 'org.apache.catalina.loader.WebappClassLoader.ENABLE_CLEAR_REFERENCES=false' must be set (see https://bugs.eclipse.org/bugs/show_bug.cgi?id=231945).");
++			System.err
++					.println("AspectJ Weaver cannot continue to weave, static state has been cleared.  Are you under Tomcat? In order to weave '"
++							+ name
++							+ "' during shutdown, 'org.apache.catalina.loader.WebappClassLoader.ENABLE_CLEAR_REFERENCES=false' must be set (see https://bugs.eclipse.org/bugs/show_bug.cgi?id=231945).");
+ 			return bytes;
+ 		}
+ 		if (weaverRunning.get()) {

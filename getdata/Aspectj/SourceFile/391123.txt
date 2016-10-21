@@ -1,0 +1,2014 @@
+@@ -51,7 +51,7 @@ public class Checklics extends MatchingTask {
+ 	public static final String PARC_COPYRIGHT_TAG = "parc-copy";
+ 	public static final String CPL_IBM_PARC_XEROX_TAG = "cpl-ibm|parc|xerox";
+ 	public static final String CPL_IBM_PARC_XEROX_OTHERS_TAG = "cpl-ibm|parc|xerox|others";
+-	public static final String EPL_CPL_IBM_PARC_XEROX_OTHERS_TAG = "epl-cpl-ibm|parc|xerox|others";
++	public static final String EPL_CPL_IBM_PARC_XEROX_OTHERS_TAG = "epl-cpl-ibm|parc|xerox|vmware|others";
+ 	public static final String DEFAULT = EPL_CPL_IBM_PARC_XEROX_OTHERS_TAG;
+ 
+ 	static final Map LICENSES; // unmodifiable Map
+@@ -62,6 +62,7 @@ public class Checklics extends MatchingTask {
+ 		final String PARC = "Palo Alto Research Center";
+ 		final String APACHE = "The Apache Software Foundation";
+ 		final String IBM = "IBM";
++		final String VMWARE = "VMware";
+ 		final String IBM_LONG = "International Business Machines";
+ 		final String LIC_APL = "Apache Software Foundation (http://www.apache.org/)";
+ 		final String LIC_MPL = "http://aspectj.org/MPL/";
+@@ -76,7 +77,7 @@ public class Checklics extends MatchingTask {
+ 		License CPL_IBM_PARC_XEROX_OTHERS = new License(CPL_IBM_PARC_XEROX_OTHERS_TAG, LIC_CPL, new String[] { IBM_LONG, IBM, PARC,
+ 				XEROX, CONTRIBUTORS });
+ 		License EPL_CPL_IBM_PARC_XEROX_OTHERS = new License(EPL_CPL_IBM_PARC_XEROX_OTHERS_TAG, LIC_ECPL, new String[] { IBM_LONG,
+-				IBM, PARC, XEROX, CONTRIBUTORS });
++				IBM, PARC, XEROX, VMWARE, CONTRIBUTORS });
+ 		License CPL_IBM = new License(CPL_IBM_TAG, LIC_CPL, IBM, IBM_LONG);
+ 		License MPL_ONLY = new License(MPL_ONLY_TAG, LIC_MPL);
+ 		License MPL_PARC = new License(MPL_PARC_TAG, LIC_MPL, PARC);
+@@ -201,6 +201,11 @@ public class LangUtil {
+ 		return ((null == ra) || (0 == ra.length));
+ 	}
+ 
++	/** @return ((null == ra) || (0 == ra.length)) */
++	public static boolean isEmpty(byte[] ra) {
++		return ((null == ra) || (0 == ra.length));
++	}
++
+ 	/** @return ((null == collection) || (0 == collection.size())) */
+ 	public static boolean isEmpty(Collection<?> collection) {
+ 		return ((null == collection) || (0 == collection.size()));
+@@ -58,6 +58,7 @@ public abstract class AbstractIndexedFileCacheBacking extends AbstractFileCacheB
+     	if ((index == null) || index.isEmpty()) {
+     		return EMPTY_KEYS;
+     	}
++
+         Collection<String>  matches=new LinkedList<String>();
+         synchronized(index) {
+             for (String key : index.keySet()) {
+@@ -176,6 +177,23 @@ public abstract class AbstractIndexedFileCacheBacking extends AbstractFileCacheB
+         }
+     }
+ 
++    public static final IndexEntry createIndexEntry (CachedClassEntry classEntry, byte[] originalBytes) {
++        if (classEntry == null) {
++            return null;
++        }
++
++        IndexEntry  indexEntry = new IndexEntry();
++        indexEntry.key = classEntry.getKey();
++        indexEntry.generated = classEntry.isGenerated();
++        indexEntry.ignored = classEntry.isIgnored();
++        if (!classEntry.isIgnored()) {
++        	indexEntry.crcClass = crc(originalBytes);
++            indexEntry.crcWeaved = crc(classEntry.getBytes());
++        }
++
++        return indexEntry;
++    }
++
+ 	/**
+ 	 * The default index entry in the index file 
+ 	 */
+@@ -0,0 +1,424 @@
++/*******************************************************************************
++ * Copyright (c) 2012 Contributors.
++ * All rights reserved.
++ * This program and the accompanying materials are made available
++ * under the terms of the Eclipse Public License v1.0
++ * which accompanies this distribution and is available at
++ * http://eclipse.org/legal/epl-v10.html
++ *
++ * Contributors:
++ *   Lyor Goldstein (vmware)	add support for weaved class being re-defined
++ *******************************************************************************/
++
++package org.aspectj.weaver.tools.cache;
++
++import java.io.File;
++import java.util.ArrayList;
++import java.util.Collections;
++import java.util.List;
++import java.util.Map;
++import java.util.concurrent.BlockingQueue;
++import java.util.concurrent.ExecutorService;
++import java.util.concurrent.Executors;
++import java.util.concurrent.Future;
++import java.util.concurrent.LinkedBlockingQueue;
++
++import org.aspectj.util.FileUtil;
++import org.aspectj.util.LangUtil;
++import org.aspectj.weaver.tools.Trace;
++import org.aspectj.weaver.tools.TraceFactory;
++
++/**
++ * Uses a background thread to do the actual I/O and for caching &quot;persistence&quot;
++ * so that the caching works faster on repeated activations of the application.
++ * The class maintains an in-memory cache, and uses a queue of {@link AsyncCommand}s
++ * to signal to a background thread various actions required to &quot;synchronize&quot;
++ * the in-memory cache with the persisted copy. Whenever there is a cache miss
++ * from the {@link #get(CachedClassReference)} call, the weaver issues a
++ * {@link #put(CachedClassEntry)} call. This call has 2 side-effects:</BR>
++ * <UL>
++ * 		<LI>
++ * 		The in-memory cache is updated so that subsequent calls to {@link #get(CachedClassReference)}
++ * 		will not return the mapped value.
++ * 		</LI>
++ * 
++ *  	<LI>
++ *  	An &quot;update index&quot {@link AsyncCommand} is posted to the background
++ *  	thread so that the newly mapped value will be persisted (eventually)
++ *  	</LI> 
++ * </UL>
++ * The actual persistence is implemented by the <U>concrete</U> classes
++ */
++public abstract class AsynchronousFileCacheBacking extends AbstractIndexedFileCacheBacking {
++    private static final BlockingQueue<AsyncCommand>   commandsQ=new LinkedBlockingQueue<AsyncCommand>();
++    private static final ExecutorService    execService=Executors.newSingleThreadExecutor();
++    private static Future<?> commandsRunner;
++
++    protected final Map<String, IndexEntry> index, exposedIndex;
++    protected final Map<String, byte[]>   bytesMap, exposedBytes;
++
++    protected AsynchronousFileCacheBacking (File cacheDir) {
++    	super(cacheDir);
++
++        index = readIndex(cacheDir, getIndexFile());
++        exposedIndex = Collections.unmodifiableMap(index);
++        bytesMap = readClassBytes(index, cacheDir);
++        exposedBytes = Collections.unmodifiableMap(bytesMap);
++    }
++
++    @Override
++	protected Map<String, IndexEntry> getIndex() {
++		return index;
++	}
++
++	public CachedClassEntry get(CachedClassReference ref, byte[] originalBytes) {
++        String              key=ref.getKey();
++        final IndexEntry    indexEntry;
++        synchronized(index) {
++            if ((indexEntry=index.get(key)) == null) {
++                return null;
++            }
++        }
++
++        if (crc(originalBytes) != indexEntry.crcClass) {
++            if ((logger != null) && logger.isTraceEnabled()) {
++                logger.debug("get(" + getCacheDirectory() + ") mismatched original class bytes CRC for " + key);
++            }
++
++            remove(key);
++            return null;
++        }
++
++        if (indexEntry.ignored) {
++            return new CachedClassEntry(ref, WeavedClassCache.ZERO_BYTES, CachedClassEntry.EntryType.IGNORED);
++        }
++
++        final byte[]    bytes;
++        synchronized(bytesMap) {
++            /*
++             * NOTE: we assume that keys represent classes so if we have their
++             * bytes they will not be re-created
++             */
++            if ((bytes=bytesMap.remove(key)) == null) {
++                return null;
++            }
++        }
++
++        if (indexEntry.generated) {
++            return new CachedClassEntry(ref, bytes, CachedClassEntry.EntryType.GENERATED);
++        } else {
++            return new CachedClassEntry(ref, bytes, CachedClassEntry.EntryType.WEAVED);
++        }
++    }
++
++    public void put(CachedClassEntry entry, byte[] originalBytes) {
++        String  key=entry.getKey();
++        byte[]  bytes=entry.isIgnored() ? null : entry.getBytes();
++        synchronized(index) {
++            IndexEntry  indexEntry=index.get(key);
++            if (indexEntry != null) {
++                return;
++            }
++
++            /*
++             * Note: we do not cache the class bytes - only send them to
++             * be saved. The assumption is that the 'put' call was invoked
++             * because 'get' failed to return any bytes. And since we assume
++             * that each class bytes are required only once, there is no
++             * need to cache them
++             */
++            indexEntry = createIndexEntry(entry, originalBytes);
++            index.put(key, indexEntry);
++        }
++
++        if (!postCacheCommand(new InsertCommand(this, key, bytes))) {
++            if ((logger != null) && logger.isTraceEnabled()) {
++                logger.error("put(" + getCacheDirectory() + ") Failed to post insert command for " + key);
++            }
++        }
++
++        if ((logger != null) && logger.isTraceEnabled()) {
++            logger.debug("put(" + getCacheDirectory() + ")[" + key + "] inserted");
++        }
++    }
++
++    public void remove(CachedClassReference ref) {
++    	remove(ref.getKey());
++    }
++
++    protected IndexEntry remove (String key) {
++        IndexEntry  entry;
++        synchronized(index) {
++            entry = index.remove(key);
++        }
++
++        synchronized(bytesMap) {
++            bytesMap.remove(key);
++        }
++
++        if (!postCacheCommand(new RemoveCommand(this, key))) {
++            if ((logger != null) && logger.isTraceEnabled()) {
++                logger.error("remove(" + getCacheDirectory() + ") Failed to post remove command for " + key);
++            }
++        }
++        
++        if (entry != null) {
++            if (!key.equals(entry.key)) {
++                if ((logger != null) && logger.isTraceEnabled()) {
++                    logger.error("remove(" + getCacheDirectory() + ") Mismatched keys: " + key + " / " + entry.key);
++                }
++            } else if ((logger != null) && logger.isTraceEnabled()) {
++                logger.debug("remove(" + getCacheDirectory() + ")[" + key + "] removed");
++            }
++        }
++
++        return entry;
++    }
++
++    public List<IndexEntry> getIndexEntries () {
++        synchronized(index) {
++            if (index.isEmpty()) {
++                return Collections.emptyList();
++            } else {
++                return new ArrayList<IndexEntry>(index.values());
++            }
++        }
++    }
++
++    public Map<String, IndexEntry> getIndexMap () {
++        return exposedIndex;
++    }
++
++    public Map<String, byte[]> getBytesMap () {
++        return exposedBytes;
++    }
++
++    public void clear() {
++        synchronized(index) {
++            index.clear();
++        }
++
++        if (!postCacheCommand(new ClearCommand(this))) {
++            if ((logger != null) && logger.isTraceEnabled()) {
++                logger.error("Failed to post clear command for " + getIndexFile());
++            }
++        }
++    }
++
++    protected void executeCommand (AsyncCommand cmd) throws Exception {
++        if (cmd instanceof ClearCommand) {
++            executeClearCommand();
++        } else if (cmd instanceof UpdateIndexCommand) {
++            executeUpdateIndexCommand();
++        } else if (cmd instanceof InsertCommand) {
++            executeInsertCommand((InsertCommand) cmd);
++        } else if (cmd instanceof RemoveCommand) {
++            executeRemoveCommand((RemoveCommand) cmd);
++        } else {
++            throw new UnsupportedOperationException("Unknown command: " + cmd);
++        }
++    }
++
++    protected void executeClearCommand () throws Exception {
++        FileUtil.deleteContents(getIndexFile());
++        FileUtil.deleteContents(getCacheDirectory());
++    }
++
++    protected void executeUpdateIndexCommand () throws Exception {
++        writeIndex(getIndexFile(), getIndexEntries());
++    }
++
++    protected void executeInsertCommand (InsertCommand cmd) throws Exception {
++        writeIndex(getIndexFile(), getIndexEntries());
++
++        byte[]  bytes=cmd.getClassBytes();
++        if (bytes != null) {
++            writeClassBytes(cmd.getKey(), bytes);
++        }
++    }
++
++    protected void executeRemoveCommand (RemoveCommand cmd) throws Exception {
++        Exception err=null;
++        try {
++            removeClassBytes(cmd.getKey());
++        } catch(Exception e) {
++            err = e;
++        }
++
++        writeIndex(getIndexFile(), getIndexEntries());
++
++        if (err != null) {
++            throw err;  // check if the class bytes remove had any problems
++        }
++    }
++
++    /**
++     * Helper for {@link #executeRemoveCommand(RemoveCommand)}
++     * @param key The key representing the class whose bytes are to be removed
++     * @throws Exception if failed to remove class bytes
++     */
++    protected abstract void removeClassBytes (String key) throws Exception;
++
++    protected abstract Map<String, byte[]> readClassBytes (Map<String,IndexEntry> indexMap, File cacheDir);
++
++    @Override
++    public String toString() {
++        return getClass().getSimpleName() + "[" + String.valueOf(getCacheDirectory()) + "]";
++    }
++
++    protected static final <T extends AsynchronousFileCacheBacking> T createBacking (
++                            File cacheDir, AsynchronousFileCacheBackingCreator<T> creator) {
++        final Trace trace=TraceFactory.getTraceFactory().getTrace(AsynchronousFileCacheBacking.class);
++        if (!cacheDir.exists()) {
++            if (!cacheDir.mkdirs()) {
++                if ((trace != null) && trace.isTraceEnabled()) {
++                    trace.error("Unable to create cache directory at " + cacheDir.getAbsolutePath());
++                }
++                return null;
++            }
++        }
++
++        if (!cacheDir.canWrite()) {
++            if ((trace != null) && trace.isTraceEnabled()) {
++                trace.error("Cache directory is not writable at " + cacheDir.getAbsolutePath());
++            }
++            return null;
++        }
++
++        // start the service (if needed) only if successfully create the backing instance
++        T    backing=creator.create(cacheDir);
++        synchronized(execService) {
++            if (commandsRunner == null) {
++                commandsRunner = execService.submit(new Runnable() {
++                    @SuppressWarnings("synthetic-access")
++                    public void run() {
++                        for ( ; ; ) {
++                            try {
++                                AsyncCommand    cmd=commandsQ.take();
++                                try {
++                                    AsynchronousFileCacheBacking    cache=cmd.getCache();
++                                    cache.executeCommand(cmd);
++                                } catch(Exception e) {
++                                    if ((trace != null) && trace.isTraceEnabled()) {
++                                        trace.error("Failed (" + e.getClass().getSimpleName() + ")"
++                                                  + " to execute " + cmd + ": " + e.getMessage(), e);
++                                    }
++                                }
++                            } catch(InterruptedException e) {
++                                if ((trace != null) && trace.isTraceEnabled()) {
++                                    trace.warn("Interrupted");
++                                }
++                                Thread.currentThread().interrupt();
++                                break;
++                            }
++                        }
++                    }
++                });
++            }
++        }
++
++        // fire-up an update-index command in case index was changed by the constructor
++        if (!postCacheCommand(new UpdateIndexCommand(backing))) {
++            if ((trace != null) && trace.isTraceEnabled()) {
++                trace.warn("Failed to offer update index command to " + cacheDir.getAbsolutePath());
++            }
++        }
++
++        return backing;
++    }
++
++    public static final boolean postCacheCommand (AsyncCommand cmd) {
++        return commandsQ.offer(cmd);
++    }
++
++    public static interface AsynchronousFileCacheBackingCreator<T extends AsynchronousFileCacheBacking> {
++        T create (File cacheDir);
++    }
++    /**
++     * Represents an asynchronous command that can be sent to the
++     * {@link AsynchronousFileCacheBacking} instance to be executed
++     * on it <U>asynchronously</U>
++     */
++    public static interface AsyncCommand {
++        /**
++         * @return The {@link AsynchronousFileCacheBacking} on which
++         * this command is supposed to be executed
++         * @see AsynchronousFileCacheBacking#executeCommand(AsyncCommand)
++         */
++        AsynchronousFileCacheBacking getCache ();
++    }
++
++    public static abstract class AbstractCommand implements AsyncCommand {
++        private final AsynchronousFileCacheBacking  cache;
++        protected AbstractCommand (AsynchronousFileCacheBacking backing) {
++            if ((cache=backing) == null) {
++                throw new IllegalStateException("No backing cache specified");
++            }
++        }
++
++        public final AsynchronousFileCacheBacking getCache () {
++            return cache;
++        }
++        
++        @Override
++        public String toString() {
++            return getClass().getSimpleName() + "[" + getCache() + "]";
++        }
++    }
++
++    public static class ClearCommand extends AbstractCommand {
++        public ClearCommand (AsynchronousFileCacheBacking cache) {
++            super(cache);
++        }
++    }
++
++    public static class UpdateIndexCommand extends AbstractCommand {
++        public UpdateIndexCommand (AsynchronousFileCacheBacking cache) {
++            super(cache);
++        }
++    }
++
++    /**
++     * Base class for {@link AbstractCommand}s that refer to a cache key
++     */
++    public static abstract class KeyedCommand extends AbstractCommand {
++        private final String    key;
++        protected KeyedCommand (AsynchronousFileCacheBacking cache, String keyValue) {
++            super(cache);
++            
++            if (LangUtil.isEmpty(keyValue)) {
++                throw new IllegalStateException("No key value");
++            }
++
++            key = keyValue;
++        }
++
++        public final String getKey () {
++            return key;
++        }
++
++        @Override
++        public String toString() {
++            return super.toString() + "[" + getKey() + "]";
++        }
++    }
++
++    public static class RemoveCommand extends KeyedCommand {
++        public RemoveCommand (AsynchronousFileCacheBacking cache, String keyValue) {
++            super(cache, keyValue);
++        }
++    }
++    
++    public static class InsertCommand extends KeyedCommand {
++        private final byte[]    bytes;
++
++        public InsertCommand (AsynchronousFileCacheBacking cache, String keyValue, byte[] classBytes) {
++            super(cache, keyValue);
++            bytes = classBytes;
++        }
++
++        public final byte[] getClassBytes () {
++            return bytes;
++        }
++    }
++}
+@@ -208,12 +208,8 @@ public class DefaultFileCacheBacking extends AbstractIndexedFileCacheBacking {
+ 		}
+ 
+ 		if (writeEntryBytes) {
+-			ie = new IndexEntry();
+-			ie.key = entry.getKey();
+-			ie.generated = entry.isGenerated();
+-			ie.ignored = entry.isIgnored();
++			ie = createIndexEntry(entry, originalBytes);
+ 			if (!entry.isIgnored()) {
+-				ie.crcClass = crc(originalBytes);
+ 				ie.crcWeaved = write(cacheFile, entry.getBytes());
+ 			}
+ 			addIndexEntry(ie);
+@@ -0,0 +1,139 @@
++/* *******************************************************************
++ * Copyright (c) 2012 VMware, Inc. custard
++ * 
++ * All rights reserved. 
++ * This program and the accompanying materials are made available 
++ * under the terms of the Eclipse Public License v1.0 
++ * which accompanies this distribution and is available at 
++ * http://www.eclipse.org/legal/epl-v10.html 
++ *  
++ * Contributors: 
++ * Lyor Goldstein
++ * ******************************************************************/
++
++package org.aspectj.weaver.tools.cache;
++
++import java.io.File;
++import java.io.FileOutputStream;
++import java.io.IOException;
++import java.io.StreamCorruptedException;
++import java.util.Map;
++import java.util.TreeMap;
++
++import org.aspectj.util.FileUtil;
++import org.aspectj.util.LangUtil;
++
++/**
++ * Uses a &quot;flat&quot files model to store the cached instrumented classes
++ * and aspects - i.e., each class/aspect is stored as a <U>separate</U> (binary)
++ * file. This is a good mechanism when the number of instrumented class is
++ * relatively small (a few 10's). The reason for it is that scanning a folder
++ * that has many files in it quickly becomes an I/O bottleneck. Also, some
++ * O/S-es may impose internal limits on the maximum number of &quot;children&quot;
++ * a folder node may have. On the other hand, it is much faster (again, for
++ * small number of instrumented classes) than the ZIP cache since each class/aspect
++ * is represented by a single file - thus adding/removing/modifying it is easier. 
++ * 
++ * @author Lyor Goldstein
++ */
++public class FlatFileCacheBacking extends AsynchronousFileCacheBacking {
++    private static final AsynchronousFileCacheBackingCreator<FlatFileCacheBacking>    defaultCreator=
++            new AsynchronousFileCacheBackingCreator<FlatFileCacheBacking>() {
++                public FlatFileCacheBacking create(File cacheDir) {
++                    return new FlatFileCacheBacking(cacheDir);
++                }
++        };
++    public FlatFileCacheBacking(File cacheDir) {
++        super(cacheDir);
++    }
++
++    public static final FlatFileCacheBacking createBacking (File cacheDir) {
++        return createBacking(cacheDir, defaultCreator);
++    }
++
++    @Override
++    protected Map<String, byte[]> readClassBytes(Map<String, IndexEntry> indexMap, File cacheDir) {
++        return readClassBytes(indexMap, cacheDir.listFiles());
++    }
++
++    protected Map<String, byte[]> readClassBytes (Map<String,IndexEntry> indexMap, File[] files) {
++        Map<String, byte[]> result=new TreeMap<String, byte[]>();
++        if (LangUtil.isEmpty(files)) {
++            return result;
++        }
++
++        for (File file : files) {
++            if (!file.isFile()) {
++                continue;   // skip sub-directories - we expect flat files
++            }
++
++            String  key=file.getName();
++            if (INDEX_FILE.equalsIgnoreCase(key)) {
++                continue;   // skip the index itself if found
++            }
++
++            IndexEntry  entry=indexMap.get(key);
++            if ((entry == null) || entry.ignored) {    // if not in index or ignored then remove it
++                if ((logger != null) && logger.isTraceEnabled()) {
++                    logger.info("readClassBytes(" + key + ") remove orphan/ignored: " + file.getAbsolutePath());
++                }
++                FileUtil.deleteContents(file);
++                continue;
++            }
++
++            try {
++                byte[]  bytes=FileUtil.readAsByteArray(file);
++                long    crc=crc(bytes);
++                if (crc != entry.crcWeaved) {
++                    throw new StreamCorruptedException("Mismatched CRC - expected=" + entry.crcWeaved + "/got=" + crc);
++                }
++
++                result.put(key, bytes);
++                if ((logger != null) && logger.isTraceEnabled()) {
++                    logger.debug("readClassBytes(" + key + ") cached from " + file.getAbsolutePath());
++                }
++            } catch(IOException  e) {
++                if ((logger != null) && logger.isTraceEnabled()) {
++                    logger.error("Failed (" + e.getClass().getSimpleName() + ")"
++                               + " to read bytes from " + file.getAbsolutePath()
++                               + ": " + e.getMessage());
++                }
++                indexMap.remove(key);   // no need for the entry if no file - force a re-write of its bytes
++                FileUtil.deleteContents(file);  // assume some kind of corruption
++                continue;
++            }
++        }
++
++        return result;
++    }
++    
++    @Override
++    protected IndexEntry resolveIndexMapEntry (File cacheDir, IndexEntry ie) {
++        File cacheEntry = new File(cacheDir, ie.key);
++        if (ie.ignored || cacheEntry.canRead()) {
++            return ie;
++        } else {
++            return null;
++        }
++    }
++
++    @Override
++    protected void writeClassBytes (String key, byte[] bytes) throws Exception {
++        File    dir=getCacheDirectory(), file=new File(dir, key);
++        FileOutputStream    out=new FileOutputStream(file);
++        try {
++            out.write(bytes);
++        } finally {
++            out.close();
++        }
++    }
++
++    @Override
++    protected void removeClassBytes (String key) throws Exception {
++        File        dir=getCacheDirectory(), file=new File(dir, key);
++        if (file.exists() && (!file.delete())) {
++            throw new StreamCorruptedException("Failed to delete " + file.getAbsolutePath());
++        }
++    }
++
++}
+@@ -0,0 +1,321 @@
++/*******************************************************************************
++ * Copyright (c) 2012 Contributors.
++ * All rights reserved.
++ * This program and the accompanying materials are made available
++ * under the terms of the Eclipse Public License v1.0
++ * which accompanies this distribution and is available at
++ * http://eclipse.org/legal/epl-v10.html
++ *
++ * Contributors:
++ *   Lyor Goldstein (vmware)	add support for weaved class being re-defined
++ *******************************************************************************/
++
++package org.aspectj.weaver.tools.cache;
++
++import java.io.BufferedOutputStream;
++import java.io.ByteArrayOutputStream;
++import java.io.File;
++import java.io.FileOutputStream;
++import java.io.IOException;
++import java.io.InputStream;
++import java.io.StreamCorruptedException;
++import java.util.Collection;
++import java.util.Collections;
++import java.util.Enumeration;
++import java.util.Map;
++import java.util.TreeMap;
++import java.util.TreeSet;
++import java.util.zip.ZipEntry;
++import java.util.zip.ZipFile;
++import java.util.zip.ZipOutputStream;
++
++import org.aspectj.util.FileUtil;
++import org.aspectj.util.LangUtil;
++
++/**
++ * Uses a ZIP file to store the instrumented classes/aspects - each one as a
++ * <U>separate</U> {@link ZipEntry}. This mechanism is suitable for relatively
++ * large numbers of instrumented classes/aspects (100's and more) since it
++ * holds all of them in a single (ZIP) file. The down side is that any
++ * modifications to the cache require re-writing the entire ZIP file. This
++ * can cause the ZIP file to become corrupted if interrupted in mid-update,
++ * thus requiring the re-population of the cache on next application activation
++ * (though the overhead in this case is not prohibitvely high...)
++ */
++public class ZippedFileCacheBacking extends AsynchronousFileCacheBacking {
++    public static final String ZIP_FILE = "cache.zip";
++    private static final AsynchronousFileCacheBackingCreator<ZippedFileCacheBacking>    defaultCreator=
++            new AsynchronousFileCacheBackingCreator<ZippedFileCacheBacking>() {
++                public ZippedFileCacheBacking create(File cacheDir) {
++                    return new ZippedFileCacheBacking(cacheDir);
++                }
++        };
++
++    private final File  zipFile;
++    public ZippedFileCacheBacking(File cacheDir) {
++        super(cacheDir);
++        zipFile = new File(cacheDir, ZIP_FILE);
++    }
++
++    public File getZipFile () {
++        return zipFile;
++    }
++
++    public static final ZippedFileCacheBacking createBacking (File cacheDir) {
++        return createBacking(cacheDir, defaultCreator);
++    }
++
++    @Override
++    protected void writeClassBytes(String key, byte[] bytes) throws Exception {
++        File                  outFile=getZipFile();
++        Map<String,byte[]>    entriesMap;
++        try {
++            entriesMap = readZipClassBytes(outFile);
++        } catch(Exception e) {
++            if ((logger != null) && logger.isTraceEnabled()) {
++                logger.warn("writeClassBytes(" + outFile + ")[" + key + "]"
++                          + " failed (" + e.getClass().getSimpleName() + ")"
++                          + " to read current data: " + e.getMessage(),
++                            e);
++            }
++            
++            FileUtil.deleteContents(outFile);
++            return;
++        }
++
++        if (entriesMap.isEmpty()) {
++            entriesMap = Collections.singletonMap(key, bytes);
++        } else {
++            entriesMap.put(key, bytes);
++        }
++
++        try {
++            writeZipClassBytes(outFile, entriesMap);
++        } catch(Exception e) {
++            if ((logger != null) && logger.isTraceEnabled()) {
++                logger.warn("writeClassBytes(" + outFile + ")[" + key + "]"
++                          + " failed (" + e.getClass().getSimpleName() + ")"
++                          + " to write updated data: " + e.getMessage(),
++                            e);
++            }
++            
++            FileUtil.deleteContents(outFile);
++        }
++    }
++
++    @Override
++    protected void removeClassBytes(String key) throws Exception {
++        File                  outFile=getZipFile();
++        Map<String,byte[]>    entriesMap;
++        try {
++            entriesMap = readZipClassBytes(outFile);
++        } catch(Exception e) {
++            if ((logger != null) && logger.isTraceEnabled()) {
++                logger.warn("removeClassBytes(" + outFile + ")[" + key + "]"
++                          + " failed (" + e.getClass().getSimpleName() + ")"
++                          + " to read current data: " + e.getMessage(),
++                            e);
++            }
++            
++            FileUtil.deleteContents(outFile);
++            return;
++        }
++
++        if (!entriesMap.isEmpty()) {
++            if (entriesMap.remove(key) == null) {
++                return; // not in the data file to begin with so nothing to update
++            }
++        }
++
++        try {
++            writeZipClassBytes(outFile, entriesMap);
++        } catch(Exception e) {
++            if ((logger != null) && logger.isTraceEnabled()) {
++                logger.warn("removeClassBytes(" + outFile + ")[" + key + "]"
++                          + " failed (" + e.getClass().getSimpleName() + ")"
++                          + " to write updated data: " + e.getMessage(),
++                            e);
++            }
++            
++            FileUtil.deleteContents(outFile);
++        }
++    }
++
++    @Override
++    protected Map<String, byte[]> readClassBytes(Map<String, IndexEntry> indexMap, File cacheDir) {
++        File                dataFile=new File(cacheDir, ZIP_FILE);
++        Map<String,byte[]>  entriesMap;
++        boolean             okEntries=true;
++        try {
++            entriesMap = readZipClassBytes(dataFile);
++        } catch(Exception e) {
++            if ((logger != null) && logger.isTraceEnabled()) {
++                logger.warn("Failed (" + e.getClass().getSimpleName() + ")"
++                          + " to read zip entries from " + dataFile
++                          + ": " + e.getMessage(),
++                          e);
++            }
++
++            entriesMap = new TreeMap<String,byte[]>();
++            okEntries = false;
++        }
++
++        if (!syncClassBytesEntries(dataFile, indexMap, entriesMap)) {
++            okEntries = false;
++        }
++
++        if (!okEntries) {
++            FileUtil.deleteContents(dataFile);
++
++            if (!entriesMap.isEmpty()) {
++                entriesMap.clear();
++            }
++        }
++
++        syncIndexEntries(dataFile, indexMap, entriesMap);
++
++        return entriesMap;
++    }
++
++    // remove all non-ignored entries that have no class bytes
++    protected Collection<String> syncIndexEntries (File dataFile, Map<String, IndexEntry> indexMap, Map<String,byte[]>  entriesMap) {
++        Collection<String>  toDelete=null;
++        for (Map.Entry<String, IndexEntry> ie : indexMap.entrySet()) {
++            String      key=ie.getKey();
++            IndexEntry  indexEntry=ie.getValue();
++            if (indexEntry.ignored) {
++                continue;   // ignored entries have no class bytes
++            }
++
++            if (entriesMap.containsKey(key)) {
++                continue;
++            }
++
++            if ((logger != null) && logger.isTraceEnabled()) {
++                logger.debug("syncIndexEntries(" + dataFile + ")[" + key + "] no class bytes");
++            }
++
++            if (toDelete == null) {
++                toDelete = new TreeSet<String>();
++            }
++            toDelete.add(key);
++        }
++
++        if (toDelete == null) {
++            return Collections.emptySet();
++        }
++
++        for (String key : toDelete) {
++            indexMap.remove(key);
++        }
++
++        return toDelete;
++    }
++
++    // check if all class bytes entries are valid
++    protected boolean syncClassBytesEntries (File dataFile, Map<String, IndexEntry> indexMap, Map<String,byte[]>  entriesMap) {
++        boolean okEntries=true;
++
++        for (Map.Entry<String,byte[]> bytesEntry : entriesMap.entrySet()) {
++            String      key=bytesEntry.getKey();
++            IndexEntry  indexEntry=indexMap.get(key);
++            // ignored entries should have no bytes
++            if ((indexEntry == null) || indexEntry.ignored) {
++                if ((logger != null) && logger.isTraceEnabled()) {
++                    logger.debug("syncClassBytesEntries(" + dataFile + ")[" + key + "] bad index entry");
++                }
++
++                okEntries = false;
++                continue;
++            }
++
++            long    crc=crc(bytesEntry.getValue());
++            if (crc != indexEntry.crcWeaved) {
++                if ((logger != null) && logger.isTraceEnabled()) {
++                    logger.debug("syncClassBytesEntries(" + dataFile + ")[" + key + "]"
++                               + " mismatched CRC - expected=" + indexEntry.crcWeaved + "/got=" + crc);
++                }
++
++                indexMap.remove(key);
++                okEntries = false;
++                continue;
++            }
++        }
++
++        return okEntries;
++    }
++
++    @Override
++    protected IndexEntry resolveIndexMapEntry(File cacheDir, IndexEntry ie) {
++        if (cacheDir.exists()) {
++            return ie;  // we will take care of non-existing index entries in the readClassBytes method
++        } else {
++            return null;
++        }
++    }
++
++    public static final Map<String,byte[]> readZipClassBytes (File file) throws IOException {
++        if (!file.canRead()) {
++            return Collections.emptyMap();
++        }
++
++        Map<String,byte[]>      result=new TreeMap<String,byte[]>();
++        byte[]                  copyBuf=new byte[4096];
++        ByteArrayOutputStream   out=new ByteArrayOutputStream(copyBuf.length);
++        ZipFile                 zipFile=new ZipFile(file);
++        try {
++            for (Enumeration<? extends ZipEntry> entries=zipFile.entries(); (entries != null) && entries.hasMoreElements(); ) {
++                ZipEntry    e=entries.nextElement();
++                String      name=e.getName();
++                if (LangUtil.isEmpty(name)) {
++                    continue;
++                }
++
++                out.reset();
++
++                InputStream zipStream=zipFile.getInputStream(e);
++                try {
++                    for (int    nRead=zipStream.read(copyBuf); nRead != (-1); nRead=zipStream.read(copyBuf)) {
++                        out.write(copyBuf, 0, nRead);
++                    }
++                } finally {
++                    zipStream.close();
++                }
++
++                byte[]  data=out.toByteArray(), prev=result.put(name, data);
++                if (prev != null) {
++                    throw new StreamCorruptedException("Multiple entries for " + name);
++                }
++            }
++        } finally {
++            zipFile.close();
++        }
++
++        return result;
++    }
++    
++    public static final void writeZipClassBytes (File file, Map<String,byte[]> entriesMap) throws IOException {
++        if (entriesMap.isEmpty()) {
++            FileUtil.deleteContents(file);
++            return;
++        }
++
++        File	zipDir=file.getParentFile();
++        if ((!zipDir.exists()) && (!zipDir.mkdirs())) {
++            throw new IOException("Failed to create path to " + zipDir.getAbsolutePath());
++        }
++
++        ZipOutputStream zipOut=new ZipOutputStream(new BufferedOutputStream(new FileOutputStream(file), 4096));
++        try {
++            for (Map.Entry<String,byte[]> bytesEntry : entriesMap.entrySet()) {
++                String      key=bytesEntry.getKey();
++                byte[]      bytes=bytesEntry.getValue();
++                zipOut.putNextEntry(new ZipEntry(key));
++                zipOut.write(bytes);
++                zipOut.closeEntry();
++            }
++        } finally {
++            zipOut.close();
++        }
++    }
++}
+@@ -0,0 +1,379 @@
++/*******************************************************************************
++ * Copyright (c) 2012 Contributors.
++ * All rights reserved.
++ * This program and the accompanying materials are made available
++ * under the terms of the Eclipse Public License v1.0
++ * which accompanies this distribution and is available at
++ * http://eclipse.org/legal/epl-v10.html
++ *
++ * Contributors:
++ *   Lyor Goldstein (vmware)	add support for weaved class being re-defined
++ *******************************************************************************/
++package org.aspectj.weaver.tools.cache;
++
++import java.io.BufferedOutputStream;
++import java.io.File;
++import java.io.FileOutputStream;
++import java.io.IOException;
++import java.io.ObjectOutputStream;
++import java.io.StreamCorruptedException;
++import java.net.MalformedURLException;
++import java.net.URI;
++import java.net.URISyntaxException;
++import java.net.URL;
++import java.security.CodeSource;
++import java.security.ProtectionDomain;
++import java.util.Arrays;
++import java.util.Collection;
++import java.util.Collections;
++
++import junit.framework.TestCase;
++
++import org.aspectj.util.FileUtil;
++import org.aspectj.util.LangUtil;
++import org.aspectj.weaver.tools.cache.AbstractIndexedFileCacheBacking.IndexEntry;
++
++/**
++ */
++public abstract class AbstractCacheBackingTestSupport extends TestCase {
++	public static final String	JAR_FILE_SUFFIX=".jar";
++    /**
++     * Prefix used in URL(s) that reference a resource inside a JAR
++     */
++    public static final String	JAR_URL_PREFIX="jar:";
++    /**
++     * Separator used in URL(s) that reference a resource inside a JAR
++     * to denote the sub-path inside the JAR
++     */
++    public static final char	RESOURCE_SUBPATH_SEPARATOR='!';
++
++	private File	targetFolder;
++	private File	testTempFolder;
++	protected File root;
++
++	public static final String TEMP_SUBFOLDER_NAME="temp";
++
++	protected AbstractCacheBackingTestSupport() {
++		super();
++	}
++
++	protected AbstractCacheBackingTestSupport(String name) {
++		super(name);
++	}
++
++	@Override
++	public void setUp() throws Exception {
++		super.setUp();
++		if (root == null) {
++			root = createTempFile("aspectj", "testdir");
++			FileUtil.deleteContents(root);
++		}
++	}
++
++	@Override
++	public void tearDown() throws Exception {
++		if (root != null) {
++			FileUtil.deleteContents(root);
++			root = null;
++		}
++
++		if (targetFolder != null) {
++			FileUtil.deleteContents(targetFolder);
++		}
++
++		super.tearDown();
++	}
++
++    protected File ensureTempFolderExists () throws IllegalStateException {
++    	synchronized(TEMP_SUBFOLDER_NAME) {
++    		if (testTempFolder == null) {
++    			File	parent=detectTargetFolder();
++    			testTempFolder = new File(parent, TEMP_SUBFOLDER_NAME);
++    		}
++    	}
++
++    	return ensureFolderExists(testTempFolder);
++    }
++
++    protected File detectTargetFolder () throws IllegalStateException {
++    	synchronized(TEMP_SUBFOLDER_NAME) {
++    		if (targetFolder == null) {
++    			if ((targetFolder=detectTargetFolder(getClass())) == null) {
++    				throw new IllegalStateException("Failed to detect target folder");
++    			}
++    		}
++    	}
++
++    	return targetFolder;
++    }
++
++    protected File createTempFile (String prefix, String suffix) throws IOException {
++    	File	destFolder=ensureTempFolderExists();
++    	return File.createTempFile(prefix, suffix, destFolder);
++    }
++
++    public static final File ensureFolderExists (File folder) throws IllegalStateException {
++    	if (folder == null) {
++    		throw new IllegalArgumentException("No folder to ensure existence");
++    	}
++
++    	if ((!folder.exists()) && (!folder.mkdirs())) {
++    		throw new IllegalStateException("Failed to create " + folder.getAbsolutePath());
++    	}
++
++    	return folder;
++    }
++    /**
++     * @param anchor An anchor {@link Class} whose container we want to use
++     * as the starting point for the &quot;target&quot; folder lookup up the
++     * hierarchy
++     * @return The &quot;target&quot; <U>folder</U> - <code>null</code> if not found
++     * @see #detectTargetFolder(File)
++     */
++    public static final File detectTargetFolder (Class<?> anchor) {
++    	return detectTargetFolder(getClassContainerLocationFile(anchor));
++    }
++    
++    /**
++     * @param anchorFile An anchor {@link File) we want to use
++     * as the starting point for the &quot;target&quot; folder lookup up the
++     * hierarchy
++     * @return The &quot;target&quot; <U>folder</U> - <code>null</code> if not found
++     */
++    public static final File detectTargetFolder (File anchorFile) {
++    	for (File	file=anchorFile; file != null; file=file.getParentFile()) {
++    		if (!file.isDirectory()) {
++    			continue;
++    		}
++    		
++    		String	name=file.getName();
++    		if ("bin".equals(name) || "src".equals(name)) {
++    			File	parent=file.getParentFile();
++    			return new File(parent, "target");
++    		}
++    	}
++
++    	return null;
++    }
++
++    /**
++     * @param clazz A {@link Class} object
++     * @return A {@link File} of the location of the class bytes container
++     * - e.g., the root folder, the containing JAR, etc.. Returns
++     * <code>null</code> if location could not be resolved
++     * @throws IllegalArgumentException If location is not a valid
++     * {@link File} location
++     * @see #getClassContainerLocationURI(Class)
++     * @see File#File(URI) 
++     */
++    public static File getClassContainerLocationFile (Class<?> clazz)
++            throws IllegalArgumentException {
++        try {
++            URI uri=getClassContainerLocationURI(clazz);
++            return (uri == null) ? null : new File(uri);
++        } catch(URISyntaxException e) {
++            throw new IllegalArgumentException(e.getClass().getSimpleName() + ": " + e.getMessage(), e);
++        }
++    }
++
++    /**
++     * @param clazz A {@link Class} object
++     * @return A {@link URI} to the location of the class bytes container
++     * - e.g., the root folder, the containing JAR, etc.. Returns
++     * <code>null</code> if location could not be resolved
++     * @throws URISyntaxException if location is not a valid URI
++     * @see #getClassContainerLocationURL(Class)
++     */
++    public static URI getClassContainerLocationURI (Class<?> clazz) throws URISyntaxException {
++        URL url=getClassContainerLocationURL(clazz);
++        return (url == null) ? null : url.toURI();
++    }
++
++    /**
++     * @param clazz A {@link Class} object
++     * @return A {@link URL} to the location of the class bytes container
++     * - e.g., the root folder, the containing JAR, etc.. Returns
++     * <code>null</code> if location could not be resolved
++     */
++    public static URL getClassContainerLocationURL (Class<?> clazz) {
++        ProtectionDomain    pd=clazz.getProtectionDomain();
++        CodeSource          cs=(pd == null) ? null : pd.getCodeSource();
++        URL					url=(cs == null) ? null : cs.getLocation();
++        if (url == null) {
++        	ClassLoader	cl=getDefaultClassLoader(clazz);
++        	String		className=clazz.getName().replace('.', '/') + ".class";
++        	if ((url=cl.getResource(className)) == null) {
++        		return null;
++        	}
++        	
++        	String	srcForm=getURLSource(url);
++        	if (LangUtil.isEmpty(srcForm)) {
++        		return null;
++        	}
++
++        	try {
++        		url = new URL(srcForm);
++        	} catch(MalformedURLException e) {
++        		throw new IllegalArgumentException("getClassContainerLocationURL(" + clazz.getName() + ")"
++        										  + "Failed to create URL=" + srcForm + " from " + url.toExternalForm()
++        										  + ": " + e.getMessage());
++        	}
++        }
++
++        return url;
++    }
++    /**
++     * @param anchor An &quot;anchor&quot; {@link Class} to be used in case
++     * no thread context loader is available
++     * @return A {@link ClassLoader} to be used by the caller. The loader is
++     * resolved in the following manner:</P></BR>
++     * <UL>
++     *      <LI>
++     *      If a non-<code>null</code> loader is returned from the
++     *      {@link Thread#getContextClassLoader()} call then use it.
++     *      </LI>
++     *      
++     *      <LI>
++     *      Otherwise, use the same loader that was used to load the anchor class.
++     *      </LI>
++     * </UL>
++     * @throws IllegalArgumentException if no anchor class provided (regardless of
++     * whether it is used or not) 
++     */
++    public static ClassLoader getDefaultClassLoader(Class<?> anchor) {
++        if (anchor == null) {
++            throw new IllegalArgumentException("No anchor class provided");
++        }
++
++        Thread      t=Thread.currentThread();
++        ClassLoader cl=t.getContextClassLoader();
++        if (cl == null) {
++            // No thread context class loader -> use class loader of this class.
++            cl = anchor.getClassLoader();
++        }
++
++        if (cl == null) {	// no class loader - assume system
++        	cl = ClassLoader.getSystemClassLoader();
++        }
++
++        return cl;
++        
++    }
++    public static final String getURLSource (File file) {
++    	return getURLSource((file == null) ? null : file.toURI());
++    }
++
++    public static final String getURLSource (URI uri) {
++    	return getURLSource((uri == null) ? null : uri.toString());
++    }
++
++    /**
++     * @param url The {@link URL} value - ignored if <code>null</code>
++     * @return The URL(s) source path where {@link #JAR_URL_PREFIX} and
++     * any sub-resource are stripped
++     * @see #getURLSource(String)
++     */
++    public static final String getURLSource (URL url) {
++    	return getURLSource((url == null) ? null : url.toExternalForm());
++    }
++    
++    /**
++     * @param externalForm The {@link URL#toExternalForm()} string - ignored if
++     * <code>null</code>/empty
++     * @return The URL(s) source path where {@link #JAR_URL_PREFIX} and
++     * any sub-resource are stripped
++     */
++    public static final String getURLSource (String externalForm) {
++		String	url=externalForm;
++    	if (LangUtil.isEmpty(url)) {
++    		return url;
++    	}
++
++    	url = stripJarURLPrefix(externalForm);
++    	if (LangUtil.isEmpty(url)){
++    		return url;
++    	}
++    	
++    	int	sepPos=url.indexOf(RESOURCE_SUBPATH_SEPARATOR);
++    	if (sepPos < 0) {
++    		return adjustURLPathValue(url);
++    	} else {
++    		return adjustURLPathValue(url.substring(0, sepPos));
++    	}
++    }
++
++    /**
++     * @param path A URL path value
++     * @return The path after stripping any trailing '/' provided the path
++     * is not '/' itself
++     */
++    public static final String adjustURLPathValue(final String path) {
++        final int   pathLen=LangUtil.isEmpty(path) ? 0 : path.length();
++        if ((pathLen <= 1) || (path.charAt(pathLen - 1) != '/')) {
++            return path;
++        }
++
++        return path.substring(0, pathLen - 1);
++    }
++
++    public static final String adjustURLPathValue(URL url) {
++        return adjustURLPathValue((url == null) ? null : url.getPath());
++    }
++
++	public static String stripJarURLPrefix(String externalForm) {
++		String	url=externalForm;
++    	if (LangUtil.isEmpty(url)) {
++    		return url;
++    	}
++
++    	if (url.startsWith(JAR_URL_PREFIX)) {
++    		return url.substring(JAR_URL_PREFIX.length());
++    	}    	
++    	
++    	return url;
++	}
++
++    protected static final void writeIndex (File indexFile, IndexEntry ... entries) throws IOException {
++        writeIndex(indexFile, LangUtil.isEmpty(entries) ? Collections.<IndexEntry>emptyList() : Arrays.asList(entries));
++    }
++
++    protected static final void writeIndex (File indexFile, Collection<? extends IndexEntry> entries) throws IOException {
++        File    indexDir=indexFile.getParentFile();
++        if ((!indexDir.exists()) && (!indexDir.mkdirs())) {
++            throw new IOException("Failed to create path to " + indexFile.getAbsolutePath());
++        }
++
++        int             numEntries=LangUtil.isEmpty(entries) ? 0 : entries.size();
++        IndexEntry[]    entryValues=(numEntries <= 0) ? null : entries.toArray(new IndexEntry[numEntries]);
++        // if no entries, simply delete the index file
++        if (LangUtil.isEmpty(entryValues)) {
++            if (indexFile.exists() && (!indexFile.delete())) {
++                throw new StreamCorruptedException("Failed to clean up index file at " + indexFile.getAbsolutePath());
++            }
++
++            return;
++        }
++
++        ObjectOutputStream oos=new ObjectOutputStream(new BufferedOutputStream(new FileOutputStream(indexFile), 4096));
++        try {
++            oos.writeObject(entryValues);
++        } finally {
++            oos.close();
++        }
++    }
++
++    public static final void assertArrayEquals (String msg, byte[] expected, byte[] actual) {
++    	int	eLen=LangUtil.isEmpty(expected) ? 0 : expected.length;
++    	int	aLen=LangUtil.isEmpty(actual) ? 0 : expected.length;
++    	assertEquals(msg + "[mismatched length]", eLen, aLen);
++
++    	for (int	index=0; index < eLen; index++) {
++    		byte	eb=expected[index], ab=actual[index];
++    		if (eb != ab) {
++    			fail(msg + ": Mismatched value at index=" + index
++    			   + " - " + ab + " instead of " + eb
++    			   + ": expected=" + Arrays.toString(expected) + ", actual=" + Arrays.toString(actual));
++    		}
++    	}
++    }
++}
+@@ -0,0 +1,193 @@
++/*******************************************************************************
++ * Copyright (c) 2012 Contributors.
++ * All rights reserved.
++ * This program and the accompanying materials are made available
++ * under the terms of the Eclipse Public License v1.0
++ * which accompanies this distribution and is available at
++ * http://eclipse.org/legal/epl-v10.html
++ *
++ * Contributors:
++ *   Lyor Goldstein (vmware)	add support for weaved class being re-defined
++ *******************************************************************************/
++package org.aspectj.weaver.tools.cache;
++
++import java.io.File;
++import java.io.FileOutputStream;
++import java.io.IOException;
++import java.io.OutputStream;
++import java.util.Arrays;
++import java.util.Collection;
++import java.util.Collections;
++import java.util.Map;
++import java.util.Random;
++import java.util.TreeMap;
++
++import org.aspectj.util.FileUtil;
++import org.aspectj.util.LangUtil;
++import org.aspectj.weaver.tools.cache.AbstractIndexedFileCacheBacking.IndexEntry;
++
++/**
++ */
++public abstract class AsynchronousFileCacheBackingTestSupport
++		extends AbstractCacheBackingTestSupport {
++    private File  cacheDir, indexFile;
++    protected final byte[]    bytes=new byte[Byte.MAX_VALUE];
++    protected final Random    random=new Random(System.nanoTime());
++
++	protected AsynchronousFileCacheBackingTestSupport() {
++		super();
++	}
++
++	protected AsynchronousFileCacheBackingTestSupport(String name) {
++		super(name);
++	}
++
++    @Override
++    public void setUp () throws Exception {
++    	super.setUp();
++    	cleanupCache();
++    	
++        random.nextBytes(bytes);
++    }
++
++    @Override
++    public void tearDown () throws Exception {
++    	cleanupCache();
++    	super.tearDown();
++    }
++   
++    protected void cleanupCache() {
++    	if (indexFile != null) {
++    		if (FileUtil.deleteContents(indexFile) > 0) {
++    			System.out.println("Deleted " + indexFile);
++    		}
++    		indexFile = null;
++    	}
++
++    	if (cacheDir != null) {
++    		if (FileUtil.deleteContents(cacheDir) > 0) {
++    			System.out.println("Deleted " + cacheDir);
++    		}
++    		cacheDir = null;
++    	}
++    }
++
++    protected File getIndexFile () {
++    	if (indexFile == null) {
++    		File	parent=getCacheDir();
++    		indexFile=new File(parent, AbstractIndexedFileCacheBacking.INDEX_FILE);
++    	}
++
++    	return indexFile;
++    }
++
++    protected File getCacheDir () {
++    	if (cacheDir == null) {
++    		File	targetDir=detectTargetFolder();
++    		cacheDir = new File(targetDir, "dir-" + String.valueOf(Math.random()));
++    	}
++    	
++    	return ensureFolderExists(cacheDir);
++    }
++
++    protected abstract AsynchronousFileCacheBacking createFileBacking (File dir);
++
++    public void testDeleteIndexFileOnEmptyIndex () throws Exception {
++        IndexEntry[]    entries={
++                createIndexEntry("weaved-empty", false, false, bytes, bytes),
++                createIndexEntry("generated-empty", true, false, bytes, bytes)
++            };
++        File	cacheIndex=getIndexFile();
++        writeIndex(cacheIndex, entries);
++        assertTrue("No initial index file available: " + cacheIndex, cacheIndex.canRead());
++
++        AsynchronousFileCacheBacking    cache=createFileBacking(getCacheDir());
++        // the call should read an empty index since no data files exist
++        Map<String, IndexEntry>         indexMap=cache.getIndexMap();
++        assertEquals("Mismatched index size", 0, indexMap.size());
++
++        // no data files were created
++        Map<String, byte[]> bytesMap=cache.getBytesMap(); 
++        assertEquals("Mismatched bytes size", 0, bytesMap.size());
++        
++        writeIndex(cache.getIndexFile(), cache.getIndexEntries());
++
++        assertFalse("Index file still available: " + cacheIndex, cacheIndex.canRead());
++    }
++
++    protected long generateNewBytes () {
++        final long          CRC=AbstractCacheBacking.crc(bytes);
++        long                crc=CRC;
++        // 8 tries should be enough to find a non-matching CRC...
++        for (int    index=0; (index < Byte.SIZE) && (CRC == crc) && (crc != -1L); index++) {
++            random.nextBytes(bytes);
++            crc = AbstractCacheBacking.crc(bytes);
++        }
++        assertTrue("Could not generate different CRC for " + CRC, crc != CRC);
++
++        return crc;
++    }
++
++    protected Map<String, File> createDataFiles (IndexEntry ... entries) throws IOException {
++        return createDataFiles(LangUtil.isEmpty(entries) ? Collections.<IndexEntry>emptyList() : Arrays.asList(entries));
++    }
++
++    protected Map<String, File> createDataFiles (Collection<? extends IndexEntry> entries) throws IOException {
++        if (LangUtil.isEmpty(entries)) {
++            return Collections.emptyMap();
++        }
++
++        Map<String, File>  files=new TreeMap<String, File>();
++        for (IndexEntry entry : entries) {
++            File    file=createDataFile(entry);
++            if (file != null) {
++                files.put(entry.key, file);
++            }
++        }
++
++        return files;
++    }
++
++    protected File createDataFile (IndexEntry entry) throws IOException {
++        return createDataFile(entry, entry.ignored ? null : bytes);
++    }
++
++    protected File createDataFile (IndexEntry entry, byte[] dataBytes) throws IOException {
++        return createDataFile(entry.key, dataBytes);
++    }
++
++    protected File createDataFile (String key, byte[] dataBytes) throws IOException {
++        if (LangUtil.isEmpty(dataBytes)) {
++            return null;
++        }
++        
++        File    		parent=getCacheDir(), file=new File(parent, key);
++        OutputStream    out=new FileOutputStream(file);
++        try {
++            out.write(dataBytes);
++        } finally { 
++            out.close();
++        }
++
++        return file;
++    }
++
++    protected static final IndexEntry createIgnoredEntry (String key) {
++        return createIndexEntry(key, false, true, null, null);
++    }
++
++    protected static final IndexEntry createIndexEntry (String key, boolean generated, boolean ignored, byte[] bytes, byte[] originalBytes) {
++        IndexEntry  entry=new IndexEntry();
++        entry.key = key;
++        entry.generated = generated;
++        entry.ignored = ignored;
++        if (ignored) {
++            assertFalse(key + " ignored cannot be generated", generated);
++        } else {
++        	entry.crcClass = AbstractCacheBacking.crc(originalBytes);
++            entry.crcWeaved = AbstractCacheBacking.crc(bytes);
++        }
++        
++        return entry;
++    }
++}
+@@ -24,6 +24,8 @@ public class CacheTests {
+ 		suite.addTestSuite(WeavedClassCacheTest.class);
+ 		suite.addTestSuite(DefaultCacheKeyResolverTest.class);
+ 		suite.addTestSuite(DefaultFileCacheBackingTest.class);
++		suite.addTestSuite(FlatFileCacheBackingTest.class);
++		suite.addTestSuite(ZippedFileCacheBackingTest.class);
+ 		return suite;
+ 	}
+ }
+@@ -28,6 +28,9 @@ public class DefaultCacheKeyResolverTest extends TestCase {
+ 	DefaultCacheKeyResolver resolver = new DefaultCacheKeyResolver();
+ 
+ 	class BasicTestCL extends ClassLoader {
++		public BasicTestCL () {
++			super();
++		}
+ 	}
+ 
+ 	class URLTestCL extends URLClassLoader {
+@@ -16,42 +16,22 @@ package org.aspectj.weaver.tools.cache;
+ import java.io.File;
+ import java.util.zip.CRC32;
+ 
+-import junit.framework.TestCase;
+-
+-import org.aspectj.util.FileUtil;
+ import org.aspectj.util.LangUtil;
+ import org.aspectj.weaver.tools.cache.AbstractIndexedFileCacheBacking.IndexEntry;
+ 
+ /**
+  */
+-public class DefaultFileCacheBackingTest extends TestCase {
++public class DefaultFileCacheBackingTest extends AbstractCacheBackingTestSupport {
+ 	private final byte[] FAKE_BYTES = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9};
+ 	private final String FAKE_CLASS = "com.example.foo.Bar";
+ 	private final CacheKeyResolver resolver = new DefaultCacheKeyResolver();
+ 	private final CachedClassReference fakeRef = resolver.weavedKey(FAKE_CLASS, FAKE_BYTES);
+ 	private final String	fakeKey=fakeRef.getKey();
+ 
+-	private File root;
+-
+ 	public DefaultFileCacheBackingTest () {
+ 		super();
+ 	}
+ 
+-	@Override
+-	public void setUp() throws Exception {
+-		if (root == null) {
+-			File tempFile = File.createTempFile("aspectj", "test");
+-			File tempDir = tempFile.getParentFile();
+-			root = new File(tempDir, "aspectj-test-cache");
+-		}
+-	}
+-
+-	@Override
+-	public void tearDown() throws Exception {
+-		FileUtil.deleteContents(root);
+-		root = null;
+-	}
+-
+ 	public void testCreateBacking() throws Exception {
+ 		CacheBacking backing = DefaultFileCacheBacking.createBacking(root);
+ 		assertNotNull(backing);
+@@ -0,0 +1,154 @@
++/*******************************************************************************
++ * Copyright (c) 2012 VMware, Inc.
++ * 
++ * All rights reserved. 
++ * This program and the accompanying materials are made available 
++ * under the terms of the Eclipse Public License v1.0 
++ * which accompanies this distribution and is available at 
++ * http://www.eclipse.org/legal/epl-v10.html 
++ *  
++ * Contributors:
++ *  Lyor Goldstein
++ *******************************************************************************/
++
++package org.aspectj.weaver.tools.cache;
++
++import java.io.File;
++import java.io.FileOutputStream;
++import java.io.IOException;
++import java.io.OutputStream;
++import java.util.Map;
++import java.util.TreeMap;
++
++import org.aspectj.weaver.tools.cache.AbstractIndexedFileCacheBacking.IndexEntry;
++
++/**
++ * @author Lyor Goldstein
++ */
++public class FlatFileCacheBackingTest extends AsynchronousFileCacheBackingTestSupport {
++    public FlatFileCacheBackingTest() {
++        super();
++    }
++
++    @Override
++    protected FlatFileCacheBacking createFileBacking(File dir) {
++        return new FlatFileCacheBacking(dir);
++    }
++
++    public void testReadIndex () throws IOException {
++        IndexEntry[]    entries={
++                createIgnoredEntry("ignored"),
++                createIndexEntry("weaved", false, false, bytes, bytes),
++                createIndexEntry("generated", true, false, bytes, bytes)
++            };
++        File	indexFile=getIndexFile();
++        writeIndex(indexFile, entries);
++        Map<String, File> dataFiles=createDataFiles(entries);
++
++        File							cacheDir=getCacheDir();
++        AsynchronousFileCacheBacking    cache=createFileBacking(cacheDir);
++        Map<String, IndexEntry> 		indexMap=cache.getIndexMap();
++        assertEquals("Mismatched index size", entries.length, indexMap.size());
++
++        Map<String, byte[]> bytesMap=cache.getBytesMap(); 
++        assertEquals("Mismatched bytes size", dataFiles.size() /* the ignored one has no file */, bytesMap.size());
++        
++        for (IndexEntry entry : entries) {
++            String  key=entry.key;
++            assertNotNull("Missing entry for key=" + key, indexMap.get(key));
++            
++            if (entry.ignored) {
++                assertNull("Unexpected bytes for ignored key=" + key, bytesMap.get(key));
++            } else {
++                assertArrayEquals("Mismatched contents for key=" + key, bytes, bytesMap.get(key));
++            }
++        }
++    }
++
++    public void testIgnoredBadCrcDataFiles () throws Exception {
++        IndexEntry[]    entries={
++                createIndexEntry("weaved-goodData", false, false, bytes, bytes),
++                createIndexEntry("badData-weaved", false, false, bytes, bytes),
++                createIndexEntry("generated-goodData", true, false, bytes, bytes),
++                createIndexEntry("badData-generated", true, false, bytes, bytes)
++            };
++        File	indexFile=getIndexFile();
++        writeIndex(indexFile, entries);
++
++        Map<String,File>    dataFiles=createDataFiles(entries);
++        long                newCrc=generateNewBytes();
++        assertTrue("Bad new CRC", newCrc != (-1L));
++
++        Map<String,File>    badFiles=new TreeMap<String, File>();
++        for (IndexEntry entry : entries) {
++            String  key=entry.key;
++            if (key.startsWith("badData")) {
++                File            file=dataFiles.get(key);
++                OutputStream    out=new FileOutputStream(file);
++                try {
++                    out.write(bytes);
++                } finally {
++                    out.close();
++                }
++                dataFiles.remove(key);
++                badFiles.put(key, file);
++            }
++        }
++
++        File					cacheDir=getCacheDir();
++        FlatFileCacheBacking    cache=createFileBacking(cacheDir);
++        Map<String, IndexEntry> indexMap=cache.getIndexMap();
++        assertEquals("Mismatched index size", dataFiles.size(), indexMap.size());
++
++        Map<String, byte[]> bytesMap=cache.getBytesMap(); 
++        assertEquals("Mismatched bytes size", dataFiles.size(), bytesMap.size());
++
++        for (Map.Entry<String,File> badEntry : badFiles.entrySet()) {
++            String  key=badEntry.getKey();
++            assertFalse("Unexpectedly indexed: " + key, indexMap.containsKey(key));
++            assertFalse("Unexpectedly loaded: " + key, bytesMap.containsKey(key));
++
++            File    file=badEntry.getValue();
++            assertFalse("Unexpectedly still readable: " + key, file.canRead());
++        }
++    }
++
++    public void testSkipMissingDataFileOnReadIndex () throws IOException {
++        IndexEntry[]    entries={
++                createIndexEntry("weaved-noData", false, false, null, null),
++                createIndexEntry("withData-weaved", false, false, bytes, bytes),
++                createIndexEntry("generated-noData", true, false, null, null),
++                createIndexEntry("withData-generated", true, false, bytes, bytes)
++            };
++        File	indexFile=getIndexFile();
++        writeIndex(indexFile, entries);
++
++        Map<String,File>    dataFiles=new TreeMap<String, File>();
++        for (IndexEntry entry : entries) {
++            String  key=entry.key;
++            if (key.startsWith("withData")) {
++                dataFiles.put(key, createDataFile(entry, bytes));
++            }
++        }
++
++        File					cacheDir=getCacheDir();
++        FlatFileCacheBacking    cache=createFileBacking(cacheDir);
++        Map<String, IndexEntry> indexMap=cache.getIndexMap();
++        assertEquals("Mismatched index size", dataFiles.size(), indexMap.size());
++
++        Map<String, byte[]> bytesMap=cache.getBytesMap(); 
++        assertEquals("Mismatched bytes size", dataFiles.size(), bytesMap.size());
++
++        for (IndexEntry entry : entries) {
++            String  key=entry.key;
++            if (key.startsWith("withData")) {
++                assertTrue("Not indexed: " + key, indexMap.containsKey(key));
++                assertTrue("Not loaded: " + key, bytesMap.containsKey(key));
++            } else {
++                assertFalse("Unexpectedly indexed: " + key, indexMap.containsKey(key));
++                assertFalse("Unexpectedly loaded: " + key, bytesMap.containsKey(key));
++            }
++        }
++    }
++
++}
+@@ -12,17 +12,9 @@
+ 
+ package org.aspectj.weaver.tools.cache;
+ 
+-import junit.framework.TestCase;
+-import org.aspectj.bridge.AbortException;
+-import org.aspectj.bridge.IMessage;
+-import org.aspectj.bridge.IMessageHandler;
+-import org.aspectj.weaver.tools.GeneratedClassHandler;
+-
+ import java.io.File;
+-import java.util.HashMap;
+-import java.util.LinkedList;
+-import java.util.List;
+-import java.util.Set;
++
++import junit.framework.TestCase;
+ 
+ /**
+  */
+@@ -12,23 +12,26 @@
+ 
+ package org.aspectj.weaver.tools.cache;
+ 
+-import junit.framework.TestCase;
+-import org.aspectj.bridge.AbortException;
+-import org.aspectj.bridge.IMessage;
+-import org.aspectj.bridge.IMessageHandler;
+-import org.aspectj.weaver.tools.GeneratedClassHandler;
+-
+ import java.util.HashMap;
+ import java.util.LinkedList;
+ import java.util.List;
+ import java.util.Set;
+ 
++import org.aspectj.bridge.AbortException;
++import org.aspectj.bridge.IMessage;
++import org.aspectj.bridge.IMessageHandler;
++import org.aspectj.weaver.tools.GeneratedClassHandler;
++
+ /**
+  */
+-public class WeavedClassCacheTest extends TestCase {
++public class WeavedClassCacheTest extends AbstractCacheBackingTestSupport {
+ 	String FAKE_CLASS = "com.example.foo.Bar";
+ 	byte[] FAKE_BYTES = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9};
+ 
++	public WeavedClassCacheTest () {
++		super();
++	}
++
+ 	public class MemoryCacheBacking implements CacheBacking {
+ 		HashMap<String, CachedClassEntry> cache = new HashMap<String, CachedClassEntry>();
+ 
+@@ -73,9 +76,11 @@ public class WeavedClassCacheTest extends TestCase {
+ 		}
+ 
+ 		public void dontIgnore(IMessage.Kind kind) {
++			// do nothing
+ 		}
+ 
+ 		public void ignore(IMessage.Kind kind) {
++			// do nothing
+ 		}
+ 	};
+ 
+@@ -83,7 +88,6 @@ public class WeavedClassCacheTest extends TestCase {
+ 		public int accepts = 0;
+ 		public List<String> classesISaw = new LinkedList<String>();
+ 
+-		@Override
+ 		public void acceptClass (String name, byte[] originalBytes, byte[] wovenBytes) {
+ 			accepts++;
+ 			classesISaw.add(name);
+@@ -111,20 +115,6 @@ public class WeavedClassCacheTest extends TestCase {
+ 		assertTrue(newHandle instanceof GeneratedCachedClassHandler);
+ 	}
+ 
+-
+-//	public void testExistingGeneratedClassesPassedThroughHandler() throws Exception {
+-//		String classA = "com.generated.A";
+-//		String classB = "com.generated.B";
+-//		reset();
+-//		memoryBacking.put(new CachedClassEntry(resolver.generatedKey(classA), FAKE_BYTES, CachedClassEntry.EntryType.GENERATED), FAKE_BYTES);
+-//		memoryBacking.put(new CachedClassEntry(resolver.generatedKey(classB), FAKE_BYTES, CachedClassEntry.EntryType.GENERATED), FAKE_BYTES);
+-//		createCache();
+-//		assertEquals(2, generatedClassHandler.accepts);
+-//		for (String cName : generatedClassHandler.classesISaw) {
+-//			assertTrue("Got: " + cName, cName.equals(classA) || cName.equals(classB));
+-//		}
+-//	}
+-
+ 	public void testCache() throws Exception {
+ 		reset();
+ 		WeavedClassCache cache = createCache();
+@@ -0,0 +1,154 @@
++/**
++ * Copyright (c) 2012 VMware, Inc.
++ *
++ * All rights reserved. 
++ * This program and the accompanying materials are made available 
++ * under the terms of the Eclipse Public License v1.0 
++ * which accompanies this distribution and is available at 
++ * http://www.eclipse.org/legal/epl-v10.html 
++ * 
++ * Contributors:
++ * Lyor Goldstein
++ */
++
++package org.aspectj.weaver.tools.cache;
++
++import java.io.File;
++import java.io.IOException;
++import java.util.Map;
++import java.util.TreeMap;
++
++import org.aspectj.util.FileUtil;
++import org.aspectj.weaver.tools.cache.AbstractIndexedFileCacheBacking.IndexEntry;
++
++/**
++ * 
++ */
++public class ZippedFileCacheBackingTest extends AsynchronousFileCacheBackingTestSupport {
++	private File	zipTestFile;
++
++    public ZippedFileCacheBackingTest() {
++        super();
++    }
++
++    public void testReadIndex () throws Exception {
++        IndexEntry[]    entries={
++                createIgnoredEntry("ignored"),
++                createIndexEntry("weaved", false, false, bytes, bytes),
++                createIndexEntry("generated", true, false, bytes, bytes)
++            };
++        File	indexFile=getIndexFile();
++        writeIndex(indexFile, entries);
++
++        Map<String,byte[]>  entriesMap=new TreeMap<String,byte[]>();
++        for (IndexEntry ie : entries) {
++            if (ie.ignored) {
++                continue;
++            }
++
++            entriesMap.put(ie.key, bytes);
++        }
++
++        File	zipFile=getZipFile();
++        ZippedFileCacheBacking.writeZipClassBytes(zipFile, entriesMap);
++
++        File							cacheDir=getCacheDir();
++        AsynchronousFileCacheBacking    cache=createFileBacking(cacheDir);
++        Map<String, IndexEntry>			indexMap=cache.getIndexMap();
++        assertEquals("Mismatched index size", entries.length, indexMap.size());
++
++        Map<String, byte[]> bytesMap=cache.getBytesMap(); 
++        assertEquals("Mismatched bytes size", entriesMap.size() /* the ignored one has no file */, bytesMap.size());
++        
++        for (IndexEntry entry : entries) {
++            String  key=entry.key;
++            assertNotNull("Missing entry for key=" + key, indexMap.get(key));
++            
++            if (entry.ignored) {
++                assertNull("Unexpected bytes for ignored key=" + key, bytesMap.get(key));
++            } else {
++                assertArrayEquals("Mismatched contents for key=" + key, bytes, bytesMap.get(key));
++            }
++        }
++    }
++
++    public void testReadWriteZipClassBytes () throws IOException {
++        Map<String,byte[]>  entriesMap=new TreeMap<String,byte[]>();
++        for (int    index=0; index < Byte.SIZE; index++) {
++            String  name="classBytes#" + index;
++            random.nextBytes(bytes);
++            entriesMap.put(name, bytes);
++        }
++
++        File	zipFile=getZipFile();
++        ZippedFileCacheBacking.writeZipClassBytes(zipFile, entriesMap);
++
++        Map<String, byte[]> bytesMap=ZippedFileCacheBacking.readZipClassBytes(zipFile);
++        assertEquals("Mismatched recovered entries size", entriesMap.size(), bytesMap.size());
++        for (Map.Entry<String,byte[]> bytesEntry : entriesMap.entrySet()) {
++            String  key=bytesEntry.getKey();
++            byte[]  expected=bytesEntry.getValue(), actual=bytesMap.get(key);
++            assertArrayEquals("Mismatched data for " + key, expected, actual);
++        }
++    }
++
++    public void testReadClassBytes () throws IOException {
++        IndexEntry[]    entries={
++                createIgnoredEntry("ignoredReadClassBytes"),
++                createIndexEntry("weavedReadClassBytes", false, false, bytes, bytes),
++                createIndexEntry("generatedReadClassBytes", true, false, bytes, bytes)
++            };
++        File	indexFile=getIndexFile();
++        writeIndex(indexFile, entries);
++
++        long newCrc=generateNewBytes();
++        assertTrue("Bad new CRC", newCrc != (-1L));
++
++        Map<String,byte[]>  entriesMap=new TreeMap<String,byte[]>();
++        for (IndexEntry ie : entries) {
++            if (ie.ignored) {
++                continue;
++            }
++
++            entriesMap.put(ie.key, bytes);
++        }
++
++        File	zipFile=getZipFile();
++        ZippedFileCacheBacking.writeZipClassBytes(zipFile, entriesMap);
++
++        File							cacheDir=getCacheDir();
++        AsynchronousFileCacheBacking    cache=createFileBacking(cacheDir);
++        Map<String, IndexEntry> 		indexMap=cache.getIndexMap();
++        assertEquals("Mismatched index size", 1 /* only the ignored entry */, indexMap.size());
++
++        Map<String, byte[]> bytesMap=cache.getBytesMap(); 
++        assertEquals("Non empty data bytes", 0, bytesMap.size());
++        assertFalse("Zip file not deleted: " + zipFile, zipFile.canRead());
++    }
++
++    protected File getZipFile () {
++    	if (zipTestFile == null) {
++    		File	cacheDir=getCacheDir();
++    		zipTestFile = new File(cacheDir, ZippedFileCacheBacking.ZIP_FILE);
++    	}
++
++    	return zipTestFile;
++    }
++
++    @Override
++	protected void cleanupCache() {
++		if (zipTestFile != null) {
++			if (FileUtil.deleteContents(zipTestFile) > 0) {
++				System.out.println("Deleted " + zipTestFile);
++			}
++			zipTestFile = null;
++		}
++
++		super.cleanupCache();
++	}
++
++    @Override
++    protected ZippedFileCacheBacking createFileBacking(File dir) {
++        return new ZippedFileCacheBacking(dir);
++    }
++}
+\ No newline at end of file

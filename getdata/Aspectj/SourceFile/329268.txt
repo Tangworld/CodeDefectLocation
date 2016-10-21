@@ -1,0 +1,3415 @@
+@@ -0,0 +1,36 @@
++/********************************************************************
++ * Copyright (c) 2010 Contributors. All rights reserved. 
++ * This program and the accompanying materials are made available 
++ * under the terms of the Eclipse Public License v1.0 
++ * which accompanies this distribution and is available at 
++ * http://eclipse.org/legal/epl-v10.html 
++ *  
++ * Contributors: Nieraj Singh - initial implementation
++ *******************************************************************/
++package org.aspectj.org.eclipse.jdt.core.dom;
++
++public abstract class AbstractBooleanTypePattern extends TypePattern {
++
++	private TypePattern left;
++	private TypePattern right;
++
++	AbstractBooleanTypePattern(AST ast, TypePattern left, TypePattern right,
++			String booleanOperator) {
++		super(ast, booleanOperator);
++		this.left = left;
++		this.right = right;
++	}
++
++	public TypePattern getLeft() {
++		return left;
++	}
++
++	public TypePattern getRight() {
++		return right;
++	}
++
++	int treeSize() {
++		return memSize() + (this.left == null ? 0 : getLeft().treeSize())
++				+ (this.right == null ? 0 : getRight().treeSize());
++	}
++}
+@@ -1,5 +1,5 @@
+ /*******************************************************************************
+- * Copyright (c) 2000, 2005 IBM Corporation and others.
++ * Copyright (c) 2000, 2010 IBM Corporation and others.
+  * All rights reserved. This program and the accompanying materials
+  * are made available under the terms of the Eclipse Public License v1.0
+  * which accompanies this distribution, and is available at
+@@ -7,6 +7,7 @@
+  *
+  * Contributors:
+  *     IBM Corporation - initial API and implementation
++ *     Nieraj Singh
+  *******************************************************************************/
+ 
+ package org.aspectj.org.eclipse.jdt.core.dom;
+@@ -406,7 +407,7 @@ public class AjASTConverter extends ASTConverter {
+ 				((DeclareAtTypeDeclaration) declareDeclaration).setAnnotationName(annotationName);
+ 			} else if (da.getKind().equals(DeclareAnnotation.AT_CONSTRUCTOR)) {
+ 				declareDeclaration = new DeclareAtConstructorDeclaration(this.ast);
+-				((DeclareAtConstructorDeclaration) declareDeclaration).setPatternNode(convert(da.getSignaturePattern()));
++				((DeclareAtConstructorDeclaration) declareDeclaration).setPatternNode(convertSignature(da.getSignaturePattern()));
+ 				SimpleName annotationName = new SimpleName(this.ast);
+ 				annotationName.setSourceRange(da.getAnnotationSourceStart(),
+ 						da.getAnnotationSourceEnd() - da.getAnnotationSourceStart());
+@@ -414,7 +415,7 @@ public class AjASTConverter extends ASTConverter {
+ 				((DeclareAtConstructorDeclaration) declareDeclaration).setAnnotationName(annotationName);
+ 			} else if (da.getKind().equals(DeclareAnnotation.AT_FIELD)) {
+ 				declareDeclaration = new DeclareAtFieldDeclaration(this.ast);
+-				((DeclareAtFieldDeclaration) declareDeclaration).setPatternNode(convert(da.getSignaturePattern()));
++				((DeclareAtFieldDeclaration) declareDeclaration).setPatternNode(convertSignature(da.getSignaturePattern()));
+ 				SimpleName annotationName = new SimpleName(this.ast);
+ 				annotationName.setSourceRange(da.getAnnotationSourceStart(),
+ 						da.getAnnotationSourceEnd() - da.getAnnotationSourceStart());
+@@ -422,7 +423,7 @@ public class AjASTConverter extends ASTConverter {
+ 				((DeclareAtFieldDeclaration) declareDeclaration).setAnnotationName(annotationName);
+ 			} else if (da.getKind().equals(DeclareAnnotation.AT_METHOD)) {
+ 				declareDeclaration = new DeclareAtMethodDeclaration(this.ast);
+-				((DeclareAtMethodDeclaration) declareDeclaration).setPatternNode(convert(da.getSignaturePattern()));
++				((DeclareAtMethodDeclaration) declareDeclaration).setPatternNode(convertSignature(da.getSignaturePattern()));
+ 				SimpleName annotationName = new SimpleName(this.ast);
+ 				annotationName.setSourceRange(da.getAnnotationSourceStart(),
+ 						da.getAnnotationSourceEnd() - da.getAnnotationSourceStart());
+@@ -475,8 +476,11 @@ public class AjASTConverter extends ASTConverter {
+ 						.setTypePattern((org.aspectj.org.eclipse.jdt.core.dom.TypePattern) pNode);
+ 			}
+ 		}
+-		declareDeclaration.setSourceRange(declareDecl.declarationSourceStart, declareDecl.declarationSourceEnd
+-				- declareDecl.declarationSourceStart + 1);
++		
++		if (declareDeclaration != null) {
++			declareDeclaration.setSourceRange(declareDecl.declarationSourceStart, declareDecl.declarationSourceEnd
++					- declareDecl.declarationSourceStart + 1);
++		}
+ 		return declareDeclaration;
+ 	}
+ 
+@@ -624,8 +628,8 @@ public class AjASTConverter extends ASTConverter {
+ 		return pointcutDesi;
+ 	}
+ 
+-	public org.aspectj.org.eclipse.jdt.core.dom.PatternNode convert(ISignaturePattern patternNode) {
+-		org.aspectj.org.eclipse.jdt.core.dom.PatternNode pNode = null;
++	public org.aspectj.org.eclipse.jdt.core.dom.SignaturePattern convertSignature(ISignaturePattern patternNode) {
++		org.aspectj.org.eclipse.jdt.core.dom.SignaturePattern pNode = null;
+ 		if (patternNode instanceof SignaturePattern) {
+ 			SignaturePattern sigPat = (SignaturePattern) patternNode;
+ 			pNode = new org.aspectj.org.eclipse.jdt.core.dom.SignaturePattern(this.ast, sigPat.toString());
+@@ -636,14 +640,13 @@ public class AjASTConverter extends ASTConverter {
+ 		return pNode;
+ 	}
+ 
+-	public org.aspectj.org.eclipse.jdt.core.dom.PatternNode convert(PatternNode patternNode) {
+-		// this is a stub to be used until dom classes have been created for
+-		// the different weaver TypePattern's
++	public org.aspectj.org.eclipse.jdt.core.dom.PatternNode convert(
++			PatternNode patternNode) {
+ 		org.aspectj.org.eclipse.jdt.core.dom.PatternNode pNode = null;
+ 		if (patternNode instanceof TypePattern) {
+-			TypePattern typePat = (TypePattern) patternNode;
+-			pNode = new DefaultTypePattern(this.ast, typePat.toString());
+-			pNode.setSourceRange(typePat.getStart(), (typePat.getEnd() - typePat.getStart() + 1));
++			TypePattern weaverTypePattern = (TypePattern) patternNode;
++			return convert(weaverTypePattern);
++
+ 		} else if (patternNode instanceof SignaturePattern) {
+ 			SignaturePattern sigPat = (SignaturePattern) patternNode;
+ 			pNode = new org.aspectj.org.eclipse.jdt.core.dom.SignaturePattern(this.ast, sigPat.toString());
+@@ -653,6 +656,123 @@ public class AjASTConverter extends ASTConverter {
+ 
+ 	}
+ 
++	public org.aspectj.org.eclipse.jdt.core.dom.TypePattern convert(
++			TypePattern weaverNode) {
++
++		// First check if the node is a Java type (WildType, ExactType,
++		// BindingType)
++		org.aspectj.org.eclipse.jdt.core.dom.TypePattern domNode = createIdentifierTypePattern(weaverNode);
++
++		if (domNode == null) {
++			if (weaverNode instanceof org.aspectj.weaver.patterns.EllipsisTypePattern) {
++				domNode = new org.aspectj.org.eclipse.jdt.core.dom.EllipsisTypePattern(
++						ast);
++			} else if (weaverNode instanceof org.aspectj.weaver.patterns.NoTypePattern) {
++				domNode = new org.aspectj.org.eclipse.jdt.core.dom.NoTypePattern(
++						ast);
++			} else if (weaverNode instanceof org.aspectj.weaver.patterns.AnyTypePattern) {
++				domNode = new org.aspectj.org.eclipse.jdt.core.dom.AnyTypePattern(
++						ast);
++			} else if (weaverNode instanceof org.aspectj.weaver.patterns.AnyWithAnnotationTypePattern) {
++				// For now construct the node with just the annotation
++				// expression
++				String annotationExpression = ((org.aspectj.weaver.patterns.AnyWithAnnotationTypePattern) weaverNode)
++						.toString();
++				domNode = new org.aspectj.org.eclipse.jdt.core.dom.AnyWithAnnotationTypePattern(
++						ast, annotationExpression);
++
++			} else if (weaverNode instanceof org.aspectj.weaver.patterns.OrTypePattern) {
++				org.aspectj.weaver.patterns.OrTypePattern compilerOrNode = (org.aspectj.weaver.patterns.OrTypePattern) weaverNode;
++				domNode = new OrTypePattern(this.ast,
++						convert(compilerOrNode.getLeft()),
++						convert(compilerOrNode.getRight()));
++			} else if (weaverNode instanceof org.aspectj.weaver.patterns.AndTypePattern) {
++				org.aspectj.weaver.patterns.AndTypePattern compilerAndType = (org.aspectj.weaver.patterns.AndTypePattern) weaverNode;
++				domNode = new org.aspectj.org.eclipse.jdt.core.dom.AndTypePattern(
++						this.ast, convert(compilerAndType.getLeft()),
++						convert(compilerAndType.getRight()));
++			} else if (weaverNode instanceof org.aspectj.weaver.patterns.NotTypePattern) {
++				//NOTE: the source range for not type patterns is the source range of the negated type pattern
++				// EXCLUDING the "!" character. Example: !A. If A starts at 1, the source starting point for the
++				// nottypepattern is 1, NOT 0.
++				TypePattern negatedTypePattern = ((org.aspectj.weaver.patterns.NotTypePattern) weaverNode)
++						.getNegatedPattern();
++				org.aspectj.org.eclipse.jdt.core.dom.TypePattern negatedDomTypePattern = convert(negatedTypePattern);
++				domNode = new org.aspectj.org.eclipse.jdt.core.dom.NotTypePattern(
++						ast, negatedDomTypePattern);
++			} else if (weaverNode instanceof org.aspectj.weaver.patterns.TypeCategoryTypePattern) {
++				org.aspectj.weaver.patterns.TypeCategoryTypePattern typeCategoryWeaverNode = (org.aspectj.weaver.patterns.TypeCategoryTypePattern) weaverNode;
++				domNode = new org.aspectj.org.eclipse.jdt.core.dom.TypeCategoryTypePattern(
++						ast, typeCategoryWeaverNode.getTypeCategory());
++
++			} else if (weaverNode instanceof org.aspectj.weaver.patterns.HasMemberTypePattern) {
++				ISignaturePattern weaverSignature = ((org.aspectj.weaver.patterns.HasMemberTypePattern) weaverNode)
++						.getSignaturePattern();
++				org.aspectj.org.eclipse.jdt.core.dom.SignaturePattern signature = convertSignature(weaverSignature);
++				domNode = new org.aspectj.org.eclipse.jdt.core.dom.HasMemberTypePattern(
++						ast, signature);
++			} else {
++				// Handle any cases that are not yet implemented. Create a
++				// default node for
++				// them.
++				domNode = new DefaultTypePattern(this.ast,
++						weaverNode.toString());
++			}
++		}
++
++		if (domNode != null) {
++			domNode.setSourceRange(weaverNode.getStart(), (weaverNode.getEnd()
++					- weaverNode.getStart() + 1));
++		}
++		return domNode;
++	}
++
++	/**
++	 * Creates an ExactType, WildType, or BindingType, or null if none of the
++	 * three can be created
++	 * 
++	 * @param weaverTypePattern
++	 *            to convert to a DOM equivalent
++	 * @return DOM node or null if it was not created
++	 */
++	protected org.aspectj.org.eclipse.jdt.core.dom.TypePattern createIdentifierTypePattern(
++			TypePattern weaverTypePattern) {
++		String typeExpression = weaverTypePattern.toString();
++
++		org.aspectj.org.eclipse.jdt.core.dom.TypePattern domTypePattern = null;
++		if (weaverTypePattern instanceof org.aspectj.weaver.patterns.WildTypePattern) {
++			// Use the expression for wild type patterns as a Name may not be
++			// constructed
++			// for a Type with a unresolved typeExpression
++			domTypePattern = new org.aspectj.org.eclipse.jdt.core.dom.WildTypePattern(
++					ast, typeExpression);
++		} else {
++			// TODO: At this point, the type pattern should be resolved. Type
++			// information
++			// may be able to be obtained from the exact type in the weaver
++			// pattern, therefore
++			// replace using the expression to construct the Type and use more
++			// appropriate
++			// information obtained from the exact type
++
++			if (weaverTypePattern instanceof org.aspectj.weaver.patterns.ExactTypePattern) {
++				Type type = this.ast.newSimpleType(this.ast
++						.newSimpleName(typeExpression));
++				domTypePattern = new ExactTypePattern(ast, type);
++			} else if (weaverTypePattern instanceof org.aspectj.weaver.patterns.BindingTypePattern) {
++				Type type = this.ast.newSimpleType(this.ast
++						.newSimpleName(typeExpression));
++				String binding = ((org.aspectj.weaver.patterns.BindingTypePattern) weaverTypePattern)
++						.getBindingName();
++				FormalBinding formalBinding = new FormalBinding(type, binding,
++						ast);
++				domTypePattern = new org.aspectj.org.eclipse.jdt.core.dom.BindingTypePattern(
++						ast, formalBinding);
++			}
++		}
++		return domTypePattern;
++	}
++
+ 	public ASTNode convert(
+ 			org.aspectj.org.eclipse.jdt.internal.compiler.ast.AnnotationMethodDeclaration annotationTypeMemberDeclaration) {
+ 		checkCanceled();
+@@ -1,5 +1,5 @@
+ /*******************************************************************************
+- * Copyright (c) 2000, 2005 IBM Corporation and others.
++ * Copyright (c) 2000, 2010 IBM Corporation and others.
+  * All rights reserved. This program and the accompanying materials
+  * are made available under the terms of the Eclipse Public License v1.0
+  * which accompanies this distribution, and is available at
+@@ -7,6 +7,7 @@
+  *
+  * Contributors:
+  *     IBM Corporation - initial API and implementation
++ *     Nieraj Singh
+  *******************************************************************************/
+ package org.aspectj.org.eclipse.jdt.core.dom;
+ 
+@@ -258,4 +259,128 @@ public class AjASTMatcher extends ASTMatcher {
+ 		}
+ 		return node.getDetail().equals(((SignaturePattern) other).getDetail());
+ 	}
++
++	public boolean match(AndTypePattern node, Object other) {
++		if (node == other) {
++			return true;
++		}
++		if (!(other instanceof AndTypePattern)) {
++			return false;
++		}
++		AndTypePattern otherBoolean = (AndTypePattern) other;
++		return safeSubtreeMatch(node.getLeft(), otherBoolean.getLeft())
++				&& safeSubtreeMatch(node.getRight(), otherBoolean.getRight());
++	}
++
++	public boolean match(OrTypePattern node, Object other) {
++		if (node == other) {
++			return true;
++		}
++		if (!(other instanceof OrTypePattern)) {
++			return false;
++		}
++		OrTypePattern otherBoolean = (OrTypePattern) other;
++		return safeSubtreeMatch(node.getLeft(), otherBoolean.getLeft())
++				&& safeSubtreeMatch(node.getRight(), otherBoolean.getRight());
++	}
++
++	public boolean match(AnyTypePattern node, Object other) {
++		// AnyTypePattern nodes don't hold state aside from the AST, so just do a reference check
++		if (node == other) {
++			return true;
++		}
++		return false;
++	}
++
++	public boolean match(AnyWithAnnotationTypePattern node, Object other) {
++		if (node == other) {
++			return true;
++		}
++		if (!(other instanceof AnyWithAnnotationTypePattern)) {
++			return false;
++		}
++		// For now only do an expression matching. In future versions, when
++		// the node supports AnnotationTypes, this may have to be changed
++		return node.getTypePatternExpression().equals(
++				((AnyWithAnnotationTypePattern) other)
++						.getTypePatternExpression());
++	}
++
++	public boolean match(EllipsisTypePattern node, Object other) {
++		// Ellipsis nodes don't hold state aside from the AST, so just do a reference check
++		if (node == other) {
++			return true;
++		}
++		return false;
++	}
++
++	public boolean match(NotTypePattern node, Object other) {
++		if (node == other) {
++			return true;
++		}
++		if (!(other instanceof NotTypePattern)) {
++			return false;
++		}
++		return safeSubtreeMatch(node.getNegatedTypePattern(),
++				((NotTypePattern) other).getNegatedTypePattern());
++	}
++
++	public boolean match(NoTypePattern node, Object other) {
++		// NoTypePattern nodes don't hold state aside from the AST, so just do a reference check
++		if (node == other) {
++			return true;
++		}
++		return false;
++	}
++
++	public boolean match(HasMemberTypePattern node, Object other) {
++		if (node == other) {
++			return true;
++		}
++		if (!(other instanceof HasMemberTypePattern)) {
++			return false;
++		}
++		return safeSubtreeMatch(node.getSignaturePattern(),
++				((HasMemberTypePattern) other).getSignaturePattern());
++	}
++
++	public boolean match(IdentifierTypePattern node, Object other) {
++		if (node == other) {
++			return true;
++		}
++		if (!(other instanceof IdentifierTypePattern)) {
++			return false;
++		}
++		return safeSubtreeMatch(node.getType(),
++				((IdentifierTypePattern) other).getType());
++	}
++
++	public boolean match(TypeCategoryTypePattern node, Object other) {
++		if (node == other) {
++			return true;
++		}
++		if (!(other instanceof TypeCategoryTypePattern)) {
++			return false;
++		}
++		return node.getTypeCategory() == ((TypeCategoryTypePattern) other)
++				.getTypeCategory();
++	}
++
++	public boolean match(Type type, Object other) {
++		if (type == other) {
++			return true;
++		}
++		// For now only support simple type/simple name matching. Support for
++		// other types
++		// may have to be added here
++		if (type instanceof SimpleType && other instanceof SimpleType) {
++			Name name = ((SimpleType) type).getName();
++			Name otherName = ((SimpleType) other).getName();
++			if (name instanceof SimpleName && otherName instanceof SimpleName) {
++				return ((SimpleName) name).getIdentifier().equals(
++						((SimpleName) otherName).getIdentifier());
++			}
++		}
++		return false;
++	}
+ }
+@@ -1,5 +1,5 @@
+ /*******************************************************************************
+- * Copyright (c) 2000, 2005 IBM Corporation and others.
++ * Copyright (c) 2000, 2010 IBM Corporation and others.
+  * All rights reserved. This program and the accompanying materials
+  * are made available under the terms of the Eclipse Public License v1.0
+  * which accompanies this distribution, and is available at
+@@ -7,6 +7,7 @@
+  *
+  * Contributors:
+  *     IBM Corporation - initial API and implementation
++ *     Nieraj Singh
+  *******************************************************************************/
+ 
+ package org.aspectj.org.eclipse.jdt.core.dom;
+@@ -244,4 +245,88 @@ public abstract class AjASTVisitor extends ASTVisitor {
+ 
+ 	public void endVisit(SignaturePattern node) {
+ 	}
++	
++	/*
++	 * TODO: if necessary split this into the two specialised
++	 * boolean type patterns (AndTypePattern, OrTypePattern)
++	 */
++	public boolean visit(AbstractBooleanTypePattern node) {
++		return true;
++	}
++
++	public void endVisit(AbstractBooleanTypePattern node) {
++
++	}
++
++	public boolean visit(AnyTypePattern node) {
++		return true;
++	}
++
++	public void endVisit(AnyTypePattern node) {
++
++	}
++
++	public boolean visit(AnyWithAnnotationTypePattern node) {
++		return true;
++	}
++
++	public void endVisit(AnyWithAnnotationTypePattern node) {
++
++	}
++
++	public boolean visit(EllipsisTypePattern node) {
++		return true;
++	}
++
++	public void endVisit(EllipsisTypePattern node) {
++
++	}
++
++	public boolean visit(HasMemberTypePattern node) {
++		return true;
++	}
++
++	public void endVisit(HasMemberTypePattern node) {
++
++	}
++
++	public boolean visit(IdentifierTypePattern node) {
++		return true;
++	}
++
++	public void endVisit(IdentifierTypePattern node) {
++
++	}
++
++	public boolean visit(NotTypePattern node) {
++		return true;
++	}
++
++	public void endVisit(NotTypePattern node) {
++
++	}
++
++	public boolean visit(NoTypePattern node) {
++		return true;
++	}
++
++	public void endVisit(NoTypePattern node) {
++
++	}
++
++	public boolean visit(TypeCategoryTypePattern node) {
++		return true;
++	}
++
++	public void endVisit(TypeCategoryTypePattern node) {
++
++	}
++	
++	public boolean visit(Type node) {
++		return true;
++	}
++
++	public void endVisit(Type node) {
++	
++	}
+ }
+@@ -1,5 +1,5 @@
+ /*******************************************************************************
+- * Copyright (c) 2000, 2005 IBM Corporation and others.
++ * Copyright (c) 2000, 2010 IBM Corporation and others.
+  * All rights reserved. This program and the accompanying materials
+  * are made available under the terms of the Eclipse Public License v1.0
+  * which accompanies this distribution, and is available at
+@@ -7,6 +7,7 @@
+  *
+  * Contributors:
+  *     IBM Corporation - initial API and implementation
++ *     Nieraj Singh
+  *******************************************************************************/
+ package org.aspectj.org.eclipse.jdt.core.dom;
+ 
+@@ -1720,11 +1721,63 @@ public class AjNaiveASTFlattener extends AjASTVisitor {
+ 		return false;
+ 	}
+ 
+-	public boolean visit(DefaultTypePattern node) {
+-		this.buffer.append(node.getDetail());
++	public boolean visit(AbstractBooleanTypePattern node) {
++		
++		// Flatten boolean expressions in order, meaning
++		// the left node needs to be appended first, followed by the
++		// boolean operator, followed by the right node.
++		node.getLeft().accept(this);
++		this.buffer.append(" ");
++		this.buffer.append(node.getTypePatternExpression());
++		this.buffer.append(" ");
++		node.getRight().accept(this);
++		
++		// No need to visit the childrena, as they were already visited above
+ 		return false;
+ 	}
+-	
++
++	public boolean visit(AnyTypePattern node) {
++		this.buffer.append(node.getTypePatternExpression());
++		return false;
++	}
++
++	public boolean visit(AnyWithAnnotationTypePattern node) {
++		this.buffer.append(node.getTypePatternExpression());
++		return false;
++	}
++
++	public boolean visit(EllipsisTypePattern node) {
++		this.buffer.append(node.getTypePatternExpression());
++		return false;
++	}
++
++	public boolean visit(HasMemberTypePattern node) {
++		this.buffer.append(node.getTypePatternExpression());
++		return false;
++	}
++
++	public boolean visit(IdentifierTypePattern node) {
++		this.buffer.append(node.getTypePatternExpression());
++		return false;
++	}
++
++	public boolean visit(NotTypePattern node) {
++		this.buffer.append(node.getTypePatternExpression());
++		// Visit the children in this case, as the child of a not type pattern
++		// is the negated type pattern
++		return true;
++	}
++
++	public boolean visit(NoTypePattern node) {
++		this.buffer.append(node.getTypePatternExpression());
++		return false;
++	}
++
++	public boolean visit(TypeCategoryTypePattern node) {
++		this.buffer.append(node.getTypePatternExpression());
++		return false;
++	}
++
+ 	public boolean visit(DefaultPointcut node) {
+ 		this.buffer.append(node.getDetail());
+ 		return false;
+@@ -0,0 +1,54 @@
++/********************************************************************
++ * Copyright (c) 2010 Contributors. All rights reserved. 
++ * This program and the accompanying materials are made available 
++ * under the terms of the Eclipse Public License v1.0 
++ * which accompanies this distribution and is available at 
++ * http://eclipse.org/legal/epl-v10.html 
++ *  
++ * Contributors: Nieraj Singh - initial implementation
++ *******************************************************************/
++package org.aspectj.org.eclipse.jdt.core.dom;
++
++import java.util.List;
++
++public class AndTypePattern extends AbstractBooleanTypePattern {
++
++	public static final String AND_OPERATOR = "&&";
++
++	AndTypePattern(AST ast, TypePattern left, TypePattern right) {
++		super(ast, left, right, AND_OPERATOR);
++	}
++
++	List<?> internalStructuralPropertiesForType(int apiLevel) {
++		return null;
++	}
++
++	ASTNode clone0(AST target) {
++		AndTypePattern cloned = new AndTypePattern(target,
++				(TypePattern) getLeft().clone(target), (TypePattern) getRight()
++						.clone(target));
++		cloned.setSourceRange(getStartPosition(), getLength());
++		return cloned;
++	}
++	
++	void accept0(ASTVisitor visitor) {
++		if (visitor instanceof AjASTVisitor) {
++			AjASTVisitor ajVisitor = (AjASTVisitor) visitor;
++			boolean visit = ajVisitor.visit(this);
++			if (visit) {
++				acceptChild(visitor, getLeft());
++				acceptChild(visitor, getRight());
++			}
++			ajVisitor.endVisit(this);
++		}
++	}
++	
++	boolean subtreeMatch0(ASTMatcher matcher, Object other) {
++		if (matcher instanceof AjASTMatcher) {
++			AjASTMatcher ajmatcher = (AjASTMatcher) matcher;
++			return ajmatcher.match(this, other);
++		}
++		return false;
++	}
++
++}
+@@ -0,0 +1,47 @@
++/********************************************************************
++ * Copyright (c) 2010 Contributors. All rights reserved. 
++ * This program and the accompanying materials are made available 
++ * under the terms of the Eclipse Public License v1.0 
++ * which accompanies this distribution and is available at 
++ * http://eclipse.org/legal/epl-v10.html 
++ *  
++ * Contributors: Nieraj Singh - initial implementation
++ *******************************************************************/
++package org.aspectj.org.eclipse.jdt.core.dom;
++
++import java.util.List;
++
++public class AnyTypePattern extends TypePattern {
++
++	public static final String ANYTYPE_DETAIL = "*";
++
++	AnyTypePattern(AST ast) {
++		super(ast, ANYTYPE_DETAIL);
++	}
++
++	List<?> internalStructuralPropertiesForType(int apiLevel) {
++		return null;
++	}
++
++	ASTNode clone0(AST target) {
++		AnyTypePattern cloned = new AnyTypePattern(target);
++		cloned.setSourceRange(getStartPosition(), getLength());
++		return cloned;
++	}
++	
++	boolean subtreeMatch0(ASTMatcher matcher, Object other) {
++		if (matcher instanceof AjASTMatcher) {
++			AjASTMatcher ajmatcher = (AjASTMatcher) matcher;
++			return ajmatcher.match(this, other);
++		}
++		return false;
++	}
++	
++	void accept0(ASTVisitor visitor) {
++		if (visitor instanceof AjASTVisitor) {
++			AjASTVisitor ajVisitor = (AjASTVisitor) visitor;
++			ajVisitor.visit(this);
++			ajVisitor.endVisit(this);
++		}
++	}
++}
+@@ -0,0 +1,52 @@
++/********************************************************************
++ * Copyright (c) 2010 Contributors. All rights reserved. 
++ * This program and the accompanying materials are made available 
++ * under the terms of the Eclipse Public License v1.0 
++ * which accompanies this distribution and is available at 
++ * http://eclipse.org/legal/epl-v10.html 
++ *  
++ * Contributors: Nieraj Singh - initial implementation
++ *******************************************************************/
++package org.aspectj.org.eclipse.jdt.core.dom;
++
++import java.util.List;
++
++/**
++ * TODO: Add support for proper AnnotationPatterns instead of the annotation
++ * expression
++ * 
++ */
++public class AnyWithAnnotationTypePattern extends TypePattern {
++
++	AnyWithAnnotationTypePattern(AST ast, String annotationExpression) {
++		// Is this correct? should the "*" be added
++		super(ast, annotationExpression);
++	}
++
++	ASTNode clone0(AST target) {
++		ASTNode node = new AnyWithAnnotationTypePattern(target,
++				getTypePatternExpression());
++		node.setSourceRange(getStartPosition(), getLength());
++		return node;
++	}
++
++	List<?> internalStructuralPropertiesForType(int apiLevel) {
++		return null;
++	}
++
++	boolean subtreeMatch0(ASTMatcher matcher, Object other) {
++		if (matcher instanceof AjASTMatcher) {
++			AjASTMatcher ajmatcher = (AjASTMatcher) matcher;
++			return ajmatcher.match(this, other);
++		}
++		return false;
++	}
++	
++	void accept0(ASTVisitor visitor) {
++		if (visitor instanceof AjASTVisitor) {
++			AjASTVisitor ajVisitor = (AjASTVisitor) visitor;
++			ajVisitor.visit(this);
++			ajVisitor.endVisit(this);
++		}
++	}
++}
+@@ -0,0 +1,66 @@
++/********************************************************************
++ * Copyright (c) 2010 Contributors. All rights reserved. 
++ * This program and the accompanying materials are made available 
++ * under the terms of the Eclipse Public License v1.0 
++ * which accompanies this distribution and is available at 
++ * http://eclipse.org/legal/epl-v10.html 
++ *  
++ * Contributors: Nieraj Singh - initial implementation
++ *******************************************************************/
++package org.aspectj.org.eclipse.jdt.core.dom;
++
++import java.util.List;
++
++public class BindingTypePattern extends IdentifierTypePattern {
++
++	private FormalBinding formalBinding;
++
++	public BindingTypePattern(AST ast, FormalBinding formalBinding) {
++		super(ast, null);
++		this.formalBinding = formalBinding;
++		setTypePatternExpression(generateTypePatternExpression(this.formalBinding));
++	}
++
++	List<?> internalStructuralPropertiesForType(int apiLevel) {
++		return null;
++	}
++
++	public FormalBinding getFormalBinding() {
++		return formalBinding;
++	}
++
++	ASTNode clone0(AST target) {
++		ASTNode node = new BindingTypePattern(target,
++				(FormalBinding) getFormalBinding().clone(target));
++		node.setSourceRange(getStartPosition(), getLength());
++		return node;
++	}
++
++	boolean subtreeMatch0(ASTMatcher matcher, Object other) {
++		if (matcher instanceof AjASTMatcher) {
++			AjASTMatcher ajmatcher = (AjASTMatcher) matcher;
++			return ajmatcher.match(this, other);
++		}
++		return false;
++	}
++
++	void accept0(ASTVisitor visitor) {
++		if (visitor instanceof AjASTVisitor) {
++			AjASTVisitor ajVisitor = (AjASTVisitor) visitor;
++			boolean visited = ajVisitor.visit(this);
++
++			if (visited) {
++				ajVisitor.visit(getFormalBinding());
++			}
++			ajVisitor.endVisit(this);
++		}
++	}
++
++	protected String generateTypePatternExpression(FormalBinding formalBinding) {
++		String expression = super.generateTypePatternExpression(formalBinding
++				.getType());
++		expression += expression + " " + formalBinding.getBinding();
++		return expression;
++	}
++
++}
+@@ -0,0 +1,48 @@
++/********************************************************************
++ * Copyright (c) 2010 Contributors. All rights reserved. 
++ * This program and the accompanying materials are made available 
++ * under the terms of the Eclipse Public License v1.0 
++ * which accompanies this distribution and is available at 
++ * http://eclipse.org/legal/epl-v10.html 
++ *  
++ * Contributors: Nieraj Singh - initial implementation
++ *******************************************************************/
++package org.aspectj.org.eclipse.jdt.core.dom;
++
++import java.util.List;
++
++public class EllipsisTypePattern extends TypePattern {
++
++	public static final String ELLIPSIS_DETAIL = "..";
++
++	EllipsisTypePattern(AST ast) {
++		super(ast, ELLIPSIS_DETAIL);
++	}
++
++	List<?> internalStructuralPropertiesForType(int apiLevel) {
++		return null;
++	}
++
++	ASTNode clone0(AST target) {
++		ASTNode node = new EllipsisTypePattern(target);
++		node.setSourceRange(getStartPosition(), getLength());
++		return node;
++	}
++	
++	boolean subtreeMatch0(ASTMatcher matcher, Object other) {
++		if (matcher instanceof AjASTMatcher) {
++			AjASTMatcher ajmatcher = (AjASTMatcher) matcher;
++			return ajmatcher.match(this, other);
++		}
++		return false;
++	}
++
++	void accept0(ASTVisitor visitor) {
++		if (visitor instanceof AjASTVisitor) {
++			AjASTVisitor ajVisitor = (AjASTVisitor) visitor;
++			ajVisitor.visit(this);
++			ajVisitor.endVisit(this);
++		}
++	}
++
++}
+@@ -0,0 +1,43 @@
++/********************************************************************
++ * Copyright (c) 2010 Contributors. All rights reserved. 
++ * This program and the accompanying materials are made available 
++ * under the terms of the Eclipse Public License v1.0 
++ * which accompanies this distribution and is available at 
++ * http://eclipse.org/legal/epl-v10.html 
++ *  
++ * Contributors: Nieraj Singh - initial implementation
++ *******************************************************************/
++package org.aspectj.org.eclipse.jdt.core.dom;
++
++import java.util.List;
++
++public class ExactTypePattern extends IdentifierTypePattern {
++
++	ExactTypePattern(AST ast, Type type) {
++		super(ast, type);
++	}
++
++
++	List<?> internalStructuralPropertiesForType(int apiLevel) {
++		return null;
++	}
++
++	ASTNode clone0(AST target) {
++		Type clonedType = getType();
++		if (clonedType != null) {
++			clonedType = (Type) clonedType.clone(target);
++		}
++		ASTNode node = new ExactTypePattern(target, clonedType);
++		node.setSourceRange(getStartPosition(), getLength());
++		return node;
++	}
++	
++	boolean subtreeMatch0(ASTMatcher matcher, Object other) {
++		if (matcher instanceof AjASTMatcher) {
++			AjASTMatcher ajmatcher = (AjASTMatcher) matcher;
++			return ajmatcher.match(this, other);
++		}
++		return false;
++	}
++
++}
+@@ -0,0 +1,88 @@
++/********************************************************************
++ * Copyright (c) 2010 Contributors. All rights reserved. 
++ * This program and the accompanying materials are made available 
++ * under the terms of the Eclipse Public License v1.0 
++ * which accompanies this distribution and is available at 
++ * http://eclipse.org/legal/epl-v10.html 
++ *  
++ * Contributors: Nieraj Singh - initial implementation
++ *******************************************************************/
++package org.aspectj.org.eclipse.jdt.core.dom;
++
++import java.util.List;
++
++public class FormalBinding extends Type {
++
++	private Type type;
++	private String binding;
++
++	/**
++	 * 
++	 * @param type
++	 *            must not be null
++	 * @param binding
++	 *            must not be null
++	 * @param ast
++	 *            must not be null
++	 */
++	public FormalBinding(Type type, String binding, AST ast) {
++		super(ast);
++	}
++
++	public Type getType() {
++		return type;
++	}
++
++	public String getBinding() {
++		return binding;
++	}
++
++	@Override
++	List<?> internalStructuralPropertiesForType(int apiLevel) {
++		return null;
++	}
++
++	@Override
++	int getNodeType0() {
++		return 0;
++	}
++
++	@Override
++	boolean subtreeMatch0(ASTMatcher matcher, Object other) {
++		if (matcher instanceof AjASTMatcher) {
++			return ((AjASTMatcher) matcher).match(this, other);
++		}
++		return false;
++	}
++
++	@Override
++	ASTNode clone0(AST target) {
++		ASTNode node = new FormalBinding((Type) getType().clone(target),
++				getBinding(), target);
++		node.setSourceRange(getStartPosition(), getLength());
++		return node;
++	}
++
++	@Override
++	void accept0(ASTVisitor visitor) {
++		if (visitor instanceof AjASTVisitor) {
++			boolean visited = ((AjASTVisitor) visitor).visit(this);
++			if (visited) {
++				((AjASTVisitor) visitor).visit(getType());
++			}
++			((AjASTVisitor) visitor).endVisit(this);
++		}
++
++	}
++
++	@Override
++	int treeSize() {
++		return getType().treeSize();
++	}
++
++	@Override
++	int memSize() {
++		return BASE_NODE_SIZE + (3 * 4) + getType().memSize();
++	}
++
++}
+@@ -0,0 +1,64 @@
++/********************************************************************
++ * Copyright (c) 2010 Contributors. All rights reserved. 
++ * This program and the accompanying materials are made available 
++ * under the terms of the Eclipse Public License v1.0 
++ * which accompanies this distribution and is available at 
++ * http://eclipse.org/legal/epl-v10.html 
++ *  
++ * Contributors: Nieraj Singh - initial implementation
++ *******************************************************************/
++package org.aspectj.org.eclipse.jdt.core.dom;
++
++import java.util.List;
++
++/**
++ *
++ */
++public class HasMemberTypePattern extends TypePattern {
++
++	private SignaturePattern signaturePattern;
++
++	public HasMemberTypePattern(AST ast, SignaturePattern signaturePattern) {
++		super(ast, signaturePattern.getDetail());
++		this.signaturePattern = signaturePattern;
++	}
++
++	List<?> internalStructuralPropertiesForType(int apiLevel) {
++		return null;
++	}
++
++	public SignaturePattern getSignaturePattern() {
++		return signaturePattern;
++	}
++
++	ASTNode clone0(AST target) {
++		ASTNode cloned = new HasMemberTypePattern(target,
++				(SignaturePattern) getSignaturePattern().clone(target));
++		cloned.setSourceRange(getStartPosition(), getLength());
++		return cloned;
++	}
++
++	void accept0(ASTVisitor visitor) {
++		if (visitor instanceof AjASTVisitor) {
++			AjASTVisitor ajVisitor = (AjASTVisitor) visitor;
++			boolean visited = ajVisitor.visit(this);
++			if (visited) {
++				ajVisitor.visit(getSignaturePattern());
++			}
++			ajVisitor.endVisit(this);
++		}
++	}
++
++	boolean subtreeMatch0(ASTMatcher matcher, Object other) {
++		if (matcher instanceof AjASTMatcher) {
++			AjASTMatcher ajmatcher = (AjASTMatcher) matcher;
++			return ajmatcher.match(this, other);
++		}
++		return false;
++	}
++
++	int memSize() {
++		return super.memSize() + getSignaturePattern().memSize();
++	}
++
++}
+@@ -0,0 +1,82 @@
++/********************************************************************
++ * Copyright (c) 2010 Contributors. All rights reserved. 
++ * This program and the accompanying materials are made available 
++ * under the terms of the Eclipse Public License v1.0 
++ * which accompanies this distribution and is available at 
++ * http://eclipse.org/legal/epl-v10.html 
++ *  
++ * Contributors: Nieraj Singh - initial implementation
++ *******************************************************************/
++package org.aspectj.org.eclipse.jdt.core.dom;
++
++public abstract class IdentifierTypePattern extends TypePattern {
++
++	private Type type;
++
++	IdentifierTypePattern(AST ast, Type type) {
++		super(ast);
++		this.type = type;
++		setTypePatternExpression(generateTypePatternExpression(this.type));
++	}
++
++	/**
++	 * This may be null if no Type has been resolved. A String representation
++	 * may still exist.
++	 * 
++	 * @return type if defined or resolved, or null if not defined or resolved
++	 *         at the time when this node is created
++	 */
++	public Type getType() {
++		return type;
++	}
++
++	/**
++	 * Generate an expression (String representation) for the given type.
++	 * 
++	 * @param type
++	 * @return non-null expression for the given type. Null if no expression can
++	 *         be generated.
++	 */
++	protected String generateTypePatternExpression(Type type) {
++		String typeExpression = null;
++		if (type instanceof SimpleType) {
++			Name name = ((SimpleType) type).getName();
++			if (name instanceof SimpleName) {
++				typeExpression = ((SimpleName) name).getIdentifier();
++			}
++		}
++
++		// If expression hasn't been resolved yet, get the toString
++		// representation
++		if (typeExpression == null && type != null) {
++			typeExpression = type.toString();
++		}
++
++		return typeExpression;
++	}
++
++	int memSize() {
++
++		int memSize = super.memSize();
++
++		Type type = getType();
++		if (type != null) {
++			memSize += type.memSize();
++		}
++
++		return memSize;
++	}
++
++	void accept0(ASTVisitor visitor) {
++		if (visitor instanceof AjASTVisitor) {
++			AjASTVisitor ajVisitor = (AjASTVisitor) visitor;
++			boolean visited = ajVisitor.visit(this);
++			Type type = getType();
++			if (visited && type != null) {
++				ajVisitor.visit(type);
++			}
++			ajVisitor.endVisit(this);
++		}
++	}
++
++}
+@@ -0,0 +1,50 @@
++/********************************************************************
++ * Copyright (c) 2010 Contributors. All rights reserved. 
++ * This program and the accompanying materials are made available 
++ * under the terms of the Eclipse Public License v1.0 
++ * which accompanies this distribution and is available at 
++ * http://eclipse.org/legal/epl-v10.html 
++ *  
++ * Contributors: Nieraj Singh - initial implementation
++ *******************************************************************/
++package org.aspectj.org.eclipse.jdt.core.dom;
++
++import java.util.List;
++
++public class NoTypePattern extends TypePattern {
++
++	NoTypePattern(AST ast) {
++		super(ast);
++	}
++
++	List<?> internalStructuralPropertiesForType(int apiLevel) {
++		return null;
++	}
++
++	public boolean isStar() {
++		return false;
++	}
++
++	ASTNode clone0(AST target) {
++		ASTNode node = new NoTypePattern(target);
++		node.setSourceRange(getStartPosition(), getLength());
++		return node;
++	}
++	
++	void accept0(ASTVisitor visitor) {
++		if (visitor instanceof AjASTVisitor) {
++			AjASTVisitor ajVisitor = (AjASTVisitor) visitor;
++			ajVisitor.visit(this);
++			ajVisitor.endVisit(this);
++		}
++	}
++	
++	boolean subtreeMatch0(ASTMatcher matcher, Object other) {
++		if (matcher instanceof AjASTMatcher) {
++			AjASTMatcher ajmatcher = (AjASTMatcher) matcher;
++			return ajmatcher.match(this, other);
++		}
++		return false;
++	}
++
++}
+@@ -0,0 +1,69 @@
++/********************************************************************
++ * Copyright (c) 2010 Contributors. All rights reserved. 
++ * This program and the accompanying materials are made available 
++ * under the terms of the Eclipse Public License v1.0 
++ * which accompanies this distribution and is available at 
++ * http://eclipse.org/legal/epl-v10.html 
++ *  
++ * Contributors: Nieraj Singh - initial implementation
++ *******************************************************************/
++package org.aspectj.org.eclipse.jdt.core.dom;
++
++import java.util.List;
++
++public class NotTypePattern extends TypePattern {
++
++	private TypePattern negatedPattern;
++
++	/**
++	 * The negated type pattern cannot be null
++	 * 
++	 * @param ast
++	 *            not null
++	 * @param negatedPattern
++	 *            not null
++	 */
++	NotTypePattern(AST ast, TypePattern negatedPattern) {
++		super(ast, "!");
++		this.negatedPattern = negatedPattern;
++	}
++
++	List<?> internalStructuralPropertiesForType(int apiLevel) {
++		return null;
++	}
++
++	public TypePattern getNegatedTypePattern() {
++		return negatedPattern;
++	}
++
++	ASTNode clone0(AST target) {
++		ASTNode node = new NotTypePattern(target,
++				(TypePattern) getNegatedTypePattern().clone(target));
++		node.setSourceRange(getStartPosition(), getLength());
++		return node;
++	}
++
++	void accept0(ASTVisitor visitor) {
++		if (visitor instanceof AjASTVisitor) {
++			AjASTVisitor ajVisitor = (AjASTVisitor) visitor;
++			boolean visit = ajVisitor.visit(this);
++			if (visit) {
++				acceptChild(ajVisitor, getNegatedTypePattern());
++			}
++			ajVisitor.endVisit(this);
++		}
++	}
++	
++	boolean subtreeMatch0(ASTMatcher matcher, Object other) {
++		if (matcher instanceof AjASTMatcher) {
++			AjASTMatcher ajmatcher = (AjASTMatcher) matcher;
++			return ajmatcher.match(this, other);
++		}
++		return false;
++	}
++
++	int memSize() {
++		return super.memSize() + getNegatedTypePattern().memSize();
++	}
++
++}
+@@ -0,0 +1,55 @@
++/********************************************************************
++ * Copyright (c) 2010 Contributors. All rights reserved. 
++ * This program and the accompanying materials are made available 
++ * under the terms of the Eclipse Public License v1.0 
++ * which accompanies this distribution and is available at 
++ * http://eclipse.org/legal/epl-v10.html 
++ *  
++ * Contributors: Nieraj Singh - initial implementation
++ *******************************************************************/
++package org.aspectj.org.eclipse.jdt.core.dom;
++
++import java.util.List;
++
++public class OrTypePattern extends AbstractBooleanTypePattern {
++
++	public static final String OR_OPERATOR = "||";
++
++	OrTypePattern(AST ast,
++			org.aspectj.org.eclipse.jdt.core.dom.TypePattern left,
++			org.aspectj.org.eclipse.jdt.core.dom.TypePattern right) {
++		super(ast, left, right, OR_OPERATOR);
++	}
++
++	List<?> internalStructuralPropertiesForType(int apiLevel) {
++		return null;
++	}
++
++	ASTNode clone0(AST target) {
++		OrTypePattern cloned = new OrTypePattern(target,
++				(TypePattern) getLeft().clone(target), (TypePattern) getRight()
++						.clone(target));
++		cloned.setSourceRange(getStartPosition(), getLength());
++		return cloned;
++	}
++
++	void accept0(ASTVisitor visitor) {
++		if (visitor instanceof AjASTVisitor) {
++			AjASTVisitor ajVisitor = (AjASTVisitor) visitor;
++			boolean visit = ajVisitor.visit(this);
++			if (visit) {
++				acceptChild(visitor, getLeft());
++				acceptChild(visitor, getRight());
++			}
++			ajVisitor.endVisit(this);
++		}
++	}
++
++	boolean subtreeMatch0(ASTMatcher matcher, Object other) {
++		if (matcher instanceof AjASTMatcher) {
++			AjASTMatcher ajmatcher = (AjASTMatcher) matcher;
++			return ajmatcher.match(this, other);
++		}
++		return false;
++	}
++}
+@@ -1,5 +1,5 @@
+ /********************************************************************
+- * Copyright (c) 2006 Contributors. All rights reserved. 
++ * Copyright (c) 2006, 2010 Contributors. All rights reserved. 
+  * This program and the accompanying materials are made available 
+  * under the terms of the Eclipse Public License v1.0 
+  * which accompanies this distribution and is available at 
+@@ -7,6 +7,7 @@
+  *  
+  * Contributors: IBM Corporation - initial API and implementation 
+  * 				 Helen Hawkins   - iniital version
++ *               Nieraj Singh
+  *******************************************************************/
+ package org.aspectj.org.eclipse.jdt.core.dom;
+ 
+@@ -27,5 +28,5 @@ public abstract class PatternNode extends ASTNode {
+ 	int memSize() {
+ 		return 0; // stub method
+ 	}
+-
++	
+ }
+@@ -0,0 +1,113 @@
++/********************************************************************
++ * Copyright (c) 2010 Contributors. All rights reserved. 
++ * This program and the accompanying materials are made available 
++ * under the terms of the Eclipse Public License v1.0 
++ * which accompanies this distribution and is available at 
++ * http://eclipse.org/legal/epl-v10.html 
++ *  
++ * Contributors: Nieraj Singh - initial implementation
++ *******************************************************************/
++package org.aspectj.org.eclipse.jdt.core.dom;
++
++import java.util.List;
++
++public class TypeCategoryTypePattern extends TypePattern {
++
++	private int typeCategory;
++
++	public static final int CLASS = org.aspectj.weaver.patterns.TypeCategoryTypePattern.CLASS;
++	public static final int INTERFACE = org.aspectj.weaver.patterns.TypeCategoryTypePattern.INTERFACE;
++	public static final int ASPECT = org.aspectj.weaver.patterns.TypeCategoryTypePattern.ASPECT;
++	public static final int INNER = org.aspectj.weaver.patterns.TypeCategoryTypePattern.INNER;
++	public static final int ANONYMOUS = org.aspectj.weaver.patterns.TypeCategoryTypePattern.ANONYMOUS;
++	public static final int ENUM = org.aspectj.weaver.patterns.TypeCategoryTypePattern.ENUM;
++	public static final int ANNOTATION = org.aspectj.weaver.patterns.TypeCategoryTypePattern.ANNOTATION;
++
++	/**
++	 * 
++	 * See the weaver implementation for the type categories.
++	 * 
++	 * @see org.aspectj.weaver.patterns.TypeCategoryTypePattern
++	 * @param ast
++	 *            must not be null
++	 * @param typeCategory
++	 *            as defined in the corresponding weaver node type
++	 */
++	TypeCategoryTypePattern(AST ast, int typeCategory) {
++		super(ast, null);
++		this.typeCategory = typeCategory;
++	}
++
++	/**
++	 * 
++	 * See the weaver implementation for the type categories.
++	 * 
++	 * @see org.aspectj.weaver.patterns.TypeCategoryTypePattern
++	 * @return type category
++	 */
++	public int getTypeCategory() {
++		return typeCategory;
++	}
++
++	List<?> internalStructuralPropertiesForType(int apiLevel) {
++		return null;
++	}
++
++	public String getTypePatternExpression() {
++
++		String expression = super.getTypePatternExpression();
++		if (expression == null) {
++			switch (getTypeCategory()) {
++			case CLASS:
++				expression = "ClassType";
++				break;
++			case INNER:
++				expression = "InnerType";
++				break;
++			case INTERFACE:
++				expression = "InterfaceType";
++				break;
++			case ANNOTATION:
++				expression = "AnnotationType";
++				break;
++			case ANONYMOUS:
++				expression = "AnonymousType";
++				break;
++			case ASPECT:
++				expression = "AspectType";
++				break;
++			case ENUM:
++				expression = "EnumType";
++				break;
++			}
++			expression = (expression != null) ? "is(" + expression + ")"
++					: EMPTY_EXPRESSION;
++			setTypePatternExpression(expression);
++
++		}
++		return expression;
++	}
++
++	ASTNode clone0(AST target) {
++		ASTNode cloned = new TypeCategoryTypePattern(target, getTypeCategory());
++		cloned.setSourceRange(getStartPosition(), getLength());
++		return cloned;
++	}
++
++	void accept0(ASTVisitor visitor) {
++		if (visitor instanceof AjASTVisitor) {
++			AjASTVisitor ajVisitor = (AjASTVisitor) visitor;
++			ajVisitor.visit(this);
++			ajVisitor.endVisit(this);
++		}
++	}
++
++	boolean subtreeMatch0(ASTMatcher matcher, Object other) {
++		if (matcher instanceof AjASTMatcher) {
++			AjASTMatcher ajmatcher = (AjASTMatcher) matcher;
++			return ajmatcher.match(this, other);
++		}
++		return false;
++	}
++
++}
+@@ -1,5 +1,5 @@
+ /********************************************************************
+- * Copyright (c) 2006 Contributors. All rights reserved. 
++ * Copyright (c) 2006, 2010 Contributors. All rights reserved. 
+  * This program and the accompanying materials are made available 
+  * under the terms of the Eclipse Public License v1.0 
+  * which accompanies this distribution and is available at 
+@@ -7,23 +7,50 @@
+  *  
+  * Contributors: IBM Corporation - initial API and implementation 
+  * 				 Helen Hawkins   - iniital version
++ *               Nieraj Singh
+  *******************************************************************/
+ package org.aspectj.org.eclipse.jdt.core.dom;
+ 
+-
+ /**
+  * abstract TypePattern DOM AST node.
+- * has:
+- *   nothing at the moment
+  */
+ public abstract class TypePattern extends PatternNode {
+ 
++	private String typePatternExpression;
++	
++	public static final String EMPTY_EXPRESSION = "";
++
+ 	TypePattern(AST ast) {
+ 		super(ast);
+ 	}
+ 
+-	int memSize() {
+-		return 0; // stub method
++	TypePattern(AST ast, String typePatternExpression) {
++		super(ast);
++		this.typePatternExpression = typePatternExpression;
++	}
++
++	/**
++	 * Should be called for internal setting only, if the expression needs to be set
++	 * lazily
++	 * @param typePatternExpression
++	 */
++	protected void setTypePatternExpression(String typePatternExpression) {
++		this.typePatternExpression = typePatternExpression;
++	}
++
++	/**
++	 * Return the type pattern in expression form (String representation). In
++	 * many cases, this is not null, although it may be null in some cases like
++	 * the NoTypePattern
++	 * 
++	 * @return String expression of the type pattern. May be null.
++	 */
++	public String getTypePatternExpression() {
++		return typePatternExpression;
++	}
++
++	int treeSize() {
++		return memSize();
+ 	}
+ 
+ }
+@@ -0,0 +1,60 @@
++/********************************************************************
++ * Copyright (c) 2010 Contributors. All rights reserved. 
++ * This program and the accompanying materials are made available 
++ * under the terms of the Eclipse Public License v1.0 
++ * which accompanies this distribution and is available at 
++ * http://eclipse.org/legal/epl-v10.html 
++ *  
++ * Contributors: Nieraj Singh - initial implementation
++ *******************************************************************/
++package org.aspectj.org.eclipse.jdt.core.dom;
++
++import java.util.List;
++
++public class WildTypePattern extends IdentifierTypePattern {
++
++	/**
++	 * Use this constructor if Type is known
++	 * 
++	 * @param ast
++	 * @param type
++	 */
++	WildTypePattern(AST ast, Type type) {
++		super(ast, type);
++	}
++
++	/**
++	 * Use this constructor if Type cannot be determined
++	 * 
++	 * @param ast
++	 * @param typeExpression
++	 */
++	WildTypePattern(AST ast, String typeExpression) {
++		super(ast, null);
++		setTypePatternExpression(typeExpression);
++	}
++
++	List<?> internalStructuralPropertiesForType(int apiLevel) {
++		return null;
++	}
++
++	ASTNode clone0(AST target) {
++		Type type = getType();
++
++		ASTNode cloned = type != null ? new WildTypePattern(target,
++				(Type) type.clone(target)) : new WildTypePattern(target,
++				getTypePatternExpression());
++		cloned.setSourceRange(getStartPosition(), getLength());
++
++		return cloned;
++	}
++	
++	boolean subtreeMatch0(ASTMatcher matcher, Object other) {
++		if (matcher instanceof AjASTMatcher) {
++			AjASTMatcher ajmatcher = (AjASTMatcher) matcher;
++			return ajmatcher.match(this, other);
++		}
++		return false;
++	}
++
++}
+@@ -1,5 +1,5 @@
+ /*******************************************************************************
+- * Copyright (c) 2000, 2004 IBM Corporation and others.
++ * Copyright (c) 2000, 2010 IBM Corporation and others.
+  * All rights reserved. This program and the accompanying materials
+  * are made available under the terms of the Eclipse Public License v1.0
+  * which accompanies this distribution, and is available at
+@@ -17,15 +17,20 @@ import junit.framework.TestCase;
+ 
+ import org.aspectj.org.eclipse.jdt.core.dom.AST;
+ import org.aspectj.org.eclipse.jdt.core.dom.ASTParser;
++import org.aspectj.org.eclipse.jdt.core.dom.AbstractBooleanTypePattern;
+ import org.aspectj.org.eclipse.jdt.core.dom.AfterAdviceDeclaration;
+ import org.aspectj.org.eclipse.jdt.core.dom.AfterReturningAdviceDeclaration;
+ import org.aspectj.org.eclipse.jdt.core.dom.AfterThrowingAdviceDeclaration;
+ import org.aspectj.org.eclipse.jdt.core.dom.AjASTVisitor;
+ import org.aspectj.org.eclipse.jdt.core.dom.AjTypeDeclaration;
++import org.aspectj.org.eclipse.jdt.core.dom.AndTypePattern;
++import org.aspectj.org.eclipse.jdt.core.dom.AnyTypePattern;
++import org.aspectj.org.eclipse.jdt.core.dom.AnyWithAnnotationTypePattern;
+ import org.aspectj.org.eclipse.jdt.core.dom.AroundAdviceDeclaration;
+ import org.aspectj.org.eclipse.jdt.core.dom.AspectDeclaration;
+ import org.aspectj.org.eclipse.jdt.core.dom.Assignment;
+ import org.aspectj.org.eclipse.jdt.core.dom.BeforeAdviceDeclaration;
++import org.aspectj.org.eclipse.jdt.core.dom.BindingTypePattern;
+ import org.aspectj.org.eclipse.jdt.core.dom.Block;
+ import org.aspectj.org.eclipse.jdt.core.dom.BlockComment;
+ import org.aspectj.org.eclipse.jdt.core.dom.BodyDeclaration;
+@@ -39,18 +44,21 @@ import org.aspectj.org.eclipse.jdt.core.dom.DeclareParentsDeclaration;
+ import org.aspectj.org.eclipse.jdt.core.dom.DeclarePrecedenceDeclaration;
+ import org.aspectj.org.eclipse.jdt.core.dom.DeclareSoftDeclaration;
+ import org.aspectj.org.eclipse.jdt.core.dom.DeclareWarningDeclaration;
+-import org.aspectj.org.eclipse.jdt.core.dom.DefaultTypePattern;
+ import org.aspectj.org.eclipse.jdt.core.dom.EnumDeclaration;
++import org.aspectj.org.eclipse.jdt.core.dom.ExactTypePattern;
+ import org.aspectj.org.eclipse.jdt.core.dom.ExpressionStatement;
+ import org.aspectj.org.eclipse.jdt.core.dom.FieldAccess;
+ import org.aspectj.org.eclipse.jdt.core.dom.FieldDeclaration;
++import org.aspectj.org.eclipse.jdt.core.dom.IdentifierTypePattern;
+ import org.aspectj.org.eclipse.jdt.core.dom.InfixExpression;
+ import org.aspectj.org.eclipse.jdt.core.dom.Initializer;
+ import org.aspectj.org.eclipse.jdt.core.dom.InterTypeFieldDeclaration;
+ import org.aspectj.org.eclipse.jdt.core.dom.InterTypeMethodDeclaration;
+ import org.aspectj.org.eclipse.jdt.core.dom.MethodDeclaration;
+ import org.aspectj.org.eclipse.jdt.core.dom.MethodInvocation;
++import org.aspectj.org.eclipse.jdt.core.dom.NotTypePattern;
+ import org.aspectj.org.eclipse.jdt.core.dom.NumberLiteral;
++import org.aspectj.org.eclipse.jdt.core.dom.OrTypePattern;
+ import org.aspectj.org.eclipse.jdt.core.dom.PerCflow;
+ import org.aspectj.org.eclipse.jdt.core.dom.PerObject;
+ import org.aspectj.org.eclipse.jdt.core.dom.PerTypeWithin;
+@@ -61,9 +69,11 @@ import org.aspectj.org.eclipse.jdt.core.dom.ReferencePointcut;
+ import org.aspectj.org.eclipse.jdt.core.dom.SignaturePattern;
+ import org.aspectj.org.eclipse.jdt.core.dom.SimpleName;
+ import org.aspectj.org.eclipse.jdt.core.dom.StringLiteral;
++import org.aspectj.org.eclipse.jdt.core.dom.TypeCategoryTypePattern;
+ import org.aspectj.org.eclipse.jdt.core.dom.TypeDeclaration;
+ import org.aspectj.org.eclipse.jdt.core.dom.VariableDeclaration;
+ import org.aspectj.org.eclipse.jdt.core.dom.VariableDeclarationStatement;
++import org.aspectj.org.eclipse.jdt.core.dom.WildTypePattern;
+ import org.aspectj.org.eclipse.jdt.internal.compiler.impl.CompilerOptions;
+ 
+ public class ASTVisitorTest extends TestCase {
+@@ -280,10 +290,70 @@ public class ASTVisitorTest extends TestCase {
+ 				"(compilationUnit(class(simpleName)(method(primitiveType)(simpleName)(block(expressionStatement(methodInvocation(simpleName))))))(aspect(simpleName)(constructorITD(primitiveType)(simpleName)(block))))");
+ 	}
+ 
+-	public void testDeclareParents(){
++	/*
++	 * 
++	 * START: Test TypePattern nodes introduced in Bugzilla 329268.
++	 * 
++	 */
++	
++	public void testDeclareParents() {
+ 		check("class A{}class B{}aspect C {declare parents : A extends B;}",
+-				"(compilationUnit(class(simpleName))(class(simpleName))(aspect(simpleName)(declareParents(defaultTypePattern)(defaultTypePattern))))");
++				"(compilationUnit(class(simpleName))(class(simpleName))(aspect(simpleName)(declareParents(wildTypePattern)(wildTypePattern))))");
++	}
++
++	public void testDeclareParentsAnyTypePattern() {
++		check("class A{}class B{}aspect C {declare parents : * extends B;}",
++				"(compilationUnit(class(simpleName))(class(simpleName))(aspect(simpleName)(declareParents(anyTypePattern)(wildTypePattern))))");
++	}
++
++	public void testDeclareParentsAndTypePattern() {
++		check("class A{}class B{}class D{}class E{}aspect C {declare parents : A && B && D extends E;}",
++				"(compilationUnit(class(simpleName))(class(simpleName))(class(simpleName))(class(simpleName))(aspect(simpleName)(declareParents((wildTypePattern)andTypePattern((wildTypePattern)andTypePattern(wildTypePattern)))(wildTypePattern))))");
++	}
++
++	public void testDeclareParentsOrTypePattern() {
++		check("class A{}class B{}class D{}class E{}aspect C {declare parents : A || B || D extends E;}",
++				"(compilationUnit(class(simpleName))(class(simpleName))(class(simpleName))(class(simpleName))(aspect(simpleName)(declareParents((wildTypePattern)orTypePattern((wildTypePattern)orTypePattern(wildTypePattern)))(wildTypePattern))))");
++	}
++
++	public void testDeclareParentsAndOrTypePattern() {
++		check("class A{}class B{}class D{}class E{}aspect C {declare parents : A && (B || D) extends E;}",
++				"(compilationUnit(class(simpleName))(class(simpleName))(class(simpleName))(class(simpleName))(aspect(simpleName)(declareParents((wildTypePattern)andTypePattern((wildTypePattern)orTypePattern(wildTypePattern)))(wildTypePattern))))");
++	}
++
++	public void testDeclareParentsOrAndTypePattern() {
++		check("class A{}class B{}class D{}class E{}aspect C {declare parents : A || B && D extends E;}",
++				"(compilationUnit(class(simpleName))(class(simpleName))(class(simpleName))(class(simpleName))(aspect(simpleName)(declareParents((wildTypePattern)orTypePattern((wildTypePattern)andTypePattern(wildTypePattern)))(wildTypePattern))))");
++	}
++
++	public void testDeclareParentsNotTypePattern() {
++		check("class A{}class B{}class D{}class E{}aspect C {declare parents : A && !B extends E;}",
++				"(compilationUnit(class(simpleName))(class(simpleName))(class(simpleName))(class(simpleName))(aspect(simpleName)(declareParents((wildTypePattern)andTypePattern(notTypePattern(wildTypePattern)))(wildTypePattern))))");
++	}
++
++	public void testDeclareParentsTypeCategoryTypePattern() {
++		check("class A{}class E{}aspect C {declare parents : A && is(ClassType) extends E;}",
++				"(compilationUnit(class(simpleName))(class(simpleName))(aspect(simpleName)(declareParents((wildTypePattern)andTypePattern(typeCategoryTypePattern))(wildTypePattern))))");
++	}
++
++	public void testDeclareParentsTypeCategoryTypePatternNot() {
++		check("class A{}class E{}aspect C {declare parents : A && !is(InnerType) extends E;}",
++				"(compilationUnit(class(simpleName))(class(simpleName))(aspect(simpleName)(declareParents((wildTypePattern)andTypePattern(notTypePattern(typeCategoryTypePattern)))(wildTypePattern))))");
++	}
++
++	public void testDeclareParentsAnyWithAnnotationTypePattern() {
++		check("class E{}aspect C {declare parents : (@AnnotationT *) extends E;}",
++				"(compilationUnit(class(simpleName))(aspect(simpleName)(declareParents(anyWithAnnotationTypePattern)(wildTypePattern))))");
+ 	}
++	
++	
++	/*
++	 * 
++	 * END: Test TypePattern nodes introduced in Bugzilla 329268.
++	 * 
++	 */
++	
++	
+ 	public void testDeclareWarning(){
+ 		check("aspect A {pointcut a();declare warning: a(): \"warning\";}",
+ 				"(compilationUnit(aspect(simpleName)(pointcut(simpleName))(declareWarning(referencePointcut(simpleName))(stringLiteral))))");
+@@ -294,15 +364,15 @@ public class ASTVisitorTest extends TestCase {
+ 	}
+ 	public void testDeclareSoft(){
+ 		check("aspect A {pointcut a();declare soft: Exception+: a();}",
+-				"(compilationUnit(aspect(simpleName)(pointcut(simpleName))(declareSoft(referencePointcut(simpleName))(defaultTypePattern))))");
++				"(compilationUnit(aspect(simpleName)(pointcut(simpleName))(declareSoft(referencePointcut(simpleName))(wildTypePattern))))");
+ 	}
+ 	public void testDeclarePrecedence(){
+ 		check("aspect A{}aspect B{declare precedence: B,A;}",
+-				"(compilationUnit(aspect(simpleName))(aspect(simpleName)(declarePrecedence(defaultTypePattern)(defaultTypePattern))))");
++				"(compilationUnit(aspect(simpleName))(aspect(simpleName)(declarePrecedence(wildTypePattern)(wildTypePattern))))");
+ 	}
+ 	public void testDeclareAnnotationType(){
+ 		checkJLS3("@interface MyAnnotation{}class C{}aspect A{declare @type: C : @MyAnnotation;}",
+-				"(compilationUnit(simpleName)(class(simpleName))(aspect(simpleName)(declareAtType(defaultTypePattern)(simpleName))))");
++				"(compilationUnit(simpleName)(class(simpleName))(aspect(simpleName)(declareAtType(wildTypePattern)(simpleName))))");
+ 	}
+ 	public void testDeclareAnnotationMethod(){
+ 		checkJLS3("@interface MyAnnotation{}class C{}aspect A{declare @method:public * C.*(..) : @MyAnnotation;}",
+@@ -727,13 +797,85 @@ class TestVisitor extends AjASTVisitor {
+ 	public void endVisit(DeclareWarningDeclaration node) {
+ 		b.append(")"); //$NON-NLS-1$
+ 	}
+-	public boolean visit(DefaultTypePattern node) {
+-		b.append("(defaultTypePattern");
+-		return isVisitingChildren();		
++	
++	public boolean visit(AbstractBooleanTypePattern node) {
++		b.append("(");
++		node.getLeft().accept(this);
++		if (node instanceof AndTypePattern) {
++			b.append("andTypePattern");
++		} else if (node instanceof OrTypePattern) {
++			b.append("orTypePattern");
++		}
++		node.getRight().accept(this);
++		b.append(")");
++		
++		// Don't visit the children, as that is done above in order (left node first, boolean operator next, right node last
++		return false;
+ 	}
+-	public void endVisit(DefaultTypePattern node) {
+-		b.append(")"); //$NON-NLS-1$
++
++
++	public boolean visit(AnyTypePattern node) {
++		b.append("(anyTypePattern");
++		return isVisitingChildren();
+ 	}
++
++
++	public void endVisit(AnyTypePattern node) {
++		b.append(")"); 
++	}
++
++
++	public boolean visit(AnyWithAnnotationTypePattern node) {
++		b.append("(anyWithAnnotationTypePattern");
++		return isVisitingChildren();
++	}
++
++
++	public void endVisit(AnyWithAnnotationTypePattern node) {
++		b.append(")"); 
++	}
++
++	public boolean visit(IdentifierTypePattern node) {
++		if (node instanceof WildTypePattern) {
++			b.append("(wildTypePattern");
++		} else if (node instanceof ExactTypePattern) {
++			b.append("(exactTypePattern");
++		} else if (node instanceof BindingTypePattern) {
++			b.append("(bindingTypePattern");
++		}
++		return isVisitingChildren();
++	}
++
++
++	public void endVisit(IdentifierTypePattern node) {
++		b.append(")"); 
++	}
++
++
++	public boolean visit(NotTypePattern node) {
++		b.append("(notTypePattern");
++		return isVisitingChildren();
++	}
++
++
++	public void endVisit(NotTypePattern node) {
++		b.append(")"); 
++	}
++
++
++	public boolean visit(TypeCategoryTypePattern node) {
++		b.append("(typeCategoryTypePattern");
++		return isVisitingChildren();
++	}
++
++
++	public void endVisit(TypeCategoryTypePattern node) {
++		b.append(")"); 
++	}
++	
++	
++	// End of TypePattern additions for Bugzilla 329268
++
+ 	public boolean visit(SignaturePattern node) {
+ 		b.append("(signaturePattern");
+ 		return isVisitingChildren();		
+@@ -1,15 +1,16 @@
+ /********************************************************************
+- * Copyright (c) 2006 Contributors. All rights reserved. 
++ * Copyright (c) 2006, 2010 Contributors. All rights reserved. 
+  * This program and the accompanying materials are made available 
+  * under the terms of the Eclipse Public License v1.0 
+  * which accompanies this distribution and is available at 
+  * http://eclipse.org/legal/epl-v10.html 
+  *  
+  * Contributors: IBM Corporation - initial API and implementation 
+- * 				 Helen Hawkins   - iniital version
++ * 				 Helen Hawkins   - initial version
+  *******************************************************************/
+ package org.aspectj.tools.ajc;
+ 
++import java.util.ArrayList;
+ import java.util.Collections;
+ import java.util.Iterator;
+ import java.util.List;
+@@ -17,6 +18,7 @@ import java.util.List;
+ import org.aspectj.org.eclipse.jdt.core.dom.AST;
+ import org.aspectj.org.eclipse.jdt.core.dom.ASTNode;
+ import org.aspectj.org.eclipse.jdt.core.dom.ASTParser;
++import org.aspectj.org.eclipse.jdt.core.dom.AbstractBooleanTypePattern;
+ import org.aspectj.org.eclipse.jdt.core.dom.AfterAdviceDeclaration;
+ import org.aspectj.org.eclipse.jdt.core.dom.AfterReturningAdviceDeclaration;
+ import org.aspectj.org.eclipse.jdt.core.dom.AfterThrowingAdviceDeclaration;
+@@ -24,6 +26,8 @@ import org.aspectj.org.eclipse.jdt.core.dom.AjAST;
+ import org.aspectj.org.eclipse.jdt.core.dom.AjASTVisitor;
+ import org.aspectj.org.eclipse.jdt.core.dom.AjTypeDeclaration;
+ import org.aspectj.org.eclipse.jdt.core.dom.AndPointcut;
++import org.aspectj.org.eclipse.jdt.core.dom.AnyTypePattern;
++import org.aspectj.org.eclipse.jdt.core.dom.AnyWithAnnotationTypePattern;
+ import org.aspectj.org.eclipse.jdt.core.dom.AroundAdviceDeclaration;
+ import org.aspectj.org.eclipse.jdt.core.dom.AspectDeclaration;
+ import org.aspectj.org.eclipse.jdt.core.dom.BeforeAdviceDeclaration;
+@@ -43,11 +47,16 @@ import org.aspectj.org.eclipse.jdt.core.dom.DeclareSoftDeclaration;
+ import org.aspectj.org.eclipse.jdt.core.dom.DeclareWarningDeclaration;
+ import org.aspectj.org.eclipse.jdt.core.dom.DefaultPointcut;
+ import org.aspectj.org.eclipse.jdt.core.dom.DefaultTypePattern;
++import org.aspectj.org.eclipse.jdt.core.dom.EllipsisTypePattern;
++import org.aspectj.org.eclipse.jdt.core.dom.HasMemberTypePattern;
+ import org.aspectj.org.eclipse.jdt.core.dom.IExtendedModifier;
++import org.aspectj.org.eclipse.jdt.core.dom.IdentifierTypePattern;
+ import org.aspectj.org.eclipse.jdt.core.dom.InterTypeFieldDeclaration;
+ import org.aspectj.org.eclipse.jdt.core.dom.InterTypeMethodDeclaration;
+ import org.aspectj.org.eclipse.jdt.core.dom.Javadoc;
++import org.aspectj.org.eclipse.jdt.core.dom.NoTypePattern;
+ import org.aspectj.org.eclipse.jdt.core.dom.NotPointcut;
++import org.aspectj.org.eclipse.jdt.core.dom.NotTypePattern;
+ import org.aspectj.org.eclipse.jdt.core.dom.OrPointcut;
+ import org.aspectj.org.eclipse.jdt.core.dom.PerCflow;
+ import org.aspectj.org.eclipse.jdt.core.dom.PerObject;
+@@ -62,8 +71,10 @@ import org.aspectj.org.eclipse.jdt.core.dom.SimpleType;
+ import org.aspectj.org.eclipse.jdt.core.dom.SingleVariableDeclaration;
+ import org.aspectj.org.eclipse.jdt.core.dom.StringLiteral;
+ import org.aspectj.org.eclipse.jdt.core.dom.Type;
++import org.aspectj.org.eclipse.jdt.core.dom.TypeCategoryTypePattern;
+ import org.aspectj.org.eclipse.jdt.core.dom.TypeDeclaration;
+ import org.aspectj.org.eclipse.jdt.core.dom.TypePattern;
++import org.aspectj.org.eclipse.jdt.internal.core.SourceRange;
+ 
+ /**
+  * For each AspectJ ASTNode there is a test for:
+@@ -1649,7 +1660,145 @@ public class AjASTTest extends AjASTTestCase {
+ 	public void testDeclareParents() {
+ 		checkJLS3("class A{}class B{}aspect C {declare parents : A extends B;}", 28, 29);
+ 	}
+-
++	
++	
++	/*
++	 * 
++	 * 
++	 * START: Test TypePattern nodes introduced in Bugzilla 329268.
++	 * 
++	 * 
++	 */
++	
++	public void testDeclareParentsTypePatternNodeSource() {
++		checkTypePatternSourceRangesJLS3("class A{}class B{}aspect C {declare parents : A extends B;}", new int[][] {{46, 1} , {56, 1 }});
++	}
++	
++	public void testDeclareParentsAnySource() {
++		checkTypePatternSourceRangesJLS3("class A{}class B{}aspect C {declare parents : * extends B;}", new int[][] {{46, 1} , {56, 1 }});
++	}
++	
++	public void testDeclareParentsAndSource() {
++
++		checkTypePatternSourceRangesJLS3(
++				"class A{}class B{}class D{}class E{}aspect C {declare parents : A && B && D extends E;}",
++				new int[][] { { 64, 11 },// A && B && D,
++						{ 64, 1 }, // A
++						{ 69, 6 }, // B && D
++						{ 69, 1 }, // B
++						{ 74, 1 }, // D
++						{ 84, 1 } // E
++				});
++	}
++	
++	public void testDeclareParentsNotSource() {
++
++		checkTypePatternSourceRangesJLS3(
++				"class A{}class B{}class D{}class E{}aspect C {declare parents : A && !B extends E;}",
++				new int[][] { { 64, 7 },// A && !B
++						{ 64, 1 }, // A
++						{ 70, 1 }, // !B: the source location for a negated pattern is the start of the negated pattern excluding "!". Is this a bug?
++						{ 70, 1 }, // B
++						{ 80, 1 } // E
++				});
++	}
++	
++	public void testDeclareParentsOrSource() {
++		checkTypePatternSourceRangesJLS3(
++				"class A{}class B{}class D{}class E{}aspect C {declare parents : A || B || D extends E;}",
++				new int[][] { { 64, 11 },// A || B || D,
++						{ 64, 1 }, // A
++						{ 69, 6 }, // B || D
++						{ 69, 1 }, // B
++						{ 74, 1 }, // D
++						{ 84, 1 } // E
++				});
++	}
++	
++	public void testDeclareParentsAnyWithAnnotationSource() {
++		checkTypePatternSourceRangesJLS3(
++				"@interface AnnotationT {}class E{}aspect C {declare parents : (@AnnotationT *) extends E;}",
++				new int[][] { { 62, 16 },// (@AnnotationT *)
++						{ 87, 1 } // E
++				});
++		
++	}
++	
++	public void testDeclareParentsTypeCategorySource() {
++		checkTypePatternSourceRangesJLS3(
++				"class A{}class E{}aspect C {declare parents : A && is(ClassType) extends E;}",
++				new int[][] { { 46, 18 },// A && !is(InnerType)
++						{ 46, 1 }, // A
++						{ 51, 13}, // is(InnerType)
++						{ 73, 1 } // E
++				});
++	}
++
++	public void testDeclareParentsTypeCategoryNotSource() {
++		checkTypePatternSourceRangesJLS3(
++				"class A{}class E{}aspect C {declare parents : A && !is(InnerType) extends E;}",
++				new int[][] { { 46, 19 },// A && !is(InnerType)
++						{ 46, 1 }, // A
++						{ 52, 13}, // !is(InnerType): the source location for a negated pattern is the start of the negated pattern excluding "!". Is this a bug?
++						{ 52, 13}, // is(InnerType)
++						{ 74, 1 } // E
++				});
++	}
++
++	// // TODO: commenting out as there isn't proper support for hasmethod(..)
++	// yet. Uncomment and fix when hasmethod is supported
++	// public void testDeclareParentsHasMember() {
++	// // This is wrong. Call checkTypePatternJLS3 instead to check the source
++	// ranges for hasMethod...
++	// checkJLS3("class A{}class B{ public void fooB() {}}class D{}aspect C {declare parents : A && hasmethod(void foo*(..)) extends D;}",
++	// 37, 34);
++	// }
++
++	public void testDeclareParentsTypeCategoryInner() {
++		checkCategoryTypePatternJLS3(
++				"class A{class B{}}class E{}aspect C {declare parents : B && is(InnerType) extends E;}",
++				TypeCategoryTypePattern.INNER, "is(InnerType)");
++	}
++
++	public void testDeclareParentsTypeCategoryInterface() {
++		checkCategoryTypePatternJLS3(
++				"interface B{}interface E{}aspect C {declare parents : B && is(InterfaceType) extends E;}",
++				TypeCategoryTypePattern.INTERFACE, "is(InterfaceType)");
++	}
++
++	public void testDeclareParentsTypeCategoryClass() {
++		checkCategoryTypePatternJLS3(
++				"class B{}class E{}aspect C {declare parents : B && is(ClassType) extends E;}",
++				TypeCategoryTypePattern.CLASS, "is(ClassType)");
++	}
++
++	public void testDeclareParentsTypeCategoryAnnotation() {
++		checkCategoryTypePatternJLS3(
++				"@interface B{}class E{}aspect C {declare parents : B && is(AnnotationType) extends E;}",
++				TypeCategoryTypePattern.ANNOTATION, "is(AnnotationType)");
++	}
++
++	public void testDeclareParentsTypeCategoryAnonymous() {
++		checkCategoryTypePatternJLS3(
++				"class A{B annonymousB = new B() {};}class B{}class E{}aspect C {declare parents : B && is(AnonymousType) extends E;}",
++				TypeCategoryTypePattern.ANONYMOUS, "is(AnonymousType)");
++	}
++
++	public void testDeclareParentsTypeCategoryEnum() {
++		checkCategoryTypePatternJLS3(
++				"class B{}class E{}aspect C {declare parents : B && !is(EnumType) extends E;}",
++				TypeCategoryTypePattern.ENUM, "is(EnumType)");
++	}
++	
++	/*
++	 * 
++	 * 
++	 * END: Test TypePattern nodes introduced in Bugzilla 329268.
++	 * 
++	 * 
++	 */
++	
++	
+ 	public void testDeclareWarning() {
+ 		checkJLS3("aspect A {pointcut a();declare warning: a(): \"error\";}", 23, 30);
+ 	}
+@@ -1680,8 +1829,96 @@ public class AjASTTest extends AjASTTestCase {
+ 		assertEquals("expected there to be one comment but found " + cu.getCommentList().size(), 1, cu.getCommentList().size());
+ 	}
+ 
++	
++	protected void assertExpression(String expectedExpression, TypePattern node) {
++		assertTrue("Expected: " + expectedExpression + ". Actual: " + node.getTypePatternExpression(), node.getTypePatternExpression().equals(expectedExpression));
++		
++	}
++	
++	protected void assertNodeType(Class<?> expected, TypePattern node) {
++		assertTrue("Expected " + expected.toString() + ". Actual: " + node.getClass().toString(), node.getClass().equals(expected));
++	}
++}
++
++
++
++class TypeCategoryTypeVisitor extends AjASTVisitor {
++	
++	private TypeCategoryTypePattern typeCategory = null;
++	
++	public boolean visit(TypeCategoryTypePattern node) {
++		typeCategory = node;
++		return false;
++	}
++	
++	public TypeCategoryTypePattern getTypeCategoryNode() {
++		return typeCategory;
++	}
++}
++
++class TypePatternSourceRangeVisitor extends AjASTVisitor {
++	private List<SourceRange> sourceRanges = new ArrayList<SourceRange>();
++
++	public List<SourceRange> getVisitedSourceRanges() {
++		return sourceRanges;
++	}
++
++	public boolean visit(AbstractBooleanTypePattern node) {
++		sourceRanges.add(new SourceRange(node.getStartPosition(), node
++				.getLength()));
++		return true;
++	}
++
++	public boolean visit(AnyTypePattern node) {
++		sourceRanges.add(new SourceRange(node.getStartPosition(), node
++				.getLength()));
++		return true;
++	}
++
++	public boolean visit(AnyWithAnnotationTypePattern node) {
++		sourceRanges.add(new SourceRange(node.getStartPosition(), node
++				.getLength()));
++		return true;
++	}
++
++	public boolean visit(EllipsisTypePattern node) {
++		sourceRanges.add(new SourceRange(node.getStartPosition(), node
++				.getLength()));
++		return true;
++	}
++
++	public boolean visit(HasMemberTypePattern node) {
++		sourceRanges.add(new SourceRange(node.getStartPosition(), node
++				.getLength()));
++		return true;
++	}
++
++	public boolean visit(IdentifierTypePattern node) {
++		sourceRanges.add(new SourceRange(node.getStartPosition(), node
++				.getLength()));
++		return true;
++	}
++
++	public boolean visit(NotTypePattern node) {
++		sourceRanges.add(new SourceRange(node.getStartPosition(), node
++				.getLength()));
++		return true;
++	}
++
++	public boolean visit(NoTypePattern node) {
++		sourceRanges.add(new SourceRange(node.getStartPosition(), node
++				.getLength()));
++		return true;
++	}
++
++	public boolean visit(TypeCategoryTypePattern node) {
++		sourceRanges.add(new SourceRange(node.getStartPosition(), node
++				.getLength()));
++		return true;
++	}
+ }
+ 
++
+ class SourceRangeVisitor extends AjASTVisitor {
+ 
+ 	boolean visitTheKids = true;
+@@ -1,5 +1,5 @@
+ /********************************************************************
+- * Copyright (c) 2006 Contributors. All rights reserved. 
++ * Copyright (c) 2006, 2010 Contributors. All rights reserved. 
+  * This program and the accompanying materials are made available 
+  * under the terms of the Eclipse Public License v1.0 
+  * which accompanies this distribution and is available at 
+@@ -10,14 +10,18 @@
+  *******************************************************************/
+ package org.aspectj.tools.ajc;
+ 
++import java.util.ArrayList;
+ import java.util.HashMap;
++import java.util.List;
+ 
+ import junit.framework.TestCase;
+ 
+ import org.aspectj.org.eclipse.jdt.core.dom.AST;
+ import org.aspectj.org.eclipse.jdt.core.dom.ASTParser;
+ import org.aspectj.org.eclipse.jdt.core.dom.AjAST;
++import org.aspectj.org.eclipse.jdt.core.dom.AjASTVisitor;
+ import org.aspectj.org.eclipse.jdt.core.dom.CompilationUnit;
++import org.aspectj.org.eclipse.jdt.internal.core.SourceRange;
+ 
+ public abstract class AjASTTestCase extends TestCase {
+ 
+@@ -35,23 +39,198 @@ public abstract class AjASTTestCase extends TestCase {
+ 		parser.setCompilerOptions(new HashMap());
+ 		CompilationUnit cu = (CompilationUnit) parser.createAST(null);
+ 		AST ast = cu.getAST();
+-		assertTrue("the ast should be an instance of AjAST",ast instanceof AjAST);
+-		return (AjAST)ast;
++		assertTrue("the ast should be an instance of AjAST",
++				ast instanceof AjAST);
++		return (AjAST) ast;
+ 	}
+ 
+-	protected void checkJLS3(String source, int start, int length) {
++	protected void checkJLS3(String source, ITypePatternTester tester) {
+ 		ASTParser parser = ASTParser.newParser(AST.JLS3);
+ 		parser.setCompilerOptions(new HashMap());
+ 		parser.setSource(source.toCharArray());
+ 		CompilationUnit cu2 = (CompilationUnit) parser.createAST(null);
+-		SourceRangeVisitor visitor = new SourceRangeVisitor();
++		AjASTVisitor visitor = tester.createVisitor();
+ 		cu2.accept(visitor);
+-		int s = visitor.getStart();
+-		int l = visitor.getLength();
+-		assertTrue("Expected start position: "+ start + ", Actual:" + s,
+-				start == s);
+-		assertTrue("Expected length: "+ length + ", Actual:" + l,
+-				length == l);
++		tester.testCondition(visitor);
++	}
++
++	protected void checkJLS3(String source, int start, int length) {
++		checkJLS3(source, new SourceRangeTester(start, length));
++	}
++
++	/**
++	 * 
++	 * @param source
++	 *            to parse and visit
++	 * @param expectedSourceRanges
++	 *            of TypePattern nodes encountered while visiting the AST
++	 */
++	protected void checkTypePatternSourceRangesJLS3(String source,
++			int[][] expectedSourceRanges) {
++		checkJLS3(source,
++				new TypePatternSourceRangeTester(expectedSourceRanges));
++	}
++
++	/**
++	 * 
++	 * @param source
++	 *            to parse and visit
++	 * @param expectedCategory
++	 *            expected category of a TypeCategoryTypePattern node
++	 *            encountered in the AST
++	 */
++	protected void checkCategoryTypePatternJLS3(String source,
++			int expectedCategory, String expectedExpression) {
++		checkJLS3(source, new TypeCategoryTester(expectedCategory, expectedExpression));
++	}
++
++
++	protected List<SourceRange> getSourceRanges(int[][] sourceRanges) {
++		List<SourceRange> convertedRanges = new ArrayList<SourceRange>();
++
++		for (int i = 0; i < sourceRanges.length; i++) {
++			convertedRanges.add(new SourceRange(sourceRanges[i][0],
++					sourceRanges[i][1]));
++		}
++		return convertedRanges;
++	}
++
++	/*
++	 * 
++	 * 
++	 * Testing Classes and Interfaces
++	 */
++
++	/**
++	 * Tests the results of a visitor when walking the AST
++	 * 
++	 */
++	interface ITypePatternTester {
++
++		/**
++		 * 
++		 * @return visitor to walk the AST. Must not be null.
++		 */
++		public AjASTVisitor createVisitor();
++
++		/**
++		 * Tests a condition after the visitor has visited the AST. This means
++		 * the visitor should contain the results of the visitation.
++		 * 
++		 * @return true if test condition passed. False otherwise
++		 */
++		public void testCondition(AjASTVisitor visitor);
++	}
++
++	/**
++	 * Tests whether a particular type category type pattern (InnerType,
++	 * InterfaceType, ClassType, etc..) is encountered when visiting nodes in an
++	 * AST.
++	 * 
++	 */
++	class TypeCategoryTester implements ITypePatternTester {
++
++		private int expectedCategory;
++		private String expectedExpression;
++
++		public TypeCategoryTester(int expectedCategory,
++				String expectedExpression) {
++			this.expectedCategory = expectedCategory;
++			this.expectedExpression = expectedExpression;
++		}
++
++		public AjASTVisitor createVisitor() {
++			return new TypeCategoryTypeVisitor();
++		}
++
++		public void testCondition(AjASTVisitor visitor) {
++			TypeCategoryTypeVisitor tcVisitor = (TypeCategoryTypeVisitor) visitor;
++			assertTrue("Expected type category: " + expectedCategory
++					+ ". Actual type category: "
++					+ tcVisitor.getTypeCategoryNode().getTypeCategory(),
++					expectedCategory == tcVisitor.getTypeCategoryNode()
++							.getTypeCategory());
++			assertTrue("Expected type category expression: "
++					+ expectedExpression
++					+ ". Actual type category expression: "
++					+ tcVisitor.getTypeCategoryNode()
++							.getTypePatternExpression(),
++					expectedExpression.equals(tcVisitor.getTypeCategoryNode()
++							.getTypePatternExpression()));
++		}
++	}
++
++	/**
++	 * Tests the starting location and source length of each TypePattern node
++	 * encountered while walking the AST.
++	 * 
++	 */
++	class TypePatternSourceRangeTester implements ITypePatternTester {
++
++		private int[][] expectedRawSourceRanges;
++
++		public TypePatternSourceRangeTester(int[][] expectedRawSourceRanges) {
++			this.expectedRawSourceRanges = expectedRawSourceRanges;
++		}
++
++		public AjASTVisitor createVisitor() {
++			return new TypePatternSourceRangeVisitor();
++		}
++
++		public void testCondition(AjASTVisitor visitor) {
++			TypePatternSourceRangeVisitor sourceRangeVisitor = (TypePatternSourceRangeVisitor) visitor;
++
++			List<SourceRange> actualRanges = sourceRangeVisitor
++					.getVisitedSourceRanges();
++			List<SourceRange> expectedRanges = getSourceRanges(expectedRawSourceRanges);
++
++			assertTrue("Expected " + expectedRanges.size()
++					+ " number of source range entries. Actual: "
++					+ actualRanges.size(),
++					expectedRanges.size() == actualRanges.size());
++
++			for (int i = 0; i < actualRanges.size(); i++) {
++				SourceRange expected = expectedRanges.get(i);
++				SourceRange actual = actualRanges.get(i);
++				assertTrue(
++						"Expected source range: " + expected.toString()
++								+ " does not match actual source range: "
++								+ actual.toString(), expected.equals(actual));
++			}
++
++		}
++	}
++
++	/**
++	 * Tests whether a particular AST node starts at a given expected location
++	 * and has an expected length
++	 * 
++	 */
++	class SourceRangeTester implements ITypePatternTester {
++
++		private int expectedStart;
++		private int expectedLength;
++
++		public SourceRangeTester(int expectedStart, int expectedLength) {
++			this.expectedLength = expectedLength;
++			this.expectedStart = expectedStart;
++		}
++
++		public AjASTVisitor createVisitor() {
++			return new SourceRangeVisitor();
++		}
++
++		public void testCondition(AjASTVisitor visitor) {
++
++			int s = ((SourceRangeVisitor) visitor).getStart();
++			int l = ((SourceRangeVisitor) visitor).getLength();
++			assertTrue("Expected start position: " + expectedStart
++					+ ", Actual:" + s, expectedStart == s);
++			assertTrue("Expected length: " + expectedLength + ", Actual:" + l,
++					expectedLength == l);
++
++		}
++
+ 	}
+ 
+ }
+@@ -1,5 +1,5 @@
+ /********************************************************************
+- * Copyright (c) 2006 Contributors. All rights reserved. 
++ * Copyright (c) 2006, 2010 Contributors. All rights reserved. 
+  * This program and the accompanying materials are made available 
+  * under the terms of the Eclipse Public License v1.0 
+  * which accompanies this distribution and is available at 
+@@ -67,6 +67,62 @@ public class AjNaiveASTFlattenerTest extends TestCase {
+ 				"public aspect A {\n  declare parents: X extends Y;\n}\n");
+ 	}
+ 
++	
++	/*
++	 * 
++	 * 
++	 * START: Test TypePattern nodes introduced in Bugzilla 329268.
++	 * 
++	 * 
++	 */
++	
++	public void testDeclareParentsDeclarationAny() throws Exception {
++		check("public aspect A { declare parents: * extends Y; }",
++				"public aspect A {\n  declare parents: * extends Y;\n}\n");
++	}
++	
++	public void testDeclareParentsAndDeclaration() throws Exception {
++		check("public aspect A { declare parents: W && X && Y extends Z; }",
++				"public aspect A {\n  declare parents: W && X && Y extends Z;\n}\n");
++	}
++	
++	public void testDeclareParentsOrDeclaration() throws Exception {
++		check("public aspect A { declare parents: W || X || Y extends Z; }",
++				"public aspect A {\n  declare parents: W || X || Y extends Z;\n}\n");
++	}
++	
++	public void testDeclareParentsNot() throws Exception {
++		check("public aspect A { declare parents: W && !X extends Z; }",
++				"public aspect A {\n  declare parents: W && !X extends Z;\n}\n");
++	}
++	
++	public void testDeclareParentsTypeCategory() throws Exception {
++		check("public aspect A { declare parents: B && is(AnonymousType) extends Z; }",
++		"public aspect A {\n  declare parents: B && is(AnonymousType) extends Z;\n}\n");
++		
++	}
++	
++	public void testDeclareParentsTypeCategoryNot() throws Exception {
++		check("public aspect A { declare parents: B && !is(InnerType) extends Z; }",
++		"public aspect A {\n  declare parents: B && !is(InnerType) extends Z;\n}\n");
++	}
++
++	
++	// TODO: commented until hasmethod is supported in AspectJ
++//	public void testDeclareParentsHasMember() {
++//		check("public aspect A { declare parents : A && hasmethod(void foo*(..)) extends D; }",
++//		"public aspect A {\n  declare parents : A && hasmethod(void foo*(..)) extends D;\n}\n");
++//	}
++
++	
++	/*
++	 * 
++	 * 
++	 * END: Test TypePattern nodes introduced in Bugzilla 329268.
++	 * 
++	 * 
++	 */
++	
+ 	public void testDeclareWarning() throws Exception {
+ 		check("public aspect A { declare warning: call(* *.*(..)) : \"warning!\"; }",
+ 				"public aspect A {\n  declare warning: call(* *.*(..)) : \"warning!\" ;\n}\n");
+@@ -0,0 +1,112 @@
++/* *******************************************************************
++ * Copyright (c) 2002, 2010 Palo Alto Research Center, Incorporated (PARC) and others.
++ * All rights reserved. 
++ * This program and the accompanying materials are made available 
++ * under the terms of the Eclipse Public License v1.0 
++ * which accompanies this distribution and is available at 
++ * http://www.eclipse.org/legal/epl-v10.html 
++ *  
++ * Contributors: 
++ *     PARC     initial implementation 
++ * ******************************************************************/
++package org.aspectj.weaver.patterns;
++
++import java.io.IOException;
++import java.util.Map;
++
++import org.aspectj.util.FuzzyBoolean;
++import org.aspectj.weaver.CompressingDataOutputStream;
++import org.aspectj.weaver.ResolvedType;
++import org.aspectj.weaver.World;
++
++public class AnyTypePattern extends TypePattern {
++
++	/**
++	 * Constructor for EllipsisTypePattern.
++	 * 
++	 * @param includeSubtypes
++	 */
++	public AnyTypePattern() {
++		super(false, false, new TypePatternList());
++	}
++
++	/*
++	 * (non-Javadoc)
++	 * 
++	 * @see org.aspectj.weaver.patterns.TypePattern#couldEverMatchSameTypesAs(org.aspectj.weaver.patterns.TypePattern)
++	 */
++	@Override
++	protected boolean couldEverMatchSameTypesAs(TypePattern other) {
++		return true;
++	}
++
++	/**
++	 * @see org.aspectj.weaver.patterns.TypePattern#matchesExactly(IType)
++	 */
++	@Override
++	protected boolean matchesExactly(ResolvedType type) {
++		return true;
++	}
++
++	@Override
++	protected boolean matchesExactly(ResolvedType type, ResolvedType annotatedType) {
++		return true;
++	}
++
++	/**
++	 * @see org.aspectj.weaver.patterns.TypePattern#matchesInstanceof(IType)
++	 */
++	@Override
++	public FuzzyBoolean matchesInstanceof(ResolvedType type) {
++		return FuzzyBoolean.YES;
++	}
++
++	@Override
++	public void write(CompressingDataOutputStream s) throws IOException {
++		s.writeByte(ANY_KEY);
++	}
++
++	/**
++	 * @see org.aspectj.weaver.patterns.TypePattern#matches(IType, MatchKind)
++	 */
++	// public FuzzyBoolean matches(IType type, MatchKind kind) {
++	// return FuzzyBoolean.YES;
++	// }
++	/**
++	 * @see org.aspectj.weaver.patterns.TypePattern#matchesSubtypes(IType)
++	 */
++	@Override
++	protected boolean matchesSubtypes(ResolvedType type) {
++		return true;
++	}
++
++	@Override
++	public boolean isStar() {
++		return true;
++	}
++
++	@Override
++	public String toString() {
++		return "*";
++	}
++
++	@Override
++	public boolean equals(Object obj) {
++		return (obj instanceof AnyTypePattern);
++	}
++
++	@Override
++	public int hashCode() {
++		return 37;
++	}
++
++	@Override
++	public Object accept(PatternNodeVisitor visitor, Object data) {
++		return visitor.visit(this, data);
++	}
++
++	@Override
++	public TypePattern parameterizeWith(Map arg0, World w) {
++		return this;
++	}
++}
+\ No newline at end of file
+@@ -0,0 +1,142 @@
++/* *******************************************************************
++ * Copyright (c) 2002, 2010 Palo Alto Research Center, Incorporated (PARC) and others.
++ * All rights reserved. 
++ * This program and the accompanying materials are made available 
++ * under the terms of the Eclipse Public License v1.0 
++ * which accompanies this distribution and is available at 
++ * http://www.eclipse.org/legal/epl-v10.html 
++ *  
++ * Contributors: 
++ *     PARC     initial implementation 
++ * ******************************************************************/
++package org.aspectj.weaver.patterns;
++
++import java.io.IOException;
++import java.lang.reflect.Modifier;
++import java.util.Map;
++
++import org.aspectj.bridge.MessageUtil;
++import org.aspectj.util.FuzzyBoolean;
++import org.aspectj.weaver.CompressingDataOutputStream;
++import org.aspectj.weaver.ISourceContext;
++import org.aspectj.weaver.ResolvedType;
++import org.aspectj.weaver.VersionedDataInputStream;
++import org.aspectj.weaver.WeaverMessages;
++import org.aspectj.weaver.World;
++
++
++/**
++ * This type represents a type pattern of '*' but with an annotation specified, e.g. '@Color *'
++ */
++public class AnyWithAnnotationTypePattern extends TypePattern {
++
++	public AnyWithAnnotationTypePattern(AnnotationTypePattern atp) {
++		super(false, false);
++		annotationPattern = atp;
++	}
++
++	@Override
++	public Object accept(PatternNodeVisitor visitor, Object data) {
++		return visitor.visit(this, data);
++	}
++
++	@Override
++	protected boolean couldEverMatchSameTypesAs(TypePattern other) {
++		return true;
++	}
++
++	@Override
++	protected boolean matchesExactly(ResolvedType type) {
++		annotationPattern.resolve(type.getWorld());
++		boolean b = false;
++		if (type.temporaryAnnotationTypes != null) {
++			b = annotationPattern.matches(type, type.temporaryAnnotationTypes).alwaysTrue();
++		} else {
++			b = annotationPattern.matches(type).alwaysTrue();
++		}
++		return b;
++	}
++
++	@Override
++	public TypePattern resolveBindings(IScope scope, Bindings bindings, boolean allowBinding, boolean requireExactType) {
++		if (requireExactType) {
++			scope.getWorld().getMessageHandler().handleMessage(
++					MessageUtil.error(WeaverMessages.format(WeaverMessages.WILDCARD_NOT_ALLOWED), getSourceLocation()));
++			return NO;
++		}
++		return super.resolveBindings(scope, bindings, allowBinding, requireExactType);
++	}
++
++	@Override
++	protected boolean matchesExactly(ResolvedType type, ResolvedType annotatedType) {
++		annotationPattern.resolve(type.getWorld());
++		return annotationPattern.matches(annotatedType).alwaysTrue();
++	}
++
++	@Override
++	public FuzzyBoolean matchesInstanceof(ResolvedType type) {
++		if (Modifier.isFinal(type.getModifiers())) {
++			return FuzzyBoolean.fromBoolean(matchesExactly(type));
++		}
++		return FuzzyBoolean.MAYBE;
++	}
++
++	@Override
++	public TypePattern parameterizeWith(Map typeVariableMap, World w) {
++		AnyWithAnnotationTypePattern ret = new AnyWithAnnotationTypePattern(this.annotationPattern.parameterizeWith(
++				typeVariableMap, w));
++		ret.copyLocationFrom(this);
++		return ret;
++	}
++
++	@Override
++	public void write(CompressingDataOutputStream s) throws IOException {
++		s.writeByte(TypePattern.ANY_WITH_ANNO);
++		annotationPattern.write(s);
++		writeLocation(s);
++	}
++
++	public static TypePattern read(VersionedDataInputStream s, ISourceContext c) throws IOException {
++		AnnotationTypePattern annPatt = AnnotationTypePattern.read(s, c);
++		AnyWithAnnotationTypePattern ret = new AnyWithAnnotationTypePattern(annPatt);
++		ret.readLocation(c, s);
++		return ret;
++	}
++
++	// public FuzzyBoolean matches(IType type, MatchKind kind) {
++	// return FuzzyBoolean.YES;
++	// }
++
++	@Override
++	protected boolean matchesSubtypes(ResolvedType type) {
++		return true;
++	}
++
++	@Override
++	public boolean isStar() {
++		return false;
++	}
++
++	@Override
++	public String toString() {
++		return "(" + annotationPattern + " *)";
++	}
++	
++	public AnnotationTypePattern getAnnotationTypePattern() {
++		return annotationPattern;
++	}
++
++	@Override
++	public boolean equals(Object obj) {
++		if (!(obj instanceof AnyWithAnnotationTypePattern)) {
++			return false;
++		}
++		AnyWithAnnotationTypePattern awatp = (AnyWithAnnotationTypePattern) obj;
++		return (annotationPattern.equals(awatp.annotationPattern));
++	}
++
++	@Override
++	public int hashCode() {
++		return annotationPattern.hashCode();
++	}
++}
+@@ -1,5 +1,5 @@
+ /* *******************************************************************
+- * Copyright (c) 2002 Palo Alto Research Center, Incorporated (PARC).
++ * Copyright (c) 2002, 2010 Palo Alto Research Center, Incorporated (PARC).
+  * All rights reserved. 
+  * This program and the accompanying materials are made available 
+  * under the terms of the Eclipse Public License v1.0 
+@@ -8,6 +8,7 @@
+  *  
+  * Contributors: 
+  *     PARC     initial implementation 
++ *     Nieraj Singh
+  * ******************************************************************/
+ 
+ package org.aspectj.weaver.patterns;
+@@ -25,6 +26,7 @@ import org.aspectj.weaver.World;
+ 
+ public class BindingTypePattern extends ExactTypePattern implements BindingPattern {
+ 	private int formalIndex;
++	private String bindingName;
+ 
+ 	public BindingTypePattern(UnresolvedType type, int index, boolean isVarArgs) {
+ 		super(type, false, isVarArgs);
+@@ -33,11 +35,16 @@ public class BindingTypePattern extends ExactTypePattern implements BindingPatte
+ 
+ 	public BindingTypePattern(FormalBinding binding, boolean isVarArgs) {
+ 		this(binding.getType(), binding.getIndex(), isVarArgs);
++		this.bindingName = binding.getName();
+ 	}
+ 
+ 	public int getFormalIndex() {
+ 		return formalIndex;
+ 	}
++	
++	public String getBindingName() {
++		return bindingName;
++	}
+ 
+ 	public boolean equals(Object other) {
+ 		if (!(other instanceof BindingTypePattern)) {
+@@ -0,0 +1,109 @@
++/* *******************************************************************
++ * Copyright (c) 2002, 2010 Contributors
++ * All rights reserved. 
++ * This program and the accompanying materials are made available 
++ * under the terms of the Eclipse Public License v1.0 
++ * which accompanies this distribution and is available at 
++ * http://www.eclipse.org/legal/epl-v10.html 
++ *  
++ * Contributors: 
++ *     PARC     initial implementation 
++ * ******************************************************************/
++package org.aspectj.weaver.patterns;
++
++import java.io.IOException;
++import java.util.Map;
++
++import org.aspectj.util.FuzzyBoolean;
++import org.aspectj.weaver.CompressingDataOutputStream;
++import org.aspectj.weaver.ResolvedType;
++import org.aspectj.weaver.World;
++
++public class EllipsisTypePattern extends TypePattern {
++
++	/**
++	 * Constructor for EllipsisTypePattern.
++	 * 
++	 * @param includeSubtypes
++	 */
++	public EllipsisTypePattern() {
++		super(false, false, new TypePatternList());
++	}
++
++	/*
++	 * (non-Javadoc)
++	 * 
++	 * @see org.aspectj.weaver.patterns.TypePattern#couldEverMatchSameTypesAs(org.aspectj.weaver.patterns.TypePattern)
++	 */
++	@Override
++	protected boolean couldEverMatchSameTypesAs(TypePattern other) {
++		return true;
++	}
++
++	/**
++	 * @see org.aspectj.weaver.patterns.TypePattern#matchesExactly(IType)
++	 */
++	@Override
++	protected boolean matchesExactly(ResolvedType type) {
++		return false;
++	}
++
++	@Override
++	protected boolean matchesExactly(ResolvedType type, ResolvedType annotatedType) {
++		return false;
++	}
++
++	/**
++	 * @see org.aspectj.weaver.patterns.TypePattern#matchesInstanceof(IType)
++	 */
++	@Override
++	public FuzzyBoolean matchesInstanceof(ResolvedType type) {
++		return FuzzyBoolean.NO;
++	}
++
++	@Override
++	public void write(CompressingDataOutputStream s) throws IOException {
++		s.writeByte(ELLIPSIS_KEY);
++	}
++
++	@Override
++	public boolean isEllipsis() {
++		return true;
++	}
++
++	@Override
++	public String toString() {
++		return "..";
++	}
++
++	/*
++	 * (non-Javadoc)
++	 * 
++	 * @see java.lang.Object#equals(java.lang.Object)
++	 */
++	@Override
++	public boolean equals(Object obj) {
++		return (obj instanceof EllipsisTypePattern);
++	}
++
++	/*
++	 * (non-Javadoc)
++	 * 
++	 * @see java.lang.Object#hashCode()
++	 */
++	@Override
++	public int hashCode() {
++		return 17 * 37;
++	}
++
++	@Override
++	public Object accept(PatternNodeVisitor visitor, Object data) {
++		return visitor.visit(this, data);
++	}
++
++	@Override
++	public TypePattern parameterizeWith(Map typeVariableMap, World w) {
++		return this;
++	}
++
++}
+\ No newline at end of file
+@@ -8,6 +8,7 @@
+  *  
+  * Contributors: 
+  *   Adrian Colyer			Initial implementation
++ *   Nieraj Singh
+  * ******************************************************************/
+ package org.aspectj.weaver.patterns;
+ 
+@@ -49,6 +50,10 @@ public class HasMemberTypePattern extends TypePattern {
+ 			return hasMethod(type);
+ 		}
+ 	}
++	
++	public ISignaturePattern getSignaturePattern() {
++		return signaturePattern;
++	}
+ 
+ 	private final static String declareAtPrefix = "ajc$declare_at";
+ 
+@@ -0,0 +1,117 @@
++/* *******************************************************************
++ * Copyright (c) 2002, 2010 Contributors
++ * All rights reserved. 
++ * This program and the accompanying materials are made available 
++ * under the terms of the Eclipse Public License v1.0 
++ * which accompanies this distribution and is available at 
++ * http://www.eclipse.org/legal/epl-v10.html 
++ *  
++ * Contributors: 
++ *     PARC     initial implementation 
++ * ******************************************************************/
++package org.aspectj.weaver.patterns;
++
++import java.io.IOException;
++import java.util.Map;
++
++import org.aspectj.util.FuzzyBoolean;
++import org.aspectj.weaver.CompressingDataOutputStream;
++import org.aspectj.weaver.ResolvedType;
++import org.aspectj.weaver.World;
++
++public class NoTypePattern extends TypePattern {
++
++	public NoTypePattern() {
++		super(false, false, new TypePatternList());
++	}
++
++	/*
++	 * (non-Javadoc)
++	 * 
++	 * @see org.aspectj.weaver.patterns.TypePattern#couldEverMatchSameTypesAs(org.aspectj.weaver.patterns.TypePattern)
++	 */
++	@Override
++	protected boolean couldEverMatchSameTypesAs(TypePattern other) {
++		return false;
++	}
++
++	/**
++	 * @see org.aspectj.weaver.patterns.TypePattern#matchesExactly(IType)
++	 */
++	@Override
++	protected boolean matchesExactly(ResolvedType type) {
++		return false;
++	}
++
++	@Override
++	protected boolean matchesExactly(ResolvedType type, ResolvedType annotatedType) {
++		return false;
++	}
++
++	/**
++	 * @see org.aspectj.weaver.patterns.TypePattern#matchesInstanceof(IType)
++	 */
++	@Override
++	public FuzzyBoolean matchesInstanceof(ResolvedType type) {
++		return FuzzyBoolean.NO;
++	}
++
++	@Override
++	public void write(CompressingDataOutputStream s) throws IOException {
++		s.writeByte(NO_KEY);
++	}
++
++	/**
++	 * @see org.aspectj.weaver.patterns.TypePattern#matches(IType, MatchKind)
++	 */
++	// public FuzzyBoolean matches(IType type, MatchKind kind) {
++	// return FuzzyBoolean.YES;
++	// }
++	/**
++	 * @see org.aspectj.weaver.patterns.TypePattern#matchesSubtypes(IType)
++	 */
++	@Override
++	protected boolean matchesSubtypes(ResolvedType type) {
++		return false;
++	}
++
++	@Override
++	public boolean isStar() {
++		return false;
++	}
++
++	@Override
++	public String toString() {
++		return "<nothing>";
++	}// FIXME AV - bad! toString() cannot be parsed back (not idempotent)
++
++	/*
++	 * (non-Javadoc)
++	 * 
++	 * @see java.lang.Object#equals(java.lang.Object)
++	 */
++	@Override
++	public boolean equals(Object obj) {
++		return (obj instanceof NoTypePattern);
++	}
++
++	/*
++	 * (non-Javadoc)
++	 * 
++	 * @see java.lang.Object#hashCode()
++	 */
++	@Override
++	public int hashCode() {
++		return 17 * 37 * 37;
++	}
++
++	@Override
++	public Object accept(PatternNodeVisitor visitor, Object data) {
++		return visitor.visit(this, data);
++	}
++
++	@Override
++	public TypePattern parameterizeWith(Map arg0, World w) {
++		return this;
++	}
++}
+@@ -5,6 +5,10 @@
+  * under the terms of the Eclipse Public License v1.0 
+  * which accompanies this distribution and is available at 
+  * http://www.eclipse.org/legal/epl-v10.html 
++ * 
++ * Contributors:
++ *     Andy Clement
++ *     Nieraj Singh
+  * ******************************************************************/
+ 
+ package org.aspectj.weaver.patterns;
+@@ -44,6 +48,10 @@ public class TypeCategoryTypePattern extends TypePattern {
+ 		super(false);
+ 		this.category = category;
+ 	}
++	
++	public int getTypeCategory() {
++		return category;
++	}
+ 
+ 	@Override
+ 	protected boolean matchesExactly(ResolvedType type) {
+@@ -1,5 +1,5 @@
+ /* *******************************************************************
+- * Copyright (c) 2002 Palo Alto Research Center, Incorporated (PARC).
++ * Copyright (c) 2002, 2010 Palo Alto Research Center, Incorporated (PARC).
+  * All rights reserved. 
+  * This program and the accompanying materials are made available 
+  * under the terms of the Eclipse Public License v1.0 
+@@ -8,19 +8,18 @@
+  *  
+  * Contributors: 
+  *     PARC     initial implementation 
++ *     Nieraj Singh
+  * ******************************************************************/
+ 
+ package org.aspectj.weaver.patterns;
+ 
+ import java.io.IOException;
+-import java.lang.reflect.Modifier;
+ import java.util.Iterator;
+ import java.util.Map;
+ 
+ import org.aspectj.bridge.MessageUtil;
+ import org.aspectj.util.FuzzyBoolean;
+ import org.aspectj.weaver.BCException;
+-import org.aspectj.weaver.CompressingDataOutputStream;
+ import org.aspectj.weaver.ISourceContext;
+ import org.aspectj.weaver.IntMap;
+ import org.aspectj.weaver.ResolvedType;
+@@ -357,392 +356,5 @@ public abstract class TypePattern extends PatternNode {
+ 
+ }
+ 
+-class EllipsisTypePattern extends TypePattern {
+ 
+-	/**
+-	 * Constructor for EllipsisTypePattern.
+-	 * 
+-	 * @param includeSubtypes
+-	 */
+-	public EllipsisTypePattern() {
+-		super(false, false, new TypePatternList());
+-	}
+-
+-	/*
+-	 * (non-Javadoc)
+-	 * 
+-	 * @see org.aspectj.weaver.patterns.TypePattern#couldEverMatchSameTypesAs(org.aspectj.weaver.patterns.TypePattern)
+-	 */
+-	@Override
+-	protected boolean couldEverMatchSameTypesAs(TypePattern other) {
+-		return true;
+-	}
+-
+-	/**
+-	 * @see org.aspectj.weaver.patterns.TypePattern#matchesExactly(IType)
+-	 */
+-	@Override
+-	protected boolean matchesExactly(ResolvedType type) {
+-		return false;
+-	}
+-
+-	@Override
+-	protected boolean matchesExactly(ResolvedType type, ResolvedType annotatedType) {
+-		return false;
+-	}
+-
+-	/**
+-	 * @see org.aspectj.weaver.patterns.TypePattern#matchesInstanceof(IType)
+-	 */
+-	@Override
+-	public FuzzyBoolean matchesInstanceof(ResolvedType type) {
+-		return FuzzyBoolean.NO;
+-	}
+-
+-	@Override
+-	public void write(CompressingDataOutputStream s) throws IOException {
+-		s.writeByte(ELLIPSIS_KEY);
+-	}
+-
+-	@Override
+-	public boolean isEllipsis() {
+-		return true;
+-	}
+-
+-	@Override
+-	public String toString() {
+-		return "..";
+-	}
+-
+-	/*
+-	 * (non-Javadoc)
+-	 * 
+-	 * @see java.lang.Object#equals(java.lang.Object)
+-	 */
+-	@Override
+-	public boolean equals(Object obj) {
+-		return (obj instanceof EllipsisTypePattern);
+-	}
+-
+-	/*
+-	 * (non-Javadoc)
+-	 * 
+-	 * @see java.lang.Object#hashCode()
+-	 */
+-	@Override
+-	public int hashCode() {
+-		return 17 * 37;
+-	}
+-
+-	@Override
+-	public Object accept(PatternNodeVisitor visitor, Object data) {
+-		return visitor.visit(this, data);
+-	}
+-
+-	@Override
+-	public TypePattern parameterizeWith(Map typeVariableMap, World w) {
+-		return this;
+-	}
+-
+-}
+-
+-class AnyTypePattern extends TypePattern {
+-
+-	/**
+-	 * Constructor for EllipsisTypePattern.
+-	 * 
+-	 * @param includeSubtypes
+-	 */
+-	public AnyTypePattern() {
+-		super(false, false, new TypePatternList());
+-	}
+-
+-	/*
+-	 * (non-Javadoc)
+-	 * 
+-	 * @see org.aspectj.weaver.patterns.TypePattern#couldEverMatchSameTypesAs(org.aspectj.weaver.patterns.TypePattern)
+-	 */
+-	@Override
+-	protected boolean couldEverMatchSameTypesAs(TypePattern other) {
+-		return true;
+-	}
+-
+-	/**
+-	 * @see org.aspectj.weaver.patterns.TypePattern#matchesExactly(IType)
+-	 */
+-	@Override
+-	protected boolean matchesExactly(ResolvedType type) {
+-		return true;
+-	}
+-
+-	@Override
+-	protected boolean matchesExactly(ResolvedType type, ResolvedType annotatedType) {
+-		return true;
+-	}
+-
+-	/**
+-	 * @see org.aspectj.weaver.patterns.TypePattern#matchesInstanceof(IType)
+-	 */
+-	@Override
+-	public FuzzyBoolean matchesInstanceof(ResolvedType type) {
+-		return FuzzyBoolean.YES;
+-	}
+-
+-	@Override
+-	public void write(CompressingDataOutputStream s) throws IOException {
+-		s.writeByte(ANY_KEY);
+-	}
+-
+-	/**
+-	 * @see org.aspectj.weaver.patterns.TypePattern#matches(IType, MatchKind)
+-	 */
+-	// public FuzzyBoolean matches(IType type, MatchKind kind) {
+-	// return FuzzyBoolean.YES;
+-	// }
+-	/**
+-	 * @see org.aspectj.weaver.patterns.TypePattern#matchesSubtypes(IType)
+-	 */
+-	@Override
+-	protected boolean matchesSubtypes(ResolvedType type) {
+-		return true;
+-	}
+-
+-	@Override
+-	public boolean isStar() {
+-		return true;
+-	}
+-
+-	@Override
+-	public String toString() {
+-		return "*";
+-	}
+-
+-	@Override
+-	public boolean equals(Object obj) {
+-		return (obj instanceof AnyTypePattern);
+-	}
+-
+-	@Override
+-	public int hashCode() {
+-		return 37;
+-	}
+-
+-	@Override
+-	public Object accept(PatternNodeVisitor visitor, Object data) {
+-		return visitor.visit(this, data);
+-	}
+-
+-	@Override
+-	public TypePattern parameterizeWith(Map arg0, World w) {
+-		return this;
+-	}
+-}
+-
+-/**
+- * This type represents a type pattern of '*' but with an annotation specified, e.g. '@Color *'
+- */
+-class AnyWithAnnotationTypePattern extends TypePattern {
+-
+-	public AnyWithAnnotationTypePattern(AnnotationTypePattern atp) {
+-		super(false, false);
+-		annotationPattern = atp;
+-	}
+-
+-	@Override
+-	public Object accept(PatternNodeVisitor visitor, Object data) {
+-		return visitor.visit(this, data);
+-	}
+-
+-	@Override
+-	protected boolean couldEverMatchSameTypesAs(TypePattern other) {
+-		return true;
+-	}
+-
+-	@Override
+-	protected boolean matchesExactly(ResolvedType type) {
+-		annotationPattern.resolve(type.getWorld());
+-		boolean b = false;
+-		if (type.temporaryAnnotationTypes != null) {
+-			b = annotationPattern.matches(type, type.temporaryAnnotationTypes).alwaysTrue();
+-		} else {
+-			b = annotationPattern.matches(type).alwaysTrue();
+-		}
+-		return b;
+-	}
+-
+-	@Override
+-	public TypePattern resolveBindings(IScope scope, Bindings bindings, boolean allowBinding, boolean requireExactType) {
+-		if (requireExactType) {
+-			scope.getWorld().getMessageHandler().handleMessage(
+-					MessageUtil.error(WeaverMessages.format(WeaverMessages.WILDCARD_NOT_ALLOWED), getSourceLocation()));
+-			return NO;
+-		}
+-		return super.resolveBindings(scope, bindings, allowBinding, requireExactType);
+-	}
+-
+-	@Override
+-	protected boolean matchesExactly(ResolvedType type, ResolvedType annotatedType) {
+-		annotationPattern.resolve(type.getWorld());
+-		return annotationPattern.matches(annotatedType).alwaysTrue();
+-	}
+-
+-	@Override
+-	public FuzzyBoolean matchesInstanceof(ResolvedType type) {
+-		if (Modifier.isFinal(type.getModifiers())) {
+-			return FuzzyBoolean.fromBoolean(matchesExactly(type));
+-		}
+-		return FuzzyBoolean.MAYBE;
+-	}
+-
+-	@Override
+-	public TypePattern parameterizeWith(Map typeVariableMap, World w) {
+-		AnyWithAnnotationTypePattern ret = new AnyWithAnnotationTypePattern(this.annotationPattern.parameterizeWith(
+-				typeVariableMap, w));
+-		ret.copyLocationFrom(this);
+-		return ret;
+-	}
+-
+-	@Override
+-	public void write(CompressingDataOutputStream s) throws IOException {
+-		s.writeByte(TypePattern.ANY_WITH_ANNO);
+-		annotationPattern.write(s);
+-		writeLocation(s);
+-	}
+ 
+-	public static TypePattern read(VersionedDataInputStream s, ISourceContext c) throws IOException {
+-		AnnotationTypePattern annPatt = AnnotationTypePattern.read(s, c);
+-		AnyWithAnnotationTypePattern ret = new AnyWithAnnotationTypePattern(annPatt);
+-		ret.readLocation(c, s);
+-		return ret;
+-	}
+-
+-	// public FuzzyBoolean matches(IType type, MatchKind kind) {
+-	// return FuzzyBoolean.YES;
+-	// }
+-
+-	@Override
+-	protected boolean matchesSubtypes(ResolvedType type) {
+-		return true;
+-	}
+-
+-	@Override
+-	public boolean isStar() {
+-		return false;
+-	}
+-
+-	@Override
+-	public String toString() {
+-		return "(" + annotationPattern + " *)";
+-	}
+-
+-	@Override
+-	public boolean equals(Object obj) {
+-		if (!(obj instanceof AnyWithAnnotationTypePattern)) {
+-			return false;
+-		}
+-		AnyWithAnnotationTypePattern awatp = (AnyWithAnnotationTypePattern) obj;
+-		return (annotationPattern.equals(awatp.annotationPattern));
+-	}
+-
+-	@Override
+-	public int hashCode() {
+-		return annotationPattern.hashCode();
+-	}
+-}
+-
+-class NoTypePattern extends TypePattern {
+-
+-	public NoTypePattern() {
+-		super(false, false, new TypePatternList());
+-	}
+-
+-	/*
+-	 * (non-Javadoc)
+-	 * 
+-	 * @see org.aspectj.weaver.patterns.TypePattern#couldEverMatchSameTypesAs(org.aspectj.weaver.patterns.TypePattern)
+-	 */
+-	@Override
+-	protected boolean couldEverMatchSameTypesAs(TypePattern other) {
+-		return false;
+-	}
+-
+-	/**
+-	 * @see org.aspectj.weaver.patterns.TypePattern#matchesExactly(IType)
+-	 */
+-	@Override
+-	protected boolean matchesExactly(ResolvedType type) {
+-		return false;
+-	}
+-
+-	@Override
+-	protected boolean matchesExactly(ResolvedType type, ResolvedType annotatedType) {
+-		return false;
+-	}
+-
+-	/**
+-	 * @see org.aspectj.weaver.patterns.TypePattern#matchesInstanceof(IType)
+-	 */
+-	@Override
+-	public FuzzyBoolean matchesInstanceof(ResolvedType type) {
+-		return FuzzyBoolean.NO;
+-	}
+-
+-	@Override
+-	public void write(CompressingDataOutputStream s) throws IOException {
+-		s.writeByte(NO_KEY);
+-	}
+-
+-	/**
+-	 * @see org.aspectj.weaver.patterns.TypePattern#matches(IType, MatchKind)
+-	 */
+-	// public FuzzyBoolean matches(IType type, MatchKind kind) {
+-	// return FuzzyBoolean.YES;
+-	// }
+-	/**
+-	 * @see org.aspectj.weaver.patterns.TypePattern#matchesSubtypes(IType)
+-	 */
+-	@Override
+-	protected boolean matchesSubtypes(ResolvedType type) {
+-		return false;
+-	}
+-
+-	@Override
+-	public boolean isStar() {
+-		return false;
+-	}
+-
+-	@Override
+-	public String toString() {
+-		return "<nothing>";
+-	}// FIXME AV - bad! toString() cannot be parsed back (not idempotent)
+-
+-	/*
+-	 * (non-Javadoc)
+-	 * 
+-	 * @see java.lang.Object#equals(java.lang.Object)
+-	 */
+-	@Override
+-	public boolean equals(Object obj) {
+-		return (obj instanceof NoTypePattern);
+-	}
+-
+-	/*
+-	 * (non-Javadoc)
+-	 * 
+-	 * @see java.lang.Object#hashCode()
+-	 */
+-	@Override
+-	public int hashCode() {
+-		return 17 * 37 * 37;
+-	}
+-
+-	@Override
+-	public Object accept(PatternNodeVisitor visitor, Object data) {
+-		return visitor.visit(this, data);
+-	}
+-
+-	@Override
+-	public TypePattern parameterizeWith(Map arg0, World w) {
+-		return this;
+-	}
+-}

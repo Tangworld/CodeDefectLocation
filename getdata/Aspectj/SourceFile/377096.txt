@@ -1,0 +1,78 @@
+Binary files differ
+Binary files differ
+@@ -0,0 +1,7 @@
++@interface A {
++	int i(); 
++}
++class C {
++  @A(wibble={},i=42) 
++  public void xxx() {}
++}
+\ No newline at end of file
+@@ -10,6 +10,8 @@
+  *******************************************************************************/
+ package org.aspectj.systemtest.ajc180;
+ 
++import org.aspectj.systemtest.ajc181.Ajc181Tests;
++
+ import junit.framework.Test;
+ import junit.framework.TestSuite;
+ 
+@@ -19,6 +21,7 @@ public class AllTestsAspectJ180 {
+ 		TestSuite suite = new TestSuite("AspectJ 1.8.0 tests");
+ 		// $JUnit-BEGIN$
+ 		suite.addTest(Ajc180Tests.suite());
++		suite.addTest(Ajc181Tests.suite());
+ 		// $JUnit-END$
+ 		return suite;
+ 	}
+@@ -14,6 +14,7 @@ import java.io.File;
+ 
+ import junit.framework.Test;
+ 
++import org.aspectj.apache.bcel.classfile.Method;
+ import org.aspectj.testing.XMLBasedAjcTestCase;
+ 
+ /**
+@@ -21,6 +22,12 @@ import org.aspectj.testing.XMLBasedAjcTestCase;
+  */
+ public class Ajc181Tests extends org.aspectj.testing.XMLBasedAjcTestCase {
+ 
++	public void testBrokenAnnotations_377096() throws Exception {
++		runTest("broken annotations");
++		Method method = getMethodFromClass(getClassFrom(ajc.getSandboxDirectory(), "C"), "xxx");
++		method.getAnnotations();
++	}
++	
+ 	public void testDefaultMethods_433744() {
+ 		runTest("default methods");
+ 	}
+@@ -2,6 +2,12 @@
+ 
+ <suite>
+ 
++	<ajc-test dir="bugs181/377096" title="broken annotations">
++		<compile options="-1.5 -proceedOnError" files="A.java">
++		<message kind="error" text="The attribute wibble is undefined for the annotation type A"/>
++		</compile>
++	</ajc-test>
++
+ 	<ajc-test dir="bugs181/433744" title="default methods">
+ 		<compile options="-1.8" files="AnIterator.java"/>
+ 	</ajc-test>
+@@ -1500,13 +1500,13 @@ public class AjState implements CompilerConfigurationChangeFlags, TypeDelegateRe
+ 						reader, isAspect));
+ 			} catch (ClassFormatException cfe) {
+ 				try {
+-					String s = System.getProperty("aspectj.debug377906","false");
++					String s = System.getProperty("aspectj.debug377096","false");
+ 					if (s.equalsIgnoreCase("true")) {
+ 						String location = System.getProperty("java.io.tmpdir","/tmp");
+ 						String name = thisTime.getClassName();
+ 						File f = File.createTempFile(location+File.separator+name, ".class");
+ 						StringBuilder debug = new StringBuilder();
+-						debug.append("Debug377906: Dumping class called "+name+" to "+f.getName()+" size:"+thisTime.getBytes().length);
++						debug.append("Debug377096: Dumping class called "+name+" to "+f.getName()+" size:"+thisTime.getBytes().length);
+ 						DataOutputStream dos = new DataOutputStream(new FileOutputStream(f));
+ 						dos.write(thisTime.getBytes());
+ 						dos.close();
