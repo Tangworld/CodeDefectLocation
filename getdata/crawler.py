@@ -25,25 +25,37 @@ def getAllLinks():
     urls = soup.findAll(name='a', attrs={"href": re.compile(r'^show_bug.cgi')})
     count = 0
     print type(urls)
+    db = MySQLdb.connect("localhost", "root", "root", "CodeDefectLocation")
+    cursor = db.cursor()
     for url in urls:
         if count!=0:
             #进入具体页面
-            url = prefix+url["href"].encode("utf-8")
-            BUGID = url[url.index('=')+1:].strip()
-            print url
-            page = urllib.urlopen(url).read()
-            soup2 = BeautifulSoup(page, 'html.parser')
-            STATUS = soup2.find(name='span', attrs={"id": re.compile(r'^static_bug_status')}).string.encode("utf-8").strip()
-            ORIGINAL = soup2.find(name='span', attrs={"class": re.compile(r'^fn')}).string.encode("utf-8").strip()
-            # DESCRIPTION = soup2.find(name='span', attrs={"ID": re.compile(r'^short_desc_nonedit_display')}).string
-            DESCRIPTION = soup2.find(name='span', attrs={"id": re.compile(r'^short_desc_nonedit_display')}).string.encode("utf-8").strip()
-            print type(DESCRIPTION)
-            ASSIGNEES = []
-            ASSIGNEES = getHistory(BUGID)
-            STATUS = STATUS.replace("\n", "")
-            print BUGID + "   " + STATUS + "    " + ORIGINAL + "      " + DESCRIPTION
-            save(BUGID, STATUS, ORIGINAL, ASSIGNEES, None, DESCRIPTION)
+            try:
+                url = prefix+url["href"].encode("utf-8")
+                BUGID = url[url.index('=')+1:].strip()
+                print url
+                page = urllib.urlopen(url).read()
+                soup2 = BeautifulSoup(page, 'html.parser')
+                STATUS = soup2.find(name='span', attrs={"id": re.compile(r'^static_bug_status')})
+                if STATUS is not None:
+                    STATUS = STATUS.string.encode("utf-8").strip()
+                ORIGINAL = soup2.find(name='span', attrs={"class": re.compile(r'^fn')})
+                if ORIGINAL is not None:
+                    ORIGINAL = ORIGINAL.string.encode("utf-8").strip()
+                DESCRIPTION = soup2.find(name='span', attrs={"id": re.compile(r'^short_desc_nonedit_display')}).string
+                if DESCRIPTION is not None:
+                    DESCRIPTION = DESCRIPTION.strip()
+                print type(DESCRIPTION)
+                ASSIGNEES = []
+                ASSIGNEES = getHistory(BUGID)
+                STATUS = STATUS.replace("\n", "")
+                print BUGID + "   " + STATUS + "    " + ORIGINAL + "      " + DESCRIPTION
+                save(BUGID, STATUS, ORIGINAL, ASSIGNEES, None, DESCRIPTION, cursor, db)
+            except Exception, ex:
+                continue
         count += 1
+    cursor.close()
+    db.close()
     print count
 
 def getHistory(bugid):
@@ -70,7 +82,7 @@ def getHistory(bugid):
                 assignees.append(tdd.string.strip())
     return assignees
 
-def save(bugid,status,original,current,path,description):
+def save(bugid,status,original,current,path,description, cursor, db):
     # print bugid+"   "+status+"    "+original+"   "+current+"   "+description
     """
     爬取到所需的信息后则调用该函数将数据插入到数据库中
@@ -82,8 +94,7 @@ def save(bugid,status,original,current,path,description):
     :return: null
     """
     # 链接数据库
-    db = MySQLdb.connect("localhost", "root", "root", "CodeDefectLocation")
-    cursor = db.cursor()
+
 
     # 插入数据
     if current.__len__() > 0:
@@ -96,8 +107,8 @@ def save(bugid,status,original,current,path,description):
 
     # 关闭数据库
     db.commit()  # Commit the transaction
-    cursor.close()
-    db.close()
+    # cursor.close()
+    # db.close()
 
 if __name__ == '__main__':
     getAllLinks()
