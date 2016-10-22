@@ -2,9 +2,7 @@
 <project version="4">
   <component name="ChangeListManager">
     <list default="true" id="33cfeda7-3181-4d5e-a7ff-12787469554c" name="Default" comment="">
-      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/getdata/Aspectj/CrawlerForBugs.py" afterPath="$PROJECT_DIR$/getdata/Aspectj/CrawlerForBugs.py" />
-      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/getdata/Aspectj/CrawlerForGit.py" afterPath="$PROJECT_DIR$/getdata/Aspectj/CrawlerForGit.py" />
-      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/getdata/Aspectj/SourceFile/278496.txt" afterPath="$PROJECT_DIR$/getdata/Aspectj/SourceFile/278496.txt" />
+      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/getdata/Aspectj/UpdateData.py" afterPath="$PROJECT_DIR$/getdata/Aspectj/UpdateData.py" />
     </list>
     <ignored path="CodeDefectLocation.iws" />
     <ignored path=".idea/workspace.xml" />
@@ -17,7 +15,7 @@
     <option name="LAST_RESOLUTION" value="IGNORE" />
   </component>
   <component name="CoverageDataManager">
-    <SUITE FILE_PATH="coverage/CodeDefectLocation$UpdateData.coverage" NAME="UpdateData Coverage Results" MODIFIED="1477128209430" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/getdata/Aspectj" />
+    <SUITE FILE_PATH="coverage/CodeDefectLocation$UpdateData.coverage" NAME="UpdateData Coverage Results" MODIFIED="1477134657280" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/getdata/Aspectj" />
     <SUITE FILE_PATH="coverage/CodeDefectLocation$CrawlerForGit.coverage" NAME="CrawlerForGit Coverage Results" MODIFIED="1477119361808" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/getdata/Aspectj" />
   </component>
   <component name="CreatePatchCommitExecutor">
@@ -71,18 +69,20 @@
       <file leaf-file-name="UpdateData.py" pinned="false" current-in-tab="true">
         <entry file="file://$PROJECT_DIR$/getdata/Aspectj/UpdateData.py">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="468">
-              <caret line="26" column="25" selection-start-line="26" selection-start-column="25" selection-end-line="26" selection-end-column="25" />
+            <state relative-caret-position="1098">
+              <caret line="61" column="26" selection-start-line="61" selection-start-column="26" selection-end-line="61" selection-end-column="26" />
               <folding>
-                <marker date="1477128273271" expanded="true" signature="256:277" ph="select * fro... aspectj" />
-                <marker date="1477128273271" expanded="true" signature="358:378" ph="select * fro... assist" />
-                <marker date="1477128273271" expanded="true" signature="746:776" ph="update assis... " />
-                <marker date="1477128273271" expanded="true" signature="746:800" ph="update assis... " />
-                <marker date="1477128273271" expanded="true" signature="746:801" ph="update assis... " />
-                <marker date="1477128273271" expanded="true" signature="746:818" ph="update assis... " />
-                <marker date="1477128273271" expanded="true" signature="746:819" ph="update assis... " />
-                <marker date="1477128273271" expanded="true" signature="746:827" ph="update assis... " />
-                <marker date="1477128273271" expanded="true" signature="746:829" ph="update assis... " />
+                <marker date="1477134657227" expanded="true" signature="256:277" ph="select * fro... aspectj" />
+                <marker date="1477134657227" expanded="true" signature="358:378" ph="select * fro... assist" />
+                <marker date="1477134657227" expanded="true" signature="746:776" ph="update assis... " />
+                <marker date="1477134657227" expanded="true" signature="746:800" ph="update assis... " />
+                <marker date="1477134657227" expanded="true" signature="746:801" ph="update assis... " />
+                <marker date="1477134657227" expanded="true" signature="746:818" ph="update assis... " />
+                <marker date="1477134657227" expanded="true" signature="746:819" ph="update assis... " />
+                <marker date="1477134657227" expanded="true" signature="746:827" ph="update assis... " />
+                <marker date="1477134657227" expanded="true" signature="746:829" ph="update assis... " />
+                <marker date="1477134657227" expanded="true" signature="1042:1062" ph="select * fro... assist" />
+                <marker date="1477134657227" expanded="true" signature="1779:1827" ph="update assis... " />
               </folding>
             </state>
           </provider>
@@ -92,7 +92,7 @@
         <entry file="file://$PROJECT_DIR$/getdata/Aspectj/git.py">
           <provider selected="true" editor-type-id="text-editor">
             <state relative-caret-position="234">
-              <caret line="18" column="0" selection-start-line="18" selection-start-column="0" selection-end-line="18" selection-end-column="0" />
+              <caret line="51" column="71" selection-start-line="51" selection-start-column="71" selection-end-line="51" selection-end-column="71" />
               <folding />
             </state>
           </provider>
@@ -562,14 +562,6 @@
         </state>
       </provider>
     </entry>
-    <entry file="file://$PROJECT_DIR$/getdata/Aspectj/git.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="234">
-          <caret line="18" column="0" selection-start-line="18" selection-start-column="0" selection-end-line="18" selection-end-column="0" />
-          <folding />
-        </state>
-      </provider>
-    </entry>
     <entry file="file://$PROJECT_DIR$/getdata/Aspectj/CrawlerForBugs.py">
       <provider selected="true" editor-type-id="text-editor">
         <state relative-caret-position="90">
@@ -592,20 +584,30 @@
         </state>
       </provider>
     </entry>
+    <entry file="file://$PROJECT_DIR$/getdata/Aspectj/git.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="234">
+          <caret line="51" column="71" selection-start-line="51" selection-start-column="71" selection-end-line="51" selection-end-column="71" />
+          <folding />
+        </state>
+      </provider>
+    </entry>
     <entry file="file://$PROJECT_DIR$/getdata/Aspectj/UpdateData.py">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="468">
-          <caret line="26" column="25" selection-start-line="26" selection-start-column="25" selection-end-line="26" selection-end-column="25" />
+        <state relative-caret-position="1098">
+          <caret line="61" column="26" selection-start-line="61" selection-start-column="26" selection-end-line="61" selection-end-column="26" />
           <folding>
-            <marker date="1477128273271" expanded="true" signature="256:277" ph="select * fro... aspectj" />
-            <marker date="1477128273271" expanded="true" signature="358:378" ph="select * fro... assist" />
-            <marker date="1477128273271" expanded="true" signature="746:776" ph="update assis... " />
-            <marker date="1477128273271" expanded="true" signature="746:800" ph="update assis... " />
-            <marker date="1477128273271" expanded="true" signature="746:801" ph="update assis... " />
-            <marker date="1477128273271" expanded="true" signature="746:818" ph="update assis... " />
-            <marker date="1477128273271" expanded="true" signature="746:819" ph="update assis... " />
-            <marker date="1477128273271" expanded="true" signature="746:827" ph="update assis... " />
-            <marker date="1477128273271" expanded="true" signature="746:829" ph="update assis... " />
+            <marker date="1477134657227" expanded="true" signature="256:277" ph="select * fro... aspectj" />
+            <marker date="1477134657227" expanded="true" signature="358:378" ph="select * fro... assist" />
+            <marker date="1477134657227" expanded="true" signature="746:776" ph="update assis... " />
+            <marker date="1477134657227" expanded="true" signature="746:800" ph="update assis... " />
+            <marker date="1477134657227" expanded="true" signature="746:801" ph="update assis... " />
+            <marker date="1477134657227" expanded="true" signature="746:818" ph="update assis... " />
+            <marker date="1477134657227" expanded="true" signature="746:819" ph="update assis... " />
+            <marker date="1477134657227" expanded="true" signature="746:827" ph="update assis... " />
+            <marker date="1477134657227" expanded="true" signature="746:829" ph="update assis... " />
+            <marker date="1477134657227" expanded="true" signature="1042:1062" ph="select * fro... assist" />
+            <marker date="1477134657227" expanded="true" signature="1779:1827" ph="update assis... " />
           </folding>
         </state>
       </provider>
