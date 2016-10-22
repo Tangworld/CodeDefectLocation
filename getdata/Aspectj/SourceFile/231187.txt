@@ -1,0 +1,213 @@
+@@ -3,7 +3,7 @@
+ <!-- AspectJ v1.6.1 Tests -->
+ <suite>
+ 
+-    <ajc-test dir="bugs161/pr231187" title="generics bounds decp">
++    <ajc-test dir="bugs161/pr231187x" title="generics bounds decp">
+         <compile files="Cement.java ConcreteClass.java SuperClass.java SuperClassAspect.aj WetCement.java Main.java" options="-1.5"/>
+         <run class="concrete.Main">
+           <stdout>
+@@ -12,7 +12,7 @@
+         </run>
+     </ajc-test> 
+ 
+-    <ajc-test dir="bugs161/pr231187" title="generics bounds decp - 2">
++    <ajc-test dir="bugs161/pr231187x" title="generics bounds decp - 2">
+         <compile files="Cement.java ConcreteClass.java SuperClass.java WetCement.java" options="-1.5">
+           <message kind="error" text="The type WetCement is not a valid substitute for the bounded parameter"/>
+         </compile>
+@@ -0,0 +1,5 @@
++package concrete;
++
++public interface Cement {
++   public int getWeight();
++}
+@@ -0,0 +1,19 @@
++package concrete;
++
++import java.util.Vector;
++
++public class ConcreteClass extends SuperClass<WetCement> {
++
++	@Override
++	public Vector<WetCement> getSomeTs() {
++		// TODO Auto-generated method stub
++		return null;
++	}
++
++	@Override
++	public void addSomeTs(Vector<WetCement> newTs) {
++		// TODO Auto-generated method stub
++		someTs.addAll(newTs);
++	}
++
++}
+@@ -0,0 +1,14 @@
++package concrete;
++
++import java.util.*;
++
++public class Main {
++   public static void main(String[] args) {
++     ConcreteClass cc = new ConcreteClass();
++     WetCement wc = new WetCement();
++     Vector<WetCement> v = new Vector<WetCement>();
++     v.add(wc);
++     cc.addSomeTs(v);
++     System.out.println("ran!");
++   }
++}
+\ No newline at end of file
+@@ -0,0 +1,8 @@
++package concrete;
++import java.util.Vector;
++
++public abstract class SuperClass<T extends Cement> {
++   Vector<T> someTs = new Vector<T>();
++   public abstract Vector<T> getSomeTs();
++   public abstract void addSomeTs(Vector<T> newTs);  
++}
+@@ -0,0 +1,12 @@
++package concrete;
++
++import java.util.Vector;
++
++
++public aspect SuperClassAspect {
++   declare parents : WetCement implements Cement;
++
++   after(SuperClass sc, Vector cm) returning: execution(void SuperClass.addSomeTs(Vector)) && target(sc) && args(cm) {
++    //  System.out.println(cm);   
++   }
++}
+@@ -0,0 +1,6 @@
++package concrete;
++
++public class WetCement {
++   boolean wet = true;
++   public int getWeight() { return 5; }
++}
+@@ -142,7 +142,7 @@ public class AjLookupEnvironment extends LookupEnvironment implements AnonymousC
+ 
+ 		for (int i = lastCompletedUnitIndex + 1; i <= lastUnitIndex; i++) {
+ 			ContextToken tok = CompilationAndWeavingContext.enteringPhase(CompilationAndWeavingContext.BUILDING_FIELDS_AND_METHODS, units[i].compilationResult.fileName);
+-			units[i].scope.checkParameterizedTypes();
++//			units[i].scope.checkParameterizedTypes(); do this check a little later, after ITDs applied to stbs
+ 			units[i].scope.buildFieldsAndMethods();
+ 			CompilationAndWeavingContext.leavingPhase(tok);
+ 		}
+@@ -224,7 +224,11 @@ public class AjLookupEnvironment extends LookupEnvironment implements AnonymousC
+ 				weaveInterTypeDeclarations(units[i].scope, typeMungers, declareParents,declareAnnotationOnTypes);
+ 			}
+ 		}
+-		
++
++        for (int i = lastCompletedUnitIndex + 1; i <= lastUnitIndex; i++) {
++            units[i].scope.checkParameterizedTypes();
++        }
++        
+ 		for (int i = lastCompletedUnitIndex +1; i<=lastUnitIndex; i++) {
+ 			SourceTypeBinding[] b = units[i].scope.topLevelTypes;
+             for (int j = 0; j < b.length; j++) {
+@@ -0,0 +1,5 @@
++package concrete;
++
++public interface Cement {
++   public int getWeight();
++}
+@@ -0,0 +1,19 @@
++package concrete;
++
++import java.util.Vector;
++
++public class ConcreteClass extends SuperClass<WetCement> {
++
++	@Override
++	public Vector<WetCement> getSomeTs() {
++		// TODO Auto-generated method stub
++		return null;
++	}
++
++	@Override
++	public void addSomeTs(Vector<WetCement> newTs) {
++		// TODO Auto-generated method stub
++		someTs.addAll(newTs);
++	}
++
++}
+@@ -0,0 +1,14 @@
++package concrete;
++
++import java.util.*;
++
++public class Main {
++   public static void main(String[] args) {
++     ConcreteClass cc = new ConcreteClass();
++     WetCement wc = new WetCement();
++     Vector<WetCement> v = new Vector<WetCement>();
++     v.add(wc);
++     cc.addSomeTs(v);
++     System.out.println("ran!");
++   }
++}
+\ No newline at end of file
+@@ -0,0 +1,8 @@
++package concrete;
++import java.util.Vector;
++
++public abstract class SuperClass<T extends Cement> {
++   Vector<T> someTs = new Vector<T>();
++   public abstract Vector<T> getSomeTs();
++   public abstract void addSomeTs(Vector<T> newTs);  
++}
+@@ -0,0 +1,12 @@
++package concrete;
++
++import java.util.Vector;
++
++
++public aspect SuperClassAspect {
++   declare parents : WetCement implements Cement;
++
++   after(SuperClass sc, Vector cm) returning: execution(void SuperClass.addSomeTs(Vector)) && target(sc) && args(cm) {
++    //  System.out.println(cm);   
++   }
++}
+@@ -0,0 +1,6 @@
++package concrete;
++
++public class WetCement {
++   boolean wet = true;
++   public int getWeight() { return 5; }
++}
+@@ -19,6 +19,8 @@ import org.aspectj.testing.XMLBasedAjcTestCase;
+ public class Ajc161Tests extends org.aspectj.testing.XMLBasedAjcTestCase {
+ 
+ 	// AspectJ1.6.1
++    public void testGenericsBoundsDecp_pr231187() { runTest("generics bounds decp"); }
++    public void testGenericsBoundsDecp_pr231187_2() { runTest("generics bounds decp - 2"); }
+ 	public void testLtwInheritedCflow_pr230134() { runTest("ltw inherited cflow"); }
+     public void testAroundAdviceOnFieldSet_pr229910() { runTest("around advice on field set"); }
+     public void testPipelineCompilationGenericReturnType_pr226567() { runTest("pipeline compilation and generic return type"); }
+@@ -3,6 +3,21 @@
+ <!-- AspectJ v1.6.1 Tests -->
+ <suite>
+ 
++    <ajc-test dir="bugs161/pr231187" title="generics bounds decp">
++        <compile files="Cement.java ConcreteClass.java SuperClass.java SuperClassAspect.aj WetCement.java Main.java" options="-1.5"/>
++        <run class="concrete.Main">
++          <stdout>
++            <line text="ran!"/>
++          </stdout>
++        </run>
++    </ajc-test> 
++    
++    <ajc-test dir="bugs161/pr231187" title="generics bounds decp - 2">
++        <compile files="Cement.java ConcreteClass.java SuperClass.java WetCement.java" options="-1.5">
++          <message kind="error" text="The type WetCement is not a valid substitute for the bounded parameter"/>
++        </compile>
++    </ajc-test> 
++    
+     <ajc-test dir="bugs161/pr230134" title="ltw inherited cflow">
+       <compile files="HW.java"/>
+       <compile files="SimpleTracing.java Tracing.java HelloWorldTracing.java" outjar="foo.jar"/>

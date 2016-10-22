@@ -1,0 +1,70 @@
+@@ -29,20 +29,25 @@ import org.aspectj.org.eclipse.jdt.internal.compiler.ast.CompilationUnitDeclarat
+ import org.aspectj.org.eclipse.jdt.internal.compiler.ast.FieldDeclaration;
+ import org.aspectj.org.eclipse.jdt.internal.compiler.ast.MemberValuePair;
+ import org.aspectj.org.eclipse.jdt.internal.compiler.ast.MethodDeclaration;
++import org.aspectj.org.eclipse.jdt.internal.compiler.ast.NameReference;
+ import org.aspectj.org.eclipse.jdt.internal.compiler.ast.NormalAnnotation;
+ import org.aspectj.org.eclipse.jdt.internal.compiler.ast.SingleMemberAnnotation;
+ import org.aspectj.org.eclipse.jdt.internal.compiler.ast.SingleTypeReference;
+ import org.aspectj.org.eclipse.jdt.internal.compiler.ast.StringLiteral;
+ import org.aspectj.org.eclipse.jdt.internal.compiler.ast.TypeDeclaration;
+ import org.aspectj.org.eclipse.jdt.internal.compiler.ast.TypeReference;
++import org.aspectj.org.eclipse.jdt.internal.compiler.impl.Constant;
++import org.aspectj.org.eclipse.jdt.internal.compiler.lookup.Binding;
+ import org.aspectj.org.eclipse.jdt.internal.compiler.lookup.BlockScope;
+ import org.aspectj.org.eclipse.jdt.internal.compiler.lookup.ClassScope;
+ import org.aspectj.org.eclipse.jdt.internal.compiler.lookup.CompilationUnitScope;
++import org.aspectj.org.eclipse.jdt.internal.compiler.lookup.FieldBinding;
+ import org.aspectj.org.eclipse.jdt.internal.compiler.lookup.MethodScope;
+ import org.aspectj.org.eclipse.jdt.internal.compiler.lookup.SourceTypeBinding;
+ import org.aspectj.org.eclipse.jdt.internal.compiler.lookup.TypeBinding;
+ import org.aspectj.weaver.AdviceKind;
+ import org.aspectj.weaver.AjAttribute;
++import org.aspectj.weaver.BCException;
+ import org.aspectj.weaver.ISourceContext;
+ import org.aspectj.weaver.ResolvedPointcutDefinition;
+ import org.aspectj.weaver.UnresolvedType;
+@@ -469,6 +474,10 @@ public class ValidateAtAspectJAnnotationsVisitor extends ASTVisitor {
+ 				location[0] = sv.sourceStart;
+ 				location[1] = sv.sourceEnd;
+ 				return new String(sv.source());
++			} else if (sma.memberValue instanceof NameReference && (((NameReference)sma.memberValue).binding instanceof FieldBinding)) {
++				Binding b = ((NameReference)sma.memberValue).binding;
++				Constant c = ((FieldBinding)b).constant;
++				return c.stringValue();
+ 			}
+ 		}
+ 		if (! (inAnnotation instanceof NormalAnnotation)) return null;
+@@ -23,7 +23,7 @@ import org.aspectj.testing.XMLBasedAjcTestCase;
+ public class Ajc161Tests extends org.aspectj.testing.XMLBasedAjcTestCase {
+ 
+ 	// AspectJ1.6.1
+-//	public void testFinalStringsAnnotationPointcut_pr174385() { runTest("static strings in annotation pointcuts");}
++	public void testFinalStringsAnnotationPointcut_pr174385() { runTest("static strings in annotation pointcuts");}
+ 	public void testComplexBoundsGenericAspect_pr199130_1() { runTest("complex bounds on generic aspect - 1");}
+ 	public void testComplexBoundsGenericAspect_pr199130_2() { runTest("complex bounds on generic aspect - 2");}
+ 	public void testComplexBoundsGenericAspect_pr199130_3() { runTest("complex bounds on generic aspect - 3");}
+@@ -0,0 +1,23 @@
++package bug;
++
++import org.aspectj.lang.annotation.*;
++
++@Aspect
++public class StaticFinalStringInPointcutAspect {
++        static final String pcExpression = "within(*)";
++
++        @Pointcut(pcExpression)
++        public void pointcutThatUsesStaticFinalStringAsExpression() {}
++        
++        @Before("pointcutThatUsesStaticFinalStringAsExpression() && execution(* foo(..))") 
++        public void m() {
++        	System.out.println("advice");
++        }
++        
++        public void foo() {	
++        }
++        
++        public static void main(String[] args) {
++        	new StaticFinalStringInPointcutAspect().foo();
++		}
++}

@@ -1,0 +1,164 @@
+@@ -0,0 +1,11 @@
++To regenerate the class file in injarBin\pkg:
++
++	javac origInpathClass\InpathClass.java
++
++and copy it to injarBin\pkg.
++
++To regenerate the class copied over as part of the test:
++
++	javac newInpathClass\InpathClass.java  
++
++
+Binary files differ
+@@ -0,0 +1,9 @@
++package pack;
++
++public aspect A {
++
++	pointcut execEverything() : execution(* *.*(..));
++	
++	declare warning : execEverything() : "blah";
++	
++}
+Binary files differ
+@@ -0,0 +1,13 @@
++package pkg;
++
++public class InpathClass {
++
++	public void boo() {
++		
++	}
++	
++	public void goo() {
++		
++	}
++	
++}
+\ No newline at end of file
+@@ -0,0 +1,9 @@
++package pkg;
++
++public class InpathClass {
++
++	public void boo() {
++		
++	}
++	
++}
+@@ -75,6 +75,10 @@ public class AjdeInteractionTestbed extends TestCase {
+ 		MyProjectPropertiesAdapter.setAspectpath(aspectpath);
+ 	} 
+ 
++	public static void configureInPath(Set inpath) {
++		MyProjectPropertiesAdapter.setInpath(inpath);
++	}
++	
+ 	public static void configureOutputLocationManager(OutputLocationManager mgr) {
+ 		MyProjectPropertiesAdapter.setOutputLocationManager(mgr);
+ 	}
+@@ -357,12 +361,14 @@ public class AjdeInteractionTestbed extends TestCase {
+ 		static MyProjectPropertiesAdapter _instance = new MyProjectPropertiesAdapter();
+ 		private MyProjectPropertiesAdapter() {}
+ 
++
+ 		public static MyProjectPropertiesAdapter getInstance() { 
+ 			return _instance;
+ 		}
+ 
+ 		public static void reset() {
+ 			_instance.aspectPath=null;
++			_instance.inpath = null;
+ 			_instance.sourcePathResources=null;
+ 			_instance.outputLocationManager=null;
+ 		}
+@@ -370,6 +376,7 @@ public class AjdeInteractionTestbed extends TestCase {
+ 		private String projectName = null;
+ 		private String classPath = "";
+ 		private Set aspectPath = null;
++		private Set inpath = null;
+ 		private Map sourcePathResources = null;
+ 		private OutputLocationManager outputLocationManager = null;
+ 
+@@ -402,6 +409,11 @@ public class AjdeInteractionTestbed extends TestCase {
+ 			_instance.aspectPath = path;
+ 		}
+ 
++		public static void setInpath(Set inpath) {
++			_instance.inpath = inpath;
++		}
++
++		
+ 		// interface impl below
+ 
+ 		// DOESSOMETHING
+@@ -509,8 +521,8 @@ public class AjdeInteractionTestbed extends TestCase {
+ 		}
+ 
+ 		public Set getInpath() {
+-			log("MyProjectProperties.getInPath()");
+-			return null;
++			log("MyProjectProperties.getInPath(" + inpath +")");
++			return inpath;
+ 		}
+ 
+ 		public Map getSourcePathResources() {
+@@ -38,6 +38,7 @@ import org.aspectj.bridge.IMessage;
+ import org.aspectj.bridge.IMessageHandler;
+ import org.aspectj.bridge.IMessageHolder;
+ import org.aspectj.tools.ajc.Ajc;
++import org.aspectj.util.FileUtil;
+ import org.aspectj.weaver.LintMessage;
+ 
+ /**
+@@ -1672,6 +1673,39 @@ public class MultiProjectIncrementalTests extends AbstractMultiProjectIncrementa
+ 					" error but only found that one",errors.size() > 1);
+ 		}
+ 	}
++		
++	public void testPr168840() throws Exception {
++		initialiseProject("inpathTesting");
++		
++		String inpathTestingDir = getWorkingDir() + File.separator + "inpathTesting";
++		String inpathDir  = inpathTestingDir + File.separator + "injarBin" + File.separator + "pkg";
++		String expectedOutputDir = inpathTestingDir + File.separator + "bin";
++		
++		// set up the inpath to have the directory on it's path
++		File f = new File(inpathDir);
++		Set s = new HashSet();
++		s.add(f);
++		configureInPath(s);
++		build("inpathTesting");
++		// the declare warning matches one place so expect one warning message
++		assertTrue("Expected there to be one warning message but found "
++				+ MyTaskListManager.getWarningMessages().size() + ": " + MyTaskListManager.getWarningMessages(),
++				MyTaskListManager.getWarningMessages().size() == 1);
++		
++		// copy over the updated version of the inpath class file
++		File from = new File(testdataSrcDir+File.separatorChar+"inpathTesting"
++				+File.separatorChar+"newInpathClass" + File.separatorChar + "InpathClass.class");
++		File destination = new File(inpathDir + File.separatorChar + "InpathClass.class");
++		FileUtil.copyFile(from,destination);
++		
++		build("inpathTesting");
++		checkWasntFullBuild();
++		// the newly copied inpath class means the declare warning now matches two
++		// places, therefore expect two warning messages
++		assertTrue("Expected there to be two warning message but found "
++				+ MyTaskListManager.getWarningMessages().size() + ": " + MyTaskListManager.getWarningMessages(),
++				MyTaskListManager.getWarningMessages().size() == 2);
++	}
+ 
+ 	// --- helper code ---
+ 
+@@ -630,6 +630,9 @@ public class CompilerAdapter {
+         join(config.getSourceRoots(), properties.getSourceRoots());
+         join(config.getInJars(), properties.getInJars());
+         join(config.getInpath(),properties.getInpath());
++        // bug 168840 - calling 'setInPath(..)' creates BinarySourceFiles which
++        // are used to see if there have been changes in classes on the inpath
++        if (config.getInpath() != null) config.setInPath(config.getInpath());
+ 		config.setSourcePathResources(properties.getSourcePathResources());
+         join(config.getAspectpath(), properties.getAspectPath());
+ 	}

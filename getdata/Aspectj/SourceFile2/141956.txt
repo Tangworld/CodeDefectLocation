@@ -1,0 +1,101 @@
+@@ -76,6 +76,7 @@ import org.aspectj.weaver.UnresolvedType.TypeKind;
+  */
+ public class EclipseFactory {
+ 	public static boolean DEBUG = false;
++	public static int debug_mungerCount = -1;
+ 
+ 	private AjBuildManager buildManager;
+ 	private LookupEnvironment lookupEnvironment;
+@@ -410,8 +411,10 @@ public class EclipseFactory {
+ 
+ 		// XXX by Andy: why do we mix up the mungers here? it means later we know about two sets
+ 		// and the late ones are a subset of the complete set? (see pr114436)
+-        baseTypeMungers.addAll(getWorld().getCrosscuttingMembersSet().getLateTypeMungers());
+-
++		// XXX by Andy removed this line finally, see pr141956
++        //   baseTypeMungers.addAll(getWorld().getCrosscuttingMembersSet().getLateTypeMungers());
++		debug_mungerCount=baseTypeMungers.size();
++		
+ 		for (Iterator i = baseTypeMungers.iterator(); i.hasNext(); ) {
+ 			ConcreteTypeMunger munger = (ConcreteTypeMunger) i.next();
+ 			EclipseTypeMunger etm = makeEclipseTypeMunger(munger);
+@@ -0,0 +1,10 @@
++import org.aspectj.lang.annotation.*;
++
++@Aspect
++public class A {
++
++        @Before("within(C) && call(* foo(..))")
++        public void touchBeforeExecute() {
++        	  System.err.println("foo called");
++        }
++}
+\ No newline at end of file
+@@ -0,0 +1,8 @@
++public class C {
++	public static void main(String[] args) {
++		new C().foo();
++	}
++	public void foo() {
++		System.err.println("foo running");
++	}
++}
+\ No newline at end of file
+@@ -0,0 +1,8 @@
++public class C {
++	public static void main(String[] args) {
++		new C().foo();
++	}
++	public void foo() {
++		System.err.println("foo running");
++	}
++}
+\ No newline at end of file
+@@ -23,6 +23,7 @@ import java.util.Iterator;
+ import java.util.List;
+ import java.util.Set;
+ 
++import org.aspectj.ajdt.internal.compiler.lookup.EclipseFactory;
+ import org.aspectj.ajdt.internal.core.builder.AjState;
+ import org.aspectj.ajdt.internal.core.builder.AsmHierarchyBuilder;
+ import org.aspectj.ajdt.internal.core.builder.IncrementalStateManager;
+@@ -620,6 +621,30 @@ public class MultiProjectIncrementalTests extends AjdeInteractionTestbed {
+ 	}
+ 
+ 
++	/**
++	 * Checks we aren't leaking mungers across compiles (accumulating multiple instances of the same one that
++	 * all do the same thing).  On the first compile the munger is added late on - so at the time we set
++	 * the count it is still zero.  On the subsequent compiles we know about this extra one.
++	 */
++	public void testPr141956_IncrementallyCompilingAtAj() {
++		initialiseProject("PR141956");
++		build("PR141956");
++		assertTrue("Should be zero but reports "+EclipseFactory.debug_mungerCount,EclipseFactory.debug_mungerCount==0);
++		alter("PR141956","inc1");
++		build("PR141956");
++		assertTrue("Should be only one but reports "+EclipseFactory.debug_mungerCount,EclipseFactory.debug_mungerCount==1);
++		alter("PR141956","inc1");
++		build("PR141956");
++		assertTrue("Should be only one but reports "+EclipseFactory.debug_mungerCount,EclipseFactory.debug_mungerCount==1);
++		alter("PR141956","inc1");
++		build("PR141956");
++		assertTrue("Should be only one but reports "+EclipseFactory.debug_mungerCount,EclipseFactory.debug_mungerCount==1);
++		alter("PR141956","inc1");
++		build("PR141956");
++		assertTrue("Should be only one but reports "+EclipseFactory.debug_mungerCount,EclipseFactory.debug_mungerCount==1);
++	}
++	
++
+ //	public void testPr124399() {
+ //		AjdeInteractionTestbed.VERBOSE=true;
+ //		configureBuildStructureModel(true);
+@@ -285,7 +285,7 @@ public abstract class ResolvedType extends UnresolvedType implements AnnotatedEl
+             boolean shouldSkip = false;
+             for (int j = 0; j < rtx.interTypeMungers.size(); j++) {
+                 ConcreteTypeMunger munger = (ConcreteTypeMunger) rtx.interTypeMungers.get(j);
+-                if (munger.getMunger().getKind() == ResolvedTypeMunger.Parent) {
++                if (munger.getMunger()!=null && munger.getMunger().getKind() == ResolvedTypeMunger.Parent) {
+                     shouldSkip = true;
+                     break;
+                 }

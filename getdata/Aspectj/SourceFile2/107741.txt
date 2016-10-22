@@ -1,0 +1,626 @@
+@@ -1,48 +1,16 @@
+ <?xml version="1.0" encoding="UTF-8"?>
+ <classpath>
+-	<classpathentry kind="src" path="src">
+-		<attributes>
+-		</attributes>
+-	</classpathentry>
+-	<classpathentry kind="src" path="testsrc">
+-		<attributes>
+-		</attributes>
+-	</classpathentry>
+-	<classpathentry kind="con" path="org.eclipse.jdt.launching.JRE_CONTAINER">
+-		<attributes>
+-		</attributes>
+-	</classpathentry>
+-	<classpathentry combineaccessrules="false" kind="src" path="/asm">
+-		<attributes>
+-		</attributes>
+-	</classpathentry>
+-	<classpathentry combineaccessrules="false" kind="src" path="/bridge">
+-		<attributes>
+-		</attributes>
+-	</classpathentry>
+-	<classpathentry combineaccessrules="false" kind="src" path="/util">
+-		<attributes>
+-		</attributes>
+-	</classpathentry>
+-	<classpathentry combineaccessrules="false" kind="src" path="/weaver">
+-		<attributes>
+-		</attributes>
+-	</classpathentry>
+-	<classpathentry kind="lib" path="/lib/ext/jrockit/managementapi-jrockit81.jar">
+-		<attributes>
+-		</attributes>
+-	</classpathentry>
+-	<classpathentry sourcepath="/lib/junit/junit-src.jar" kind="lib" path="/lib/junit/junit.jar">
+-		<attributes>
+-		</attributes>
+-	</classpathentry>
+-	<classpathentry kind="lib" path="/lib/ant/lib/xml-apis.jar">
+-		<attributes>
+-		</attributes>
+-	</classpathentry>
+-	<classpathentry kind="lib" path="/lib/ant/lib/xercesImpl.jar">
+-		<attributes>
+-		</attributes>
+-	</classpathentry>
++	<classpathentry kind="src" path="src"/>
++	<classpathentry kind="src" path="testsrc"/>
++	<classpathentry kind="con" path="org.eclipse.jdt.launching.JRE_CONTAINER"/>
++	<classpathentry combineaccessrules="false" kind="src" path="/asm"/>
++	<classpathentry combineaccessrules="false" kind="src" path="/bridge"/>
++	<classpathentry combineaccessrules="false" kind="src" path="/util"/>
++	<classpathentry combineaccessrules="false" kind="src" path="/weaver"/>
++	<classpathentry kind="lib" path="/lib/ext/jrockit/managementapi-jrockit81.jar"/>
++	<classpathentry sourcepath="/lib/junit/junit-src.jar" kind="lib" path="/lib/junit/junit.jar"/>
++	<classpathentry kind="lib" path="/lib/ant/lib/xml-apis.jar"/>
++	<classpathentry kind="lib" path="/lib/ant/lib/xercesImpl.jar"/>
++	<classpathentry combineaccessrules="false" kind="src" path="/testing-util"/>
+ 	<classpathentry kind="output" path="bin"/>
+ </classpath>
+@@ -11,7 +11,7 @@
+  *     Martin Lippert     initial implementation 
+  * ******************************************************************/
+ 
+-package org.aspectj.weaver;
++package org.aspectj.weaver.loadtime;
+ 
+ import java.io.File;
+ import java.io.IOException;
+@@ -24,6 +24,7 @@ import java.util.List;
+ import java.util.Map;
+ import java.util.StringTokenizer;
+ 
++import org.aspectj.weaver.ExtensibleURLClassLoader;
+ import org.aspectj.weaver.tools.WeavingAdaptor;
+ import org.aspectj.weaver.tools.WeavingClassLoader;
+ 
+@@ -44,11 +45,22 @@ public class WeavingURLClassLoader extends ExtensibleURLClassLoader implements W
+ //		System.err.println("? WeavingURLClassLoader.<init>(" + parent + ")");
+ 	}
+ 
++	public WeavingURLClassLoader (URL[] urls, ClassLoader parent) {
++		super(urls,parent);
++//		System.out.println("WeavingURLClassLoader.WeavingURLClassLoader()");
++	}
++	
+ 	public WeavingURLClassLoader (URL[] classURLs, URL[] aspectURLs, ClassLoader parent) {
+ 		super(classURLs,parent);
+-//		System.err.println("? WeavingURLClassLoader.<init>()");
++//		System.err.println("? WeavingURLClassLoader.<init>() classURLs=" + classURLs.length + ", aspectURLs=" + aspectURLs.length);
+ 		this.aspectURLs = aspectURLs;
+-		adaptor = new WeavingAdaptor(this);
++		
++		/* If either we nor our parent is using an ASPECT_PATH use a new-style
++		 * adaptor
++		 */ 
++		if (this.aspectURLs.length > 0 || parent instanceof WeavingClassLoader) {
++			adaptor = new WeavingAdaptor(this);
++		}
+ 	}
+ 
+ 	private static String getAspectPath () {
+@@ -87,6 +99,14 @@ public class WeavingURLClassLoader extends ExtensibleURLClassLoader implements W
+ 	 */
+ 	protected Class defineClass(String name, byte[] b, CodeSource cs) throws IOException {
+ //		System.err.println("? WeavingURLClassLoader.defineClass(" + name + ", [" + b.length + "])");
++		
++		/* Need to defer creation because of possible recursion during constructor execution */
++		if (adaptor == null) {
++			ClassLoaderWeavingAdaptor clwAdaptor = new ClassLoaderWeavingAdaptor(this,null);
++			clwAdaptor.initialize(this,null);
++			adaptor = clwAdaptor;
++		}
++		
+ 		b = adaptor.weaveClass(name,b);
+ 		return super.defineClass(name, b, cs);
+ 	}
+@@ -115,5 +135,29 @@ public class WeavingURLClassLoader extends ExtensibleURLClassLoader implements W
+ 	public void acceptClass (String name, byte[] bytes) {
+ 		generatedClasses.put(name,bytes);
+ 	}
++	
++//	private interface ClassPreProcessorAdaptor extends ClassPreProcessor {
++//		public void addURL(URL url);
++//	}
++//	
++//	private class WeavingAdaptorPreProcessor implements ClassPreProcessorAdaptor {
++//		
++//		private WeavingAdaptor adaptor;
++//		
++//		public WeavingAdaptorPreProcessor (WeavingClassLoader wcl) {
++//			adaptor = new WeavingAdaptor(wcl);
++//		}
++//	    
++//		public void initialize() {
++//		}
++//
++//	    public byte[] preProcess(String className, byte[] bytes, ClassLoader classLoader) {
++//	    	return adaptor.weaveClass(className,bytes);
++//	    }
++//
++//		public void addURL(URL url) {
++//			
++//		}
++//	}
+ 
+ }
+@@ -14,6 +14,8 @@ import junit.framework.TestCase;
+ import junit.framework.Test;
+ import junit.framework.TestSuite;
+ import junit.textui.TestRunner;
++
++import org.aspectj.weaver.loadtime.WeavingURLClassLoaderTest;
+ import org.aspectj.weaver.loadtime.test.DocumentParserTest;
+ 
+ /**
+@@ -25,7 +27,7 @@ public class LoadtimeModuleTests extends TestCase {
+         TestSuite suite = new TestSuite(LoadtimeModuleTests.class.getName());
+ 
+         suite.addTestSuite(DocumentParserTest.class);
+-
++        suite.addTestSuite(WeavingURLClassLoaderTest.class);
+         return suite;
+     }
+ 
+@@ -10,7 +10,7 @@
+  *     Matthew Webster     initial implementation 
+  * ******************************************************************/
+ 
+-package org.aspectj.weaver;
++package org.aspectj.weaver.loadtime;
+ 
+ import java.io.File;
+ import java.lang.reflect.InvocationTargetException;
+@@ -24,6 +24,7 @@ import junit.framework.TestCase;
+ import org.aspectj.bridge.AbortException;
+ import org.aspectj.testing.util.TestUtil.TestError;
+ import org.aspectj.util.FileUtil;
++import org.aspectj.weaver.BcweaverTests;
+ import org.aspectj.weaver.tools.WeavingAdaptor;
+ 
+ /**
+@@ -13,5 +13,6 @@
+ 	<classpathentry kind="src" path="/testing-util"/>
+ 	<classpathentry kind="src" path="/testing-client"/>
+ 	<classpathentry kind="src" path="/org.eclipse.jdt.core"/>
++	<classpathentry combineaccessrules="false" kind="src" path="/loadtime"/>
+ 	<classpathentry kind="output" path="bin"/>
+ </classpath>
+@@ -28,6 +28,7 @@ import java.util.StringTokenizer;
+ import org.aspectj.bridge.IMessage;
+ import org.aspectj.bridge.ISourceLocation;
+ import org.aspectj.testing.util.TestUtil;
++import org.aspectj.weaver.loadtime.WeavingURLClassLoader;
+ 
+ import junit.framework.TestCase;
+ 
+@@ -518,7 +519,7 @@ public class AjcTestCase extends TestCase {
+ 		return lastRunResult;
+ 	}
+     public void testNothingForAntJUnit() {}
+-	
++    
+ 	/**
+ 	 * Run the given class (main method), and return the result in a RunResult. The program runs with
+ 	 * a classpath containing the sandbox directory, runtime, testing-client, bridge, and
+@@ -527,6 +528,11 @@ public class AjcTestCase extends TestCase {
+ 	public RunResult run(String className){
+ 		return run(className,new String[0],null);
+ 	}
++
++	public RunResult run(String className, String[] args, String classpath)  {
++		return run(className,args,null,false);
++	}
++
+ 
+ 	/**
+ 	 * Run the given class, and return the result in a RunResult. The program runs with
+@@ -537,7 +543,7 @@ public class AjcTestCase extends TestCase {
+ 	 * bridge, and util projects will all be appended to the classpath, as will any jars in
+ 	 * the sandbox.
+ 	 */
+-	public RunResult run(String className, String[] args, String classpath)  {
++	public RunResult run(String className, String[] args, String classpath, boolean useLTW)  {
+ 		lastRunResult = null;
+ 		StringBuffer cp = new StringBuffer();
+ 		if (classpath != null) {
+@@ -569,8 +575,15 @@ public class AjcTestCase extends TestCase {
+ 		} catch (Exception malEx) {
+ 			fail("Bad classpath specification: " + classpath);
+ 		}
+-		URLClassLoader cLoader = new URLClassLoader(urls,null);
+-		//System.out.println(cLoader.getParent());
++		
++		URLClassLoader cLoader;
++		if (useLTW) {
++			cLoader = new WeavingURLClassLoader(urls,null);
++		}
++		else {
++			cLoader = new URLClassLoader(urls,null);
++		}
++
+ 		try {
+ 			try {
+ 				Class testerClass = cLoader.loadClass("org.aspectj.testing.Tester");
+@@ -1,84 +1,25 @@
+ <?xml version="1.0" encoding="UTF-8"?>
+ <classpath>
+-	<classpathentry kind="src" path="src">
+-		<attributes>
+-		</attributes>
+-	</classpathentry>
+-	<classpathentry kind="src" path="testsrc">
+-		<attributes>
+-		</attributes>
+-	</classpathentry>
+-	<classpathentry sourcepath="JRE_SRC" kind="var" path="JRE_LIB">
+-		<attributes>
+-		</attributes>
+-	</classpathentry>
+-	<classpathentry sourcepath="/lib/ant/ant-src.zip" kind="lib" path="/lib/ant/lib/ant.jar">
+-		<attributes>
+-		</attributes>
+-	</classpathentry>
+-	<classpathentry sourcepath="/lib/junit/junit-src.jar" kind="lib" path="/lib/junit/junit.jar">
+-		<attributes>
+-		</attributes>
+-	</classpathentry>
+-	<classpathentry kind="lib" path="/lib/jdiff/jdiff.jar">
+-		<attributes>
+-		</attributes>
+-	</classpathentry>
+-	<classpathentry kind="lib" path="/lib/regexp/jakarta-regexp-1.2.jar">
+-		<attributes>
+-		</attributes>
+-	</classpathentry>
+-	<classpathentry kind="src" path="/bridge">
+-		<attributes>
+-		</attributes>
+-	</classpathentry>
+-	<classpathentry kind="src" path="/util">
+-		<attributes>
+-		</attributes>
+-	</classpathentry>
+-	<classpathentry kind="src" path="/testing-client">
+-		<attributes>
+-		</attributes>
+-	</classpathentry>
+-	<classpathentry kind="lib" path="/lib/ant/lib/xercesImpl.jar">
+-		<attributes>
+-		</attributes>
+-	</classpathentry>
+-	<classpathentry kind="lib" path="/lib/ant/lib/xml-apis.jar">
+-		<attributes>
+-		</attributes>
+-	</classpathentry>
+-	<classpathentry exported="true" sourcepath="/lib/commons/commons-src.zip" kind="lib" path="/lib/commons/commons.jar">
+-		<attributes>
+-		</attributes>
+-	</classpathentry>
+-	<classpathentry kind="src" path="/testing-util">
+-		<attributes>
+-		</attributes>
+-	</classpathentry>
+-	<classpathentry kind="src" path="/ajde">
+-		<attributes>
+-		</attributes>
+-	</classpathentry>
+-	<classpathentry kind="src" path="/asm">
+-		<attributes>
+-		</attributes>
+-	</classpathentry>
+-	<classpathentry kind="src" path="/taskdefs">
+-		<attributes>
+-		</attributes>
+-	</classpathentry>
+-	<classpathentry kind="src" path="newsrc">
+-		<attributes>
+-		</attributes>
+-	</classpathentry>
+-	<classpathentry kind="src" path="/org.aspectj.ajdt.core">
+-		<attributes>
+-		</attributes>
+-	</classpathentry>
+-	<classpathentry combineaccessrules="false" kind="src" path="/weaver">
+-		<attributes>
+-		</attributes>
+-	</classpathentry>
++	<classpathentry kind="src" path="src"/>
++	<classpathentry kind="src" path="testsrc"/>
++	<classpathentry sourcepath="JRE_SRC" kind="var" path="JRE_LIB"/>
++	<classpathentry sourcepath="/lib/ant/ant-src.zip" kind="lib" path="/lib/ant/lib/ant.jar"/>
++	<classpathentry sourcepath="/lib/junit/junit-src.jar" kind="lib" path="/lib/junit/junit.jar"/>
++	<classpathentry kind="lib" path="/lib/jdiff/jdiff.jar"/>
++	<classpathentry kind="lib" path="/lib/regexp/jakarta-regexp-1.2.jar"/>
++	<classpathentry kind="src" path="/bridge"/>
++	<classpathentry kind="src" path="/util"/>
++	<classpathentry kind="src" path="/testing-client"/>
++	<classpathentry kind="lib" path="/lib/ant/lib/xercesImpl.jar"/>
++	<classpathentry kind="lib" path="/lib/ant/lib/xml-apis.jar"/>
++	<classpathentry exported="true" sourcepath="/lib/commons/commons-src.zip" kind="lib" path="/lib/commons/commons.jar"/>
++	<classpathentry kind="src" path="/testing-util"/>
++	<classpathentry kind="src" path="/ajde"/>
++	<classpathentry kind="src" path="/asm"/>
++	<classpathentry kind="src" path="/taskdefs"/>
++	<classpathentry kind="src" path="newsrc"/>
++	<classpathentry kind="src" path="/org.aspectj.ajdt.core"/>
++	<classpathentry combineaccessrules="false" kind="src" path="/weaver"/>
++	<classpathentry combineaccessrules="false" kind="src" path="/loadtime"/>
+ 	<classpathentry kind="output" path="bin"/>
+ </classpath>
+@@ -12,11 +12,13 @@
+ package org.aspectj.testing;
+ 
+ import java.io.File;
++import java.io.IOException;
+ import java.util.ArrayList;
+ import java.util.List;
+ import java.util.StringTokenizer;
+ 
+ import org.aspectj.tools.ajc.AjcTestCase;
++import org.aspectj.util.FileUtil;
+ 
+ /**
+  * @author colyer
+@@ -34,6 +36,7 @@ public class RunSpec implements ITestStep {
+ 	private AjcTest myTest;
+ 	private OutputSpec stdErrSpec;
+ 	private OutputSpec stdOutSpec;
++	private String ltwFile;
+ 
+ 	public RunSpec() {
+ 	}
+@@ -46,7 +49,9 @@ public class RunSpec implements ITestStep {
+ 			System.err.println("Warning, message spec for run command is currently ignored (org.aspectj.testing.RunSpec)");
+ 		}
+ 		String[] args = buildArgs();
+-		AjcTestCase.RunResult rr = inTestCase.run(getClassToRun(),args,getClasspath());
++//		System.err.println("? execute() inTestCase='" + inTestCase + "', ltwFile=" + ltwFile);
++		boolean useLtw = copyLtwFile(inTestCase.getSandboxDirectory());
++		AjcTestCase.RunResult rr = inTestCase.run(getClassToRun(),args,getClasspath(),useLtw);
+ 		if (stdErrSpec != null) {
+ 			stdErrSpec.matchAgainst(rr.getStdErr());
+ 		}
+@@ -102,6 +107,14 @@ public class RunSpec implements ITestStep {
+ 	public void setClassToRun(String classToRun) {
+ 		this.classToRun = classToRun;
+ 	}
++
++	public String getLtwFile() {
++		return ltwFile;
++	}
++
++	public void setLtwFile(String ltwFile) {
++		this.ltwFile = ltwFile;
++	}
+ 
+ 	private String[] buildArgs() {
+ 		if (options == null) return new String[0];
+@@ -112,4 +125,23 @@ public class RunSpec implements ITestStep {
+ 		}
+ 		return ret;
+ 	}
++	
++	private boolean copyLtwFile (File sandboxDirectory) {
++		boolean useLtw = false;
++		
++		if (ltwFile != null) {
++			File from = new File(baseDir,ltwFile);
++			File to = new File(sandboxDirectory,"META-INF" + File.separator + "aop.xml");
++//			System.out.println("RunSpec.copyLtwFile() from=" + from.getAbsolutePath() + " to=" + to.getAbsolutePath());
++			try {
++				FileUtil.copyFile(from,to);
++				useLtw = true;
++			}
++			catch (IOException ex) {
++				ex.printStackTrace();
++			}
++		}
++		
++		return useLtw;
++	}
+ }
+@@ -166,6 +166,7 @@ public abstract class XMLBasedAjcTestCase extends AjcTestCase {
+ 		digester.addSetNext("suite/ajc-test/compile","addTestStep","org.aspectj.testing.ITestStep");
+ 		digester.addObjectCreate("suite/ajc-test/run",RunSpec.class);
+ 		digester.addSetProperties("suite/ajc-test/run","class","classToRun");
++		digester.addSetProperties("suite/ajc-test/run","ltw","ltwFile");
+ 		digester.addSetNext("suite/ajc-test/run","addTestStep","org.aspectj.testing.ITestStep");
+ 		digester.addObjectCreate("*/message",ExpectedMessageSpec.class);
+ 		digester.addSetProperties("*/message");
+@@ -25,7 +25,7 @@ import org.aspectj.testing.xml.SoftMessage;
+ import org.aspectj.testing.xml.XMLWriter;
+ import org.aspectj.util.FileUtil;
+ import org.aspectj.util.LangUtil;
+-import org.aspectj.weaver.WeavingURLClassLoader;
++import org.aspectj.weaver.loadtime.WeavingURLClassLoader;
+ 
+ import java.io.*;
+ import java.lang.reflect.*;
+@@ -0,0 +1,19 @@
++/*******************************************************************************
++ * Copyright (c) 2005 Contributors.
++ * All rights reserved. 
++ * This program and the accompanying materials are made available 
++ * under the terms of the Eclipse Public License v1.0 
++ * which accompanies this distribution and is available at 
++ * http://eclipse.org/legal/epl-v10.html 
++ * 
++ * Contributors:
++ *   Matthew Webster         initial implementation
++ *******************************************************************************/
++import org.aspectj.lang.JoinPoint;
++
++public aspect Aspect1 {
++	
++		before () : execution(void Main.test1()) {
++			System.err.println("Aspect1.before_" + thisJoinPoint.getSignature().getName());
++		}
++}
+@@ -0,0 +1,19 @@
++/*******************************************************************************
++ * Copyright (c) 2005 Contributors.
++ * All rights reserved. 
++ * This program and the accompanying materials are made available 
++ * under the terms of the Eclipse Public License v1.0 
++ * which accompanies this distribution and is available at 
++ * http://eclipse.org/legal/epl-v10.html 
++ * 
++ * Contributors:
++ *   Matthew Webster	initial implementation
++ *******************************************************************************/
++import org.aspectj.lang.JoinPoint;
++
++public aspect Aspect2 {
++	
++		before () : execution(void Main.test2()){
++			System.err.println("Aspect2.before_" + thisJoinPoint.getSignature().getName());
++		}
++}
+@@ -0,0 +1,28 @@
++/*******************************************************************************
++ * Copyright (c) 2005 Contributors.
++ * All rights reserved. 
++ * This program and the accompanying materials are made available 
++ * under the terms of the Eclipse Public License v1.0 
++ * which accompanies this distribution and is available at 
++ * http://eclipse.org/legal/epl-v10.html 
++ * 
++ * Contributors:
++ *   Matthew Webster         initial implementation
++ *******************************************************************************/
++
++public class Main {
++
++	public void test1 () {
++		System.out.println("Main.test1");
++	}
++
++	public void test2 () {
++		System.out.println("Main.test2");
++	}
++
++	public static void main (String[] args) {
++		System.out.println("Main.main");
++		new Main().test1();
++		new Main().test2();
++	}
++}
+@@ -0,0 +1,6 @@
++<aspectj>
++    <aspect name="Aspect1"/>
++    <aspect name="Aspect2"/>
++    
++    <weaver options="-showWeaveInfo"/>
++</aspectj>
+@@ -13,6 +13,7 @@ package org.aspectj.systemtest.ajc150;
+ import org.aspectj.systemtest.ajc150.ataspectj.AtAjSyntaxTests;
+ import org.aspectj.systemtest.ajc150.ataspectj.AtAjMisuseTests;
+ import org.aspectj.systemtest.ajc150.ataspectj.AtAjLTWTests;
++import org.aspectj.systemtest.ajc150.ltw.LTWTests;
+ 
+ import junit.framework.Test;
+ import junit.framework.TestSuite;
+@@ -52,7 +53,9 @@ public class AllTestsAspectJ150 {
+         suite.addTest(AtAjMisuseTests.suite());
+         suite.addTest(AtAjLTWTests.suite());
+         suite.addTest(HasMember.suite());
+-		//$JUnit-END$
++
++		suite.addTestSuite(LTWTests.class);
++        //$JUnit-END$
+ 		return suite;
+ 	}
+ }
+@@ -0,0 +1,35 @@
++/*******************************************************************************
++ * Copyright (c) 2005 Contributors.
++ * All rights reserved. 
++ * This program and the accompanying materials are made available 
++ * under the terms of the Eclipse Public License v1.0 
++ * which accompanies this distribution and is available at 
++ * http://eclipse.org/legal/epl-v10.html 
++ * 
++ * Contributors:
++ *   Matthew Webster         initial implementation
++ *******************************************************************************/
++package org.aspectj.systemtest.ajc150.ltw;
++
++import java.io.File;
++
++import junit.framework.Test;
++
++import org.aspectj.testing.XMLBasedAjcTestCase;
++
++public class LTWTests extends org.aspectj.testing.XMLBasedAjcTestCase {
++
++  public static Test suite() {
++    return XMLBasedAjcTestCase.loadSuite(LTWTests.class);
++  }
++
++  protected File getSpecFile() {
++    return new File("../tests/src/org/aspectj/systemtest/ajc150/ltw/ltw.xml");
++  }
++
++
++  public void test001(){
++    runTest("Ensure 1st aspect is rewoven when weaving 2nd aspect");
++  }
++}
++
+@@ -0,0 +1,33 @@
++<!-- Load-time weaving tests -->
++
++	<ajc-test dir="ltw"
++      title="Ensure 1st aspect is rewoven when weaving 2nd aspect"
++      keywords="reweavable">
++        <compile
++        	files="Main.java, Aspect1.aj"
++			outjar="main1.jar"
++            options="-showWeaveInfo"
++        >
++        	<message kind="weave" text="method-execution(void Main.test1())' in Type 'Main' (Main.java:15) advised by before advice from 'Aspect1' (Aspect1.aj:16)"/>
++        </compile>	
++        <compile
++        	classpath="main1.jar"
++        	files="Aspect2.aj"
++        	outjar="aspect2.jar"
++            options="-showWeaveInfo"
++        >
++        </compile>	
++        <run class="Main" ltw="aop-ltwreweavable.xml">
++        	<stdout>
++                <line text="Main.main"/>
++                <line text="Main.test1"/>
++                <line text="Main.test2"/>
++            </stdout>
++        	<stderr>
++                <line text="Aspect1.before_test1"/>
++                <line text="Aspect2.before_test2"/>
++            </stderr>
++        </run>
++    </ajc-test>
++
++    
+@@ -0,0 +1,11 @@
++<!DOCTYPE suite SYSTEM "../tests/ajcTestSuite.dtd"[
++<!ENTITY tests SYSTEM "../tests/src/org/aspectj/systemtest/ajc150/ltw/ltw-tests.xml">
++]>
++
++<!-- Load-time weaving tests -->
++
++<suite>
++
++&tests;
++
++</suite>
+@@ -52,7 +52,6 @@ public class BcweaverTests extends TestCase {
+         //$JUnit-BEGIN$
+         suite.addTestSuite(MemberTestCase.class); 
+ 		suite.addTestSuite(TypeXTestCase.class); 
+-		suite.addTestSuite(WeavingURLClassLoaderTest.class); 
+ 		suite.addTestSuite(WeaverMessagesTestCase.class);
+ 		suite.addTestSuite(DumpTestCase.class);
+         //$JUnit-END$

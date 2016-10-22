@@ -1,0 +1,634 @@
+@@ -103,7 +103,12 @@ public class JDTLikeHandleProvider implements IElementHandleProvider {
+ 					// if (ipe.getKind() == IProgramElement.Kind.PACKAGE && ipe.getName().equals("DEFAULT")) {
+ 					// // the delimiter will be in there, but skip the word DEFAULT as it is just a placeholder
+ 					// } else {
+-					handle.append(ipe.getName()).append(getParameters(ipe));
++					if (ipe.getKind().isDeclareAnnotation()) {
++						// escape the @ (pr249216c9)
++						handle.append("declare \\@").append(ipe.getName().substring(9)).append(getParameters(ipe));
++					} else {
++						handle.append(ipe.getName()).append(getParameters(ipe));
++					}
+ 				}
+ 				// }
+ 			}
+@@ -125,17 +130,7 @@ public class JDTLikeHandleProvider implements IElementHandleProvider {
+ 		for (Iterator iter = parameterTypes.iterator(); iter.hasNext();) {
+ 			char[] element = (char[]) iter.next();
+ 			sb.append(HandleProviderDelimiter.getDelimiter(ipe));
+-			if (element[0] == HandleProviderDelimiter.TYPE.getDelimiter()) {
+-				// its an array
+-				sb.append(HandleProviderDelimiter.ESCAPE.getDelimiter());
+-				sb.append(HandleProviderDelimiter.TYPE.getDelimiter());
+-				sb.append(NameConvertor.getTypeName(CharOperation.subarray(element, 1, element.length)));
+-			} else if (element[0] == NameConvertor.PARAMETERIZED) {
+-				// its a parameterized type
+-				sb.append(NameConvertor.createShortName(element));
+-			} else {
+-				sb.append(NameConvertor.getTypeName(element));
+-			}
++			sb.append(NameConvertor.createShortName(element, false, false));
+ 		}
+ 		return sb.toString();
+ 	}
+@@ -10,53 +10,49 @@
+  *******************************************************************/
+ package org.aspectj.asm.internal;
+ 
+-
+ public class NameConvertor {
+ 
+-	private static final char BOOLEAN 	= 'Z';
+-	private static final char BYTE 		= 'B';
+-	private static final char CHAR 		= 'C';
+-	private static final char DOUBLE 	= 'D';
+-	private static final char FLOAT 	= 'F';
+-	private static final char INT 		= 'I';
+-	private static final char LONG		= 'J';
+-	private static final char SHORT		= 'S';
+-	private static final char ARRAY		= '[';
++	private static final char BOOLEAN = 'Z';
++	private static final char BYTE = 'B';
++	private static final char CHAR = 'C';
++	private static final char DOUBLE = 'D';
++	private static final char FLOAT = 'F';
++	private static final char INT = 'I';
++	private static final char LONG = 'J';
++	private static final char SHORT = 'S';
++	private static final char ARRAY = '[';
+ 	private static final char RESOLVED = 'L';
+ 	private static final char UNRESOLVED = 'Q';
+-	
++
+ 	public static final char PARAMETERIZED = 'P';
+-	
+-	private static final char[] BOOLEAN_NAME = new char[]{'b','o','o','l','e','a','n'};
+-	private static final char[] BYTE_NAME = new char[]{'b','y','t','e'};
+-	private static final char[] CHAR_NAME = new char[]{'c','h','a','r'};
+-	private static final char[] DOUBLE_NAME = new char[]{'d','o','u','b','l','e'};
+-	private static final char[] FLOAT_NAME = new char[]{'f','l','o','a','t'};
+-	private static final char[] INT_NAME = new char[]{'i','n','t'};
+-	private static final char[] LONG_NAME = new char[]{'l','o','n','g'};
+-	private static final char[] SHORT_NAME = new char[]{'s','h','o','r','t'};
+-
+-	private static final char[] SQUARE_BRACKETS = new char[]{'[',']'};
+-	private static final char[] GREATER_THAN = new char[]{'>'};
+-	private static final char[] LESS_THAN = new char[]{'<'};
+-	private static final char[] COMMA = new char[]{','};
+-	private static final char[] BACKSLASH_LESSTHAN = new char[]{'\\','<'};
+-	private static final char[] SEMICOLON = new char[]{';'};
+-	
+-	
++
++	private static final char[] BOOLEAN_NAME = new char[] { 'b', 'o', 'o', 'l', 'e', 'a', 'n' };
++	private static final char[] BYTE_NAME = new char[] { 'b', 'y', 't', 'e' };
++	private static final char[] CHAR_NAME = new char[] { 'c', 'h', 'a', 'r' };
++	private static final char[] DOUBLE_NAME = new char[] { 'd', 'o', 'u', 'b', 'l', 'e' };
++	private static final char[] FLOAT_NAME = new char[] { 'f', 'l', 'o', 'a', 't' };
++	private static final char[] INT_NAME = new char[] { 'i', 'n', 't' };
++	private static final char[] LONG_NAME = new char[] { 'l', 'o', 'n', 'g' };
++	private static final char[] SHORT_NAME = new char[] { 's', 'h', 'o', 'r', 't' };
++
++	private static final char[] SQUARE_BRACKETS = new char[] { '[', ']' };
++	private static final char[] GREATER_THAN = new char[] { '>' };
++	private static final char[] LESS_THAN = new char[] { '<' };
++	private static final char[] COMMA = new char[] { ',' };
++	private static final char[] BACKSLASH_LESSTHAN = new char[] { '\\', '<' };
++	private static final char[] SEMICOLON = new char[] { ';' };
++
+ 	/**
+-	 * Creates a readable name from the given char array, for example, 
+-	 * given 'I' returns 'int'. Moreover, given 
+-	 * 'Ljava/lang/String;<Ljava/lang/String;>' returns
+-	 * 'java.lang.String<java.lang.String>'
++	 * Creates a readable name from the given char array, for example, given 'I' returns 'int'. Moreover, given
++	 * 'Ljava/lang/String;<Ljava/lang/String;>' returns 'java.lang.String<java.lang.String>'
+ 	 */
+ 	public static char[] convertFromSignature(char[] c) {
+-		int lt = CharOperation.indexOf('<',c);
+-		int sc = CharOperation.indexOf(';',c);
+-		int gt = CharOperation.indexOf('>',c);
+-		
++		int lt = CharOperation.indexOf('<', c);
++		int sc = CharOperation.indexOf(';', c);
++		int gt = CharOperation.indexOf('>', c);
++
+ 		int smallest = 0;
+-		if (lt  == -1 && sc == -1 && gt == -1) {
++		if (lt == -1 && sc == -1 && gt == -1) {
+ 			// we have something like 'Ljava/lang/String' or 'I'
+ 			return getFullyQualifiedTypeName(c);
+ 		} else if (lt != -1 && (sc == -1 || lt <= sc) && (gt == -1 || lt <= gt)) {
+@@ -69,15 +65,15 @@ public class NameConvertor {
+ 			// we have something like '>;'
+ 			smallest = gt;
+ 		}
+-		char[] first = CharOperation.subarray(c,0,smallest);
+-		char[] second = CharOperation.subarray(c,smallest+1,c.length);
++		char[] first = CharOperation.subarray(c, 0, smallest);
++		char[] second = CharOperation.subarray(c, smallest + 1, c.length);
+ 		if (smallest == 0 && first.length == 0 && c[0] == '>') {
+ 			// c = {'>',';'} therefore we just want to return '>' to
+ 			// close the generic signature
+ 			return GREATER_THAN;
+ 		} else if (first.length == 1 && second.length == 0) {
+ 			return first;
+-		} else if (second.length == 0 || (second.length == 1 && second[0] == ';')){
++		} else if (second.length == 0 || (second.length == 1 && second[0] == ';')) {
+ 			// we've reached the end of the array, therefore only care about
+ 			// the first part
+ 			return convertFromSignature(first);
+@@ -85,36 +81,33 @@ public class NameConvertor {
+ 			// if c = 'Ljava/lang/String;<I' then first = 'Ljava/Lang/String;' and
+ 			// second = 'I'. Want to end up with 'Ljava.lang.String<I' and so add
+ 			// the '<' back.
+-			char[] inclLT = CharOperation.concat(convertFromSignature(first),LESS_THAN);
+-			return CharOperation.concat(inclLT,convertFromSignature(second));
++			char[] inclLT = CharOperation.concat(convertFromSignature(first), LESS_THAN);
++			return CharOperation.concat(inclLT, convertFromSignature(second));
+ 		} else if (smallest == gt) {
+-			char[] inclLT = CharOperation.concat(convertFromSignature(first),GREATER_THAN);
+-			return CharOperation.concat(inclLT,convertFromSignature(second));			
++			char[] inclLT = CharOperation.concat(convertFromSignature(first), GREATER_THAN);
++			return CharOperation.concat(inclLT, convertFromSignature(second));
+ 		} else if (second.length != 2) {
+ 			// if c = 'Ljava/lang/Sting;LMyClass' then first = 'Ljava/lang/String'
+ 			// and second = 'LMyClass'. Want to end up with 'java.lang.String,MyClass
+-			// so want to add a ','. However, only want to do this if we're in the 
++			// so want to add a ','. However, only want to do this if we're in the
+ 			// middle of a '<...>'
+-			char[] inclComma = CharOperation.concat(convertFromSignature(first),COMMA);
+-			return CharOperation.concat(inclComma,convertFromSignature(second));
++			char[] inclComma = CharOperation.concat(convertFromSignature(first), COMMA);
++			return CharOperation.concat(inclComma, convertFromSignature(second));
+ 		}
+-		return CharOperation.concat(convertFromSignature(first),convertFromSignature(second));
++		return CharOperation.concat(convertFromSignature(first), convertFromSignature(second));
+ 	}
+-	
+-	
++
+ 	/**
+-	 * Given a char array, returns the type name for this. For example
+-	 * 'I' returns 'int', 'Ljava/lang/String' returns 'java.lang.String' and
+-	 * '[Ljava/lang/String' returns 'java.lang.String[]'
++	 * Given a char array, returns the type name for this. For example 'I' returns 'int', 'Ljava/lang/String' returns
++	 * 'java.lang.String' and '[Ljava/lang/String' returns 'java.lang.String[]'
+ 	 * 
+-	 * NOTE: Doesn't go any deaper so given 'Ljava/lang/String;<Ljava/lang/String;>' 
+-	 * it would return 'java.lang.String;<Ljava.lang.String;>', however, only called
+-	 * with something like 'Ljava/lang/String'
++	 * NOTE: Doesn't go any deaper so given 'Ljava/lang/String;<Ljava/lang/String;>' it would return
++	 * 'java.lang.String;<Ljava.lang.String;>', however, only called with something like 'Ljava/lang/String'
+ 	 */
+ 	private static char[] getFullyQualifiedTypeName(char[] c) {
+ 		if (c.length == 0) {
+ 			return c;
+-		} 
++		}
+ 		if (c[0] == BOOLEAN) {
+ 			return BOOLEAN_NAME;
+ 		} else if (c[0] == BYTE) {
+@@ -132,29 +125,45 @@ public class NameConvertor {
+ 		} else if (c[0] == SHORT) {
+ 			return SHORT_NAME;
+ 		} else if (c[0] == ARRAY) {
+-			return CharOperation.concat(
+-					getFullyQualifiedTypeName(CharOperation.subarray(c,1,c.length)),
+-					SQUARE_BRACKETS);
++			return CharOperation.concat(getFullyQualifiedTypeName(CharOperation.subarray(c, 1, c.length)), SQUARE_BRACKETS);
+ 		} else {
+-			char[] type = CharOperation.subarray(c,1,c.length);
+-			CharOperation.replace(type,'/','.');
++			char[] type = CharOperation.subarray(c, 1, c.length);
++			CharOperation.replace(type, '/', '.');
+ 			return type;
+ 		}
+ 	}
+-	
++
++	// public static char[] createShortName(char[] c) {
++	// return createShortName(c, false);
++	// }
++
+ 	/**
+-	 * Given 'Ppkg/MyGenericClass<Ljava/lang/String;Ljava/lang/Integer;>;'
+-	 * will return 'QMyGenericClass<QString;QInteger;>;'
++	 * Given 'Ppkg/MyGenericClass<Ljava/lang/String;Ljava/lang/Integer;>;' will return 'QMyGenericClass<QString;QInteger;>;'
+ 	 */
+-	public static char[] createShortName(char[] c) {
+-		int lt = CharOperation.indexOf('<',c);
+-		int sc = CharOperation.indexOf(';',c);
+-		int gt = CharOperation.indexOf('>',c);
+-		
++	public static char[] createShortName(char[] c, boolean haveFullyQualifiedAtLeastOneThing, boolean needsFullyQualifiedFirstEntry) {
++		if (c[0] == '[') {
++			char[] ret = CharOperation.concat(new char[] { '\\', '[' }, createShortName(CharOperation.subarray(c, 1, c.length),
++					haveFullyQualifiedAtLeastOneThing, needsFullyQualifiedFirstEntry));
++			return ret;
++		} else if (c[0] == '+') {
++			char[] ret = CharOperation.concat(new char[] { '+' }, createShortName(CharOperation.subarray(c, 1, c.length),
++					haveFullyQualifiedAtLeastOneThing, needsFullyQualifiedFirstEntry));
++			return ret;
++		} else if (c[0] == '*') {
++			return c; // c is *>;
++		}
++		int lt = CharOperation.indexOf('<', c);
++		int sc = CharOperation.indexOf(';', c);
++		int gt = CharOperation.indexOf('>', c);
++
+ 		int smallest = 0;
+ 		if (lt == -1 && sc == -1 && gt == -1) {
+ 			// we have something like 'Ljava/lang/String' or 'I'
+-			return getTypeName(c);
++			if (!needsFullyQualifiedFirstEntry) {
++				return getTypeName(c, true);
++			} else {
++				return getTypeName(c, haveFullyQualifiedAtLeastOneThing);
++			}
+ 		} else if (lt != -1 && (sc == -1 || lt <= sc) && (gt == -1 || lt <= gt)) {
+ 			// we have something like 'Ljava/lang/String<I'
+ 			smallest = lt;
+@@ -165,50 +174,78 @@ public class NameConvertor {
+ 			// we have something like '>;'
+ 			smallest = gt;
+ 		}
+-		char[] first = CharOperation.subarray(c,0,smallest);
+-		char[] second = CharOperation.subarray(c,smallest+1,c.length);
++		char[] first = CharOperation.subarray(c, 0, smallest);
++		char[] second = CharOperation.subarray(c, smallest + 1, c.length);
+ 		if (smallest == 0 && first.length == 0 && c[0] == '>') {
+ 			// c = {'>',';'} therefore we just want to return c to
+ 			// close the generic signature
+ 			return c;
+ 		} else if (first.length == 1 && second.length == 0) {
+ 			return first;
+-		} else if (second.length == 0 || (second.length == 1 && second[0] == ';')){
++		} else if (second.length == 0 || (second.length == 1 && second[0] == ';')) {
+ 			// we've reached the end of the array, therefore only care about
+ 			// the first part
+-			return createShortName(first);
++			return CharOperation.concat(createShortName(first, haveFullyQualifiedAtLeastOneThing, needsFullyQualifiedFirstEntry),
++					new char[] { ';' });
+ 		} else if (smallest == lt) {
+ 			// if c = 'Ljava/lang/String;<I' then first = 'Ljava/Lang/String;' and
+ 			// second = 'I'. Want to end up with 'LString<I' and so add
+ 			// the '<' back.
+-			char[] inclLT = CharOperation.concat(createShortName(first),BACKSLASH_LESSTHAN);
+-			return CharOperation.concat(inclLT,createShortName(second));
++			char[] inclLT = CharOperation.concat(createShortName(first, haveFullyQualifiedAtLeastOneThing, true),
++					BACKSLASH_LESSTHAN);
++			return CharOperation.concat(inclLT, createShortName(second, true, false));
+ 		} else if (smallest == gt) {
+-			char[] inclLT = CharOperation.concat(createShortName(first),GREATER_THAN);
+-			return CharOperation.concat(inclLT,createShortName(second));			
++			char[] inclLT = CharOperation.concat(createShortName(first, haveFullyQualifiedAtLeastOneThing,
++					needsFullyQualifiedFirstEntry), GREATER_THAN);
++			return CharOperation.concat(inclLT, createShortName(second, true, false));
+ 		} else {
+ 			// if c = 'Ljava/lang/Sting;LMyClass;' then first = 'Ljava/lang/String'
+ 			// and second = 'LMyClass;'. Want to end up with 'QString;QMyClass;
+ 			// so add the ';' back
+-			char[] firstTypeParam = CharOperation.concat(createShortName(first),SEMICOLON);
+-			return CharOperation.concat(firstTypeParam,createShortName(second));
++			char[] firstTypeParam = CharOperation.concat(createShortName(first, haveFullyQualifiedAtLeastOneThing, false),
++					SEMICOLON);
++			return CharOperation.concat(firstTypeParam, createShortName(second, true, false));
+ 		}
+ 	}
+ 
++	// public static char[] getTypeName(char[] name) {
++	// return getTypeName(name, false);
++	// }
++
++	private static final char[] WILDCARD = new char[] { '+' };
++
++	/**
++	 * Convert a typename into its handle form. There are various cases to consider here - many are discussed in pr249216. The flag
++	 * allreadyFQd indicates if we've already included a fq'd name in what we are creating - if we have then further references
++	 * should not be fq'd and can be the short name (so java.util.Set becomes just Set).
++	 * 
++	 */
++
+ 	/**
+ 	 * Given 'Qjava/lang/String;' returns 'QString;'
+ 	 */
+-	public static char[] getTypeName(char[] name) {
+-		int i = CharOperation.lastIndexOf('/',name);
+-		if (i != -1) {
++	public static char[] getTypeName(char[] name, boolean haveFullyQualifiedAtLeastOneThing) {
++		if (!haveFullyQualifiedAtLeastOneThing) {
+ 			if (name[0] == RESOLVED || name[0] == PARAMETERIZED) {
+-				return CharOperation.concat(new char[]{UNRESOLVED},
+-						CharOperation.subarray(name,i+1,name.length));
++				char[] sub = CharOperation.subarray(name, 1, name.length);
++				CharOperation.replace(sub, '/', '.');
++				return CharOperation.concat(new char[] { UNRESOLVED }, sub);
+ 			} else {
+-				return CharOperation.concat(new char[]{name[0]},
+-						CharOperation.subarray(name,i+1,name.length));
++				char[] sub = CharOperation.subarray(name, 1, name.length);
++				CharOperation.replace(sub, '/', '.');
++				return CharOperation.concat(new char[] { name[0] }, sub);
++			}
++		} else {
++			int i = CharOperation.lastIndexOf('/', name);
++			if (i != -1) {
++				if (name[0] == RESOLVED || name[0] == PARAMETERIZED) {
++					return CharOperation.concat(new char[] { UNRESOLVED }, CharOperation.subarray(name, i + 1, name.length));
++				} else {
++					return CharOperation.concat(new char[] { name[0] }, CharOperation.subarray(name, i + 1, name.length));
++				}
+ 			}
+ 		}
+ 		return name;
+ 	}
++
+ }
+@@ -28,6 +28,10 @@ import org.aspectj.testing.XMLBasedAjcTestCase;
+ 
+ public class Ajc163Tests extends org.aspectj.testing.XMLBasedAjcTestCase {
+ 
++//	public void testAtAspectJDecp_pr164016() {
++//		runTest("ataspectj decp");
++//	}
++
+ 	public void testGetMethodNull_pr154427() {
+ 		runTest("getMethod returning null");
+ 	}
+@@ -40,12 +44,38 @@ public class Ajc163Tests extends org.aspectj.testing.XMLBasedAjcTestCase {
+ 		runTest("mixed styles");
+ 	}
+ 
+-	/*
+-	 * public void testHandles_pr249216c24() { runTest("handles - escaped square brackets"); IHierarchy top =
+-	 * AsmManager.lastActiveStructureModel.getHierarchy(); IProgramElement itd = findElementAtLine(top.getRoot(), 4); //
+-	 * System.out.println(itd.getHandleIdentifier()); assertEquals("<{Handles.java}Handles)Ship.i)\\[\\[String;>;",
+-	 * itd.getHandleIdentifier()); }
+-	 */
++	public void testHandles_pr249216c24() {
++		runTest("handles - escaped square brackets");
++		IHierarchy top = AsmManager.lastActiveStructureModel.getHierarchy();
++		IProgramElement ipe = null;
++		ipe = findElementAtLine(top.getRoot(), 4);// public java.util.List<String> Ship.i(List<String>[][] u)
++		assertEquals("<{Handles.java}Handles)Ship.i)\\[\\[Qjava.util.List\\<QString;>;", ipe.getHandleIdentifier());
++
++		ipe = findElementAtLine(top.getRoot(), 7);// public java.util.List<String> Ship.i(Set<String>[][] u)
++		assertEquals("<{Handles.java}Handles)Ship.i)\\[\\[Qjava.util.Set\\<QString;>;", ipe.getHandleIdentifier());
++
++		// public java.util.Set<String> i(java.util.Set<String>[][] u)
++		ipe = findElementAtLine(top.getRoot(), 10);
++		assertEquals("<{Handles.java}Handles~i~\\[\\[Qjava.util.Set\\<QString;>;", ipe.getHandleIdentifier());
++
++		ipe = findElementAtLine(top.getRoot(), 13);// public java.util.Set<String> i(java.util.Set<String>[][] u,int i) {
++		assertEquals("<{Handles.java}Handles~i~\\[\\[Qjava.util.Set\\<QString;>;~I", ipe.getHandleIdentifier());
++
++		ipe = findElementAtLine(top.getRoot(), 16);// public java.util.Set<String> i(java.util.Set<String>[][] u,int i) {
++		assertEquals("<{Handles.java}Handles~i2~\\[\\[Qjava.util.Set\\<+QCollection\\<QString;>;>;", ipe.getHandleIdentifier());
++
++		ipe = findElementAtLine(top.getRoot(), 19);// public java.util.Set<String> i3(java.util.Set<? extends
++		// Collection<String[]>>[][] u)
++		assertEquals("<{Handles.java}Handles~i3~\\[\\[Qjava.util.Set\\<+QCollection\\<\\[QString;>;>;", ipe.getHandleIdentifier());
++
++		ipe = findElementAtLine(top.getRoot(), 22);
++		assertEquals("<{Handles.java}Handles~i4~Qjava.util.Set\\<+QCollection\\<QString;>;>;", ipe.getHandleIdentifier());
++
++		ipe = findElementAtLine(top.getRoot(), 25);
++		assertEquals("<{Handles.java}Handles~i5~Qjava.util.Set\\<*>;", ipe.getHandleIdentifier());
++
++	}
++
+ 	public void testFQType_pr256937() {
+ 		runTest("fully qualified return type");
+ 		IHierarchy top = AsmManager.lastActiveStructureModel.getHierarchy();
+@@ -212,6 +212,18 @@ public class MultiProjectIncrementalTests extends AbstractMultiProjectIncrementa
+ 		// Ajc.dumpAJDEStructureModel(getModelFor("pr253067"), "after inc build where first advised line is gone");
+ 	}
+ 
++	public void testHandles_DeclareAnno_pr249216_c9() {
++		String p = "pr249216";
++		initialiseProject(p);
++		build(p);
++		IProgramElement root = getModelFor(p).getHierarchy().getRoot();
++		IProgramElement code = findElementAtLine(root, 4);
++		// the @ should be escapified
++		assertEquals("=pr249216<{Deca.java}X`declare \\@type", code.getHandleIdentifier());
++		// dumptree(getModelFor(p).getHierarchy().getRoot(), 0);
++		// Ajc.dumpAJDEStructureModel(getModelFor(p), "after inc build where first advised line is gone");
++	}
++
+ 	public void testNullDelegateBrokenCode_pr251940() {
+ 		String p = "pr251940";
+ 		initialiseProject(p);
+@@ -9,8 +9,8 @@
+         declare @type: Simple : @I  [declare @type] TEST_SANDBOX\pr115607.java:6:
+ === END OF MODEL REPORT =========
+ === RELATIONSHIPS REPORT ========= After a batch build
+-(targets=1) <{pr115607.java}pr115607`declare @type (annotates) <{pr115607.java[Simple
+-(targets=1) <{pr115607.java[Simple (annotated by) <{pr115607.java}pr115607`declare @type
++(targets=1) <{pr115607.java}pr115607`declare \@type (annotates) <{pr115607.java[Simple
++(targets=1) <{pr115607.java[Simple (annotated by) <{pr115607.java}pr115607`declare \@type
+ === END OF RELATIONSHIPS REPORT ==
+ === Properties of the model and relationships map =====
+ import reference=1
+@@ -16,9 +16,9 @@
+         badMethod()  [method] TEST_SANDBOX\C.java:8:
+ === END OF MODEL REPORT =========
+ === RELATIONSHIPS REPORT ========= After a batch build
+-(targets=1) <{C.java[C~badMethod (matches declare) <{A.java}A^error
+ (targets=1) <{C.java[C~warningMethod (matches declare) <{A.java}A^warning
+ (targets=1) <{A.java}A^warning (matched by) <{C.java[C~warningMethod
++(targets=1) <{C.java[C~badMethod (matches declare) <{A.java}A^error
+ (targets=1) <{A.java}A^error (matched by) <{C.java[C~badMethod
+ === END OF RELATIONSHIPS REPORT ==
+ === Properties of the model and relationships map =====
+@@ -15,8 +15,8 @@
+ === RELATIONSHIPS REPORT ========= After a batch build
+ (targets=1) <*pr131932.aj}Slide74)Bar.children (declared on) <*pr131932.aj}Slide74[Bar
+ (targets=1) <*pr131932.aj}Slide74)Bar.getFirst (declared on) <*pr131932.aj}Slide74[Bar
+-(targets=1) <*pr131932.aj[Foo (aspect declarations) <*pr131932.aj}Slide74)Foo.Foo_new)QList\<TT;>;
+-(targets=1) <*pr131932.aj}Slide74)Foo.Foo_new)QList\<TT;>; (declared on) <*pr131932.aj[Foo
++(targets=1) <*pr131932.aj[Foo (aspect declarations) <*pr131932.aj}Slide74)Foo.Foo_new)Qjava.util.List\<TT;>;
++(targets=1) <*pr131932.aj}Slide74)Foo.Foo_new)Qjava.util.List\<TT;>; (declared on) <*pr131932.aj[Foo
+ (targets=2) <*pr131932.aj}Slide74[Bar (aspect declarations) <*pr131932.aj}Slide74)Bar.getFirst
+ (targets=2) <*pr131932.aj}Slide74[Bar (aspect declarations) <*pr131932.aj}Slide74)Bar.children
+ === END OF RELATIONSHIPS REPORT ==
+@@ -12,10 +12,10 @@
+       Secured  [annotation] TEST_SANDBOX\pr132130.aj:15:
+ === END OF MODEL REPORT =========
+ === RELATIONSHIPS REPORT ========= After a batch build
+-(targets=1) <*pr132130.aj[BankAccount~BankAccount~QString;~I (annotated by) <*pr132130.aj}basic`declare @constructor!2
+-(targets=1) <*pr132130.aj}basic`declare @method (annotates) <*pr132130.aj[BankAccount~debit~J~J
+-(targets=1) <*pr132130.aj}basic`declare @constructor!2 (annotates) <*pr132130.aj[BankAccount~BankAccount~QString;~I
+-(targets=1) <*pr132130.aj[BankAccount~debit~J~J (annotated by) <*pr132130.aj}basic`declare @method
++(targets=1) <*pr132130.aj[BankAccount~BankAccount~QString;~I (annotated by) <*pr132130.aj}basic`declare \@constructor!2
++(targets=1) <*pr132130.aj}basic`declare \@method (annotates) <*pr132130.aj[BankAccount~debit~J~J
++(targets=1) <*pr132130.aj}basic`declare \@constructor!2 (annotates) <*pr132130.aj[BankAccount~BankAccount~QString;~I
++(targets=1) <*pr132130.aj[BankAccount~debit~J~J (annotated by) <*pr132130.aj}basic`declare \@method
+ === END OF RELATIONSHIPS REPORT ==
+ === Properties of the model and relationships map =====
+ method=1
+@@ -33,14 +33,14 @@
+ (targets=11) <*pr141730.aj}A&before (advises) <*pr141730.aj[C~myClassMethod~LMyClass;
+ (targets=11) <*pr141730.aj}A&before (advises) <*pr141730.aj[C~twoArgsMethod~I~QString;
+ (targets=11) <*pr141730.aj}A&before (advises) <*pr141730.aj[C~main~\[QString;
+-(targets=11) <*pr141730.aj}A&before (advises) <*pr141730.aj[C~multiMethod~\[[String;
++(targets=11) <*pr141730.aj}A&before (advises) <*pr141730.aj[C~multiMethod~\[\[QString;
+ (targets=11) <*pr141730.aj}A&before (advises) <*pr141730.aj[C~intArray~\[I
+ (targets=1) <*pr141730.aj[C~stringMethod~QString; (advised by) <*pr141730.aj}A&before
+ (targets=1) <*pr141730.aj[C~intArray~\[I (advised by) <*pr141730.aj}A&before
+ (targets=1) <*pr141730.aj[C~myClassMethod~LMyClass; (advised by) <*pr141730.aj}A&before
+ (targets=1) <*pr141730.aj[C~C (advised by) <*pr141730.aj}A&before
+ (targets=1) <*pr141730.aj}A (advised by) <*pr141730.aj}A&before
+-(targets=1) <*pr141730.aj[C~multiMethod~\[[String; (advised by) <*pr141730.aj}A&before
++(targets=1) <*pr141730.aj[C~multiMethod~\[\[QString; (advised by) <*pr141730.aj}A&before
+ === END OF RELATIONSHIPS REPORT ==
+ === Properties of the model and relationships map =====
+ method=8
+@@ -16,14 +16,14 @@
+ === RELATIONSHIPS REPORT ========= After a batch build
+ (targets=1) <*pr141730.aj[MyClass (advised by) <*pr141730.aj}A&before
+ (targets=1) <*pr141730.aj[MyGenericClass (advised by) <*pr141730.aj}A&before
+-(targets=1) <*pr141730.aj[C~genericMethod2~PMyGenericClass\<QString;LMyClass;>; (advised by) <*pr141730.aj}A&before
++(targets=1) <*pr141730.aj[C~genericMethod2~QMyGenericClass\<QString;LMyClass;>; (advised by) <*pr141730.aj}A&before
+ (targets=6) <*pr141730.aj}A&before (advises) <*pr141730.aj}A
+ (targets=6) <*pr141730.aj}A&before (advises) <*pr141730.aj[C
+-(targets=6) <*pr141730.aj}A&before (advises) <*pr141730.aj[C~genericMethod~QList\<QString;>;
+-(targets=6) <*pr141730.aj}A&before (advises) <*pr141730.aj[C~genericMethod2~PMyGenericClass\<QString;LMyClass;>;
++(targets=6) <*pr141730.aj}A&before (advises) <*pr141730.aj[C~genericMethod~Qjava.util.List\<QString;>;
++(targets=6) <*pr141730.aj}A&before (advises) <*pr141730.aj[C~genericMethod2~QMyGenericClass\<QString;LMyClass;>;
+ (targets=6) <*pr141730.aj}A&before (advises) <*pr141730.aj[MyGenericClass
+ (targets=6) <*pr141730.aj}A&before (advises) <*pr141730.aj[MyClass
+-(targets=1) <*pr141730.aj[C~genericMethod~QList\<QString;>; (advised by) <*pr141730.aj}A&before
++(targets=1) <*pr141730.aj[C~genericMethod~Qjava.util.List\<QString;>; (advised by) <*pr141730.aj}A&before
+ (targets=1) <*pr141730.aj[C (advised by) <*pr141730.aj}A&before
+ (targets=1) <*pr141730.aj}A (advised by) <*pr141730.aj}A&before
+ === END OF RELATIONSHIPS REPORT ==
+@@ -21,9 +21,9 @@
+ === END OF MODEL REPORT =========
+ === RELATIONSHIPS REPORT ========= After a batch build
+ (targets=1) <bar*MyBar.aj}MyBar`declare parents!2 (declared on) {MyFoo.java
+-(targets=1) {MyFoo.java (annotated by) <bar*MyBar.aj}MyBar`declare @type!3
++(targets=1) {MyFoo.java (annotated by) <bar*MyBar.aj}MyBar`declare \@type!3
+ (targets=1) {MyFoo.java (aspect declarations) <bar*MyBar.aj}MyBar`declare parents!2
+-(targets=1) <bar*MyBar.aj}MyBar`declare @type!3 (annotates) {MyFoo.java
++(targets=1) <bar*MyBar.aj}MyBar`declare \@type!3 (annotates) {MyFoo.java
+ === END OF RELATIONSHIPS REPORT ==
+ === Properties of the model and relationships map =====
+ import reference=4
+@@ -10,8 +10,8 @@
+       Secured  [annotation] TEST_SANDBOX\pr143924.aj:11:
+ === END OF MODEL REPORT =========
+ === RELATIONSHIPS REPORT ========= After a batch build
+-(targets=1) <*pr143924.aj}DeclareAnnotation`declare @method (annotates) <*pr143924.aj[BankAccount~debit~QString;~J
+-(targets=1) <*pr143924.aj[BankAccount~debit~QString;~J (annotated by) <*pr143924.aj}DeclareAnnotation`declare @method
++(targets=1) <*pr143924.aj}DeclareAnnotation`declare \@method (annotates) <*pr143924.aj[BankAccount~debit~QString;~J
++(targets=1) <*pr143924.aj[BankAccount~debit~QString;~J (annotated by) <*pr143924.aj}DeclareAnnotation`declare \@method
+ === END OF RELATIONSHIPS REPORT ==
+ === Properties of the model and relationships map =====
+ method=1
+@@ -126,28 +126,28 @@ public class JDTLikeHandleProviderTests extends XMLBasedAjcTestCase {
+ 		// AJDT: =AJHandleProject/src<pkg*A.aj}A`declare \@type
+ 		runTest("declare @type");
+ 		compareHandles(IProgramElement.Kind.DECLARE_ANNOTATION_AT_TYPE, "declare @type: pkg.C : @MyAnnotation",
+-				"<pkg*A12.aj}A`declare @type");
++				"<pkg*A12.aj}A`declare \\@type");
+ 	}
+ 
+ 	public void testDeclareAtField() {
+ 		// AJDT: =AJHandleProject/src<pkg*A.aj}A`declare \@field
+ 		runTest("declare @field");
+ 		compareHandles(IProgramElement.Kind.DECLARE_ANNOTATION_AT_FIELD, "declare @field: int pkg.C.someField : @MyAnnotation",
+-				"<pkg*A12.aj}A`declare @field!2");
++				"<pkg*A12.aj}A`declare \\@field!2");
+ 	}
+ 
+ 	public void testDeclareAtMethod() {
+ 		// AJDT: =AJHandleProject/src<pkg*A.aj}A`declare \@method
+ 		runTest("declare @method");
+ 		compareHandles(IProgramElement.Kind.DECLARE_ANNOTATION_AT_METHOD,
+-				"declare @method: public void pkg.C.method1() : @MyAnnotation", "<pkg*A12.aj}A`declare @method!3");
++				"declare @method: public void pkg.C.method1() : @MyAnnotation", "<pkg*A12.aj}A`declare \\@method!3");
+ 	}
+ 
+ 	public void testDeclareAtConstructor() {
+ 		// AJDT: =AJHandleProject/src<pkg*A.aj}A`declare \@constructor
+ 		runTest("declare @constructor");
+ 		compareHandles(IProgramElement.Kind.DECLARE_ANNOTATION_AT_CONSTRUCTOR, "declare @constructor: pkg.C.new() : @MyAnnotation",
+-				"<pkg*A12.aj}A`declare @constructor!4");
++				"<pkg*A12.aj}A`declare \\@constructor!4");
+ 	}
+ 
+ 	// what about 2 pieces of before advice with the same
+@@ -499,7 +499,7 @@ public class JDTLikeHandleProviderTests extends XMLBasedAjcTestCase {
+ 		// ~genericMethod1~QList\<QString;>;
+ 		runTest("method with generic arg same as jdt");
+ 		compareHandles(IProgramElement.Kind.METHOD, "genericMethod1(java.util.List<java.lang.String>)",
+-				"<pkg{Java5Class.java[Java5Class~genericMethod1~QList\\<QString;>;");
++				"<pkg{Java5Class.java[Java5Class~genericMethod1~Qjava.util.List\\<QString;>;");
+ 	}
+ 
+ 	public void testMethodWithTwoGenericArgsSameAsJDT() {
+@@ -507,8 +507,8 @@ public class JDTLikeHandleProviderTests extends XMLBasedAjcTestCase {
+ 		// ~genericMethod2~QList\<QString;>;~QMyGenericClass\<QInteger;>;
+ 		runTest("method with two generic args same as jdt");
+ 		compareHandles(IProgramElement.Kind.METHOD, "genericMethod2(java.util.List<java.lang.String>,"
+-				+ "pkg.MyGenericClass<java.lang.Integer>)", "<pkg{Java5Class.java[Java5Class~genericMethod2~QList"
+-				+ "\\<QString;>;~QMyGenericClass\\<QInteger;>;");
++				+ "pkg.MyGenericClass<java.lang.Integer>)", "<pkg{Java5Class.java[Java5Class~genericMethod2~Qjava.util.List"
++				+ "\\<QString;>;~Qpkg.MyGenericClass\\<QInteger;>;");
+ 	}
+ 
+ 	public void testMethodWithTwoTypeParametersSameAsJDT() {
+@@ -516,7 +516,7 @@ public class JDTLikeHandleProviderTests extends XMLBasedAjcTestCase {
+ 		// ~QMyGenericClass2\<QString;QInteger;>;
+ 		runTest("method with two type parameters same as jdt");
+ 		compareHandles(IProgramElement.Kind.METHOD, "genericMethod4(pkg.MyGenericClass2<java.lang.String,java.lang.Integer>)",
+-				"<pkg{Java5Class.java[Java5Class~genericMethod4" + "~QMyGenericClass2\\<QString;QInteger;>;");
++				"<pkg{Java5Class.java[Java5Class~genericMethod4" + "~Qpkg.MyGenericClass2\\<QString;QInteger;>;");
+ 	}
+ 
+ 	public void testMethodWithTwoArgsSameAsJDT_2() {
+@@ -524,7 +524,7 @@ public class JDTLikeHandleProviderTests extends XMLBasedAjcTestCase {
+ 		// ~genericMethod3~I~QList\<QString;>;
+ 		runTest("method with two args one of which is generic same as jdt");
+ 		compareHandles(IProgramElement.Kind.METHOD, "genericMethod3(int,java.util.List<java.lang.String>)",
+-				"<pkg{Java5Class.java[Java5Class~genericMethod3~I~QList\\<QString;>;");
++				"<pkg{Java5Class.java[Java5Class~genericMethod3~I~Qjava.util.List\\<QString;>;");
+ 	}
+ 
+ 	/*
+@@ -7,6 +7,26 @@ public aspect Handles {
+   public java.util.List<String> Ship.i(Set<String>[][] u) {
+ 	        return null;
+   }
++  public java.util.Set<String> i(java.util.Set<String>[][] u) {
++                return null;
++  }
++  public java.util.Set<String> i(java.util.Set<String>[][] u,int i) {
++                return null;
++  }
++  public java.util.Set<String> i2(java.util.Set<? extends Collection<String>>[][] u) {
++    return null;
++  }
++  public java.util.Set<String> i3(java.util.Set<? extends Collection<String[]>>[][] u) {
++    return null;
++  }
++  public java.util.Set<String> i4(java.util.Set<? extends Collection<String>> u) {
++    return null;
++  }
++  public java.util.Set<String> i5(java.util.Set<?> u) {
++    return null;
++  }
++  
++  
+ }
+ 
+ class Ship {}
+@@ -0,0 +1,6 @@
++@interface Foo {}
++
++aspect X {
++  declare @type: I: @Foo;
++    interface I {}
++}

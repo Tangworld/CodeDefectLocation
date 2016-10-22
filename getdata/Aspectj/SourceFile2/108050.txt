@@ -1,0 +1,102 @@
+@@ -0,0 +1,30 @@
++class HttpServlet {
++    protected void doPost() {
++    }    
++}
++
++abstract class MockServlet extends HttpServlet {
++    protected void doPost() {
++    }
++    
++    private static aspect FindMatches {
++    	  declare warning: execution(* HttpServlet.do*(..)): "servlet request";
++    }
++}
++
++class MockDelayingServlet extends MockServlet {
++    private static final long serialVersionUID = 1; 
++}
++
++class MockServlet4 extends MockDelayingServlet 
++{
++    protected void doPost()
++    {
++    } 
++}
++
++
++
++
++
++
+@@ -286,6 +286,10 @@ public class Ajc150Tests extends org.aspectj.testing.XMLBasedAjcTestCase {
+ 	  runTest("multiple anonymous inner classes 2");
+   }
+ 
++  public void testSignatureMatchingInMultipleOverrideScenario() {
++	  runTest("signature matching in override scenario");
++  }
++  
+   // helper methods.....
+ 
+   public SyntheticRepository createRepos(File cpentry) {
+@@ -137,7 +137,15 @@
+         <compile files="pr108104.aj" options="-1.5">
+         </compile>
+     </ajc-test>
+-       
++
++    <ajc-test dir="bugs150" pr="108050" title="signature matching in override scenario">
++        <compile files="pr108050.aj" options="-1.5">
++            <message kind="warning" line = "2" text="servlet request"></message>
++            <message kind="warning" line = "7" text="servlet request"></message>
++            <message kind="warning" line = "21" text="servlet request"></message>
++        </compile>
++    </ajc-test>
++           
+     <ajc-test dir="bugs150/pr106130" pr="106130" title="test weaving with > 256 locals">
+         <compile files="AroundLotsOfVars.java LotsOfVars.java" options="-preserveAllLocals"/>
+         <run class="LotsOfVars">
+@@ -371,4 +371,15 @@ public class JoinPointSignature implements ResolvedMember {
+ 		realMember.resetReturnTypeToObjectArray();
+ 	}
+ 
++	public boolean equals(Object obj) {
++		if (! (obj instanceof JoinPointSignature)) return false;
++		JoinPointSignature other = (JoinPointSignature) obj;
++		if (!realMember.equals(other.realMember)) return false;
++		if (!substituteDeclaringType.equals(other.substituteDeclaringType)) return false;
++		return true;
++	}
++	
++	public int hashCode() {
++		return 17 + (37 * realMember.hashCode()) + (37 * substituteDeclaringType.hashCode());
++	}
+ }
+@@ -151,7 +151,7 @@ public class ResolvedMemberImpl extends MemberImpl implements IHasPosition, Anno
+     	accumulateTypesInBetween(originalDeclaringType, 
+     							 firstDefiningType,
+     							 declaringTypes);
+-    	List memberSignatures = new ArrayList();
++    	Set memberSignatures = new HashSet();
+     	for (Iterator iter = declaringTypes.iterator(); iter.hasNext();) {
+ 			ResolvedType declaringType = (ResolvedType) iter.next();
+ 			ResolvedMember member = firstDefiningMember.withSubstituteDeclaringType(declaringType);
+@@ -204,7 +204,7 @@ public class ResolvedMemberImpl extends MemberImpl implements IHasPosition, Anno
+     		ResolvedMemberImpl memberToMatch,
+     		Iterator typesToLookIn,
+     		List typesAlreadyVisited,
+-    		List foundMembers) {
++    		Set foundMembers) {
+     	while(typesToLookIn.hasNext()) {
+     		ResolvedType toLookIn = (ResolvedType) typesToLookIn.next();
+ 			if (!typesAlreadyVisited.contains(toLookIn)) {
+@@ -217,7 +217,7 @@ public class ResolvedMemberImpl extends MemberImpl implements IHasPosition, Anno
+ 					accumulateTypesInBetween(toLookIn, resolvedDeclaringType, declaringTypes);
+ 				   	for (Iterator iter = declaringTypes.iterator(); iter.hasNext();) {
+ 						ResolvedType declaringType = (ResolvedType) iter.next();
+-						typesAlreadyVisited.add(declaringType);
++//						typesAlreadyVisited.add(declaringType);
+ 						ResolvedMember member = foundMember.withSubstituteDeclaringType(declaringType);
+ 						foundMembers.add(member);
+ 					}				   	

@@ -1,0 +1,550 @@
+@@ -1,3 +1,3 @@
+ src/Main.java
+ src/Logging.aj
+--noweave
+\ No newline at end of file
++-terminateAfterCompilation
+\ No newline at end of file
+@@ -365,10 +365,10 @@ public class BuildConfigurationTests extends AjdeTestCase {
+ 	}	
+ 
+ 	public void testNonStandardOptions() {
+-		buildOptions.setNonStandardOptions( "-XnoWeave" );
++		buildOptions.setNonStandardOptions( "-XterminateAfterCompilation" );
+ 		buildConfig = compilerAdapter.genBuildConfig( configFile );			
+         assertTrue(configFile + " failed", null != buildConfig);            
+-		assertTrue( "XnoWeave", buildConfig.isNoWeave() );
++		assertTrue( "XterminateAfterCompilation", buildConfig.isTerminateAfterCompilation() );
+ 		buildOptions.setNonStandardOptions( "-XserializableAspects" );
+ 		buildConfig = compilerAdapter.genBuildConfig( configFile );			
+ 		assertTrue( "XserializableAspects", buildConfig.isXserializableAspects() );
+@@ -111,7 +111,7 @@
+           in argument files unlike the argument file is the only build
+           specification.  The form <replaceable>@file</replaceable> is the same
+           as specifying <replaceable>-argfile file</replaceable>.
+-		</para></listitem>
++        </para></listitem>
+       </varlistentry>
+ 
+       <varlistentry>
+@@ -426,10 +426,8 @@
+       </varlistentry>
+ 
+       <varlistentry>
+-        <term>-Xnoweave</term>
+-        <listitem><para>(Experimental) produce unwoven class files
+-        for input using -injars. (deprecated - .class files are by
+-        default reweavable and can be input using -inpath.)
++        <term>-XterminateAfterCompilation</term>
++        <listitem><para>Causes compiler to terminate before weaving
+         </para></listitem>
+       </varlistentry>
+ 
+@@ -432,20 +432,17 @@
+                     own entries.  The other permitted ones (currently) are
+                     serializableAspects, incrementalFile, lazyTjp,
+         		reweavable, notReweavable, noInline,
+-            	noWeave,
++            	terminateAfterCompilation,
+                 ajruntimelevel:1.2, and ajruntimelevel:1.5.
+                 Of these, some were deprecated in AspectJ 5
+-                    (reweavable, noWeave, etc.).
++                    (reweavable, terminateAfterCompilation, etc.).
+ 				</para></entry>
+ 			</row>
+ 			<row>
+-				<entry><para>Xnoweave
++				<entry><para>XterminateAfterCompilation
+ 				</para></entry>
+-				<entry><para>		
+-				Experimental option to produce binaries that can only be used as input 
+-				for the <literal>-injars</literal> or <literal>-inpath</literal> option.
+-				Usually aspects are compiled normally and put on the
+-				<literal>aspectpath</literal>.
++				<entry><para>
++				Terminates before the weaving process, dumping out unfinished class files.
+ 				</para></entry>
+ 			</row>
+ 			</tbody>
+@@ -537,8 +537,10 @@ public class BuildArgParser extends Main {
+ 				buildConfig.setXdevPinpointMode(true);
+         	} else if (arg.equals("-Xjoinpoints:arrayconstruction")) {
+         		buildConfig.setXJoinpoints("arrayconstruction");
+-        	} else if (arg.equals("-noweave") || arg.equals( "-XnoWeave")) {
+-				buildConfig.setNoWeave(true);
++        	} else if (arg.equals("-noWeave") || arg.equals( "-XnoWeave")) {
++				showWarning("the noweave option is no longer required and is being ignored");
++        	} else if (arg.equals( "-XterminateAfterCompilation")) {
++				buildConfig.setTerminateAfterCompilation(true);
+ 			} else if (arg.equals("-XserializableAspects")) {
+ 				buildConfig.setXserializableAspects(true);
+ 			} else if (arg.equals("-XlazyTjp")) {
+@@ -129,8 +129,7 @@ xoption.usage = {0} non-standard options:\n\
+ \t-XnotReweavable     create class files that can't be subsequently rewoven\n\
+ \t                    by AspectJ.\n\
+ \t-XserializableAspects allows aspects to implement serializable\n\
+-\t-XnoWeave           compile classes but do not weave. Deprecated, use\n\
+-\t                    reweavable instead.\n\
++\t-XterminateAfterCompilation compile classes then terminate before weaving\n\
+ \t-Xajruntimelevel:<level> allows code to be generated that targets\n\
+ \t                    a 1.2 or a 1.5 level AspectJ runtime (default 1.5)\n\
+ \t-XhasMember         allow hasmethod() and hasfield type patterns in\n\
+@@ -30,7 +30,7 @@ public class AspectJCore extends JavaCore {
+ 	public static final String COMPILER_PB_NEED_SERIAL_VERSION_UID     = AjCompilerOptions.OPTION_ReportNeedSerialVersionUIDField;
+ 	public static final String COMPILER_PB_INCOMPATIBLE_SERIAL_VERSION = AjCompilerOptions.OPTION_ReportIncompatibleSerialVersion;
+ 
+-	public static final String COMPILER_NO_WEAVE             = AjCompilerOptions.OPTION_NoWeave;
++	public static final String COMPILER_TERMINATE_AFTER_COMPILATION             = AjCompilerOptions.OPTION_TerminateAfterCompilation;
+ 	public static final String COMPILER_SERIALIZABLE_ASPECTS = AjCompilerOptions.OPTION_XSerializableAspects;
+ 	public static final String COMPILER_LAZY_TJP             = AjCompilerOptions.OPTION_XLazyThisJoinPoint;
+ 	public static final String COMPILER_NO_ADVICE_INLINE     = AjCompilerOptions.OPTION_XNoInline;
+@@ -48,7 +48,7 @@ public class AjCompilerAdapter implements ICompilerAdapter {
+ 	private EclipseFactory eWorld;
+ 	private boolean isBatchCompile;
+ 	private boolean reportedErrors;
+-	private boolean isXNoWeave;
++	private boolean isXTerminateAfterCompilation;
+ 	private boolean proceedOnError;
+ 	private boolean inJava5Mode;
+ 	private boolean noAtAspectJAnnotationProcessing;
+@@ -81,7 +81,6 @@ public class AjCompilerAdapter implements ICompilerAdapter {
+ 	 * @param resultSetForFullWeave if we are doing an incremental build, and the weaver determines
+ 	 *                              that we need to weave the world, this is the set of intermediate
+ 	 *                              results that will be passed to the weaver.
+-	 * @param isXNoWeave
+ 	 */
+ 	public AjCompilerAdapter(Compiler compiler,
+ 							 boolean isBatchCompile,
+@@ -93,7 +92,7 @@ public class AjCompilerAdapter implements ICompilerAdapter {
+ 							 IOutputClassFileNameProvider outputFileNameProvider,
+ 							 IBinarySourceProvider binarySourceProvider,
+ 							 Map fullBinarySourceEntries, /* fileName |-> List<UnwovenClassFile> */
+-							 boolean isXNoWeave,
++							 boolean isXterminateAfterCompilation,
+ 							 boolean proceedOnError,
+ 							 boolean noAtAspectJProcessing,
+ 							 AjState incrementalCompilationState) {
+@@ -104,7 +103,7 @@ public class AjCompilerAdapter implements ICompilerAdapter {
+ 		this.progressListener = progressListener;
+ 		this.outputFileNameProvider = outputFileNameProvider;
+ 		this.binarySourceProvider = binarySourceProvider;
+-		this.isXNoWeave = isXNoWeave;
++		this.isXTerminateAfterCompilation = isXterminateAfterCompilation;
+ 		this.proceedOnError = proceedOnError;
+ 		this.binarySourceSetForFullWeave = fullBinarySourceEntries;
+ 		this.eWorld = eFactory;
+@@ -177,7 +176,7 @@ public class AjCompilerAdapter implements ICompilerAdapter {
+ 	public void afterCompiling(CompilationUnitDeclaration[] units) {
+ 		this.eWorld.cleanup();
+ 		try {
+-			if (isXNoWeave || (reportedErrors && !proceedOnError)) {
++			if (isXTerminateAfterCompilation || (reportedErrors && !proceedOnError)) {
+ 				// no point weaving... just tell the requestor we're done
+ 				notifyRequestor();
+ 			} else {
+@@ -207,7 +206,7 @@ public class AjCompilerAdapter implements ICompilerAdapter {
+ 			intermediateResultsRequestor.acceptResult(intRes);
+ 		}
+ 
+-		if (isXNoWeave) {
++		if (isXTerminateAfterCompilation) {
+ 			acceptResult(unit.compilationResult);
+ 		} else {
+ 			resultsPendingWeave.add(intRes);
+@@ -354,8 +354,8 @@ public class AjBuildConfig {
+         if (null == lintSpecFile) {
+             lintSpecFile = global.lintSpecFile;
+         }
+-        if (!isNoWeave() && global.isNoWeave()) {
+-            setNoWeave(true);
++        if (!isTerminateAfterCompilation() && global.isTerminateAfterCompilation()) {
++            setTerminateAfterCompilation(true);
+         }
+         if ((null == outputDir) && (null == outputJar)) {
+             if (null != global.outputDir) {
+@@ -456,12 +456,12 @@ public class AjBuildConfig {
+ 		}
+ 	}
+ 
+-	public boolean isNoWeave() {
+-		return options.noWeave;
++	public boolean isTerminateAfterCompilation() {
++		return options.terminateAfterCompilation;
+ 	}
+ 
+-	public void setNoWeave(boolean noWeave) {
+-		options.noWeave = noWeave;
++	public void setTerminateAfterCompilation(boolean b) {
++		options.terminateAfterCompilation = b;
+ 	}
+ 
+ 	public boolean isXserializableAspects() {
+@@ -1157,7 +1157,7 @@ public class AjBuildManager implements IOutputClassFileNameProvider,IBinarySourc
+ 						this,  // IOutputFilenameProvider
+ 						this,  // IBinarySourceProvider
+ 						state.getBinarySourceMap(),
+-						buildConfig.isNoWeave(),
++						buildConfig.isTerminateAfterCompilation(),
+ 						buildConfig.getProceedOnError(),
+ 						buildConfig.isNoAtAspectJAnnotationProcessing(),
+ 						state);
+@@ -37,7 +37,7 @@ public class AjCompilerOptions extends CompilerOptions {
+ 	public static final String OPTION_ReportIncompatibleSerialVersion   = "org.aspectj.ajdt.core.compiler.lint.BrokeSerialVersionCompatibility";
+ 
+ 	// General AspectJ Compiler options (excludes paths etc, these are handled separately)
+-	public static final String OPTION_NoWeave                 = "org.aspectj.ajdt.core.compiler.weaver.NoWeave";
++	public static final String OPTION_TerminateAfterCompilation                 = "org.aspectj.ajdt.core.compiler.weaver.TerminateAfterCompilation";
+ 	public static final String OPTION_XSerializableAspects    = "org.aspectj.ajdt.core.compiler.weaver.XSerializableAspects";
+ 	public static final String OPTION_XLazyThisJoinPoint      = "org.aspectj.ajdt.core.compiler.weaver.XLazyThisJoinPoint";
+ 	public static final String OPTION_XNoInline               = "org.aspectj.ajdt.core.compiler.weaver.XNoInline";
+@@ -62,7 +62,7 @@ public class AjCompilerOptions extends CompilerOptions {
+ 	public static final long NeedSerialVersionUIDField  = ASTNode.Bit54L;
+ 	public static final long IncompatibleSerialVersion  = ASTNode.Bit55L;
+ 
+-	public boolean noWeave = false;
++	public boolean terminateAfterCompilation = false;
+ 	public boolean xSerializableAspects = false;
+ 	public boolean xLazyThisJoinPoint = false;
+ 	public boolean xNoInline = false;
+@@ -130,7 +130,7 @@ public class AjCompilerOptions extends CompilerOptions {
+ 		map.put(OPTION_ReportIncompatibleSerialVersion,getSeverityString(IncompatibleSerialVersion));
+ 		map.put(CompilerOptions.OPTION_ReportSwallowedExceptionInCatchBlock,getSeverityString(CompilerOptions.SwallowedExceptionInCatchBlock));
+ 
+-		map.put(OPTION_NoWeave, this.noWeave ? ENABLED : DISABLED);
++		map.put(OPTION_TerminateAfterCompilation, this.terminateAfterCompilation ? ENABLED : DISABLED);
+ 		map.put(OPTION_XSerializableAspects,this.xSerializableAspects ? ENABLED : DISABLED);
+ 		map.put(OPTION_XLazyThisJoinPoint,this.xLazyThisJoinPoint ? ENABLED : DISABLED);
+ 		map.put(OPTION_XNoInline,this.xNoInline ? ENABLED : DISABLED);
+@@ -163,11 +163,11 @@ public class AjCompilerOptions extends CompilerOptions {
+ 		if ((optionValue = optionsMap.get(OPTION_ReportIncompatibleSerialVersion)) != null) updateSeverity(IncompatibleSerialVersion, optionValue);
+ 		if ((optionValue = optionsMap.get(CompilerOptions.OPTION_ReportSwallowedExceptionInCatchBlock)) != null) updateSeverity(CompilerOptions.SwallowedExceptionInCatchBlock, optionValue);
+ 
+-		if ((optionValue = optionsMap.get(OPTION_NoWeave)) != null) {
++		if ((optionValue = optionsMap.get(OPTION_TerminateAfterCompilation)) != null) {
+ 			if (ENABLED.equals(optionValue)) {
+-				this.noWeave = true;
++				this.terminateAfterCompilation = true;
+ 			} else if (DISABLED.equals(optionValue)) {
+-				this.noWeave = false;
++				this.terminateAfterCompilation = false;
+ 			}
+ 		}
+ 		if ((optionValue = optionsMap.get(OPTION_XSerializableAspects)) != null) {
+@@ -278,7 +278,7 @@ public class AjCompilerOptions extends CompilerOptions {
+ 		StringBuffer buf = new StringBuffer( super.toString() );
+ 		// now add AspectJ additional options
+ 		buf.append("\n\tAspectJ Specific Options:");
+-		buf.append("\n\t- no weave: ").append(this.noWeave ? ENABLED : DISABLED); //$NON-NLS-1$
++		buf.append("\n\t- terminate after compilation: ").append(this.terminateAfterCompilation ? ENABLED : DISABLED); //$NON-NLS-1$
+ 		buf.append("\n\t- no inline (X option): ").append(this.xNoInline ? ENABLED : DISABLED); //$NON-NLS-1$
+ 		buf.append("\n\t- generate serializable aspects (X option): ").append(this.xSerializableAspects ? ENABLED : DISABLED); //$NON-NLS-1$
+ 		buf.append("\n\t- lazy thisJoinPoint (X option): ").append(this.xLazyThisJoinPoint ? ENABLED : DISABLED); //$NON-NLS-1$
+@@ -111,7 +111,7 @@ public class BcweaverJarMaker {
+ 		args.add("-outjar");
+ 		args.add("../weaver/testdata/megatraceNoweave.jar");
+ 
+-		args.add("-noweave");
++		args.add("-XterminateAfterCompilation");
+ 
+ 		args.add("-classpath");
+         args.add(AjcTests.aspectjrtClasspath());
+@@ -36,7 +36,7 @@ public class AjCompilerOptionsTest extends TestCase {
+ 	}
+ 
+ 	public void testDefaultValues() {
+-		assertFalse(options.noWeave);
++		assertFalse(options.terminateAfterCompilation);
+ 		assertFalse(options.xSerializableAspects);
+ 		assertFalse(options.xLazyThisJoinPoint);
+ 		assertFalse(options.xNoInline);
+@@ -59,7 +59,7 @@ public class AjCompilerOptionsTest extends TestCase {
+ 	}
+ 
+ 	public void testDirectSet() {
+-		options.noWeave = true;
++		options.terminateAfterCompilation = true;
+ 		options.xSerializableAspects = true;
+ 		options.xLazyThisJoinPoint = true;
+ 		options.xNoInline = true;
+@@ -70,7 +70,7 @@ public class AjCompilerOptionsTest extends TestCase {
+ 		options.noAtAspectJProcessing = true;
+ 
+ 		Map map = options.getMap();
+-		assertEquals(CompilerOptions.ENABLED,map.get(AjCompilerOptions.OPTION_NoWeave));
++		assertEquals(CompilerOptions.ENABLED,map.get(AjCompilerOptions.OPTION_TerminateAfterCompilation));
+ 		assertEquals(CompilerOptions.ENABLED,map.get(AjCompilerOptions.OPTION_XSerializableAspects));
+ 		assertEquals(CompilerOptions.ENABLED,map.get(AjCompilerOptions.OPTION_XLazyThisJoinPoint));
+ 		assertEquals(CompilerOptions.ENABLED,map.get(AjCompilerOptions.OPTION_XNoInline));
+@@ -94,7 +94,7 @@ public class AjCompilerOptionsTest extends TestCase {
+ 		map.put(AjCompilerOptions.OPTION_ReportNeedSerialVersionUIDField,CompilerOptions.WARNING);
+ 		map.put(AjCompilerOptions.OPTION_ReportIncompatibleSerialVersion,CompilerOptions.ERROR);
+ 
+-		map.put(AjCompilerOptions.OPTION_NoWeave,CompilerOptions.ENABLED);
++		map.put(AjCompilerOptions.OPTION_TerminateAfterCompilation,CompilerOptions.ENABLED);
+ 		map.put(AjCompilerOptions.OPTION_XSerializableAspects,CompilerOptions.ENABLED);
+ 		map.put(AjCompilerOptions.OPTION_XLazyThisJoinPoint,CompilerOptions.ENABLED);
+ 		map.put(AjCompilerOptions.OPTION_XNoInline,CompilerOptions.ENABLED);
+@@ -106,7 +106,7 @@ public class AjCompilerOptionsTest extends TestCase {
+ 
+ 		options.set(map);
+ 
+-		assertTrue(options.noWeave);
++		assertTrue(options.terminateAfterCompilation);
+ 		assertTrue(options.xSerializableAspects);
+ 		assertTrue(options.xLazyThisJoinPoint);
+ 		assertTrue(options.xNoInline);
+@@ -288,11 +288,11 @@ public class AjcTask extends MatchingTask {
+     private static final ICommandEditor COMMAND_EDITOR;
+ 
+     static {
+-        // many now deprecated: reweavable*, noWeave, ...
++        // many now deprecated: reweavable*
+         String[] xs = new String[] 
+             {   "serializableAspects", "incrementalFile", "lazyTjp",
+         		"reweavable", "reweavable:compress", "notReweavable", "noInline",
+-            	"noWeave","hasMember",
++            	"terminateAfterCompilation","hasMember",
+                 "ajruntimelevel:1.2", "ajruntimelevel:1.5", 
+ 
+                 //, "targetNearSource", "OcodeSize",
+@@ -502,14 +502,22 @@ public class AjcTask extends MatchingTask {
+     	cmd.addFlag("-version", version);
+     }
+ 
+-    public void setXNoweave(boolean noweave) {  
+-        cmd.addFlag("-XnoWeave", noweave);
++    public void setXTerminateAfterCompilation(boolean b) {  
++        cmd.addFlag("-XterminateAfterCompilation", b);
+     }
+ 
+     public void setXReweavable(boolean reweavable) {
+     	cmd.addFlag("-Xreweavable",reweavable);
+     }
+ 
++    public void setXNoWeave(boolean b) {
++    	if (logger!=null) logger.warning("the noweave option is no longer required and is being ignored");
++    }
++    
++    public void setNoWeave(boolean b) {
++    	if (logger!=null) logger.warning("the noweave option is no longer required and is being ignored");
++    }
++    
+     public void setXNotReweavable(boolean notReweavable) {
+     	cmd.addFlag("-XnotReweavable",notReweavable);
+     }
+@@ -1882,8 +1890,8 @@ public class AjcTask extends MatchingTask {
+                 setXlint(flag.substring(7));
+             } else if ("-Xlintfile".equals(flag)) {
+                 setXlintfile(new File(in.next()));
+-            } else if ("-Xnoweave".equals(flag)) {
+-                setXNoweave(true);
++            } else if ("-XterminateAfterCompilation".equals(flag)) {
++                setXTerminateAfterCompilation(true);
+ 			} else if ("-Xreweavable".equals(flag)) {
+ 				setXReweavable(true);
+             } else if ("-XnotReweavable".equals(flag)) {
+@@ -714,7 +714,7 @@ public class AjcTaskTest extends TestCase {
+ 		task.setNoExit(true); // ok to override Ant?
+ 		task.setNoImportError(true);
+ 		task.setNowarn(true);
+-		task.setXNoweave(true);
++		task.setXTerminateAfterCompilation(true);
+ 		task.setPreserveAllLocals(true);
+ 		task.setProceedOnError(true);
+ 		task.setReferenceInfo(true);
+@@ -1659,7 +1659,7 @@ public class CompilerRun implements IAjcRun {
+                                     "1.4",
+                                     "1.5" }}),
+                         factory.create("XnoInline"),
+-                        factory.create("XnoWeave"),
++                        factory.create("XterminateAfterCompilation"),
+                         factory.create("Xreweavable"),
+                         factory.create("XnotReweavable"),
+                         factory.create("XserializableAspects")
+@@ -94,7 +94,7 @@ runTest "$ajrt${PS}jars/weaveUserLib.jar" weaveUserLib
+ ## 3: generate aspect library
+ compile -d classes \
+      -classpath "$ajrt" \
+-     -noweave \
++     -XterminateAfterCompilation \
+      -outjar jars/aspectLib.jar \
+      -argfile aspects.lst
+ #makeJar aspectLib
+@@ -833,8 +833,8 @@ public class Ajc150Tests extends org.aspectj.testing.XMLBasedAjcTestCase {
+ 	  runTest("IllegalAccessError with around advice on interface method call not self");
+   }
+ 
+-  public void testIllegalAccessErrorWithAroundAdviceNoWeaveLTW_pr119657() {
+-	  runTest("IllegalAccessError with around advice on interface method call using -XnoWeave and LTW");
++  public void testIllegalAccessErrorWithAroundAdviceTerminateAfterCompilationLTW_pr119657() {
++	  runTest("IllegalAccessError with around advice on interface method call using -XterminateAfterCompilation and LTW");
+   }
+ 
+   public void testIllegalAccessErrorWithAroundAdviceLTW_pr119657() {
+@@ -6165,9 +6165,9 @@
+      </run>
+    </ajc-test>
+ 
+-   <ajc-test dir="bugs150/pr119657" title="IllegalAccessError with around advice on interface method call using -XnoWeave and LTW">
++   <ajc-test dir="bugs150/pr119657" title="IllegalAccessError with around advice on interface method call using -XterminateAfterCompilation and LTW">
+      <compile files="services/account/StockQuoteServiceTest.java, services/accountdata/StockAccount.java, services/stockquote/StockQuoteService.java, services/stockquote/StockQuoteServiceImpl.java, services/account/AccountReport.java"/>
+-     <compile files="accounts/recovery/Recovery.aj" options="-XnoWeave"/>
++     <compile files="accounts/recovery/Recovery.aj" options="-XterminateAfterCompilation"/>
+      <run class="services.account.StockQuoteServiceTest" ltw="aop.xml">
+        <stdout>
+            <line text="Recovery.around() call(float services.stockquote.StockQuoteService.getQuote(String))"/>
+@@ -36,8 +36,8 @@ public class AtAjLTWTests extends XMLBasedAjcTestCase {
+ 		runTest("RunThemAllWithJavacCompiledAndLTW");
+ 	}
+ 
+-	public void testAjcLTWPerClauseTest_XnoWeave() {
+-		runTest("AjcLTW PerClauseTest -XnoWeave");
++	public void testAjcLTWPerClauseTest_XterminateAfterCompilation() {
++		runTest("AjcLTW PerClauseTest -XterminateAfterCompilation");
+ 	}
+ 
+ 	public void testAjcLTWPerClauseTest_Xreweavable() {
+@@ -48,8 +48,8 @@ public class AtAjLTWTests extends XMLBasedAjcTestCase {
+         runTest("JavaCAjcLTW PerClauseTest");
+     }
+ 
+-    public void testAjcLTWAroundInlineMungerTest_XnoWeave() {
+-        runTest("AjcLTW AroundInlineMungerTest -XnoWeave");
++    public void testAjcLTWAroundInlineMungerTest_XterminateAfterCompilation() {
++        runTest("AjcLTW AroundInlineMungerTest -XterminateAfterCompilation");
+     }
+ 
+     public void testAjcLTWAroundInlineMungerTest_Xreweavable() {
+@@ -5,10 +5,10 @@
+         <ant file="ajc-ant.xml" target="javac.ltw" verbose="true"/>
+     </ajc-test>
+ 
+-    <ajc-test dir="java5/ataspectj" title="AjcLTW PerClauseTest -XnoWeave">
++    <ajc-test dir="java5/ataspectj" title="AjcLTW PerClauseTest -XterminateAfterCompilation">
+         <compile
+                 files="ataspectj/PerClauseTest.java,ataspectj/PerClauseTestAspects.java,ataspectj/TestHelper.java"
+-                options="-1.5 -XnoWeave"/>
++                options="-1.5 -XterminateAfterCompilation"/>
+         <ant file="ajc-ant.xml" target="ltw.PerClauseTest" verbose="true"/>
+     </ajc-test>
+ 
+@@ -22,7 +22,7 @@
+     <ajc-test dir="java5/ataspectj" title="JavaCAjcLTW PerClauseTest">
+         <compile
+                 files="ataspectj/PerClauseTest.java,ataspectj/TestHelper.java,ataspectj/PerClauseTestAspects.java"
+-                options="-1.5 -XnoWeave"/>
++                options="-1.5 -XterminateAfterCompilation"/>
+         <comment>
+             aspectOf methods will be pushed in, ignore warning for adviceDidNotMatch but still do the logic for them
+             since such just added methods are an interesting case (percflow ajc$perCflowStack advice)
+@@ -35,10 +35,10 @@
+         <ant file="ajc-ant.xml" target="ltw.PerClauseTest" verbose="true"/>
+     </ajc-test>
+ 
+-    <ajc-test dir="java5/ataspectj" title="AjcLTW AroundInlineMungerTest -XnoWeave">
++    <ajc-test dir="java5/ataspectj" title="AjcLTW AroundInlineMungerTest -XterminateAfterCompilation">
+         <compile
+                 files="ataspectj/AroundInlineMungerTest.java,ataspectj/AroundInlineMungerTestAspects.java,ataspectj/TestHelper.java"
+-                options="-1.5 -XnoWeave"/>
++                options="-1.5 -XterminateAfterCompilation"/>
+         <ant file="ajc-ant.xml" target="ltw.AroundInlineMungerTest" verbose="true"/>
+     </ajc-test>
+ 
+@@ -140,7 +140,7 @@
+     	/>
+     	<compile
+     		files="ataspectj/ltwlog/Aspect1.java"
+-    		options="-1.5 -XnoWeave"
++    		options="-1.5 -XterminateAfterCompilation"
+     	>
+         </compile>	
+         <run class="ataspectj.ltwlog.Main" ltw="ataspectj/ltwlog/aop-silent.xml">
+@@ -159,7 +159,7 @@
+     	/>
+     	<compile
+     		files="ataspectj/ltwlog/Aspect1.java"
+-    		options="-1.5 -XnoWeave"
++    		options="-1.5 -XterminateAfterCompilation"
+     	>
+         </compile>	
+         <run class="ataspectj.ltwlog.Main" ltw="ataspectj/ltwlog/aop-verbose.xml">
+@@ -184,7 +184,7 @@
+     	/>
+     	<compile
+     		files="ataspectj/ltwlog/Aspect1.java"
+-    		options="-1.5 -XnoWeave"
++    		options="-1.5 -XterminateAfterCompilation"
+     	>
+         </compile>	
+         <run class="ataspectj.ltwlog.Main" ltw="ataspectj/ltwlog/aop-verboseandshow.xml">
+@@ -210,7 +210,7 @@
+     	/>
+     	<compile
+     		files="ataspectj/ltwlog/Aspect1.java"
+-    		options="-1.5 -XnoWeave"
++    		options="-1.5 -XterminateAfterCompilation"
+     	>
+         </compile>	
+         <run class="ataspectj.ltwlog.Main" ltw="ataspectj/ltwlog/aop-messagehandler.xml">
+@@ -259,7 +259,7 @@
+     <ajc-test dir="java5/ataspectj" title="Concrete@Aspect">
+         <compile
+             files="ataspectj/ConcreteAtAspectTest.java,ataspectj/TestHelper.java"
+-            options="-1.5 -XnoWeave"
++            options="-1.5 -XterminateAfterCompilation"
+             />
+         <run class="ataspectj.ConcreteAtAspectTest" ltw="ataspectj/aop-concreteataspect.xml"/>
+     </ajc-test>
+@@ -267,7 +267,7 @@
+     <ajc-test dir="java5/ataspectj" title="ConcreteAspect">
+         <compile
+             files="ataspectj/ConcreteAspectTest.aj,ataspectj/TestHelper.java"
+-            options="-1.5 -Xdev:NoAtAspectJProcessing -XnoWeave"
++            options="-1.5 -Xdev:NoAtAspectJProcessing -XterminateAfterCompilation"
+             />
+         <run class="ataspectj.ConcreteAspectTest" ltw="ataspectj/aop-concreteaspect.xml"/>
+     </ajc-test>
+@@ -275,7 +275,7 @@
+     <ajc-test dir="java5/ataspectj" title="ConcretePrecedenceAspect">
+         <compile
+             files="ataspectj/ConcretePrecedenceAspectTest.java,ataspectj/TestHelper.java"
+-            options="-1.5 -Xdev:NoAtAspectJProcessing -XnoWeave"
++            options="-1.5 -Xdev:NoAtAspectJProcessing -XterminateAfterCompilation"
+             />
+         <run class="ataspectj.ConcretePrecedenceAspectTest" ltw="ataspectj/aop-concreteprecedenceaspect.xml"/>
+     </ajc-test>
+@@ -283,14 +283,14 @@
+     <ajc-test dir="java5/ataspectj" title="AspectOfWhenAspectNotInInclude">
+         <compile
+             files="ataspectj/bugs/AspectOfWhenAspectNotInIncludeTest.java,ataspectj/TestHelper.java"
+-            options="-1.5 -XnoWeave"/>
++            options="-1.5 -XterminateAfterCompilation"/>
+         <run class="ataspectj.bugs.AspectOfWhenAspectNotInIncludeTest" ltw="ataspectj/bugs/aop-aspectofwhenaspectnotinincludetest.xml"/>
+     </ajc-test>
+ 
+     <ajc-test dir="java5/ataspectj" title="AppContainer">
+         <compile
+             files="ataspectj/hierarchy/AppContainerTest.java,ataspectj/hierarchy/app/SubApp.java,ataspectj/TestHelper.java"
+-            options="-1.5 -XnoWeave"
++            options="-1.5 -XterminateAfterCompilation"
+             />
+         <ant file="ajc-ant.xml" target="ltw.AppContainer" verbose="true"/>
+     </ajc-test>
+@@ -38,7 +38,7 @@ public class InPathTests extends org.aspectj.testing.XMLBasedAjcTestCase {
+ 
+ // test removed from suite since aspects are *always* generated reweavable
+ //  public void test004(){
+-//    runTest("The compiler crashes when using aspect libraries created without using -noweave");
++//    runTest("The compiler crashes when using aspect libraries created without using -terminateAfterCompilation");
+ //  }
+ 
+   public void test005(){
+@@ -25,7 +25,7 @@
+ 
+   <ajc-test dir="new/options11"  pr="36329"
+    	  comment="the line number might change, we're really interested only in the files here"
+-      title="The compiler crashes when using aspect libraries created without using -noweave">
++      title="The compiler crashes when using aspect libraries created without using -terminateAfterCompile">
+         <compile files="Main.java,injar.jar,Aspect.java,aspectlib1.jar,aspectlib2.jar">
+             <message kind="error" line="0"/>
+         </compile>

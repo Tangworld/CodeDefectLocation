@@ -1,0 +1,107 @@
+@@ -112,5 +112,10 @@ public class InterTypeFieldBinding extends FieldBinding {
+ 	public ReferenceBinding getTargetType() {
+ 		return targetType;
+ 	}
++	
++	// overrides ITD'd method in FieldBinding...
++	public ReferenceBinding getOwningClass() {
++		return targetType;
++	}
+ 
+ }
+Binary files differ
+Binary files differ
+@@ -21,4 +21,14 @@ public class pr105181 {
+      */
+     Foo f2 = source.get(0).foo();
+   }
++  
++  public void worksOK() {
++	  java.util.Vector<Bar> source = new java.util.Vector<Bar>();
++	  source.add(new Bar());
++	  Bar b = source.get(0).field;
++  }
++}
++
++class Bar {
++	Bar field;
+ }
+\ No newline at end of file
+@@ -405,7 +405,7 @@ public class Ajc150Tests extends org.aspectj.testing.XMLBasedAjcTestCase {
+   public void testSuperCallInITD() {
+ 	  runTest("super call in ITD");
+   }
+-  
++
+   public void testSuperCallInITDPart2() {
+ 	  runTest("super call in ITD - part 2");
+   }
+@@ -426,12 +426,9 @@ public class Ajc150Tests extends org.aspectj.testing.XMLBasedAjcTestCase {
+ 	  runTest("cant find type error with generic return type or parameter");
+   }
+ 
+- 
+-  
+-// currently failing...
+-//  public void testNoVerifyErrorOnGenericCollectionMemberAccess() {
+-//	  runTest("no verify error on generic collection member access");
+-//  }
++  public void testNoVerifyErrorOnGenericCollectionMemberAccess() {
++	  runTest("no verify error on generic collection member access");
++  }
+ 
+   // helper methods.....
+ 
+@@ -0,0 +1,24 @@
++class Foo {}
++aspect Injector {
++  Foo Foo.field;
++  public Foo Foo.foo() { System.out.println("hello"); return field; }
++}
++
++public class pr105181 {
++  static void sink(Foo foo) {}
++  public static void main(String[] args) throws Exception {
++    java.util.Vector<Foo> source = new java.util.Vector<Foo>();
++    source.add(new Foo());
++
++    /**
++     * This next line causes a verify error when we try to access the ITD'd field
++     */
++    Foo f = source.get(0).field; 
++    
++    /**
++     * According to the bug report, this line should to - but I couldn't get a 
++     * method to fail...
++     */
++    Foo f2 = source.get(0).foo();
++  }
++}
+\ No newline at end of file
+@@ -417,6 +417,12 @@ public class Ajc150Tests extends org.aspectj.testing.XMLBasedAjcTestCase {
+   public void testCantFindTypeErrorWithGenericReturnTypeOrParameter() {
+ 	  runTest("cant find type error with generic return type or parameter");
+   }
++  
++// currently failing...
++//  public void testNoVerifyErrorOnGenericCollectionMemberAccess() {
++//	  runTest("no verify error on generic collection member access");
++//  }
++  
+   // helper methods.....
+ 
+   public SyntheticRepository createRepos(File cpentry) {
+@@ -536,6 +536,13 @@
+         <compile files="pr108826.aj" options="-1.5 -emacssym" >
+         </compile>
+     </ajc-test> 
++ 
++     <ajc-test dir="bugs150" pr="105181" title="no verify error on generic collection member access">
++        <compile files="pr105181.aj" options="-1.5">
++        </compile>
++        <run class="pr105181"/>
++    </ajc-test> 
++       
+     <!-- ============================================================================ -->
+     <!-- ============================================================================ -->
+ 

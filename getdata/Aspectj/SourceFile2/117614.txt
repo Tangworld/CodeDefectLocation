@@ -1,0 +1,260 @@
+@@ -395,7 +395,7 @@ public class GenericsTests extends XMLBasedAjcTestCase {
+ 	public void testSophisticatedAspectsV() {runTest("uberaspects - V");} // casts are gone
+ 	public void testSophisticatedAspectsW() {runTest("uberaspects - W");}
+ 	public void testSophisticatedAspectsX() {runTest("uberaspects - X");} // from the AJDK
+-//	public void testSophisticatedAspectsY() {runTest("uberaspects - Y");} // pointcut matching
++	public void testSophisticatedAspectsY() {runTest("uberaspects - Y");} // pointcut matching
+ 
+ 	// FIXME asc these two tests have peculiar error messages - generic aspect related
+ //	public void testItdUsingTypeParameter() {runTest("itd using type parameter");}
+@@ -108,6 +108,13 @@ public class Lint {
+ 	public final Kind aspectExcludedByConfiguration = 
+ 		new Kind("aspectExcludedByConfiguration","aspect {0} exluded for class loader {1}");
+ 
++	// there are a lot of messages in the cant find type family - I'm defining an umbrella lint warning that
++	// allows a user to control their severity (for e.g. ltw or binary weaving)
++	public final Kind cantFindType =
++		new Kind("cantFindType","{0}");
++	
++	public final Kind cantFindTypeAffectingJoinPointMatch = new Kind("cantFindTypeAffectingJPMatch","{0}");
++	
+     public Lint(World world) {
+ 		this.world = world;
+ 	}
+@@ -176,7 +176,8 @@ public class MissingResolvedTypeWithKnownSignature extends ResolvedType {
+ 		if (issuedJoinPointWarning) return;
+ 		String message = WeaverMessages.format(WeaverMessages.CANT_FIND_TYPE_JOINPOINT,getName(),signature);
+ 		message += "\n" + CompilationAndWeavingContext.getCurrentContext();
+-		MessageUtil.warn(world.getMessageHandler(),message); 
++		world.getLint().cantFindTypeAffectingJoinPointMatch.signal(message,null);
++//		MessageUtil.warn(world.getMessageHandler(),message); 
+ 		issuedJoinPointWarning = true;		
+ 	}
+ 
+@@ -184,7 +185,8 @@ public class MissingResolvedTypeWithKnownSignature extends ResolvedType {
+ 		if (issuedMissingInterfaceWarning) return;
+ 		String message = WeaverMessages.format(WeaverMessages.CANT_FIND_TYPE_INTERFACE_METHODS,getName(),signature);
+ 		message += "\n" + CompilationAndWeavingContext.getCurrentContext();
+-		MessageUtil.warn(world.getMessageHandler(),message); 
++		world.getLint().cantFindTypeAffectingJoinPointMatch.signal(message,null);
++		//MessageUtil.warn(world.getMessageHandler(),message); 
+ 		issuedMissingInterfaceWarning = true;				
+ 	}
+ 
+@@ -192,7 +194,8 @@ public class MissingResolvedTypeWithKnownSignature extends ResolvedType {
+ 		if (issuedCantFindTypeError) return;
+ 		String message = WeaverMessages.format(key,getName());
+ 		message += "\n" + CompilationAndWeavingContext.getCurrentContext();
+-		MessageUtil.error(world.getMessageHandler(),message);
++		world.getLint().cantFindType.signal(message,null);
++//		MessageUtil.error(world.getMessageHandler(),message);
+ 		issuedCantFindTypeError = true;
+ 	}
+ 
+@@ -200,7 +203,8 @@ public class MissingResolvedTypeWithKnownSignature extends ResolvedType {
+ 		if (issuedCantFindTypeError) return;
+ 		String message = WeaverMessages.format(key,getName(),insert);
+ 		message += "\n" + CompilationAndWeavingContext.getCurrentContext();
+-		MessageUtil.error(world.getMessageHandler(),message);
++		world.getLint().cantFindType.signal(message,null);
++//		MessageUtil.error(world.getMessageHandler(),message);
+ 		issuedCantFindTypeError = true;
+ 	}
+ 
+@@ -142,13 +142,14 @@ public abstract class World implements Dump.INode {
+     public ResolvedType resolve(UnresolvedType ty,ISourceLocation isl) {
+         ResolvedType ret = resolve(ty,true);
+         if (ty == ResolvedType.MISSING) {
+-            IMessage msg = null;
+-            if (isl!=null) {
+-              msg = MessageUtil.error(WeaverMessages.format(WeaverMessages.CANT_FIND_TYPE,ty.getName()),isl);
+-            } else {
+-              msg = MessageUtil.error(WeaverMessages.format(WeaverMessages.CANT_FIND_TYPE,ty.getName())); 
+-            }
+-            messageHandler.handleMessage(msg);
++            //IMessage msg = null;
++            getLint().cantFindType.signal(WeaverMessages.format(WeaverMessages.CANT_FIND_TYPE,ty.getName()),isl);
++            //if (isl!=null) {
++              //msg = MessageUtil.error(WeaverMessages.format(WeaverMessages.CANT_FIND_TYPE,ty.getName()),isl);
++            //} else {
++              //msg = MessageUtil.error(WeaverMessages.format(WeaverMessages.CANT_FIND_TYPE,ty.getName())); 
++            //}
++            //messageHandler.handleMessage(msg);
+         }
+         return ret;
+     }
+@@ -34,3 +34,6 @@ noExplicitConstructorCall = warning
+ aspectExcludedByConfiguration = ignore
+ 
+ unmatchedTargetKind = warning
++
++cantFindType = error
++cantFindTypeAffectingJPMatch = warning
+@@ -263,10 +263,14 @@ public class BcelAdvice extends Advice {
+ 		for (int i=0, len=excs.length; i < len; i++) {
+ 			ResolvedType t = world.resolve(excs[i],true);
+             if (t == ResolvedType.MISSING) {
+-                IMessage msg = new Message(
+-                  WeaverMessages.format(WeaverMessages.CANT_FIND_TYPE_EXCEPTION_TYPE,excs[i].getName()),
+-                  "",IMessage.ERROR,getSourceLocation(),null,null);
+-                world.getMessageHandler().handleMessage(msg);
++            		world.getLint().cantFindType.signal(
++            				WeaverMessages.format(WeaverMessages.CANT_FIND_TYPE_EXCEPTION_TYPE,excs[i].getName()),
++            				getSourceLocation()
++            				);
++//                IMessage msg = new Message(
++//                  WeaverMessages.format(WeaverMessages.CANT_FIND_TYPE_EXCEPTION_TYPE,excs[i].getName()),
++//                  "",IMessage.ERROR,getSourceLocation(),null,null);
++//                world.getMessageHandler().handleMessage(msg);
+             }
+ 			if (!(runtimeException.isAssignableFrom(t) || error.isAssignableFrom(t))) {
+ 				ret.add(t);
+@@ -2019,11 +2019,16 @@ public class BcelShadow extends Shadow {
+         }
+         ResolvedType declaringType = world.resolve(mungerSig.getDeclaringType(),true);
+         if (declaringType == ResolvedType.MISSING) {
+-          IMessage msg = new Message(
+-                WeaverMessages.format(WeaverMessages.CANT_FIND_TYPE_DURING_AROUND_WEAVE,declaringType.getClassName()),
+-                "",IMessage.ERROR,getSourceLocation(),null,
+-                new ISourceLocation[]{ munger.getSourceLocation()});
+-          world.getMessageHandler().handleMessage(msg);
++        	world.getLint().cantFindType.signal(
++        			new String[] {WeaverMessages.format(WeaverMessages.CANT_FIND_TYPE_DURING_AROUND_WEAVE,declaringType.getClassName())},
++        			getSourceLocation(),
++        			new ISourceLocation[]{ munger.getSourceLocation()}
++        			);
++//          IMessage msg = new Message(
++//                WeaverMessages.format(WeaverMessages.CANT_FIND_TYPE_DURING_AROUND_WEAVE,declaringType.getClassName()),
++//                "",IMessage.ERROR,getSourceLocation(),null,
++//                new ISourceLocation[]{ munger.getSourceLocation()});
++//          world.getMessageHandler().handleMessage(msg);
+         }
+         //??? might want some checks here to give better errors
+         BcelObjectType ot = BcelWorld.getBcelObjectType((declaringType.isParameterizedType()?declaringType.getGenericType():declaringType)); 
+@@ -2619,11 +2624,16 @@ public class BcelShadow extends Shadow {
+                 UnresolvedType bcelTX = BcelWorld.fromBcel(stateTypes[i]);
+                 ResolvedType stateRTX = world.resolve(bcelTX,true);
+                 if (stateRTX == ResolvedType.MISSING) {
+-                    IMessage msg = new Message(
+-                             WeaverMessages.format(WeaverMessages.CANT_FIND_TYPE_DURING_AROUND_WEAVE_PREINIT,bcelTX.getClassName()),
+-                              "",IMessage.ERROR,getSourceLocation(),null,
+-                              new ISourceLocation[]{ munger.getSourceLocation()});
+-                    world.getMessageHandler().handleMessage(msg);
++                		world.getLint().cantFindType.signal(
++                				new String[] {WeaverMessages.format(WeaverMessages.CANT_FIND_TYPE_DURING_AROUND_WEAVE_PREINIT,bcelTX.getClassName())},
++                				getSourceLocation(),
++                				new ISourceLocation[]{ munger.getSourceLocation()}
++                				);
++//                    IMessage msg = new Message(
++//                             WeaverMessages.format(WeaverMessages.CANT_FIND_TYPE_DURING_AROUND_WEAVE_PREINIT,bcelTX.getClassName()),
++//                              "",IMessage.ERROR,getSourceLocation(),null,
++//                              new ISourceLocation[]{ munger.getSourceLocation()});
++//                    world.getMessageHandler().handleMessage(msg);
+                 }
+ 				stateTempVar.appendConvertableArrayLoad(
+ 					returnConversionCode, 
+@@ -146,9 +146,14 @@ public class ArgsAnnotationPointcut extends NameBindingPointcut {
+ 				UnresolvedType argType = shadow.getArgType(argsIndex);
+ 				ResolvedType rArgType = argType.resolve(shadow.getIWorld());
+ 				if (rArgType == ResolvedType.MISSING) {
+-	                  IMessage msg = new Message(
+-	                    WeaverMessages.format(WeaverMessages.CANT_FIND_TYPE_ARG_TYPE,argType.getName()),
+-	                    "",IMessage.ERROR,shadow.getSourceLocation(),null,new ISourceLocation[]{getSourceLocation()});
++					shadow.getIWorld().getLint().cantFindType.signal(
++							new String[] {WeaverMessages.format(WeaverMessages.CANT_FIND_TYPE_ARG_TYPE,argType.getName())},
++							shadow.getSourceLocation(),
++							new ISourceLocation[]{getSourceLocation()}
++							);
++//	                  IMessage msg = new Message(
++//	                    WeaverMessages.format(WeaverMessages.CANT_FIND_TYPE_ARG_TYPE,argType.getName()),
++//	                    "",IMessage.ERROR,shadow.getSourceLocation(),null,new ISourceLocation[]{getSourceLocation()});
+ 	            }
+ 
+ 				ResolvedType rAnnType = ap.getAnnotationType().resolve(shadow.getIWorld());
+@@ -206,10 +206,15 @@ public class ArgsPointcut extends NameBindingPointcut {
+             ResolvedType argRTX = shadow.getIWorld().resolve(argType,true);
+ 			if (!(type instanceof BindingTypePattern)) {
+                 if (argRTX == ResolvedType.MISSING) {
+-                  IMessage msg = new Message(
+-                    WeaverMessages.format(WeaverMessages.CANT_FIND_TYPE_ARG_TYPE,argType.getName()),
+-                    "",IMessage.ERROR,shadow.getSourceLocation(),null,new ISourceLocation[]{getSourceLocation()});
+-                  shadow.getIWorld().getMessageHandler().handleMessage(msg);
++					shadow.getIWorld().getLint().cantFindType.signal(
++							new String[] {WeaverMessages.format(WeaverMessages.CANT_FIND_TYPE_ARG_TYPE,argType.getName())},
++							shadow.getSourceLocation(),
++							new ISourceLocation[]{getSourceLocation()}
++							);
++//                  IMessage msg = new Message(
++//                    WeaverMessages.format(WeaverMessages.CANT_FIND_TYPE_ARG_TYPE,argType.getName()),
++//                    "",IMessage.ERROR,shadow.getSourceLocation(),null,new ISourceLocation[]{getSourceLocation()});
++//                  shadow.getIWorld().getMessageHandler().handleMessage(msg);
+                 }
+ 				if (type.matchesInstanceof(argRTX).alwaysTrue()) {
+ 					continue;
+@@ -26,6 +26,7 @@ import org.aspectj.weaver.Checker;
+ import org.aspectj.weaver.ISourceContext;
+ import org.aspectj.weaver.IntMap;
+ import org.aspectj.weaver.Member;
++import org.aspectj.weaver.ResolvedMember;
+ import org.aspectj.weaver.ResolvedType;
+ import org.aspectj.weaver.Shadow;
+ import org.aspectj.weaver.ShadowMunger;
+@@ -155,7 +156,13 @@ public class KindedPointcut extends Pointcut {
+ 
+ 		// if the method in the declaring type is *not* visible to the
+ 		// exact declaring type then warning not needed.
+-		int shadowModifiers = shadow.getSignature().resolve(world).getModifiers();
++		ResolvedMember rm = shadow.getSignature().resolve(world);
++		// rm can be null in the case where we are binary weaving, and looking at a class with a call to a method in another class,
++		// but because of class incompatibilities, the method does not exist on the target class anymore.
++		// this will be reported elsewhere.
++		if (rm == null) return; 
++		
++		int shadowModifiers = rm.getModifiers();
+ 		if (!ResolvedType
+ 			.isVisible(
+ 				shadowModifiers,
+@@ -90,11 +90,16 @@ public class WithinAnnotationPointcut extends NameBindingPointcut {
+ 	protected FuzzyBoolean matchInternal(Shadow shadow) {
+ 		ResolvedType enclosingType = shadow.getIWorld().resolve(shadow.getEnclosingType(),true);
+ 		if (enclosingType == ResolvedType.MISSING) {
+-			IMessage msg = new Message(
+-			    WeaverMessages.format(WeaverMessages.CANT_FIND_TYPE_WITHINPCD,
+-			    		              shadow.getEnclosingType().getName()),
+-				shadow.getSourceLocation(),true,new ISourceLocation[]{getSourceLocation()});
+-			shadow.getIWorld().getMessageHandler().handleMessage(msg);
++			shadow.getIWorld().getLint().cantFindType.signal(
++					new String[] {WeaverMessages.format(WeaverMessages.CANT_FIND_TYPE_WITHINPCD,
++											shadow.getEnclosingType().getName())},
++				    shadow.getSourceLocation(),
++				    new ISourceLocation[]{getSourceLocation()});
++//			IMessage msg = new Message(
++//			    WeaverMessages.format(WeaverMessages.CANT_FIND_TYPE_WITHINPCD,
++//			    		              shadow.getEnclosingType().getName()),
++//				shadow.getSourceLocation(),true,new ISourceLocation[]{getSourceLocation()});
++//			shadow.getIWorld().getMessageHandler().handleMessage(msg);
+ 		}
+ 		annotationTypePattern.resolve(shadow.getIWorld());
+ 		return annotationTypePattern.matches(enclosingType);
+@@ -74,11 +74,16 @@ public class WithinPointcut extends Pointcut {
+ 	protected FuzzyBoolean matchInternal(Shadow shadow) {
+ 		ResolvedType enclosingType = shadow.getIWorld().resolve(shadow.getEnclosingType(),true);
+ 		if (enclosingType == ResolvedType.MISSING) {
+-			IMessage msg = new Message(
+-			    WeaverMessages.format(WeaverMessages.CANT_FIND_TYPE_WITHINPCD,
+-			    		              shadow.getEnclosingType().getName()),
+-				shadow.getSourceLocation(),true,new ISourceLocation[]{getSourceLocation()});
+-			shadow.getIWorld().getMessageHandler().handleMessage(msg);
++			shadow.getIWorld().getLint().cantFindType.signal(
++					new String[] {WeaverMessages.format(WeaverMessages.CANT_FIND_TYPE_WITHINPCD,
++											shadow.getEnclosingType().getName())},
++				    shadow.getSourceLocation(),
++				    new ISourceLocation[]{getSourceLocation()});			
++//			IMessage msg = new Message(
++//			    WeaverMessages.format(WeaverMessages.CANT_FIND_TYPE_WITHINPCD,
++//			    		              shadow.getEnclosingType().getName()),
++//				shadow.getSourceLocation(),true,new ISourceLocation[]{getSourceLocation()});
++//			shadow.getIWorld().getMessageHandler().handleMessage(msg);
+ 		}
+ 		typePattern.resolve(shadow.getIWorld());
+ 		return isWithinType(enclosingType);

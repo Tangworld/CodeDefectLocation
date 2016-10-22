@@ -1,0 +1,191 @@
+@@ -69,6 +69,7 @@ import org.aspectj.weaver.WeaverMessages;
+ import org.aspectj.weaver.WeaverStateInfo;
+ import org.aspectj.weaver.World;
+ import org.aspectj.weaver.AjAttribute.WeaverVersionInfo;
++import org.aspectj.weaver.UnresolvedType.TypeKind;
+ 
+ 
+ /**
+@@ -1113,7 +1114,13 @@ public final class LazyClassGen {
+     		BcelWorld w = shadow.getWorld();
+     		list.append(new PUSH(getConstantPoolGen(),makeString(sig.getModifiers(w))));
+     		list.append(new PUSH(getConstantPoolGen(),sig.getName()));
+-    		list.append(new PUSH(getConstantPoolGen(),makeString(sig.getDeclaringType())));
++    		// see pr227401
++    		UnresolvedType dType = sig.getDeclaringType();
++    		if (dType.getTypekind()==TypeKind.PARAMETERIZED || 
++    			dType.getTypekind()==TypeKind.GENERIC) {
++        		dType = sig.getDeclaringType().resolve(world).getGenericType();
++    		}
++    		list.append(new PUSH(getConstantPoolGen(),makeString(dType)));    		
+     		list.append(new PUSH(getConstantPoolGen(),makeString(sig.getReturnType())));
+     		list.append(fact.createInvoke(factoryType.getClassName(),
+     				sig.getSignatureMakerName(),
+@@ -0,0 +1,42 @@
++public class Fails {
++
++	interface I {
++		static final int CONST = 56;
++	}
++
++	static class A<T> {
++		protected int prot;
++		protected String protS;
++		int def;
++		String defS;
++		T foo;
++	}
++
++	static class B extends A<String> implements I {
++		void m() {
++			// protected
++//			super.prot = 1;
++//			super.protS = "1";
++//			System.out.println(super.protS + super.prot);
++			prot = 2;
++			protS = "2";
++			System.out.println(protS + prot);
++			// default
++			super.def = 1;
++			super.defS = "1";
++			System.out.println(defS + def);
++			def = 2;
++			defS = "2";
++			foo = "todo";
++			System.out.println(defS + def);
++//			// interface
++//			System.out.println(CONST);
++		}
++	}
++
++	public static void main(String[] args) {
++		B b = new B();
++		b.m();
++	}
++}
++
+@@ -0,0 +1,50 @@
++import java.lang.reflect.Field;
++
++import org.aspectj.lang.reflect.*;
++
++public aspect Instrumentation {
++	pointcut nofl() : !within(Instrumentation);
++	
++	pointcut getField() : get(* *) && nofl() && !get(* System.out) ;
++
++	after() : getField() {
++   	final FieldSignature signature = (FieldSignature) thisJoinPointStaticPart.getSignature();
++                StringBuffer jpInfo = new StringBuffer();
++                jpInfo.append("getField(* ").append(signature.getName()).append(")");
++		final Field field = signature.getField();
++                jpInfo.append("  getField()='").append(signature.getField()).append("'");
++		final Class<?> declaringType = signature.getDeclaringType();
++                jpInfo.append("  getDeclaringType()='"+declaringType).append("'");
++		final Object receiver = thisJoinPoint.getTarget();
++		if (receiver == null) {
++                     jpInfo.append(" signature.getTarget() is null (only ok if static)");
++                }
++		System.out.println(jpInfo.toString());
++	}
++
++   
++
++/*
++	pointcut setField() : set(* *) && nofl();
++
++	after() : setField() {
++		System.out.println("setField()");
++		final FieldSignature signature = (FieldSignature) thisJoinPointStaticPart
++				.getSignature();
++		final Field field = signature.getField();
++		if (field == null)
++			System.out.println(" - field " + signature.getName()
++					+ " is null...bug!");
++		final Class<?> declaringType = signature.getDeclaringType();
++		if (declaringType == null)
++			System.out.println(" - declaringType for the field "
++					+ signature.getName() + " is null...bug!");
++		final Object receiver = thisJoinPoint.getTarget();
++		if (receiver == null)
++			System.out.println(" - target (receiver) for the field "
++					+ signature.getName() + " is null...bug!");
++	}
++*/
++
++}
++
+@@ -0,0 +1,41 @@
++public class Works {
++
++	interface I {
++		static final int CONST = 56;
++	}
++
++	static class A {
++		protected int prot;
++		protected String protS;
++		int def;
++		String defS;
++		String foo;
++	}
++
++	static class B extends A implements I {
++		void m() {
++//			// protected
++//			super.prot = 1;
++//			super.protS = "1";
++//			System.out.println(super.protS + super.prot);
++			prot = 2;
++			protS = "2";
++			System.out.println(protS + prot);
++//			// default
++//			super.def = 3;
++//			super.defS = "3";
++//			System.out.println(defS + def);
++//			def = 4;
++//			defS = "4";
++//			foo = "todo";
++//			System.out.println(defS + def);
++//			// interface
++//			System.out.println(CONST);
++		}
++	}
++
++	public static void main(String[] args) {
++		B b = new B();
++		b.m();
++	}
++}
+@@ -19,6 +19,7 @@ import org.aspectj.testing.XMLBasedAjcTestCase;
+ public class Ajc161Tests extends org.aspectj.testing.XMLBasedAjcTestCase {
+ 
+ 	// AspectJ1.6.1
++	public void testGetFieldGenerics_pr227401() { runTest("getfield problem with generics");}
+ 	public void testGenericAbstractAspects_pr231478() { runTest("generic abstract aspects"); }
+     public void testFieldJoinpointsAndAnnotationValues_pr227993() { runTest("field jp anno value"); }
+     public void testGenericsBoundsDecp_pr231187() { runTest("generics bounds decp"); }
+@@ -3,6 +3,23 @@
+ <!-- AspectJ v1.6.1 Tests -->
+ <suite>
+ 
++    <ajc-test dir="bugs161/pr227401" title="getfield problem with generics">
++        <compile files="Instrumentation.java Fails.java" options="-1.5"/>
++        <run class="Fails">
++          <stdout>
++            <line text="getField(* protS)  getField()='protected java.lang.String Fails$A.protS'  getDeclaringType()='class Fails$A'"/>
++            <line text="getField(* prot)  getField()='protected int Fails$A.prot'  getDeclaringType()='class Fails$A'"/>
++            <line text="22"/>
++            <line text="getField(* defS)  getField()='java.lang.String Fails$A.defS'  getDeclaringType()='class Fails$A'"/>
++            <line text="getField(* def)  getField()='int Fails$A.def'  getDeclaringType()='class Fails$A'"/>
++            <line text="11"/>
++            <line text="getField(* defS)  getField()='java.lang.String Fails$A.defS'  getDeclaringType()='class Fails$A'"/>
++            <line text="getField(* def)  getField()='int Fails$A.def'  getDeclaringType()='class Fails$A'"/>
++            <line text="22"/>
++          </stdout>
++        </run>
++    </ajc-test> 
++    
+     <ajc-test dir="bugs161/pr231478" title="generic abstract aspects">
+         <compile files="Base.java Sub.java AbstractComponent.java AbstractWindow.java" options="-1.5"/>
+     </ajc-test>

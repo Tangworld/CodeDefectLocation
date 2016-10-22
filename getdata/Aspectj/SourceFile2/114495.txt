@@ -1,0 +1,121 @@
+@@ -0,0 +1,22 @@
++public class Pr114495 {
++        public static void main(String[] args) {
++                C.go();
++        }
++        static class C {
++                static void go() {}
++        }
++}
++
++abstract aspect AA_ParameterizedTypeInPointcut<Target> {
++        pointcut going() :call(void Target.go()) ;
++        before() : going() {
++                System.out.println("AA.going()");
++        }
++}
++aspect A_ParameterizedTypeInPointcut 
++extends AA_ParameterizedTypeInPointcut<Pr114495.C> {
++        declare warning : going() : "going()"; // works fine
++        before() : going() { // advice not applied
++                System.out.println("A.going()");
++        }
++}
+\ No newline at end of file
+@@ -743,6 +743,10 @@ public class Ajc150Tests extends org.aspectj.testing.XMLBasedAjcTestCase {
+ 	  runTest("pertarget and negated pointcut");
+   }
+ 
++  public void testParameterizedPointcutAndAdvice() {
++	  runTest("parameterized pointcut and advice");
++  }
++  
+   /*
+    * Load-time weaving bugs
+    */
+@@ -27,6 +27,19 @@
+       </run>
+     </ajc-test>
+ 
++    <ajc-test dir="bugs150" pr="114495" title="parameterized pointcut and advice">
++    		<compile files="Pr114495.aj" options="-1.5">
++    			<message kind="warning" line="3" text="going()"/>
++    		</compile>
++    		<run class="Pr114495">
++    			<stdout>
++    				<line text="A.going()"/>
++    				<line text="AA.going()"/>
++    			</stdout>
++    		</run>
++    </ajc-test>acj
++    
++    
+     <ajc-test dir="bugs150/pr114005" title="Annotated ITDFs - 2">
+       <compile files="Declaration2.java" options="-1.5"/>
+       <run class="Declaration2">
+@@ -475,21 +475,6 @@ public class ReferenceType extends ResolvedType {
+ 		return declares;
+ 	}
+ 
+-	private boolean ajMembersNeedParameterization() {
+-		if (isParameterizedType()) return true;
+-		if (getSuperclass() != null) return ((ReferenceType)getSuperclass()).ajMembersNeedParameterization();
+-		return false;
+-	}
+-	
+-	private Map getAjMemberParameterizationMap() {
+-		Map myMap = getMemberParameterizationMap();
+-		if (myMap.size() == 0) {
+-			// might extend a parameterized aspect that we also need to consider...
+-			if (getSuperclass() != null) return ((ReferenceType)getSuperclass()).getAjMemberParameterizationMap();
+-		}
+-		return myMap;
+-	}
+-	
+ 	protected Collection getTypeMungers() { return delegate.getTypeMungers(); }
+ 
+ 	protected Collection getPrivilegedAccesses() { return delegate.getPrivilegedAccesses(); }
+@@ -678,11 +678,11 @@ public abstract class ResolvedType extends UnresolvedType implements AnnotatedEl
+ 		List l = new ArrayList();
+ 		ResolvedMember[] methods = getDeclaredMethods();
+ 		if (isParameterizedType()) methods = getGenericType().getDeclaredMethods();
+-		Map typeVariableMap = getMemberParameterizationMap();
++		Map typeVariableMap = getAjMemberParameterizationMap();
+ 		for (int i=0, len = methods.length; i < len; i++) {
+ 			ShadowMunger munger = methods[i].getAssociatedShadowMunger();
+ 			if (munger != null) {
+-				if (this.isParameterizedType()) {
++				if (ajMembersNeedParameterization()) {
+ 					//munger.setPointcut(munger.getPointcut().parameterizeWith(typeVariableMap));
+ 					munger = munger.parameterizeWith(this,typeVariableMap);
+ 					if (munger instanceof Advice) {
+@@ -2003,5 +2003,20 @@ public abstract class ResolvedType extends UnresolvedType implements AnnotatedEl
+ 		}
+ 		return parameterizedWithAMemberTypeVariable.alwaysTrue();
+ 	}
++
++	protected boolean ajMembersNeedParameterization() {
++		if (isParameterizedType()) return true;
++		if (getSuperclass() != null) return ((ReferenceType)getSuperclass()).ajMembersNeedParameterization();
++		return false;
++	}
++
++	protected Map getAjMemberParameterizationMap() {
++		Map myMap = getMemberParameterizationMap();
++		if (myMap.size() == 0) {
++			// might extend a parameterized aspect that we also need to consider...
++			if (getSuperclass() != null) return ((ReferenceType)getSuperclass()).getAjMemberParameterizationMap();
++		}
++		return myMap;
++	}
+ 
+ }
+@@ -93,7 +93,7 @@ public class BcelAdvice extends Advice {
+ 		BcelAdvice ret = null;
+ 		Member adviceSignature = signature;		
+ 		// allows for around advice where the return value is a type variable (see pr115250)
+-		if (signature instanceof ResolvedMember) {
++		if (signature instanceof ResolvedMember && signature.getDeclaringType().isGenericType()) {
+ 			adviceSignature = ((ResolvedMember)signature).parameterizedWith(declaringType.getTypeParameters(),declaringType,declaringType.isParameterizedType());
+ 		}
+ 		ret = new BcelAdvice(this.attribute,pc,adviceSignature,this.concreteAspect);

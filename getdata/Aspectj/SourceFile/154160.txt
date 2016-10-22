@@ -1,0 +1,502 @@
+@@ -6,7 +6,7 @@ package org.aspectj.systemtest;
+ import junit.framework.Test;
+ import junit.framework.TestSuite;
+ 
+-import org.aspectj.systemtest.ajc160.AllTestsAspectJ160;
++import org.aspectj.systemtest.ajc154.AllTestsAspectJ154;
+ 
+ public class AllTests16 {
+ 
+@@ -14,7 +14,7 @@ public class AllTests16 {
+ 		TestSuite suite = new TestSuite("AspectJ System Test Suite - JDK 1.6");
+ 		//$JUnit-BEGIN$
+ 		suite.addTest(AllTests15.suite());
+-		suite.addTest(AllTestsAspectJ160.suite());
++		suite.addTest(AllTestsAspectJ154.suite());
+ 		//$JUnit-END$
+ 		return suite;
+ 	}
+Binary files differ
+@@ -0,0 +1,14 @@
++package test.aspects;
++
++public class C1 {
++
++    @MyAnn
++    protected void aMethod() {
++      System.out.println("Calling aMethod");
++    }
++    
++    public void callAMethod() {
++        aMethod(); // Should be a marker here...
++    }
++
++}
+@@ -0,0 +1,43 @@
++package test.aspects;
++
++import test.aspects2.C2;
++
++
++public class C3 {
++    /*
++    public void callAMethodC2() {
++        C1 c1 = new C1();
++        c1.aMethod(); // Should be a marker here...
++        
++        C2 c2 = new C2();
++        c2.aMethod();  // Should be a marker here...
++    }
++    
++    public void innerClassCall() {
++        InnerClass ic = new InnerClass();
++        
++        ic.foo();
++    }
++    protected class InnerClass {
++        public void foo() {
++            C1 c1 = new C1();
++            c1.aMethod();  // Should be a marker here...
++
++            C2 c2 = new C2();
++            c2.aMethod();  // Should be a marker here...
++        }
++    }
++    
++    public static void main(String [] args) {
++        C1 c1 = new C1();
++        
++        c1.aMethod(); // Should be a marker here...
++        c1.callAMethod();
++        
++        C3 c2 = new C3();
++        
++        c2.callAMethodC2();
++        c2.innerClassCall();
++    }
++    */
++}
+@@ -0,0 +1,13 @@
++package test.aspects;
++
++import java.lang.annotation.ElementType;
++import java.lang.annotation.Inherited;
++import java.lang.annotation.Retention;
++import java.lang.annotation.RetentionPolicy;
++import java.lang.annotation.Target;
++
++@Inherited
++@Retention(RetentionPolicy.RUNTIME)
++@Target(ElementType.METHOD)
++public @interface MyAnn {
++}
+@@ -0,0 +1,24 @@
++package test.aspects;
++
++import org.aspectj.lang.ProceedingJoinPoint;
++import org.aspectj.lang.annotation.Around;
++import org.aspectj.lang.annotation.Aspect;
++import org.aspectj.lang.annotation.Pointcut;
++
++@Aspect
++public class MyAnnAspect {
++	
++	@Pointcut("call(@MyAnn * *(..))")
++	void validatedMethod() {}
++	
++
++    @Around("validatedMethod()")
++    public Object validateMethodImpl(ProceedingJoinPoint thisJoinPoint) throws Throwable {
++		return doInvoke(thisJoinPoint);
++	}
++	
++    private Object doInvoke(final ProceedingJoinPoint thisJoinPoint) throws Throwable {
++        System.out.println("Invoking : " + thisJoinPoint);
++        return thisJoinPoint.proceed();
++    }
++}
+@@ -0,0 +1,34 @@
++package test.aspects2;
++
++import test.aspects.C1;
++
++
++public class C2 extends C1 {
++    public void callAMethodC2() {
++        aMethod(); // Should be a marker here...
++    }
++    
++    public void innerClassCall() {
++        InnerClass ic = new InnerClass();
++        
++        ic.foo();
++    }
++    protected class InnerClass {
++        public void foo() {
++            aMethod(); // Should be a marker here...
++        }
++    }
++    
++    public static void main(String [] args) {
++        C1 c1 = new C1();
++        
++        c1.callAMethod();
++        
++        C2 c2 = new C2();
++        
++        c2.aMethod(); // Should be a marker here...
++        c2.callAMethod();
++        c2.callAMethodC2();
++        c2.innerClassCall();
++    }
++}
+@@ -0,0 +1,6 @@
++aspect Test {
++
++  pointcut p(): bean(foo*);
++
++  before(): p() { }
++}
+\ No newline at end of file
+@@ -0,0 +1,12 @@
++package bugs;
++
++
++
++public class Advised {}
++
++aspect ITD {
++
++          public void Advised.f() {}
++
++}
++
+@@ -0,0 +1,17 @@
++package notbugs;
++
++
++
++import bugs.Advised;
++
++
++
++public class Ref {
++
++          public void g() {
++
++                   new Advised().f();
++
++          }
++
++}
+\ No newline at end of file
+@@ -8,9 +8,11 @@
+  * Contributors:
+  *    Andy Clement - initial API and implementation
+  *******************************************************************************/
+-package org.aspectj.systemtest.ajc160;
++package org.aspectj.systemtest.ajc154;
+ 
+ import java.io.File;
++import java.util.HashSet;
++import java.util.Set;
+ 
+ import org.aspectj.apache.bcel.classfile.ConstantPool;
+ import org.aspectj.apache.bcel.classfile.JavaClass;
+@@ -21,13 +23,30 @@ import org.aspectj.apache.bcel.generic.MethodGen;
+ import org.aspectj.apache.bcel.util.ClassPath;
+ import org.aspectj.apache.bcel.util.SyntheticRepository;
+ import org.aspectj.testing.XMLBasedAjcTestCase;
++import org.aspectj.weaver.patterns.PatternParser;
++import org.aspectj.weaver.tools.ContextBasedMatcher;
++import org.aspectj.weaver.tools.FuzzyBoolean;
++import org.aspectj.weaver.tools.MatchingContext;
++import org.aspectj.weaver.tools.PointcutDesignatorHandler;
+ 
+ import junit.framework.Test;
+ 
+ /**
+- * These are tests for AspectJ1.6 - they do not require a 1.6 VM.
++ * These are tests for AspectJ1.5.4
+  */
+-public class Ajc160Tests extends org.aspectj.testing.XMLBasedAjcTestCase {
++public class Ajc154Tests extends org.aspectj.testing.XMLBasedAjcTestCase {
++	
++//	public void testNewDesignatorsReferencePointcuts_pr205907() { 		
++//		BeanDesignatorHandler beanHandler = new BeanDesignatorHandler();
++//		Set set = new HashSet();
++//		set.add(beanHandler);
++//		PatternParser.setTestDesignators(set);
++//	//parser.registerPointcutDesignatorHandler(beanHandler);
++//		runTest("new pointcut designators in a reference pointcut");
++//	}
++	
++	public void testItdClashForTypesFromAspectPath_pr206732() { runTest("itd clash for types from aspectpath"); } 
++	public void testAnnotationStyleAndMultiplePackages_pr197719() { runTest("annotation style syntax and cross package extension"); }
+ 
+ 	/** Complex test that attempts to damage a class like a badly behaved bytecode transformer would and checks if AspectJ can cope. */
+ 	 public void testCopingWithGarbage_pr175806_1() throws ClassNotFoundException { 
+@@ -147,11 +166,11 @@ public class Ajc160Tests extends org.aspectj.testing.XMLBasedAjcTestCase {
+ 
+   /////////////////////////////////////////
+   public static Test suite() {
+-    return XMLBasedAjcTestCase.loadSuite(Ajc160Tests.class);
++    return XMLBasedAjcTestCase.loadSuite(Ajc154Tests.class);
+   }
+ 
+   protected File getSpecFile() {
+-    return new File("../tests/src/org/aspectj/systemtest/ajc160/ajc160.xml");
++    return new File("../tests/src/org/aspectj/systemtest/ajc154/ajc154.xml");
+   }
+ 
+   public SyntheticRepository createRepos(File cpentry) {
+@@ -163,6 +182,81 @@ public class Ajc160Tests extends org.aspectj.testing.XMLBasedAjcTestCase {
+ 	SyntheticRepository repos = createRepos(where);
+ 	return repos.loadClass(clazzname);
+   }
++  // ---
++	private class BeanDesignatorHandler implements PointcutDesignatorHandler {
++
++		private String askedToParse;
++		public boolean simulateDynamicTest = false;
++		
++		public String getDesignatorName() {
++			return "bean";
++		}
++	
++		/* (non-Javadoc)
++		 * @see org.aspectj.weaver.tools.PointcutDesignatorHandler#parse(java.lang.String)
++		 */
++		public ContextBasedMatcher parse(String expression) {
++			this.askedToParse = expression;
++			return new BeanPointcutExpression(expression,this.simulateDynamicTest);
++		}
++		
++		public String getExpressionLastAskedToParse() {
++			return this.askedToParse;
++		}
++	}
++	
++	private class BeanPointcutExpression implements ContextBasedMatcher {
++
++		private final String beanNamePattern;
++		private final boolean simulateDynamicTest;
++
++		public BeanPointcutExpression(String beanNamePattern, boolean simulateDynamicTest) {
++			this.beanNamePattern = beanNamePattern;
++			this.simulateDynamicTest = simulateDynamicTest;			
++		}
++
++
++		public boolean couldMatchJoinPointsInType(Class aClass) {
++			return true;
++		}
++		
++		/* (non-Javadoc)
++		 * @see org.aspectj.weaver.tools.ContextBasedMatcher#couldMatchJoinPointsInType(java.lang.Class)
++		 */
++		public boolean couldMatchJoinPointsInType(Class aClass, MatchingContext context) {
++			if (this.beanNamePattern.equals(context.getBinding("beanName"))) {
++				return true;
++			} else {
++				return false;
++			}
++		}
++
++
++		/* (non-Javadoc)
++		 * @see org.aspectj.weaver.tools.ContextBasedMatcher#mayNeedDynamicTest()
++		 */
++		public boolean mayNeedDynamicTest() {
++			return this.simulateDynamicTest;
++		}
++
++
++		public FuzzyBoolean matchesStatically(MatchingContext matchContext) {
++			if (this.simulateDynamicTest) return FuzzyBoolean.MAYBE;
++			if (this.beanNamePattern.equals(matchContext.getBinding("beanName"))) {
++				return FuzzyBoolean.YES;
++			} else {
++				return FuzzyBoolean.NO;
++			}
++		}
++
++
++		/* (non-Javadoc)
++		 * @see org.aspectj.weaver.tools.ContextBasedMatcher#matchesDynamically(org.aspectj.weaver.tools.MatchingContext)
++		 */
++		public boolean matchesDynamically(MatchingContext matchContext) {
++			return this.beanNamePattern.equals(matchContext.getBinding("beanName"));
++		}
++	}		
+ 
+ 
+ }
+\ No newline at end of file
+@@ -8,17 +8,17 @@
+  * Contributors:
+  *    Andy Clement - initial API and implementation
+  *******************************************************************************/
+-package org.aspectj.systemtest.ajc160;
++package org.aspectj.systemtest.ajc154;
+ 
+ import junit.framework.Test;
+ import junit.framework.TestSuite;
+ 
+-public class AllTestsAspectJ160 {
++public class AllTestsAspectJ154 {
+ 
+ 	public static Test suite() {
+-		TestSuite suite = new TestSuite("AspectJ 1.6.0 tests");
++		TestSuite suite = new TestSuite("AspectJ 1.5.4 tests");
+ 		//$JUnit-BEGIN$
+-		suite.addTest(Ajc160Tests.suite());
++		suite.addTest(Ajc154Tests.suite());
+         //$JUnit-END$
+ 		return suite;
+ 	}
+@@ -3,13 +3,16 @@
+ <!-- AspectJ v1.6.0 Tests -->
+ <suite>
+ 
+- <!-- first section - dont need a 1.6 vm but fixed in the 1.6 branch of AspectJ -->
+- 
+-   <ajc-test dir="bugs160/pr175806" title="coping with bad tables">
++   <ajc-test dir="bugs154/pr206732" title="itd clash for types from aspectpath">
++     <compile outjar="foo.jar" files="Advised.aj"/>
++     <compile files="Ref.aj" aspectpath="foo.jar"/>
++   </ajc-test>
++
++   <ajc-test dir="bugs154/pr175806" title="coping with bad tables">
+      <compile options="-1.5" files="A.java"/>
+    </ajc-test>
+ 
+-   <ajc-test dir="bugs160/pr174449" title="problem with generic aspect and generic pointcut">
++   <ajc-test dir="bugs154/pr174449" title="problem with generic aspect and generic pointcut">
+      <compile options="-1.5" files="Foo.java"/>
+      <run class="Foo">
+        <stderr>
+@@ -19,7 +22,7 @@
+      </run>
+    </ajc-test>
+ 
+-   <ajc-test dir="bugs160/pr174449" title="problem with generic aspect and generic pointcut - noinline">
++   <ajc-test dir="bugs154/pr174449" title="problem with generic aspect and generic pointcut - noinline">
+      <compile options="-1.5 -XnoInline" files="Foo.java"/>
+      <run class="Foo">
+        <stderr>
+@@ -29,17 +32,17 @@
+      </run>
+    </ajc-test>
+ 
+-   <ajc-test dir="bugs160/pr171953_2" title="problem with generic methods and ordering - ok">
++   <ajc-test dir="bugs154/pr171953_2" title="problem with generic methods and ordering - ok">
+ 	 <compile options="-1.5" files="test/ListFactoryAspect.aj, test/AbstractProcessor.java,test/ListFactory.java,test/ListFactoryConsumer.java,test/Processor.java,test/SimpleListFactoryConsumer.java">
+ 	 </compile>
+    </ajc-test>
+ 
+-   <ajc-test dir="bugs160/pr171953_2" title="problem with generic methods and ordering - bad">
++   <ajc-test dir="bugs154/pr171953_2" title="problem with generic methods and ordering - bad">
+ 	 <compile options="-1.5" files="test/ListFactory.java,test/ListFactoryConsumer.java,test/SimpleListFactoryConsumer.java,test/Processor.java,test/ListFactoryAspect.aj,test/AbstractProcessor.java">
+ 	 </compile>
+    </ajc-test>
+ 
+-   <ajc-test dir="bugs160/pr171953" title="problem with itd and join point signature collection - bad">
++   <ajc-test dir="bugs154/pr171953" title="problem with itd and join point signature collection - bad">
+      <compile options="-1.5 -showWeaveInfo" files="test/AbstractExecutable.java,test/AnotherExecutable.java,test/Executable.java,test/ExecutionAspect.aj,test/SecondTestExecutable.java test/SubTestExecutable.java test/TestExecutable.java">
+        <message kind="weave" text="Join point 'method-execution(void test.SecondTestExecutable.execute())' in Type 'test.SecondTestExecutable' (SecondTestExecutable.java:5) advised by around advice from 'test.ExecutionAspect' (ExecutionAspect.aj:9)"/>
+        <message kind="weave" text="Extending interface set for type 'test.AbstractExecutable' (AbstractExecutable.java) to include 'java.io.Serializable' (ExecutionAspect.aj)"/>
+@@ -49,7 +52,7 @@
+      <run class="test.SecondTestExecutable"/>
+    </ajc-test>
+ 
+-   <ajc-test dir="bugs160/pr171953" title="problem with itd and join point signature collection - ok">
++   <ajc-test dir="bugs154/pr171953" title="problem with itd and join point signature collection - ok">
+      <compile options="-1.5 -showWeaveInfo" files="test/SecondTestExecutable.java test/AbstractExecutable.java test/AnotherExecutable.java  test/Executable.java test/ExecutionAspect.aj test/RunnableAspect.aj test/SubTestExecutable.java test/TestExecutable.java">
+        <message kind="weave" text="Join point 'method-execution(void test.SecondTestExecutable.execute())' in Type 'test.SecondTestExecutable' (SecondTestExecutable.java:5) advised by around advice from 'test.ExecutionAspect' (ExecutionAspect.aj:9)"/>
+        <message kind="weave" text="Extending interface set for type 'test.AbstractExecutable' (AbstractExecutable.java) to include 'java.io.Serializable' (ExecutionAspect.aj)"/>
+@@ -59,39 +62,39 @@
+      <run class="test.SecondTestExecutable"/>
+    </ajc-test>
+ 
+-    <ajc-test dir="bugs160/pr171952" title="generic methods and ITDs">
++    <ajc-test dir="bugs154/pr171952" title="generic methods and ITDs">
+       <compile files="Foo.java,FooAspect.java" options="-1.5"/>
+     </ajc-test>
+ 
+-    <ajc-test dir="bugs160/pr169428" title="using decp annotation without aspect annotation">
++    <ajc-test dir="bugs154/pr169428" title="using decp annotation without aspect annotation">
+       <compile files="AnAspect.java" options="-1.5">
+         <message kind="error" text="Found @AspectJ annotations in a non @Aspect type 'AnAspect'"/>
+       </compile>
+     </ajc-test>
+ 
+-    <ajc-test dir="bugs160/pr170467" title="itds and parameterized parameters">
++    <ajc-test dir="bugs154/pr170467" title="itds and parameterized parameters">
+       <compile files="Bug.aj" options="-1.5"/>
+       <compile files="Bug2.aj" options="-1.5"/>
+     </ajc-test>
+ 
+-    <ajc-test dir="bugs160/pr169706" title="inherited annotations">
++    <ajc-test dir="bugs154/pr169706" title="inherited annotations">
+       <compile files="A.java,B.java,C.java,MyAspect.java,MyAnnotation.java,Test.java" options="-1.5 -showWeaveInfo">
+         <message kind="weave" text="Join point 'method-call(void C.foo())' in Type 'Test' (Test.java:5) advised by before advice from 'MyAspect' (MyAspect.java:4)"/>
+ 	  </compile>
+     </ajc-test>
+ 
+-    <ajc-test dir="bugs160/pr165885" title="generic field npe">
++    <ajc-test dir="bugs154/pr165885" title="generic field npe">
+       <compile files="Concrete.java,Abstract.java,Aspect.java" options="-1.5">
+         <message kind="warning" line="8" text="foo"/>
+ 	  </compile>
+     </ajc-test>
+ 
+-    <ajc-test dir="bugs160/pr168044" title="complex generics - 1">
++    <ajc-test dir="bugs154/pr168044" title="complex generics - 1">
+       <compile files="AbstractNode.java" options="-1.5">
+ 	  </compile>
+     </ajc-test>
+ 
+-    <ajc-test dir="bugs160/pr168063" title="incorrectly marking field transient">
++    <ajc-test dir="bugs154/pr168063" title="incorrectly marking field transient">
+       <compile files="A.java"/>
+       <run class="A">
+         <stdout>
+@@ -100,12 +103,12 @@
+       </run>
+     </ajc-test>
+ 
+-    <ajc-test dir="bugs160/pr166084" title="incorrect optimization of istore">
++    <ajc-test dir="bugs154/pr166084" title="incorrect optimization of istore">
+       <compile files="X.java" inpath="simple.jar"/>
+ 	  <run class="Simple"/>
+     </ajc-test>
+ 
+-    <ajc-test dir="bugs160/pr165631" title="dual parameterizations not allowed">
++    <ajc-test dir="bugs154/pr165631" title="dual parameterizations not allowed">
+       <!-- two variations of the same situation, should fail in the same way -->
+       <compile files="Bug.java" options="-1.5">
+         <message kind="error" line="12" text="Cannot declare parent B"/>
+@@ -139,12 +142,19 @@
+         </run>
+     </ajc-test>
+ 
+-    <ajc-test dir="bugs160/pr172107" title="null returned from getField()"
++    <ajc-test dir="bugs154/pr172107" title="null returned from getField()"
+ 		keywords="pr172107">
+         <compile files="ReadWriteAJBug172107.java,Instrumentation.aj"/>
+ 		<run class="ReadWriteAJBug172107"/>
+     </ajc-test>
+ 
+- <!-- second section - need a 1.6 vm -->
++    <ajc-test dir="bugs154/pr197719" title="annotation style syntax and cross package extension">
++      <compile files="test/aspects/C1.java,test/aspects/C3.java,test/aspects/MyAnn.java,test/aspects/MyAnnAspect.java,test/aspects2/C2.java" options="-1.5"/>
++      <run class="test.aspects2.C2"/>
++    </ajc-test>
++    
++    <ajc-test dir="bugs154/pr205907" title="new pointcut designators in a reference pointcut">
++      <compile files="Test.aj"/>
++    </ajc-test>
+ 
+ </suite>
+\ No newline at end of file

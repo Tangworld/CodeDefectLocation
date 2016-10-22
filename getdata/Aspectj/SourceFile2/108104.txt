@@ -1,0 +1,56 @@
+@@ -0,0 +1,31 @@
++class Bug_Provider {
++  public void enable_bug(Object argument) {}
++}
++
++class Bug_Checker<T> extends Bug_Provider {
++  public T is_bug_enabled() {
++    return (T) new Boolean(true);
++  }
++}
++
++public class pr108104 {
++  public static void main(String[] args) throws InterruptedException {
++    final Bug_Checker<Boolean> first = new Bug_Checker<Boolean>() {
++      @Override // compiler agrees, this is an override
++      public Boolean is_bug_enabled() {
++        return new Boolean(false);
++      }
++    };
++    System.out.println("is bug enabled? " + first.is_bug_enabled()); // false
++
++    first.enable_bug(null);
++ 
++    final Bug_Checker<Boolean> second = new Bug_Checker<Boolean>() {
++      @Override 
++      public Boolean is_bug_enabled() {
++        return new Boolean(false);
++      }
++    };
++    System.out.println("is bug enabled? " +second.is_bug_enabled()); // true!
++  }
++}
+\ No newline at end of file
+@@ -282,6 +282,10 @@ public class Ajc150Tests extends org.aspectj.testing.XMLBasedAjcTestCase {
+ 	  runTest("matching against Object[]");
+   }
+ 
++  public void testMultipleAnonymousInnerClasses_pr108104() {
++	  runTest("multiple anonymous inner classes 2");
++  }
++  
+   // helper methods.....
+ 
+   public SyntheticRepository createRepos(File cpentry) {
+@@ -132,6 +132,11 @@
+             <message kind="error" line="4" text="wildcard type pattern not allowed"></message>
+         </compile>
+     </ajc-test>
++ 
++    <ajc-test dir="bugs150" pr="108104" title="multiple anonymous inner classes 2">
++        <compile files="pr108104.aj" options="-1.5">
++        </compile>
++    </ajc-test>
+ 
+     <ajc-test dir="bugs150/pr106130" pr="106130" title="test weaving with > 256 locals">
+         <compile files="AroundLotsOfVars.java LotsOfVars.java" options="-preserveAllLocals"/>

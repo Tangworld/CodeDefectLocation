@@ -1,0 +1,136 @@
+@@ -375,6 +375,10 @@ public class AjBuildConfig {
+         if (!isXlazyTjp() && global.isXlazyTjp()) {
+         	setXlazyTjp(true);
+         }
++        if (!getProceedOnError() && global.getProceedOnError()) {
++        	setProceedOnError(true);
++        }
++       	setTargetAspectjRuntimeLevel(global.getTargetAspectjRuntimeLevel());
+         if (!isXHasMemberEnabled() && global.isXHasMemberEnabled()) {
+         	setXHasMemberSupport(true);
+         }
+@@ -0,0 +1,21 @@
++public class Aspect {
++  public static void main(String []argv) {
++    new Aspect().m();
++  }
++
++  public void m() {
++  }
++}
++
++aspect Y {
++
++  public int Aspect.x = 5;
++  public void Aspect.foo() {
++  }
++  before():execution(* m()) {
++  }
++
++  before(): staticinitialization(*) {
++
++  }
++}
+@@ -0,0 +1,2 @@
++public class Broken {
++
+@@ -0,0 +1,10 @@
++public aspect DefaultInterfaceImplementationRecipe
++{
++	declare parents : MyClass_ch16 implements MyInterface_ch16;
++	
++	// Declare the default implementation of the bar method
++	public void MyInterface_ch16.bar(String name)
++	{
++		System.out.println("bar(String) called on " + this);
++	}
++}
+@@ -0,0 +1,18 @@
++public class MyClass_ch16
++{
++        public void foo(int number, String name)
++	{
++		System.out.println("Inside foo (int, String) with args: " + 
++number + ":" + name);
++	}
++
++	public static void main(String[] args)
++	{
++		// Create an instance of MyClass
++		MyInterface_ch16 myObject = (MyInterface_ch16)new MyClass_ch16
++();
++		
++		// Make the call to foo
++		myObject.bar("Russ");
++	}
++}
+@@ -0,0 +1,5 @@
++public interface MyInterface_ch16
++{
++	public void bar(String name);
++}
++
+@@ -65,6 +65,10 @@ public class AjdeInteractionTestbed extends TestCase {
+ 	public static void configureNewProjectDependency(String fromProject, String projectItDependsOn) {
+ 		MyProjectPropertiesAdapter.addDependancy(fromProject,projectItDependsOn);
+ 	}
++	
++	public static void configureNonStandardCompileOptions(String options) {
++		MyBuildOptionsAdapter.setNonStandardOptions(options);
++	}
+ 	// End of methods for configuring the build
+ 
+ 
+@@ -117,6 +121,7 @@ public class AjdeInteractionTestbed extends TestCase {
+ 			MyBuildProgressMonitor.reset();
+ 			MyTaskListManager.reset();
+ 			MyStateListener.reset();
++			// MyBuildOptionsAdapter.reset(); needs manually resetting in a test
+ 
+ 			MyProjectPropertiesAdapter.setActiveProject(projectName);
+ 			AsmManager.attemptIncrementalModelRepairs=true;
+@@ -620,6 +625,16 @@ public class AjdeInteractionTestbed extends TestCase {
+ 		static MyBuildOptionsAdapter _instance = new MyBuildOptionsAdapter();
+ 		private MyBuildOptionsAdapter() {}
+ 
++		public static void setNonStandardOptions(String options) {
++			_instance.nonstandardoptions = options;
++		}
++
++		private String nonstandardoptions=null;
++		
++		public static void reset() {
++			_instance.nonstandardoptions=null;
++		}
++		
+ 		public static BuildOptionsAdapter getInstance() { 
+ 			return _instance;
+ 		}
+@@ -666,7 +681,7 @@ public class AjdeInteractionTestbed extends TestCase {
+ 		}
+ 
+ 		public String getNonStandardOptions() {
+-			return null;
++			return nonstandardoptions;
+ 		}
+ 
+ 		public String getComplianceLevel() {
+@@ -290,6 +290,18 @@ public class MultiProjectIncrementalTests extends AjdeInteractionTestbed {
+ 		build("PR92837");
+ 	}
+ 
++	// If you fiddle with the compiler options - you must manually reset the options at the end of the test
++	public void testPr117209() {
++		try {
++			initialiseProject("PR117209");
++			configureNonStandardCompileOptions("-proceedOnError");
++			build("PR117209");
++			checkCompileWeaveCount(6,6);
++		} finally {
++			MyBuildOptionsAdapter.reset();
++		}
++	}
++	
+ 	public void testPr114875() {
+ 		initialiseProject("pr114875");
+ 		build("pr114875");

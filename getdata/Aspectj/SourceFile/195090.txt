@@ -1,0 +1,84 @@
+@@ -472,6 +472,10 @@ public class AjProblemReporter extends ProblemReporter {
+ 					return;
+ 			}
+ 		}
++		if (new String(localDecl.name).startsWith("ajc$")) {
++			// Do not report problems for infrastructure variables beyond the users control - pr195090
++			return;
++		}
+ 		super.unusedArgument(localDecl);
+ 	}
+ 
+@@ -618,15 +622,10 @@ public class AjProblemReporter extends ProblemReporter {
+ 		super.duplicateMethodInType(type, methodDecl);
+ 	}
+ 
+-    // pr246393 - if we are going to complain about privileged, we clearly don't know what is going on, so don't
+-    // confuse the user 
+-	public void parseErrorInsertAfterToken(
+-		int start,
+-		int end,
+-		int currentKind,
+-		char[] errorTokenSource,
+-		String errorTokenName,
+-		String expectedToken){
++	// pr246393 - if we are going to complain about privileged, we clearly don't know what is going on, so don't
++	// confuse the user
++	public void parseErrorInsertAfterToken(int start, int end, int currentKind, char[] errorTokenSource, String errorTokenName,
++			String expectedToken) {
+ 		if (expectedToken.equals("privileged")) {
+ 			super.parseErrorNoSuggestion(start, end, currentKind, errorTokenSource, errorTokenName);
+ 		} else {
+@@ -0,0 +1,19 @@
++/**
++ * Helper interface.
++ */
++interface Interface{
++        boolean methodToBeImplemented();
++}
++
++/**
++ * Exposes the ajc$this_ is never read warning.
++ */
++public aspect pr195090 {
++        public boolean Interface.methodToBeImplemented() {
++                return returnTrue();
++        }
++
++        public static boolean returnTrue() {
++                return true;
++        }
++}
+@@ -24,13 +24,17 @@ import org.aspectj.testing.XMLBasedAjcTestCase;
+ 
+ public class Ajc164Tests extends org.aspectj.testing.XMLBasedAjcTestCase {
+ 
++	public void testAjcThisNotRead() {
++		runTest("ajcthis not read");
++	}
++
+ 	public void testRecursiveCflow() {
+ 		runTest("recursive cflow");
+ 	}
+ 
+-	//public void testAopConfig1() {
+-	//	runTest("aop config - 1");
+-	//}
++	// public void testAopConfig1() {
++	// runTest("aop config - 1");
++	// }
+ 
+ 	public void testAnnoDecprecedence_pr256779() {
+ 		runTest("anno decprecedence");
+@@ -8,6 +8,11 @@
+       </compile>
+     </ajc-test>
+ 
++    <ajc-test dir="bugs164" title="ajcthis not read">
++      <compile files="pr195090.java" options="-1.5 -warn:+unusedArgument">
++      </compile>
++    </ajc-test>
++    
+     <ajc-test dir="bugs164/pr256779" title="anno decprecedence">
+       <compile files="ThisAspect.java OtherAspect.java" options="-1.5"/>
+       <run class="com.ThisAspect" ltw="aop.xml"/>

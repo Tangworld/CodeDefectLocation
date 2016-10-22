@@ -1,0 +1,59 @@
+@@ -0,0 +1,8 @@
++package p1;
++
++import org.aspectj.lang.annotation.SuppressAjWarnings;
++
++@SuppressAjWarnings
++public aspect Foobar {
++  before(): execution(* *(..)) {}
++}
+@@ -22,7 +22,8 @@ import org.aspectj.testing.XMLBasedAjcTestCase;
+ 
+ public class Ajc161Tests extends org.aspectj.testing.XMLBasedAjcTestCase {
+ 
+-	// AspectJ1.6.1
++	// AspectJ1.6.1	
++	public void testIgnoringTypeLevelSuppression_pr234933() { runTest("ignoring type level suppress");}
+ 	public void testDuplicateMethodSignature_pr223226_2() { runTest("duplicate method signature - 2"); }
+ 	public void testDuplicateMethodSignature_pr223226() { runTest("duplicate method signature"); }
+ 	public void testProtectedMethodsAroundAdvice_pr197719_2() { runTest("protected methods and around advice - again - 2");}
+@@ -3,6 +3,10 @@
+ <!-- AspectJ v1.6.1 Tests -->
+ <suite>
+ 
++	<ajc-test dir="bugs161/pr234933" title="ignoring type level suppress">
++    	<compile files="Foobar.java" options="-1.5 -Xlint:error"/>
++    </ajc-test>
++    
+ 	<ajc-test dir="bugs161/pr223226" title="duplicate method signature - 2">
+     	<compile files="AspectX.java BInterface.java FooInterface.java AspectXMarker.java Foo.java Test.java" options="-1.5"/>
+     	<run class="Test"/>
+@@ -1284,7 +1284,7 @@ public class BcelWeaver {
+ 	                   }
+ 
+ 					   if (!(ba.getSignature() instanceof BcelMethod)
+-					       || !Utility.isSuppressing((AnnotationX[])ba.getSignature().getAnnotations(),"adviceDidNotMatch")) {
++						       || !Utility.isSuppressing(ba.getSignature(),"adviceDidNotMatch")) {
+ 					        world.getLint().adviceDidNotMatch.signal(ba.getDeclaringAspect().toString(),
+ 					        		new SourceLocation(element.getSourceLocation().getSourceFile(),element.getSourceLocation().getLine()));//element.getSourceLocation());
+ 					   }							  
+@@ -728,6 +728,19 @@ public class Utility {
+ 	}
+ 
+ 	/**
++	 * Checks for suppression specified on the member or on the declaring type of that member
++	 */
++	public static boolean isSuppressing(Member member,String lintkey) {
++		boolean isSuppressing = Utility.isSuppressing(member.getAnnotations(), lintkey);
++		if (isSuppressing) return true;
++		UnresolvedType type = member.getDeclaringType();
++		if (type instanceof ResolvedType) {
++			return Utility.isSuppressing(((ResolvedType)type).getAnnotations(),lintkey);		
++		}
++		return false;
++	}
++
++	/**
+      * Check if the annotations contain a SuppressAjWarnings annotation and
+      * if that annotation specifies that the given lint message (identified
+      * by its key) should be ignored.

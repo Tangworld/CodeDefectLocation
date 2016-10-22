@@ -1,0 +1,108 @@
+@@ -5,17 +5,7 @@ import java.lang.annotation.*;
+ 
+ aspect Aspect {
+ 
+-  // Call to an annotated method
+-  pointcut annotated(Ann b) : call(@Ann * *(..)) && @annotation(b);
+-
+-  // Top level call to an annotated method
+-  pointcut annotatedTop(Ann b) : annotated(b) && !cflowbelow(annotated(Ann));
+-
+-  // Non top level call
+-  pointcut annotatedNotTop(Ann b, Ann bTopo) : 
+-    annotated(b) && cflowbelow(annotatedTop(bTopo));
+-
+-  before(Ann b, Ann bTopo) : annotatedNotTop(b, bTopo) {
++  before() : call(@Ann * *(..)) { 
+     System.out.println("\tJoin point: " + thisJoinPointStaticPart);
+   }
+ 
+@@ -24,7 +14,7 @@ aspect Aspect {
+ }
+ 
+ public class A {
+-  @Ann void foo() { new B().foo(); new B().goo();}
++  void foo() { new B().foo(); }
+   public static void main(String[] args) { new A().foo(); }
+ }
+ 
+@@ -0,0 +1,31 @@
++import java.lang.annotation.*;
++
++@Retention(RetentionPolicy.RUNTIME) @interface Ann {}
++
++
++aspect Aspect {
++
++  // Call to an annotated method
++  pointcut annotated(Ann b) : call(@Ann * *(..)) && @annotation(b);
++
++  // Top level call to an annotated method
++  pointcut annotatedTop(Ann b) : annotated(b) && !cflowbelow(annotated(Ann));
++
++  // Non top level call
++  pointcut annotatedNotTop(Ann b, Ann bTopo) : 
++    annotated(b) && cflowbelow(annotatedTop(bTopo));
++
++  //before(Ann b, Ann bTopo) : annotatedNotTop(b, bTopo) {
++  before() : call(@Ann * *(..)) { //(b, bTopo) {
++    System.out.println("\tJoin point: " + thisJoinPointStaticPart);
++  }
++
++  // Methods with out the Ann annotation but in an Ann annotated type get Ann
++  declare @method: !@Ann * (@Ann *).*(..) : @Ann;
++}
++
++public class A {
++   void foo() { new B().foo(); /*new B().goo();*/}
++  public static void main(String[] args) { new A().foo(); }
++}
++
+@@ -2,5 +2,4 @@
+ @Ann class B {
+   //@Ann
+   void foo() { }
+-  void goo() { }
+-}
+\ No newline at end of file
++}
+@@ -17,7 +17,8 @@ import org.aspectj.testing.XMLBasedAjcTestCase;
+ 
+ public class Ajc152Tests extends org.aspectj.testing.XMLBasedAjcTestCase {
+ 
+-//	public void testMisbehavingDeclareAnnotation_pr135865() { runTest("misbehaving declare annotation");}
++  //public void testMisbehavingDeclareAnnotation_pr135865() { runTest("misbehaving declare annotation");}
++  //public void testMisbehavingDeclareAnnotation_pr135865_2() { runTest("misbehaving declare annotation - 2");}
+   public void testCompletelyBrokenAopConcretization_pr142165_1() { runTest("broken concretization");}
+   public void testCompletelyBrokenAopConcretization_pr142165_2() { runTest("broken concretization - 2");}
+   public void testCompletelyBrokenAopConcretization_pr142165_3() { runTest("broken concretization - 3");}
+@@ -16,7 +16,20 @@
+     </ajc-test>
+ 
+     <ajc-test dir="bugs152/pr135865" title="misbehaving declare annotation">
+-      <compile files="B.java,A.java" options="-1.5">
++      <compile files="B.java,A.java" options="-1.5 -Xlint:ignore">
++      	<!--message kind="weave" text="Join point 'method-call(void B.foo())' in Type 'A' (A.java:32) advised by before advice from 'Aspect' (A.java:22) [with runtime test]"/>
++      	<message kind="weave" text="Join point 'method-call(void A.foo())' in Type 'A' (A.java:33) advised by before advice from 'Aspect' (A.java:22) [with runtime test]"/>
++      	<message kind="weave" text="' void B.goo()' (A.java:7) is annotated with @Ann method annotation from 'Aspect' (A.java:27)"/-->
++      </compile>
++      <run class="A">
++        <stdout>
++          <line text="Join point: call(void B.foo())"/>
++        </stdout>
++      </run>
++    </ajc-test>
++    
++    <ajc-test dir="bugs152/pr135865" title="misbehaving declare annotation - 2">
++      <compile files="A.java,B.java" options="-1.5 -Xlint:ignore">
+       	<!--message kind="weave" text="Join point 'method-call(void B.foo())' in Type 'A' (A.java:32) advised by before advice from 'Aspect' (A.java:22) [with runtime test]"/>
+       	<message kind="weave" text="Join point 'method-call(void A.foo())' in Type 'A' (A.java:33) advised by before advice from 'Aspect' (A.java:22) [with runtime test]"/>
+       	<message kind="weave" text="' void B.goo()' (A.java:7) is annotated with @Ann method annotation from 'Aspect' (A.java:27)"/-->
+@@ -24,7 +37,6 @@
+       <run class="A">
+         <stdout>
+           <line text="Join point: call(void B.foo())"/>
+-          <line text="Join point: call(void B.goo())"/>
+         </stdout>
+       </run>
+     </ajc-test>

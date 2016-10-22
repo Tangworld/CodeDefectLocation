@@ -1,0 +1,276 @@
+@@ -0,0 +1,35 @@
++public class AnnotationTest1 {
++
++    @SomeAnnotation
++    public void test() {
++        System.out.println("test 1");
++    }
++
++    public static void main(String[] args) {
++        //CASE 1
++        AnnotationTest1 test1 = new AnnotationTest1();
++        test1.test();
++        //CASE 2
++        AnnotationTest2<Integer> test2 = new AnnotationTest2<Integer>();
++        test2.test2();
++        //CASE 3
++        AnnotationTest3 test3 = new AnnotationTest3();
++        test3.test3();
++    }
++
++    public static class AnnotationTest2<Type extends Object> {
++
++        @SomeAnnotation
++        public void test2() {
++            System.out.println("test 2");
++        }
++    }
++
++    public static class AnnotationTest3 extends AnnotationTest2<Double> {
++
++        @SomeAnnotation
++        public void test3() {
++            System.out.println("test 3");
++        }
++    }
++}
+@@ -0,0 +1,10 @@
++import java.lang.annotation.ElementType;
++import java.lang.annotation.Retention;
++import java.lang.annotation.RetentionPolicy;
++import java.lang.annotation.Target;
++
++@Retention(RetentionPolicy.RUNTIME)
++@Target(ElementType.METHOD)
++public @interface SomeAnnotation {
++
++}
+@@ -0,0 +1,29 @@
++public aspect SomeAspect {
++
++        void around(final SomeAnnotation someAnnotation) :
++                call(@SomeAnnotation void *.*(..)) && @annotation(someAnnotation) {
++
++                System.out.println("@someAspect annotation parameter (call)");
++//CASES 1, 3 only
++                proceed(someAnnotation);
++        }
++
++        void around(final SomeAnnotation someAnnotation) :
++                execution(@SomeAnnotation void *.*(..)) &&
++@annotation(someAnnotation) {
++
++                System.out.println("@someAspect annotation parameter (execution)"); //CASES 1, 2, 3
++                proceed(someAnnotation);
++        }
++
++        void around() : call(@SomeAnnotation void *.*(..)) {
++                System.out.println("@someAspect annotation no parameter");
++//CASES 1, 2, 3
++                proceed();
++        }
++
++        void around() : call(void *.test*(..)) {
++                System.out.println("@someAspect method name"); //CASES 1, 2, 3
++                proceed();
++        }
++}
+@@ -23,6 +23,7 @@ import org.aspectj.testing.XMLBasedAjcTestCase;
+ public class Ajc161Tests extends org.aspectj.testing.XMLBasedAjcTestCase {
+ 
+ 	// AspectJ1.6.1
++	public void testAnnotationExposureGenerics_pr235597() { runTest("annotation exposure and generics");}
+     public void testIncorrectRelationship_pr235204() {
+         runTest("incorrect call relationship");
+         IRelationshipMap irm = AsmManager.getDefault().getRelationshipMap();
+@@ -39,8 +40,7 @@ public class Ajc161Tests extends org.aspectj.testing.XMLBasedAjcTestCase {
+         }
+     }
+ 
+-    public void testITDPrecedence_pr233838_1() {
+-        runTest("itd precedence - 1"); }
++    public void testITDPrecedence_pr233838_1() { runTest("itd precedence - 1"); }
+ 	public void testITDPrecedence_pr233838_2() { runTest("itd precedence - 2"); }
+ 	public void testGetFieldGenerics_pr227401() { runTest("getfield problem with generics");}
+ 	public void testGenericAbstractAspects_pr231478() { runTest("generic abstract aspects"); }
+@@ -3,6 +3,29 @@
+ <!-- AspectJ v1.6.1 Tests -->
+ <suite>
+ 
++    <ajc-test dir="bugs161/pr235597" title="annotation exposure and generics">
++        <compile files="AnnotationTest1.java SomeAnnotation.java SomeAspect.java" options="-1.5"/>
++        <run class="AnnotationTest1">
++          <stdout>
++            <line text="@someAspect annotation parameter (call)"/>
++            <line text="@someAspect annotation no parameter"/>
++            <line text="@someAspect method name"/>
++            <line text="@someAspect annotation parameter (execution)"/>
++            <line text="test 1"/>
++            <line text="@someAspect annotation parameter (call)"/>
++            <line text="@someAspect annotation no parameter"/>
++            <line text="@someAspect method name"/>
++            <line text="@someAspect annotation parameter (execution)"/>
++            <line text="test 2"/>
++            <line text="@someAspect annotation parameter (call)"/>
++            <line text="@someAspect annotation no parameter"/>
++            <line text="@someAspect method name"/>
++            <line text="@someAspect annotation parameter (execution)"/>
++            <line text="test 3"/>
++          </stdout>
++        </run>
++    </ajc-test>
++    
+ 
+     <ajc-test dir="bugs161/pr235204" title="incorrect call relationship">
+         <compile files="RecursiveCatcher.java" options="-1.5 -emacssym"/>
+@@ -299,6 +299,12 @@ public class ResolvedMemberImpl extends MemberImpl implements IHasPosition, Anno
+     	// that doesn't mean it is an error to call this method.
+     	// Normally the weaver will be working with subtypes of
+     	// this type - BcelField/BcelMethod
++    	if (backingGenericMember != null) {
++    		if (annotationTypes!=null) {
++    			throw new BCException("Unexpectedly found a backing generic member and a local set of annotations");
++    		}
++    		return backingGenericMember.getAnnotationTypes();
++    	}
+     	if (annotationTypes == null) return null;
+ 		return (ResolvedType[])annotationTypes.toArray(new ResolvedType[]{});
+     }
+@@ -0,0 +1,35 @@
++public class AnnotationTest1 {
++
++    @SomeAnnotation
++    public void test() {
++        System.out.println("test 1");
++    }
++
++    public static void main(String[] args) {
++        //CASE 1
++        AnnotationTest1 test1 = new AnnotationTest1();
++        test1.test();
++        //CASE 2
++        AnnotationTest2<Integer> test2 = new AnnotationTest2<Integer>();
++        test2.test2();
++        //CASE 3
++        AnnotationTest3 test3 = new AnnotationTest3();
++        test3.test3();
++    }
++
++    public static class AnnotationTest2<Type extends Object> {
++
++        @SomeAnnotation
++        public void test2() {
++            System.out.println("test 2");
++        }
++    }
++
++    public static class AnnotationTest3 extends AnnotationTest2<Double> {
++
++        @SomeAnnotation
++        public void test3() {
++            System.out.println("test 3");
++        }
++    }
++}
+@@ -0,0 +1,10 @@
++import java.lang.annotation.ElementType;
++import java.lang.annotation.Retention;
++import java.lang.annotation.RetentionPolicy;
++import java.lang.annotation.Target;
++
++@Retention(RetentionPolicy.RUNTIME)
++@Target(ElementType.METHOD)
++public @interface SomeAnnotation {
++
++}
+@@ -0,0 +1,29 @@
++public aspect SomeAspect {
++
++        void around(final SomeAnnotation someAnnotation) :
++                call(@SomeAnnotation void *.*(..)) && @annotation(someAnnotation) {
++
++                System.out.println("@someAspect annotation parameter (call)");
++//CASES 1, 3 only
++                proceed(someAnnotation);
++        }
++
++        void around(final SomeAnnotation someAnnotation) :
++                execution(@SomeAnnotation void *.*(..)) &&
++@annotation(someAnnotation) {
++
++                System.out.println("@someAspect annotation parameter (execution)"); //CASES 1, 2, 3
++                proceed(someAnnotation);
++        }
++
++        void around() : call(@SomeAnnotation void *.*(..)) {
++                System.out.println("@someAspect annotation no parameter");
++//CASES 1, 2, 3
++                proceed();
++        }
++
++        void around() : call(void *.test*(..)) {
++                System.out.println("@someAspect method name"); //CASES 1, 2, 3
++                proceed();
++        }
++}
+@@ -23,6 +23,7 @@ import org.aspectj.testing.XMLBasedAjcTestCase;
+ public class Ajc161Tests extends org.aspectj.testing.XMLBasedAjcTestCase {
+ 
+ 	// AspectJ1.6.1
++	public void testAnnotationExposureGenerics_pr235597() { runTest("annotation exposure and generics");}
+     public void testIncorrectRelationship_pr235204() {
+         runTest("incorrect call relationship");
+         IRelationshipMap irm = AsmManager.getDefault().getRelationshipMap();
+@@ -39,8 +40,7 @@ public class Ajc161Tests extends org.aspectj.testing.XMLBasedAjcTestCase {
+         }
+     }
+ 
+-    public void testITDPrecedence_pr233838_1() {
+-        runTest("itd precedence - 1"); }
++    public void testITDPrecedence_pr233838_1() { runTest("itd precedence - 1"); }
+ 	public void testITDPrecedence_pr233838_2() { runTest("itd precedence - 2"); }
+ 	public void testGetFieldGenerics_pr227401() { runTest("getfield problem with generics");}
+ 	public void testGenericAbstractAspects_pr231478() { runTest("generic abstract aspects"); }
+@@ -3,6 +3,29 @@
+ <!-- AspectJ v1.6.1 Tests -->
+ <suite>
+ 
++    <ajc-test dir="bugs161/pr235597" title="annotation exposure and generics">
++        <compile files="AnnotationTest1.java SomeAnnotation.java SomeAspect.java" options="-1.5"/>
++        <run class="AnnotationTest1">
++          <stdout>
++            <line text="@someAspect annotation parameter (call)"/>
++            <line text="@someAspect annotation no parameter"/>
++            <line text="@someAspect method name"/>
++            <line text="@someAspect annotation parameter (execution)"/>
++            <line text="test 1"/>
++            <line text="@someAspect annotation parameter (call)"/>
++            <line text="@someAspect annotation no parameter"/>
++            <line text="@someAspect method name"/>
++            <line text="@someAspect annotation parameter (execution)"/>
++            <line text="test 2"/>
++            <line text="@someAspect annotation parameter (call)"/>
++            <line text="@someAspect annotation no parameter"/>
++            <line text="@someAspect method name"/>
++            <line text="@someAspect annotation parameter (execution)"/>
++            <line text="test 3"/>
++          </stdout>
++        </run>
++    </ajc-test>
++    
+ 
+     <ajc-test dir="bugs161/pr235204" title="incorrect call relationship">
+         <compile files="RecursiveCatcher.java" options="-1.5 -emacssym"/>
+@@ -299,6 +299,12 @@ public class ResolvedMemberImpl extends MemberImpl implements IHasPosition, Anno
+     	// that doesn't mean it is an error to call this method.
+     	// Normally the weaver will be working with subtypes of
+     	// this type - BcelField/BcelMethod
++    	if (backingGenericMember != null) {
++    		if (annotationTypes!=null) {
++    			throw new BCException("Unexpectedly found a backing generic member and a local set of annotations");
++    		}
++    		return backingGenericMember.getAnnotationTypes();
++    	}
+     	if (annotationTypes == null) return null;
+ 		return (ResolvedType[])annotationTypes.toArray(new ResolvedType[]{});
+     }

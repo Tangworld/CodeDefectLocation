@@ -1,0 +1,245 @@
+@@ -45,6 +45,7 @@ import org.aspectj.org.eclipse.jdt.internal.compiler.lookup.ClassScope;
+ import org.aspectj.org.eclipse.jdt.internal.compiler.lookup.FieldBinding;
+ import org.aspectj.org.eclipse.jdt.internal.compiler.lookup.InvocationSite;
+ import org.aspectj.org.eclipse.jdt.internal.compiler.lookup.MethodBinding;
++import org.aspectj.org.eclipse.jdt.internal.compiler.lookup.ParameterizedTypeBinding;
+ import org.aspectj.org.eclipse.jdt.internal.compiler.lookup.ReferenceBinding;
+ import org.aspectj.org.eclipse.jdt.internal.compiler.lookup.Scope;
+ import org.aspectj.org.eclipse.jdt.internal.compiler.lookup.SourceTypeBinding;
+@@ -974,6 +975,18 @@ public class AspectDeclaration extends TypeDeclaration {
+ 			} else {
+ 				return null;
+ 			}
++        } else if (binding instanceof ParameterizedTypeBinding) {
++        	ParameterizedTypeBinding pBinding = (ParameterizedTypeBinding)binding;
++        	if (pBinding.type instanceof SourceTypeBinding) {
++	        	SourceTypeBinding sourceSc = (SourceTypeBinding)pBinding.type;
++	        	if (sourceSc.scope.referenceContext instanceof AspectDeclaration) {
++					perClause = ((AspectDeclaration)sourceSc.scope.referenceContext).perClause;
++				} else {
++					return null;
++				}
++        	} else {
++        		perClause=null;
++        	}
+ 		} else {
+ 			//XXX need to handle this too
+ 			return null;
+@@ -32,6 +32,7 @@ import org.aspectj.org.eclipse.jdt.internal.compiler.ast.ASTNode;
+ import org.aspectj.org.eclipse.jdt.internal.compiler.ast.AbstractMethodDeclaration;
+ import org.aspectj.org.eclipse.jdt.internal.compiler.ast.Annotation;
+ import org.aspectj.org.eclipse.jdt.internal.compiler.ast.CompilationUnitDeclaration;
++import org.aspectj.org.eclipse.jdt.internal.compiler.ast.NormalAnnotation;
+ import org.aspectj.org.eclipse.jdt.internal.compiler.ast.SingleMemberAnnotation;
+ import org.aspectj.org.eclipse.jdt.internal.compiler.ast.StringLiteral;
+ import org.aspectj.org.eclipse.jdt.internal.compiler.ast.TypeDeclaration;
+@@ -393,9 +394,16 @@ public class EclipseSourceType extends AbstractReferenceTypeDelegate {
+             return new PerSingleton();
+         } else {
+             // for @Aspect, we do need the real kind though we don't need the real perClause
+-            PerClause.Kind kind = getPerClauseForTypeDeclaration(declaration);
+-            //returning a perFromSuper is enough to get the correct kind.. (that's really a hack - AV)
+-            return new PerFromSuper(kind);
++            // at least try to get the right perclause
++        	PerClause pc = null;
++        	if (declaration instanceof AspectDeclaration) 
++    		   pc =  ((AspectDeclaration)declaration).perClause;
++    		if (pc==null) {
++              PerClause.Kind kind = getPerClauseForTypeDeclaration(declaration);
++              //returning a perFromSuper is enough to get the correct kind.. (that's really a hack - AV)
++              return new PerFromSuper(kind);
++    		}
++    		return pc;
+         }
+ 	}
+ 
+@@ -419,24 +427,13 @@ public class EclipseSourceType extends AbstractReferenceTypeDelegate {
+                     // it is an @Aspect(...something...)
+                     SingleMemberAnnotation theAnnotation = (SingleMemberAnnotation)annotation;
+                     String clause = new String(((StringLiteral)theAnnotation.memberValue).source());//TODO cast safe ?
+-                    if (clause.startsWith("perthis(")) {
+-                        return PerClause.PEROBJECT;
+-                    } else if (clause.startsWith("pertarget(")) {
+-                        return PerClause.PEROBJECT;
+-                    } else if (clause.startsWith("percflow(")) {
+-                        return PerClause.PERCFLOW;
+-                    } else if (clause.startsWith("percflowbelow(")) {
+-                        return PerClause.PERCFLOW;
+-                    } else if (clause.startsWith("pertypewithin(")) {
+-                        return PerClause.PERTYPEWITHIN;
+-                    } else if (clause.startsWith("issingleton(")) {
+-                        return PerClause.SINGLETON;
+-                    } else {
+-                        eclipseWorld().showMessage(IMessage.ABORT,
+-                            "cannot determine perClause '" + clause + "'",
+-                            new EclipseSourceLocation(typeDeclaration.compilationResult, typeDeclaration.sourceStart, typeDeclaration.sourceEnd), null);
+-                        return PerClause.SINGLETON;//fallback strategy just to avoid NPE
+-                    }
++                    return determinePerClause(typeDeclaration, clause);
++                } else if (annotation instanceof NormalAnnotation) { // this kind if it was added by the visitor !
++                	 // it is an @Aspect(...something...)
++                    NormalAnnotation theAnnotation = (NormalAnnotation)annotation;
++                    if (theAnnotation.memberValuePairs==null || theAnnotation.memberValuePairs.length<1) return PerClause.SINGLETON;
++                    String clause = new String(((StringLiteral)theAnnotation.memberValuePairs[0].value).source());//TODO cast safe ?
++                    return determinePerClause(typeDeclaration, clause);
+                 } else {
+                     eclipseWorld().showMessage(IMessage.ABORT,
+                         "@Aspect annotation is expected to be SingleMemberAnnotation with 'String value()' as unique element",
+@@ -448,6 +445,27 @@ public class EclipseSourceType extends AbstractReferenceTypeDelegate {
+         return null;//no @Aspect annotation at all (not as aspect)
+     }
+ 
++	private PerClause.Kind determinePerClause(TypeDeclaration typeDeclaration, String clause) {
++		if (clause.startsWith("perthis(")) {
++		    return PerClause.PEROBJECT;
++		} else if (clause.startsWith("pertarget(")) {
++		    return PerClause.PEROBJECT;
++		} else if (clause.startsWith("percflow(")) {
++		    return PerClause.PERCFLOW;
++		} else if (clause.startsWith("percflowbelow(")) {
++		    return PerClause.PERCFLOW;
++		} else if (clause.startsWith("pertypewithin(")) {
++		    return PerClause.PERTYPEWITHIN;
++		} else if (clause.startsWith("issingleton(")) {
++		    return PerClause.SINGLETON;
++		} else {
++		    eclipseWorld().showMessage(IMessage.ABORT,
++		        "cannot determine perClause '" + clause + "'",
++		        new EclipseSourceLocation(typeDeclaration.compilationResult, typeDeclaration.sourceStart, typeDeclaration.sourceEnd), null);
++		    return PerClause.SINGLETON;//fallback strategy just to avoid NPE
++		}
++	}
++
+     // adapted from AspectDeclaration
+     private PerClause.Kind lookupPerClauseKind(ReferenceBinding binding) {
+         final PerClause.Kind kind;
+@@ -7,7 +7,8 @@ public class pr115237 {
+ 		// AA aa = AA.aspectOf(c);
+ 
+ 		// hmm - n/a for parameterized types?
+-		BB capt  = BB.aspectOf(c); // unexpected compile error here
++		B b = B.aspectOf(c);
++		//BB capt  = BB.aspectOf(c); // unexpected compile error here
+ 		//System.out.println("A " + a + " capt " + capt);
+ 	}
+ 	static class C {
+@@ -49,7 +49,7 @@ public class Ajc150Tests extends org.aspectj.testing.XMLBasedAjcTestCase {
+   public void testGenericITDsAndAbstractMethodError_pr102357() { runTest("generic itds and abstract method error");}
+   */
+ 
+-//  public void testGenericAspects_pr115237() { runTest("aspectOf and generic aspects");}
++  public void testGenericAspects_pr115237() { runTest("aspectOf and generic aspects");}
+   public void testClassFormatError_pr114436() { runTest("ClassFormatError binary weaving perthis");}
+   public void testParserException_pr115788() { runTest("parser exception");}
+   public void testPossibleStaticImports_pr113066_1() { runTest("possible static imports bug - 1");}
+@@ -0,0 +1,36 @@
++public class pr115237 {
++	public static void main(String[] args) {
++		C c = new C();
++		c.go();
++		A a = A.aspectOf(c);
++		// ok, illegal - aspectOf only on concrete aspects?
++		// AA aa = AA.aspectOf(c);
++
++		// hmm - n/a for parameterized types?
++		BB capt  = BB.aspectOf(c); // unexpected compile error here
++		//System.out.println("A " + a + " capt " + capt);
++	}
++	static class C {
++		void go() {}		
++	}
++	
++	abstract static aspect AA pertarget(pc()) {
++		abstract pointcut pc();
++		before() : pc() {
++			System.out.println("go()");
++		}
++	}
++	static aspect A extends AA {
++		pointcut pc() : call(void C.go());
++	}
++	
++	abstract static aspect BB<T> pertarget(pc()) {
++		abstract pointcut pc();
++		before() : pc() {
++			System.out.println("go()");
++		}
++	}
++	static aspect B extends BB<C> {
++		pointcut pc() : call(void C.go());
++	}
++}
+@@ -12,6 +12,6 @@ public aspect IdentifiableAspect {
+     }
+ 
+   public static void main(String []argv) { 
+-    new Bean();
++    Bean b = new Bean();
+   }
+ }
+@@ -0,0 +1,2 @@
++
++public class Bean {}
+@@ -0,0 +1,5 @@
++public interface Identifiable<T> {
++  T getId();
++
++  void setId(T t);
++}
+@@ -0,0 +1,20 @@
++public aspect IdentifiableAspect {
++    declare parents: Bean implements LongIdentifiable;
++
++    private Long LongIdentifiable.m_id;
++
++    public Long LongIdentifiable.getId() {
++        return m_id;
++    }
++
++    public void LongIdentifiable.setId(Long id) {
++        m_id= id;
++    }
++
++  public static void main(String []argv) {
++    Bean b = new Bean();
++    b.setId(37L);
++    long l = b.getId();
++    if (l!=37L) throw new RuntimeException("id should be 37");
++  }
++}
+@@ -0,0 +1,2 @@
++public interface LongIdentifiable extends Identifiable<Long> {
++}
+@@ -210,6 +210,7 @@ public class GenericsTests extends XMLBasedAjcTestCase {
+ 
+ 	public void testGenericsOverrides_1() { runTest("generics and ITD overrides - 1"); }
+ 	public void testGenericsOverrides_2() { runTest("generics and ITD overrides - 2"); }
++	public void testGenericsOverrides_3() { runTest("generics and ITD overrides - 3"); }
+ 
+ 	public void testPR88606() {
+ 		runTest("Parameterized types on introduced fields not correctly recognized");
+@@ -138,6 +138,11 @@
+           <message kind="error" line="12" text="Cannot make inter-type declarations on type variables"/>
+         </compile>
+     </ajc-test>
++    
++    <ajc-test dir="bugs150" title="aspectOf and generic aspects">
++        <compile files="pr115237.aj" options="-1.5"/>
++        <run class="pr115237"/>
++    </ajc-test>
+ 
+    <ajc-test dir="bugs150/pr114343/case2" title="field-get, generics and around advice - 2">
+       <compile files="Test.java,TTT.java,TestAspect.java" options="-1.5"/>
+@@ -201,6 +206,12 @@
+         <compile files="Identifiable.java,Bean.java,LongIdentifiable.java,IdentifiableAspect.java" options="-1.5">
+         </compile>
+         <run class="IdentifiableAspect"/>
++    </ajc-test>
++    
++    <ajc-test dir="java5/generics/bugs/lists/case3" title="generics and ITD overrides - 3">
++        <compile files="Identifiable.java,Bean.java,LongIdentifiable.java,IdentifiableAspect.java" options="-1.5">
++        </compile>
++        <run class="IdentifiableAspect"/>
+     </ajc-test> 
+ 
+     <!-- Currently a warning doesn't occur if the annotation is already on the field

@@ -1,0 +1,406 @@
+@@ -192,7 +192,7 @@ public final class BcelRenderer implements ITestVisitor, IExprVisitor {
+ 
+ 	public void visit(Literal literal) {
+ 		if (literal == Literal.FALSE)
+-			throw new BCException("bad");
++			throw new BCException("visiting a false expression");
+ 	}
+ 
+ 	public void visit(Call call) {
+@@ -204,7 +204,15 @@ public final class BcelRenderer implements ITestVisitor, IExprVisitor {
+ 		for (int i = 0, len = args.length; i < len; i++) {
+ 			// XXX only correct for static method calls
+ 			Type desiredType = BcelWorld.makeBcelType(method.getParameterTypes()[i]);
+-			callIl.append(renderExpr(fact, world, args[i], desiredType));
++			Expr arg = args[i];
++			// if arg is null it is because we couldn't bind it properly, for example see 162135
++			if (arg == null) {
++				InstructionList iList = new InstructionList();
++				iList.append(InstructionFactory.createNull(desiredType));
++				callIl.append(iList);
++			} else {
++				callIl.append(renderExpr(fact, world, arg, desiredType));
++			}
+ 		}
+ 		// System.out.println("rendered args: " + callIl);
+ 		callIl.append(Utility.createInvoke(fact, world, method));
+@@ -229,7 +229,12 @@ public class IfPointcut extends Pointcut {
+ 					} else {
+ 						// we don't use i as JoinPoint.* can be anywhere in the signature in @style
+ 						Var v = state.get(currentStateIndex++);
++
++						while (v == null && currentStateIndex < state.size()) { // pr162135
++							v = state.get(currentStateIndex++);
++						}
+ 						args.add(v);
++
+ 						ret = Test.makeAnd(ret, Test.makeInstanceof(v, testMethod.getParameterTypes()[i]
+ 								.resolve(shadow.getIWorld())));
+ 					}
+@@ -6,15 +6,19 @@ import org.aspectj.lang.annotation.Pointcut;
+ 
+ @Aspect public class Foo {
+ 
++ static class X {
+   public void m() {
+     new RuntimeException("hello");
+   }
++ }
+ 
+   public static void main(String[] argv) {
++	    new X().m();
+   }
+ 
+   @Pointcut("call(Throwable+.new(String, ..)) && this(caller) && if()")
+   public static boolean exceptionInitializer(Object caller) {
++      System.out.println("In if(), is there a caller? "+(caller!=null?"yes":"no"));
+       return true;
+   }
+ 
+@@ -0,0 +1,30 @@
++import java.lang.reflect.Field;
++import org.aspectj.lang.ProceedingJoinPoint;
++import org.aspectj.lang.annotation.Around;
++import org.aspectj.lang.annotation.Aspect;
++import org.aspectj.lang.annotation.Pointcut;
++
++@Aspect public class Foo6 {
++
++  public void m() {
++    new RuntimeException("hello");
++  }
++	
++  public static void main(String[] argv) {
++	  try {
++	   new Foo6().m();
++	  } catch (Throwable t) {}
++  }
++		
++  @Pointcut("call(Throwable+.new(String, ..)) && this(caller) && if()")
++  public static boolean exceptionInitializer(Object caller) {
++      return true;
++  }
++
++  @Around("exceptionInitializer(caller)")
++  public Object annotateException(ProceedingJoinPoint jp, Object caller) {
++      System.out.println("ProceedingJoinPoint is "+jp);
++      System.out.println("caller is "+(caller==null?"null":"notnull"));
++      return null;
++  }
++}
+@@ -0,0 +1,47 @@
++package a.b.c;
++
++import org.aspectj.lang.ProceedingJoinPoint;
++import org.aspectj.lang.annotation.Around;
++import org.aspectj.lang.annotation.Aspect;
++import org.aspectj.lang.annotation.Pointcut;
++
++
++class Foo {
++  public void m() {
++	  throw new RuntimeException("Hello World");
++  }
++
++
++}
++@Aspect
++public class Real {
++
++  public static void main(String []argv) {
++	  try {
++	  new Foo().m();
++	  } catch (Throwable t) {
++		 System.out.println(t.getMessage());
++	  }
++  }
++
++    @Pointcut("call(Throwable+.new(String, ..)) && this(caller) && args(exceptionMessage) && if()")
++    public static boolean exceptionInitializer(Object caller, String exceptionMessage) {
++        return isNdcEmpty();
++    }
++
++    @Around("exceptionInitializer(caller, exceptionMessage)")
++    public Object annotateException(ProceedingJoinPoint jp, Object caller, String exceptionMessage) {
++	System.out.println("advice running");
++        return jp.proceed(new Object[]{caller, "newmessage"});
++    }
++
++    private static boolean isNdcEmpty() {
++        return NDC.getDepth() == 0;
++    }
++
++}
++
++
++class NDC {
++  public static int getDepth() { return 0; }
++}
+@@ -34,11 +34,34 @@ public class Ajc153Tests extends org.aspectj.testing.XMLBasedAjcTestCase {
+ 	// public void testCFlowXMLAspectLTW_pr149096() { runTest("cflow xml concrete aspect"); }
+ 	// public void testAmbiguousBinding_pr121805() { runTest("ambiguous binding");}
+ 	// public void testNegatedAnnotationMatchingProblem_pr153464() { runTest("negated annotation matching problem");}
+-	// public void testAnnotationStyleBcException_pr162135() { runTest("bcexception in annotation style around advice");}
+-	// public void testAnnotationStyleBcException_pr162135_2() { runTest("bcexception in annotation style around advice - 2");}
+-	// public void testAnnotationStyleBcException_pr162135_3() { runTest("bcexception in annotation style around advice - 3");}
+-	// public void testAnnotationStyleBcException_pr162135_4() { runTest("bcexception in annotation style around advice - 4");}
+-	// public void testAnnotationStyleBcException_pr162135_5() { runTest("bcexception in annotation style around advice - 5");}
++	public void testAnnotationStyleBcException_pr162135() {
++		runTest("bcexception in annotation style around advice");
++	}
++
++	public void testAnnotationStyleBcException_pr162135_2() {
++		runTest("bcexception in annotation style around advice - 2");
++	}
++
++	public void testAnnotationStyleBcException_pr162135_3() {
++		runTest("bcexception in annotation style around advice - 3");
++	}
++
++	public void testAnnotationStyleBcException_pr162135_4() {
++		runTest("bcexception in annotation style around advice - 4");
++	}
++
++	public void testAnnotationStyleBcException_pr162135_5() {
++		runTest("bcexception in annotation style around advice - 5");
++	}
++
++	public void testAnnotationStyleBcException_pr162135_6() {
++		runTest("bcexception in annotation style around advice - 6");
++	}
++
++	public void testAnnotationStyleBcException_pr162135_7() {
++		runTest("bcexception in annotation style around advice - 7");
++	}
++
+ 	public void testIncompatibleClassChangeWithITD_pr164633() {
+ 		runTest("incompatibleclasschange");
+ 	}
+@@ -21,7 +21,11 @@
+ 
+     <ajc-test dir="bugs153/pr162135" title="bcexception in annotation style around advice">
+       <compile files="Foo.java" options="-1.5"/>
+-      <run class="Foo"/>
++      <run class="Foo">
++        <stdout>
++          <line text="In if(), is there a caller? yes"/>
++        </stdout>
++      </run>
+     </ajc-test>
+ 
+     <ajc-test dir="bugs153/pr162657" title="complex pointcut">
+@@ -52,6 +56,26 @@
+       <compile files="Foo5.java" options="-1.5"/>
+       <run class="Foo5"/>
+     </ajc-test>
++
++    <ajc-test dir="bugs153/pr162135" title="bcexception in annotation style around advice - 6">
++      <compile files="Foo6.java" options="-1.5"/>
++      <run class="Foo6">
++      <stdout>
++      <line text="ProceedingJoinPoint is call(java.lang.RuntimeException(String))"/>
++      <line text="caller is notnull"/>
++      </stdout>
++      </run>
++    </ajc-test>
++    
++    <ajc-test dir="bugs153/pr162135" title="bcexception in annotation style around advice - 7">
++      <compile files="Real.java" options="-1.5"/>
++      <run class="a.b.c.Real">
++      <stdout>
++      <line text="advice running"/>
++      <line text="newmessage"/>
++      </stdout>
++      </run>
++    </ajc-test>
+ 
+      <ajc-test dir="bugs153/pr159143" title="declare method annotations">
+         <compile files="DeclareMethodAnnotation.java" options="-1.5">
+@@ -0,0 +1,25 @@
++import java.lang.reflect.Field;
++import org.aspectj.lang.ProceedingJoinPoint;
++import org.aspectj.lang.annotation.Around;
++import org.aspectj.lang.annotation.Aspect;
++import org.aspectj.lang.annotation.Pointcut;
++
++@Aspect public class Foo {
++
++  public void m() {
++    new RuntimeException("hello");
++  }
++	
++  public static void main(String[] argv) {
++  }
++		
++  @Pointcut("call(Throwable+.new(String, ..)) && this(caller) && if()")
++  public static boolean exceptionInitializer(Object caller) {
++      return true;
++  }
++
++  @Around("exceptionInitializer(caller)")
++  public Object annotateException(ProceedingJoinPoint jp, Object caller) {
++      return null;
++  }
++}
+@@ -0,0 +1,46 @@
++//package com.foliofn.infra.logging;
++
++import java.lang.reflect.Field;
++
++import org.aspectj.lang.ProceedingJoinPoint;
++import org.aspectj.lang.annotation.Around;
++import org.aspectj.lang.annotation.Aspect;
++import org.aspectj.lang.annotation.Pointcut;
++
++@Aspect public class Foo2 {
++//	aspect Foo {
++
++	public void m() {
++	  new RuntimeException("hello");
++	}
++	  public static void main(String[] argv) {
++		  
++	  }
++	
++//  Object around(Object caller): call(Throwable+.new(String, ..)) && this(caller) && if(true==true) {
++  @Around("call(Throwable+.new(String, ..)) && this(caller)")
++  public Object annotateException(ProceedingJoinPoint jp, Object caller) {
++      return null;
++  }
++  
++//	  @Pointcut("call(Throwable+.new(String, ..)) && args(exceptionMessage) && if()")
++//	  public static boolean exceptionInitializer(String exceptionMessage) {
++//	      return true;
++//	  }
++//	
++//	  @Around("exceptionInitializer( exceptionMessage)")
++//	  public Object annotateException(ProceedingJoinPoint jp, String exceptionMessage) {
++//	      return null;
++//	  }
++	
++//    @Pointcut("call(Throwable+.new(String, ..)) && this(caller) && args(exceptionMessage) && if()")
++//    public static boolean exceptionInitializer(Object caller, String exceptionMessage) {
++//        return true;
++//    }
++//
++//    @Around("exceptionInitializer(caller, exceptionMessage)")
++//    public Object annotateException(ProceedingJoinPoint jp, Object caller, String exceptionMessage) {
++//        return null;
++//    }
++
++}
+@@ -0,0 +1,44 @@
++//package com.foliofn.infra.logging;
++
++import java.lang.reflect.Field;
++
++import org.aspectj.lang.ProceedingJoinPoint;
++import org.aspectj.lang.annotation.Around;
++import org.aspectj.lang.annotation.Aspect;
++import org.aspectj.lang.annotation.Pointcut;
++
++//@Aspect public class Foo {
++aspect Foo3 {
++
++	public void m() {
++	  new RuntimeException("hello");
++	}
++	  public static void main(String[] argv) {
++		  
++	  }
++	
++  Object around(Object caller): call(Throwable+.new(String, ..)) && this(caller) && if(true==true) {
++      return null;
++  }
++  
++//	  @Pointcut("call(Throwable+.new(String, ..)) && args(exceptionMessage) && if()")
++//	  public static boolean exceptionInitializer(String exceptionMessage) {
++//	      return true;
++//	  }
++//	
++//	  @Around("exceptionInitializer( exceptionMessage)")
++//	  public Object annotateException(ProceedingJoinPoint jp, String exceptionMessage) {
++//	      return null;
++//	  }
++	
++//    @Pointcut("call(Throwable+.new(String, ..)) && this(caller) && args(exceptionMessage) && if()")
++//    public static boolean exceptionInitializer(Object caller, String exceptionMessage) {
++//        return true;
++//    }
++//
++//    @Around("exceptionInitializer(caller, exceptionMessage)")
++//    public Object annotateException(ProceedingJoinPoint jp, Object caller, String exceptionMessage) {
++//        return null;
++//    }
++
++}
+@@ -0,0 +1,39 @@
++//package com.foliofn.infra.logging;
++
++import java.lang.reflect.Field;
++
++import org.aspectj.lang.ProceedingJoinPoint;
++import org.aspectj.lang.annotation.Around;
++import org.aspectj.lang.annotation.Aspect;
++import org.aspectj.lang.annotation.Pointcut;
++
++@Aspect public class Foo4 {
++
++	public void m() {
++	  new RuntimeException("hello");
++	}
++
++	  public static void main(String[] argv) {
++		  
++	  }
++	  @Pointcut("call(Throwable+.new(String, ..)) && args(exceptionMessage) && if()")
++	  public static boolean exceptionInitializer(String exceptionMessage) {
++	      return true;
++	  }
++	
++	  @Around("exceptionInitializer( exceptionMessage)")
++	  public Object annotateException(ProceedingJoinPoint jp, String exceptionMessage) {
++	      return null;
++	  }
++	
++//    @Pointcut("call(Throwable+.new(String, ..)) && this(caller) && args(exceptionMessage) && if()")
++//    public static boolean exceptionInitializer(Object caller, String exceptionMessage) {
++//        return true;
++//    }
++//
++//    @Around("exceptionInitializer(caller, exceptionMessage)")
++//    public Object annotateException(ProceedingJoinPoint jp, Object caller, String exceptionMessage) {
++//        return null;
++//    }
++
++}
+@@ -0,0 +1,29 @@
++//package com.foliofn.infra.logging;
++
++import java.lang.reflect.Field;
++
++import org.aspectj.lang.ProceedingJoinPoint;
++import org.aspectj.lang.annotation.Around;
++import org.aspectj.lang.annotation.Aspect;
++import org.aspectj.lang.annotation.Pointcut;
++
++@Aspect public class Foo5 {
++
++	public void m() {
++	  new RuntimeException("hello");
++	}
++	  public static void main(String[] argv) {
++		  
++	  }
++	
++    @Pointcut("call(Throwable+.new(String, ..)) && this(caller) && args(exceptionMessage) && if()")
++    public static boolean exceptionInitializer(Object caller, String exceptionMessage) {
++        return true;
++    }
++
++    @Around("exceptionInitializer(caller, exceptionMessage)")
++    public Object annotateException(ProceedingJoinPoint jp, Object caller, String exceptionMessage) {
++        return null;
++    }
++
++}

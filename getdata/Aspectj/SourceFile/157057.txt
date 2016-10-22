@@ -1,0 +1,190 @@
+@@ -645,6 +645,25 @@ public class MultiProjectIncrementalTests extends AbstractMultiProjectIncrementa
+ 		build("PR115251");
+ 		checkWasFullBuild();  // back to the source
+ 	}
++
++	public void testPr157054() {
++		configureBuildStructureModel(true);
++		MyBuildOptionsAdapter.setNonStandardOptions("-showWeaveInfo");
++		initialiseProject("PR157054");
++		build("PR157054");
++		checkWasFullBuild();
++		List weaveMessages = MyTaskListManager.getWeavingMessages();
++		assertTrue("Should be two weaving messages but there are "+weaveMessages.size(),weaveMessages.size()==2);
++		alter("PR157054","inc1");
++		build("PR157054");
++		weaveMessages = MyTaskListManager.getWeavingMessages();
++		assertTrue("Should be three weaving messages but there are "+weaveMessages.size(),weaveMessages.size()==3);
++		checkWasntFullBuild();
++		fullBuild("PR157054");
++		weaveMessages = MyTaskListManager.getWeavingMessages();
++		assertTrue("Should be three weaving messages but there are "+weaveMessages.size(),weaveMessages.size()==3);
++	}
++	
+ 
+ 
+ 	/**
+@@ -36,7 +36,7 @@ import org.aspectj.weaver.patterns.PerClause;
+ 
+ public abstract class ResolvedType extends UnresolvedType implements AnnotatedElement {
+ 
+-	private static final ResolvedType[] EMPTY_RESOLVED_TYPE_ARRAY  = new ResolvedType[0];
++	public static final ResolvedType[] EMPTY_RESOLVED_TYPE_ARRAY  = new ResolvedType[0];
+ 	public static final String PARAMETERIZED_TYPE_IDENTIFIER = "P";
+ 
+ 	private ResolvedType[] resolvedTypeParams;
+@@ -551,13 +551,14 @@ public class EclipseFactory {
+ 		// AMC these next two lines shouldn't be needed once we sort out generic types properly in the world map
+ 		ResolvedType realDeclaringType = world.resolve(fromBinding(receiverType));
+ 		if (realDeclaringType.isRawType()) realDeclaringType = realDeclaringType.getGenericType();
+-		return new ResolvedMemberImpl(
+-			Member.FIELD,
+-			realDeclaringType,
+-			binding.modifiers,
+-			world.resolve(fromBinding(binding.type)),
+-			new String(binding.name),
+-			UnresolvedType.NONE);
++		ResolvedMemberImpl ret =  new EclipseResolvedMember(binding,
++				Member.FIELD,
++				realDeclaringType,
++				binding.modifiers,
++				world.resolve(fromBinding(binding.type)),
++				new String(binding.name),
++				UnresolvedType.NONE);
++		return ret;
+ 	}
+ 
+ 	public TypeBinding makeTypeBinding(UnresolvedType typeX) {
+@@ -14,13 +14,17 @@ package org.aspectj.ajdt.internal.compiler.lookup;
+ import org.aspectj.org.eclipse.jdt.internal.compiler.ast.AbstractMethodDeclaration;
+ import org.aspectj.org.eclipse.jdt.internal.compiler.ast.Annotation;
+ import org.aspectj.org.eclipse.jdt.internal.compiler.ast.Argument;
++import org.aspectj.org.eclipse.jdt.internal.compiler.ast.FieldDeclaration;
+ import org.aspectj.org.eclipse.jdt.internal.compiler.ast.TypeDeclaration;
++import org.aspectj.org.eclipse.jdt.internal.compiler.lookup.Binding;
++import org.aspectj.org.eclipse.jdt.internal.compiler.lookup.FieldBinding;
+ import org.aspectj.org.eclipse.jdt.internal.compiler.lookup.MethodBinding;
+ import org.aspectj.org.eclipse.jdt.internal.compiler.lookup.SourceTypeBinding;
+ import org.aspectj.weaver.AnnotationX;
+ import org.aspectj.weaver.ResolvedMemberImpl;
+ import org.aspectj.weaver.ResolvedType;
+ import org.aspectj.weaver.UnresolvedType;
++import org.aspectj.weaver.World;
+ 
+ /**
+  * In the pipeline world, we can be weaving before all types have come through from compilation.
+@@ -32,37 +36,66 @@ public class EclipseResolvedMember extends ResolvedMemberImpl {
+ 
+ 	private static String[] NO_ARGS = new String[]{};
+ 
+-	private MethodBinding realBinding;
++	private Binding realBinding;
+ 	private String[] argumentNames;
++	private World w;
++	private ResolvedType[] cachedAnnotationTypes;
+ 
+ 	public EclipseResolvedMember(MethodBinding binding, Kind memberKind, ResolvedType realDeclaringType, int modifiers, UnresolvedType type, String string, UnresolvedType[] types, UnresolvedType[] types2) {
+ 		super(memberKind,realDeclaringType,modifiers,type,string,types,types2);
+ 		this.realBinding = binding;
++		this.w = realDeclaringType.getWorld();
++	}
++
++	public EclipseResolvedMember(FieldBinding binding, Kind field, ResolvedType realDeclaringType, int modifiers, ResolvedType type, String string, UnresolvedType[] none) {
++		super(field,realDeclaringType,modifiers,type,string,none);
++		this.realBinding = binding;
++		this.w = realDeclaringType.getWorld();
++	}
++	
++
++	public boolean hasAnnotation(UnresolvedType ofType) {
++		ResolvedType[] annotationTypes = getAnnotationTypes();
++		if (annotationTypes==null) return false;
++		for (int i = 0; i < annotationTypes.length; i++) {
++			ResolvedType type = annotationTypes[i];
++			if (type.equals(ofType)) return true;
++		}
++		return false;
+ 	}
+ 
+ 	public AnnotationX[] getAnnotations() {
+ 		long abits = realBinding.getAnnotationTagBits(); // ensure resolved
+-		TypeDeclaration typeDecl = ((SourceTypeBinding)realBinding.declaringClass).scope.referenceContext;
+-		AbstractMethodDeclaration methodDecl = typeDecl.declarationOf(realBinding);
+-		Annotation[] annos = methodDecl.annotations; // this is what to add
++		Annotation[] annos = getEclipseAnnotations();
+ 		if (annos==null) return null;
+-		return super.getAnnotations();
++		// TODO errr missing in action - we need to implement this! Probably using something like EclipseAnnotationConvertor - itself not finished ;)
++		throw new RuntimeException("not yet implemented - please raise an AJ bug");
++//		return super.getAnnotations();
+ 	}
+ 
+ 	public ResolvedType[] getAnnotationTypes() {
+-		long abits = realBinding.getAnnotationTagBits(); // ensure resolved
+-		TypeDeclaration typeDecl = ((SourceTypeBinding)realBinding.declaringClass).scope.referenceContext;
+-		AbstractMethodDeclaration methodDecl = typeDecl.declarationOf(realBinding);
+-		Annotation[] annos = methodDecl.annotations; // this is what to add
+-		if (annos==null) return null;
+-		return super.getAnnotationTypes();
++		if (cachedAnnotationTypes == null) {
++			long abits = realBinding.getAnnotationTagBits(); // ensure resolved
++			Annotation[] annos = getEclipseAnnotations();
++			if (annos==null) { 
++				cachedAnnotationTypes = ResolvedType.EMPTY_RESOLVED_TYPE_ARRAY;
++			} else {
++				cachedAnnotationTypes = new ResolvedType[annos.length];
++				for (int i = 0; i < annos.length; i++) {
++					Annotation type = annos[i];
++					cachedAnnotationTypes[i] = w.resolve(UnresolvedType.forSignature(new String(type.resolvedType.signature())));
++				}
++			}
++		}
++		return cachedAnnotationTypes;
+ 	}
++	
+ 
+ 
+ 	public String[] getParameterNames() {
+ 		if (argumentNames!=null) return argumentNames;
+-		TypeDeclaration typeDecl = ((SourceTypeBinding)realBinding.declaringClass).scope.referenceContext;
+-		AbstractMethodDeclaration methodDecl = typeDecl.declarationOf(realBinding);
++		TypeDeclaration typeDecl = getTypeDeclaration();
++		AbstractMethodDeclaration methodDecl = typeDecl.declarationOf((MethodBinding)realBinding);
+ 		Argument[] args = (methodDecl==null?null:methodDecl.arguments); // dont like this - why isnt the method found sometimes? is it because other errors are being reported?
+ 		if (args==null) {
+ 			argumentNames=NO_ARGS;
+@@ -75,4 +108,25 @@ public class EclipseResolvedMember extends ResolvedMemberImpl {
+ 		return argumentNames;
+ 	}
+ 
++	private Annotation[] getEclipseAnnotations() {
++		if (realBinding instanceof MethodBinding) {
++			AbstractMethodDeclaration methodDecl = getTypeDeclaration().declarationOf((MethodBinding)realBinding);
++			return methodDecl.annotations;
++		} else if (realBinding instanceof FieldBinding) {
++			FieldDeclaration fieldDecl = getTypeDeclaration().declarationOf((FieldBinding)realBinding);
++			return fieldDecl.annotations;
++		}
++		return null;
++	}
++
++	private TypeDeclaration getTypeDeclaration() {
++		if (realBinding instanceof MethodBinding) {
++			return ((SourceTypeBinding)((MethodBinding)realBinding).declaringClass).scope.referenceContext;
++			
++		} else if (realBinding instanceof FieldBinding) {
++			return ((SourceTypeBinding)((FieldBinding)realBinding).declaringClass).scope.referenceContext;
++		}
++		return null;
++	}
++	
+ }
+@@ -565,6 +565,8 @@ public class AjPipeliningCompilerAdapter extends AbstractCompilerAdapter {
+ 
+ 	private static final char[] aspectSig = "Lorg/aspectj/lang/annotation/Aspect;".toCharArray();
+ 	private boolean isAspect(TypeDeclaration declaration) {
++		// avoid an NPE when something else is wrong in this system ... the real problem will be reported elsewhere
++		if (declaration.staticInitializerScope==null) return false;
+ 		if (declaration instanceof AspectDeclaration) return true; // code style
+ 		else if (declaration.annotations!=null) { // check for annotation style
+ 			for (int index = 0; index < declaration.annotations.length; index++) {

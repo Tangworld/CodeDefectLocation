@@ -1,0 +1,576 @@
+@@ -41,6 +41,10 @@ class HtmlDecorator {
+ 	private static final String ADVICE_SUMMARY = "Advice Summary";
+ 	private static final String POINTCUT_SUMMARY = "Pointcut Summary";
+ 	private static final String DECLARE_SUMMARY = "Declare Summary";
++	private static final String ITD_METHOD_SUMMARY = "Inter-Type Method Summary";
++	private static final String ITD_FIELD_SUMMARY = "Inter-Type Field Summary";
++	private static final String ITD_CONSTRUCTOR_SUMMARY = "Inter-Type Constructor Summary";
++	
+ 	static List visibleFileList = new ArrayList();
+     static Hashtable declIDTable = null;
+     static SymbolManager symbolManager = null;
+@@ -233,6 +237,18 @@ class HtmlDecorator {
+     	List pointcuts = new ArrayList();
+     	List advice = new ArrayList();
+     	List declares = new ArrayList();
++    	List methodsDeclaredOn = StructureUtil.getDeclareInterTypeTargets(node, IProgramElement.Kind.INTER_TYPE_METHOD);
++    	if (methodsDeclaredOn != null && !methodsDeclaredOn.isEmpty()) {
++ 			insertDeclarationsSummary(fileBuffer,methodsDeclaredOn,ITD_METHOD_SUMMARY,index);
++		}
++    	List fieldsDeclaredOn = StructureUtil.getDeclareInterTypeTargets(node, IProgramElement.Kind.INTER_TYPE_FIELD);
++    	if (fieldsDeclaredOn != null && !fieldsDeclaredOn.isEmpty()) {
++ 			insertDeclarationsSummary(fileBuffer,fieldsDeclaredOn,ITD_FIELD_SUMMARY,index);
++		}
++    	List constDeclaredOn = StructureUtil.getDeclareInterTypeTargets(node, IProgramElement.Kind.INTER_TYPE_CONSTRUCTOR);
++    	if (fieldsDeclaredOn != null && !constDeclaredOn.isEmpty()) {
++ 			insertDeclarationsSummary(fileBuffer,constDeclaredOn,ITD_CONSTRUCTOR_SUMMARY,index);
++		}
+     	for (Iterator it = node.getChildren().iterator(); it.hasNext(); ) {
+     		IProgramElement member = (IProgramElement)it.next();
+     		if (member.getKind().equals(IProgramElement.Kind.POINTCUT)) {
+@@ -301,7 +317,7 @@ class HtmlDecorator {
+                     entry +=
+                             "<TR><TD>" +
+                             "<A HREF=\"#" + generateHREFName(decl) + "\">" +
+-                            "<TT>" + generateAdviceSignatures(decl) +
++                            "<TT>" + generateSignatures(decl) +
+     						"</TT></A><BR>&nbsp;";
+                     if (!comment.equals("")) {
+                         entry += comment + "<P>";
+@@ -327,15 +343,35 @@ class HtmlDecorator {
+                 else if ( kind.equals( DECLARE_SUMMARY ) ) {
+                     entry +=
+                             "<TR><TD WIDTH=\"1%\">" +
+-                            "<FONT SIZE=-1><TT>" + decl.getModifiers() + "</TT></FONT>" +
++                            "<FONT SIZE=-1><TT>" + 
++                            generateModifierInformation(decl,false) 
++                            + "</TT></FONT>" +
+                             "</TD>" +
+                             "<TD>" +
+                             "<A HREF=\"#" + generateHREFName(decl) + "\">" +
+                             "<TT>" + decl.toLabelString() + "</TT></A><P>" +
+-                            generateIntroductionSignatures(decl, true) +
+                             generateAffects(decl, true);
+                 }
+-    
++                else if ( kind.equals( ITD_FIELD_SUMMARY ) 
++                			|| kind.equals( ITD_METHOD_SUMMARY)) {
++                	entry +=
++                            "<TR><TD WIDTH=\"1%\">" +
++                            "<FONT SIZE=-1><TT>" + 
++                            generateModifierInformation(decl,false) + 
++                            "</TT></FONT>" +
++                            "</TD>" +
++                            "<TD>" +
++                            "<A HREF=\"#" + generateHREFName(decl) + "\">" +
++                            "<TT>" + decl.toLabelString() + "</TT></A><P>"+
++                            generateDeclaredBy(decl);
++                }
++                else if ( kind.equals( ITD_CONSTRUCTOR_SUMMARY ) ) {
++                	entry +="<TD>" +
++                            "<A HREF=\"#" + generateHREFName(decl) + "\">" +
++                            "<TT>" + decl.toLabelString() + "</TT></A><P>"+
++                            generateDeclaredBy(decl);
++                }
++                
+                 // insert the entry
+                 fileBuffer.insert(insertIndex, entry);
+                 insertIndex += entry.length();
+@@ -406,7 +442,7 @@ class HtmlDecorator {
+                     entry += "<H3>" + decl.getName() + "</H3><P>";
+                     entry +=
+                             "<TT>" +
+-                            generateAdviceSignatures(decl) + "</TT>\n" + "<P>" +
++                            generateSignatures(decl) + "</TT>\n" + "<P>" +
+                             generateDetailsComment(decl) + "<P>" +
+                             generateAffects(decl, false);
+                 }
+@@ -418,9 +454,14 @@ class HtmlDecorator {
+                             generateDetailsComment(decl);
+                 }
+                 else if (kind.equals(DECLARE_DETAIL)) {
+-                	entry += "<H3>declare " + decl.toLabelString() + "</H3><P>";
+-                    entry +=
+-                            generateIntroductionSignatures(decl, true) +
++                	entry += "<H3>" + decl.toLabelString() + 
++                			 "</H3><P>" +
++                			 generateModifierInformation(decl,true);
++                	if (!decl.getKind().equals(IProgramElement.Kind.INTER_TYPE_CONSTRUCTOR)) {
++						entry += "&nbsp;&nbsp;";
++					}
++                    entry += generateSignatures(decl) + 
++                            "<P>" +
+                             generateAffects(decl, true) +
+                             generateDetailsComment(decl);
+                 }
+@@ -531,6 +572,43 @@ class HtmlDecorator {
+     }
+ 
+     /**
++     * pr119453 - adding "declared by" relationship
++     */
++    static String generateDeclaredBy(IProgramElement decl) {
++        String entry = "<TABLE WIDTH=\"100%\" BGCOLOR=#FFFFFF><TR>" +
++        		"<TD width=\"10%\" bgcolor=\"#FFD8B0\"><B><FONT COLOR=000000>" +
++        		"&nbsp;Declared&nbsp;by:</b></font></td><td>";
++        	
++		String relativePackagePath =
++			getRelativePathFromHere(
++				decl.getPackageName().replace('.', '/') + Config.DIR_SEP_CHAR);    
++    
++       	if (decl != null && !StructureUtil.isAnonymous(decl.getParent())) {
++       		String packagePath = "";
++       		if (decl.getPackageName() != null && !decl.getPackageName().equals("")) {
++       			packagePath = decl.getPackageName().replace('.', '/') + Config.DIR_SEP_CHAR;
++       		}
++       		
++			String typeSignature = constructNestedTypeName(decl);
++       		
++       		String hrefName = packagePath + typeSignature;       		
++        		
++       		// The hrefLink needs to just be the corresponding aspect 
++       		String hrefLink = 
++				relativePackagePath
++				+ packagePath 
++				+ typeSignature
++       			+ ".html";
++        		
++            entry += "<A HREF=\"" + hrefLink +
++                    "\"><tt>" + hrefName.replace('/', '.') + "</tt></A>";  // !!! don't replace
++       	}
++        entry += "</B></FONT></TD></TR></TABLE>\n</TR></TD>\n";
++        return entry;
++    }
++   
++    
++    /**
+      * TODO: probably want to make this the same for intros and advice.
+      */
+     static String generateAffects(IProgramElement decl, boolean isIntroduction) {
+@@ -545,7 +623,7 @@ class HtmlDecorator {
+         if (!isIntroduction) {
+         	entry += "<TD width=\"10%\" bgcolor=\"#FFD8B0\"><B><FONT COLOR=000000>&nbsp;Advises:</b></font></td><td>";
+         } else {
+-        	entry += "<TD width=\"10%\" bgcolor=\"#FFD8B0\"><B><FONT COLOR=000000>&nbsp;Affects:</b></font></td><td>";
++        	entry += "<TD width=\"10%\" bgcolor=\"#FFD8B0\"><B><FONT COLOR=000000>&nbsp;Declared&nbsp;on:</b></font></td><td>";
+         }
+ 
+ 		String relativePackagePath =
+@@ -617,6 +695,29 @@ class HtmlDecorator {
+ 		return result.toString();
+ 	}
+ 
++	/** 
++	 * Generate the "public int"-type information about the given IProgramElement.
++	 * Used when dealing with ITDs. To mirror the behaviour of methods and fields
++	 * in classes, if we're generating the summary information we don't want to 
++	 * include "public" if the accessibility of the IProgramElement is public. 
++	 * 
++	 */
++	private static String generateModifierInformation(IProgramElement decl, boolean isDetails) {
++		String intro = "";
++		if (isDetails || 
++				!decl.getAccessibility().equals(IProgramElement.Accessibility.PUBLIC)) {
++			intro += "<TT>" + decl.getAccessibility().toString() + "&nbsp;" ;
++		} 
++		if (decl.getKind().equals(IProgramElement.Kind.INTER_TYPE_FIELD)) {
++			return intro  + decl.getCorrespondingType() + "</TT>";
++		} else if (decl.getKind().equals(IProgramElement.Kind.INTER_TYPE_CONSTRUCTOR)
++				&& isDetails) {
++			return intro + "</TT>";
++		} else {
++			return intro + decl.getCorrespondingType(true) + "</TT>";
++		}
++	}
++	
+ 	static String generateIntroductionSignatures(IProgramElement decl, boolean isDetails) {
+     	return "<not implemented>";
+     	//        Declaration[] decls = decl.getDeclarations();
+@@ -639,7 +740,7 @@ class HtmlDecorator {
+ //        return entry;
+     }
+ 
+-    static String generateAdviceSignatures(IProgramElement decl ) {
++    static String generateSignatures(IProgramElement decl ) {
+         return "<B>" + decl.toLabelString() + "</B>";
+     }
+ 
+@@ -12,6 +12,7 @@
+  package org.aspectj.tools.ajdoc;
+ 
+ import java.io.File;
++import java.util.ArrayList;
+ import java.util.Iterator;
+ import java.util.List;
+ 
+@@ -28,7 +29,7 @@ public class StructureUtil {
+ 	/**
+ 	 * @return	null if a relationship of that kind is not found
+ 	 */
+-	public static List/*IProgramElement*/ getTargets(IProgramElement node, IRelationship.Kind kind) {
++	public static List /*String*/ getTargets(IProgramElement node, IRelationship.Kind kind) {
+ 	    List relations = AsmManager.getDefault().getRelationshipMap().get(node);
+ 		List targets = null; 
+ 	    if (relations == null) return null;
+@@ -40,8 +41,24 @@ public class StructureUtil {
+ 	     }
+ 		return targets;
+ 	}
++	
++	static List /*IProgramElement */ getDeclareInterTypeTargets(IProgramElement node, IProgramElement.Kind kind) {
++		List targets = new ArrayList();
++		List stringTargets = StructureUtil.getTargets(node,IRelationship.Kind.DECLARE_INTER_TYPE);
++		if (stringTargets == null) {
++			return null;
++		}
++		for (Iterator iter = stringTargets.iterator(); iter.hasNext();) {
++			String element = (String) iter.next();
++			IProgramElement ipe = AsmManager.getDefault().getHierarchy().findElementForHandle(element);
++			if (ipe != null && ipe.getKind().equals(kind)) {
++				targets.add(ipe);
++			}
++		}
++		return targets;
++	}
+ 
+-	public static List/*IProgramElement*/ getDeclareTargets(IProgramElement node) {
++	public static List/*String*/ getDeclareTargets(IProgramElement node) {
+ 	    List relations = AsmManager.getDefault().getRelationshipMap().get(node);
+ 		List targets = null; 
+ 	    if (relations == null) return null;
+@@ -40,6 +40,7 @@ public class AjdocTests extends TestCase {
+         suite.addTestSuite(SpacewarTestCase.class);
+         suite.addTestSuite(PatternsTestCase.class);
+         suite.addTestSuite(CoverageTestCase.class); 
++        suite.addTestSuite(ITDTest.class);
+         suite.addTestSuite(ExecutionTestCase.class);// !!! must be last because it exists
+         //$JUnit-END$
+         return suite;
+@@ -0,0 +1,237 @@
++/********************************************************************
++ * Copyright (c) 2005 Contributors. All rights reserved. 
++ * This program and the accompanying materials are made available 
++ * under the terms of the Eclipse Public License v1.0 
++ * which accompanies this distribution and is available at 
++ * http://eclipse.org/legal/epl-v10.html 
++ *  
++ * Contributors: IBM Corporation - initial API and implementation 
++ * 				 Helen Hawkins   - iniital version
++ *******************************************************************/
++package org.aspectj.tools.ajdoc;
++
++import java.io.BufferedReader;
++import java.io.File;
++import java.io.FileReader;
++
++import junit.framework.TestCase;
++
++import org.aspectj.util.FileUtil;
++
++public class ITDTest extends TestCase {
++
++	private File outdir;
++	private File c, a;
++	    
++	protected void setUp() throws Exception {
++		super.setUp();
++		outdir = new File("../ajdoc/testdata/pr119453/doc");
++		c = new File("../ajdoc/testdata/pr119453/src/pack/C.java");
++		a = new File("../ajdoc/testdata/pr119453/src/pack/A.aj");
++	}
++	
++	protected void tearDown() throws Exception {
++		super.tearDown();
++		
++		FileUtil.deleteContents(new File("ajdocworkingdir"));
++		(new File("ajdocworkingdir")).delete();
++		
++		FileUtil.deleteContents(new File("testdata/pr119453/doc"));
++		(new File("testdata/pr119453/doc")).delete();
++	}
++    
++	/**
++	 * Test for pr119453
++	 */
++    public void testITDShownInDoc() throws Exception {
++        outdir.delete();
++        String[] args = { 
++              "-XajdocDebug",
++              "-private",
++            "-d", 
++            outdir.getAbsolutePath(),
++            c.getAbsolutePath(),
++            a.getAbsolutePath()
++        };
++        org.aspectj.tools.ajdoc.Main.main(args);
++        
++        checkContentsOfC();
++        checkContentsOfA();        
++
++    }
++    
++    // check whether the "INTER-TYPE METHOD SUMMARY" AND
++    // "INTER-TYPE FIELD SUMMARY" have been added to the generated 
++    // html file for the class which is affected by these itds.
++    // Also check that the correct mofifiers are showing ie. public
++    // isn't there, but all others are (this mirrors javadoc behaviour)
++    private void checkContentsOfC() throws Exception {
++        File htmlC = new File("../ajdoc/testdata/pr119453/doc/pack/C.html");
++        if (htmlC == null) {
++			fail("couldn't find ../ajdoc/testdata/pr119453/doc/pack/C.html - were there compilation errors?");
++		}
++	    BufferedReader readerC = new BufferedReader(new FileReader(htmlC));
++        boolean containsITDF = false;
++        boolean containsITDM = false;
++        boolean containsITDC = false;
++        String lineC = readerC.readLine();
++        while( lineC != null && (!containsITDF || !containsITDM || !containsITDC)) {
++        	if (lineC.indexOf("INTER-TYPE METHOD SUMMARY") != -1) {
++				containsITDM = true;
++				boolean containsPublic = false;
++				boolean containsString = false;
++				boolean containsPackA = false;
++				// walk through the information in this section
++				String nextLine = readerC.readLine();
++				while(nextLine != null && (nextLine.indexOf("========") == -1)) {
++					if (nextLine.indexOf("public") != -1) {
++						containsPublic = true;
++					}
++					if (nextLine.indexOf("String") != -1) {
++						containsString = true;
++					}
++					if (nextLine.indexOf("pack.A") != -1) {
++						containsPackA = true;
++					}	
++					nextLine = readerC.readLine();
++				}
++				assertFalse("inter-type method summary should not contain the 'public' modifier", containsPublic);
++				assertTrue("inter-type method summary should contain the 'String' return type",containsString);
++				assertTrue("inter-type method summary should contain declared by 'pack.A'", containsPackA);
++				
++				// we may have hit the "inter-type field summary" so set this to 
++				// be the next line we look at.
++				lineC = nextLine;
++			} else if (lineC.indexOf("INTER-TYPE FIELD SUMMARY") != -1) {
++				containsITDF = true;
++				boolean containsPrivate = false;
++				// walk through the information in this section
++				String nextLine = readerC.readLine();
++				while(nextLine != null 
++						&& (nextLine.indexOf("========") == -1)
++						&& !containsPrivate) {
++					if (nextLine.indexOf("private") != -1) {
++						containsPrivate = true;
++					}
++					nextLine = readerC.readLine();
++				}
++				assertTrue("inter-type field summary should contain the 'private' modifier",containsPrivate);
++				
++				// we may have hit the "inter-type field summary" so set this to 
++				// be the next line we look at.
++				lineC = nextLine;
++			} else if (lineC.indexOf("NTER-TYPE CONSTRUCTOR SUMMARY") != -1) {
++				// don't do any more checking here because have
++				// checked in the itd method summary
++				containsITDC = true;
++			} else {
++				lineC = readerC.readLine();
++			}
++        }
++        readerC.close();
++		
++        assertTrue("should have put ITD Method information into " +
++        		"../ajdoc/testdata/pr119453/doc/pack/C.html", containsITDM);
++        assertTrue("should have put ITD Field information into " +
++        		"../ajdoc/testdata/pr119453/doc/pack/C.html", containsITDF);
++        assertTrue("should have put ITD Constructor information into " +
++        		"../ajdoc/testdata/pr119453/doc/pack/C.html", containsITDC);
++
++    }
++    
++    
++    // check whether the correct modifiers have been added to the
++    // declare summary and declare detail in the doc for the aspect
++    private void checkContentsOfA() throws Exception {
++        File htmlA = new File("../ajdoc/testdata/pr119453/doc/pack/A.html");
++        if (htmlA == null) {
++			fail("couldn't find ../ajdoc/testdata/pr119453/doc/pack/A.html - were there compilation errors?");
++		}
++	    BufferedReader readerA = new BufferedReader(new FileReader(htmlA));
++        boolean containsDeclareDetail = false;
++        boolean containsDeclareSummary = false;
++        String lineA = readerA.readLine();
++        while( lineA != null && (!containsDeclareDetail || !containsDeclareSummary )) {
++        	if (lineA.indexOf("DECLARE DETAIL SUMMARY") != -1) {
++				containsDeclareDetail = true;
++				boolean containsPrivateInt = false;
++				boolean containsPublicString = false;
++				boolean containsITDFAsHeader = false;
++				boolean containsCorrectConstInfo = false;
++				// walk through the information in this section
++				String nextLine = readerA.readLine();
++				while(nextLine != null 
++						&& (nextLine.indexOf("========") == -1)
++						&& (!containsPrivateInt || !containsPublicString 
++								|| !containsITDFAsHeader || !containsCorrectConstInfo)) {
++					if (nextLine.indexOf("private&nbsp;int") != -1) {
++						containsPrivateInt = true;
++					} 
++					if (nextLine.indexOf("public&nbsp;java.lang.String") != -1) {
++						containsPublicString = true;
++					} 
++					if (nextLine.indexOf("<H3>C.y</H3>") != -1) {
++						containsITDFAsHeader = true;
++					} 
++					if (nextLine.indexOf("public&nbsp;</TT><B>C.C") != -1 ) {
++						containsCorrectConstInfo = true;
++					}
++					nextLine = readerA.readLine();
++				}
++				assertTrue("Declare detail summary should contain the 'private int' " +
++						"modifiers", containsPrivateInt);
++				assertTrue("Declare detail summary should contain the 'public java." +
++						"lang.String' return type",containsPublicString);
++				assertTrue("Declare detail summary should have 'C.y' as one header", 
++						containsITDFAsHeader);
++				assertTrue("Declare detail summary should have 'public C.C' for the " +
++						"ITD constructor", containsCorrectConstInfo);
++				
++				// we may have hit the "inter-type field summary" so set this to 
++				// be the next line we look at.
++				lineA = nextLine;
++			} else if (lineA.indexOf("DECLARE SUMMARY") != -1) {
++				containsDeclareSummary = true;
++				boolean containsPrivate = false;
++				boolean containsInt = false;
++				boolean containsString = false;
++				boolean containsPublic = false;
++				// walk through the information in this section
++				String nextLine = readerA.readLine();
++				while(nextLine != null && (nextLine.indexOf("========") == -1)) {
++					if (nextLine.indexOf("private") != -1) {
++						containsPrivate = true;
++					}
++					if (nextLine.indexOf("int") != -1) {
++						containsInt = true;
++					}
++					if (nextLine.indexOf("public") != -1) {
++						containsPublic = true;
++					}
++					if (nextLine.indexOf("String") != -1) {
++						containsString = true;
++					}
++					nextLine = readerA.readLine();
++				}
++				assertTrue("Declare summary should contain the 'private' modifier",containsPrivate);
++				assertTrue("Declare summary should contain the 'int' return type",containsInt);
++				assertFalse("Declare summary should not contain the 'public' modifier",containsPublic);
++				assertTrue("Declare summary should contain the 'String' return type",containsString);
++				
++				// we may have hit the "Declare Details" so set this to 
++				// be the next line we look at.
++				lineA = nextLine;
++			} else {
++				lineA = readerA.readLine();
++			}
++        }
++        readerA.close();
++		
++        assertTrue("should have put Declare Detail information into " +
++        		"../ajdoc/testdata/pr119453/doc/pack/A.html", containsDeclareDetail);
++        assertTrue("should have put Declare Summary information into " +
++        		"../ajdoc/testdata/pr119453/doc/pack/A.html", containsDeclareSummary);
++               
++    }
++	
++}
+@@ -75,7 +75,8 @@ public interface IProgramElement extends Serializable {
+ 	/** 
+ 	 * This correponds to both method return types and field types.
+ 	 */
+-	public String getCorrespondingType();
++	public String getCorrespondingType();	
++	public String getCorrespondingType(boolean getFullyQualifiedType);
+ 
+ 	public String toSignatureString();
+ 
+@@ -297,6 +297,17 @@ public class ProgramElement implements IProgramElement {
+ 	}
+ 
+ 	public String getCorrespondingType() {
++		return getCorrespondingType(false);
++	}
++	
++	public String getCorrespondingType(boolean getFullyQualifiedType) {
++		if (getFullyQualifiedType) {
++			return returnType;
++		}
++		int index = returnType.lastIndexOf(".");
++		if (index != -1) {
++			return returnType.substring(index);
++		}
+ 		return returnType;
+ 	}
+ 
+@@ -493,6 +504,5 @@ public class ProgramElement implements IProgramElement {
+ 	public ExtraInformation getExtraInfo() {
+ 		return info;
+ 	}
+-
+ }
+ 
+@@ -402,7 +402,14 @@ public class AsmHierarchyBuilder extends ASTVisitor {
+ 		addUsesPointcutRelationsForNode(peNode, namedPointcuts, methodDeclaration);
+ 
+ 		if (methodDeclaration.returnType!=null) {
+-		  peNode.setCorrespondingType(methodDeclaration.returnType.toString());
++			// if we don't make the distinction between ITD fields and other
++			// methods, then we loose the type, for example int, for the field
++			// and instead get "void".
++			if (peNode.getKind().equals(IProgramElement.Kind.INTER_TYPE_FIELD)) {
++				peNode.setCorrespondingType(methodDeclaration.returnType.toString());
++			} else {
++				peNode.setCorrespondingType(methodDeclaration.returnType.resolvedType.debugName());				
++			}
+ 		} else {
+ 		  peNode.setCorrespondingType(null);	
+ 		}
+@@ -0,0 +1,19 @@
++package pack;
++
++public aspect A {
++
++	private int C.y = 3;
++
++	/**
++	 * blah
++	 */
++	public String C.m(){return "";};
++
++	public C.new(String s){ this();};
++	
++	pointcut p() : execution(* *.*(..));
++	
++	before() : p() {
++	}
++	
++}
+@@ -0,0 +1,18 @@
++package pack;
++
++public class C {
++
++	public int x = 2;
++	
++	void method() {
++	}
++	
++	public String method1() {
++		return "";
++	}
++	
++	private String method2(){
++		return "";
++	}
++	
++}

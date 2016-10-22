@@ -1,0 +1,106 @@
+@@ -0,0 +1,4 @@
++public interface Audit {
++   public String getLastUpdatedBy();
++   public void   setLastUpdatedBy(String un);
++}
+@@ -0,0 +1,10 @@
++public class AuditImpl implements Audit {
++   private String lastUpdatedBy;
++   public String getLastUpdatedBy() {
++       return lastUpdatedBy;
++   }
++   public void setLastUpdatedBy(String un) {
++       lastUpdatedBy = un;
++   }
++}
++
+@@ -0,0 +1,42 @@
++import org.aspectj.lang.annotation.*;
++
++class Mood {
++  public final static Mood HAPPY=new Mood();
++}
++   // this interface can be outside of the aspect
++    interface Moody {
++     Mood getMood(int i);
++   };
++
++   // this implementation can be outside of the aspect
++    class MoodyImpl implements Moody {
++      private Mood mood = Mood.HAPPY;
++
++      public Mood getMood(int i) {
++        return mood;
++      }
++   }
++@Aspect
++public class MoodIndicator {
++
++
++   // here is the actual ITD syntax when using @AspectJ
++   // public static is mandatory
++   // the field type must be the introduced interface. It can't be a class.
++   @DeclareParents("C")
++   public static Moody introduced = new MoodyImpl();
++
++//   @Before("execution(* *.*(..)) && this(m)")
++//   public void feelingMoody(Moody m) {
++//      System.out.println("I'm feeling " + m.getMood());
++//   }
++
++  public static void main(String []argv) {
++    ((Moody)new C()).getMood(7);
++  }
++}
++
++
++class C {
++  
++}
+@@ -0,0 +1,7 @@
++public class Test {
++    public static void main(String[] args) {
++        Audit a = (Audit)new Test();
++        a.setLastUpdatedBy("username");
++        System.out.println("Username ="+a.getLastUpdatedBy());
++    }
++}
+@@ -0,0 +1,7 @@
++import org.aspectj.lang.annotation.*;
++
++@Aspect
++public class TestAspect {
++  @DeclareParents("Test")
++  public static Audit introduced = new AuditImpl();
++}
+@@ -49,6 +49,7 @@ public class Ajc150Tests extends org.aspectj.testing.XMLBasedAjcTestCase {
+   public void testGenericITDsAndAbstractMethodError_pr102357() { runTest("generic itds and abstract method error");}
+   */
+ 
++  public void testAtDeclareParents_pr117681() { runTest("at declare parents");}
+   public void testPrivilegeProblem_pr87525() { runTest("privilege problem with switch");}
+   public void testGenericAspects_pr115237() { runTest("aspectOf and generic aspects");}
+   public void testClassFormatError_pr114436() { runTest("ClassFormatError binary weaving perthis");}
+@@ -53,6 +53,11 @@
+      <compile files="Pr112756.aj" options="-warn:assertIdentifier -Xdev:Pinpoint"/>
+     </ajc-test>
+ 
++    <ajc-test dir="bugs150/pr117681" pr="117681" title="at declare parents">
++     <compile files="Test.java,TestAspect.java,Audit.java,AuditImpl.java" options="-1.5"/>
++     <run class="Test"/>
++    </ajc-test>
++    
+     <ajc-test dir="bugs150/pr117296" pr="117296" title="self bounding generic types">
+      <compile files="PropertySupport.java" options="-1.5"/>
+      <run class="PropertySupport"/>
+@@ -1107,6 +1107,10 @@ public class BcelTypeMunger extends ConcreteTypeMunger {
+             body.append(Utility.createGet(fact, munger.getDelegate()));
+ 
+             int pos = 0;
++    		if (!introduced.isStatic()) { // skip 'this'
++    		  //body.append(InstructionFactory.createThis());
++    		  pos++;
++    		}
+             Type[] paramTypes = BcelWorld.makeBcelTypes(introduced.getParameterTypes());
+             for (int i = 0, len = paramTypes.length; i < len; i++) {
+                 Type paramType = paramTypes[i];

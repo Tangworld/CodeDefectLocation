@@ -1,0 +1,53 @@
+@@ -34,6 +34,7 @@ import org.aspectj.org.eclipse.jdt.internal.compiler.IProblemFactory;
+ import org.aspectj.org.eclipse.jdt.internal.compiler.ast.ASTNode;
+ import org.aspectj.org.eclipse.jdt.internal.compiler.ast.AbstractMethodDeclaration;
+ import org.aspectj.org.eclipse.jdt.internal.compiler.ast.Annotation;
++import org.aspectj.org.eclipse.jdt.internal.compiler.ast.Argument;
+ import org.aspectj.org.eclipse.jdt.internal.compiler.ast.ExplicitConstructorCall;
+ import org.aspectj.org.eclipse.jdt.internal.compiler.ast.Expression;
+ import org.aspectj.org.eclipse.jdt.internal.compiler.ast.LocalDeclaration;
+@@ -463,6 +464,15 @@ public class AjProblemReporter extends ProblemReporter {
+     	// don't warn if this is an aj synthetic arg
+     	String argType = new String(localDecl.type.resolvedType.signature());
+     	if (argType.startsWith("Lorg/aspectj/runtime/internal")) return;
++    	
++    	// If the unused argument is in a pointcut, don't report the problem (for now... pr148219)
++    	if (localDecl!=null && localDecl instanceof Argument) {
++    		Argument arg = (Argument)localDecl;
++    		if (arg.binding!=null && arg.binding.declaringScope!=null) {
++    			ReferenceContext context = arg.binding.declaringScope.referenceContext();
++    			if (context!=null && context instanceof PointcutDeclaration) return;
++    		}
++    	}
+     	super.unusedArgument(localDecl);
+     }
+ 
+@@ -0,0 +1,8 @@
++public aspect MyMessages {
++    pointcut getResourceString(String key): args(key, ..) &&
++    call (* *.getResourceString(String, ..));
++
++    String around(String key):getResourceString(key) {
++        return key;
++    }
++}
+\ No newline at end of file
+@@ -27,6 +27,7 @@ public class Ajc153Tests extends org.aspectj.testing.XMLBasedAjcTestCase {
+   // public void testArgnamesAndJavac_pr148381() { runTest("argNames and javac");}
+   // public void testCFlowXMLAspectLTW_pr149096() { runTest("cflow xml concrete aspect"); }
+   // public void testAmbiguousBinding_pr121805() { runTest("ambiguous binding");}
++  public void testUnwantedPointcutWarning_pr148219() { runTest("unwanted warning for pointcut");}
+   public void testDecpAndCflowadderMungerClash_pr152631() { runTest("decp and cflowadder munger clash");}
+   public void testGenericInheritanceDecp_pr150095() { runTest("generics, inheritance and decp");}
+   public void testIllegalStateException_pr148737() { runTest("illegalstateexception for non generic type");}
+@@ -27,6 +27,10 @@
+       </run>
+     </ajc-test>
+ 
++    <ajc-test dir="bugs153/pr148219" title="unwanted warning for pointcut">
++      <compile files="MyMessages.java" options="-1.5 -Xlint:ignore -warn:+unusedArgument"/>
++    </ajc-test>
++    
+     <ajc-test dir="bugs153/pr148737" title="illegalstateexception for non generic type">
+       <compile files="A.java" options="-source 5 -target 5">
+         <message kind="warning" line="18" text="advice defined in TestAspect has not been applied"/>

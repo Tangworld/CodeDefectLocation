@@ -1,0 +1,876 @@
+@@ -0,0 +1,3 @@
++Manifest-Version: 1.0
++Created-By: 1.3.1_04 (Sun Microsystems Inc.)
++
+@@ -0,0 +1,4 @@
++<?xml version="1.0" ?>
++<jar name="input1.jar">
++</jar>
++
+Binary files differ
+Binary files differ
+Binary files differ
+@@ -0,0 +1 @@
++test=test2
+\ No newline at end of file
+@@ -0,0 +1 @@
++test=test
+\ No newline at end of file
+@@ -0,0 +1,3 @@
++Manifest-Version: 1.0
++Created-By: 1.3.1_04 (Sun Microsystems Inc.)
++
+@@ -0,0 +1,4 @@
++<?xml version="1.0" ?>
++<jar name="input1.jar">
++</jar>
++
+Binary files differ
+Binary files differ
+Binary files differ
+@@ -0,0 +1 @@
++test=test2
+\ No newline at end of file
+@@ -0,0 +1 @@
++test=test
+\ No newline at end of file
+Binary files differ
+@@ -33,6 +33,7 @@ public class NullIdeProperties implements ProjectPropertiesAdapter {
+ 	private Set sourceRoots;
+ 	private Set aspectPath;
+ 	private String outJar;
++	private String outputPath = "bin";
+ 
+ 	public NullIdeProperties(String testProjectPath) {
+ 		this.testProjectPath = testProjectPath;
+@@ -75,7 +76,11 @@ public class NullIdeProperties implements ProjectPropertiesAdapter {
+     }
+ 
+     public String getOutputPath() {
+-    	return testProjectPath + "/bin"; 
++    	return testProjectPath + "/" + outputPath; 
++    }
++    
++    public void setOutputPath(String outputPath) {
++    	this.outputPath = outputPath;
+     }
+ 
+     public String getAjcWorkingDir() {
+@@ -98,6 +98,29 @@ public class ResourceCopyTestCase extends AjdeTestCase {
+ 		assertTrue("Build warnings",ideManager.getCompilationSourceLineTasks().isEmpty());
+ 		compareInjarsToBin(injar1,"src","bin");
+ 	}
++
++	public void testInjarsToOddBin () {
++		Set injars = new HashSet();
++		File injar1 = openFile(injar1Name);
++		injars.add(injar1);
++		ideManager.getProjectProperties().setOutputPath("crazy.jar");
++		ideManager.getProjectProperties().setInJars(injars);
++		assertTrue("Build failed",doSynchronousBuild("config2.lst"));
++		assertTrue("Build warnings",ideManager.getCompilationSourceLineTasks().isEmpty());
++		compareInjarsToBin(injar1,"src","crazy.jar");
++	}
++	
++	public void testInjarsToOutjarOddNames () {
++		Set injars = new HashSet();
++		File injar1 = openFile("input1");
++		File outjar = openFile(outjarName+".fozout");
++		injars.add(injar1);
++		ideManager.getProjectProperties().setInJars(injars);
++		ideManager.getProjectProperties().setOutJar(outjar.getAbsolutePath());
++		assertTrue("Build failed",doSynchronousBuild("config2.lst"));
++		assertTrue("Build warnings",ideManager.getCompilationSourceLineTasks().isEmpty());
++		compareJars(injar1,"src",outjar);
++	}
+ 
+ 	/*
+ 	 * Ensure bin contains all non-Java resouces from source and injars
+@@ -54,7 +54,7 @@ public class LstBuildConfigManagerTest extends AjdeTestCase {
+ 		doSynchronousBuild("bad-injar.lst");
+ 		messages = NullIdeManager.getIdeManager().getCompilationSourceLineTasks();
+ 		message = (NullIdeTaskListManager.SourceLineTask)messages.get(0);
+-		assertTrue(message.getContainedMessage().getMessage().indexOf("bad inpath") != -1);
++		assertTrue(message.getContainedMessage().getMessage().indexOf("skipping missing, empty or corrupt inpath entry") != -1);
+ 	}
+ 
+ 	public void testErrorMessages() throws IOException {
+@@ -30,8 +30,6 @@ import org.aspectj.weaver.tools.WeavingAdaptor;
+ /**
+  * @author websterm
+  *
+- * To change the template for this generated type comment go to
+- * Window>Preferences>Java>Code Generation>Code and Comments
+  */
+ public class WeavingURLClassLoaderTest extends TestCase {
+ 
+@@ -432,6 +430,35 @@ public class WeavingURLClassLoaderTest extends TestCase {
+         }
+     }
+ 
++	public void testWeavingURLClassLoaderOddJars() throws Exception {
++		URL classes = FileUtil.getFileURL(new File(TEST_BASE+"/test.jar/main.file"));
++		URL aspectjrt = FileUtil.getFileURL(new File(ASPECTJRT));
++		URL aspects = FileUtil.getFileURL(new File(TEST_BASE+"/aspectNoExt"));
++		URL[] classURLs = new URL[] { aspects, classes, aspectjrt };
++		URL[] aspectURLs = new URL[] { aspects };
++		WeavingURLClassLoader loader = new WeavingURLClassLoader(classURLs,aspectURLs,getClass().getClassLoader());
++
++        Class clazz = loader.loadClass("packag.Main");
++        invokeMain(clazz,new String[] { }); 
++	}
++	
++	public void testWeavingURLClassLoaderMissingJars() throws Exception {
++		try {
++			URL classes = FileUtil.getFileURL(new File(TEST_BASE+"/test.jar/main.file"));
++			URL aspectjrt = FileUtil.getFileURL(new File(ASPECTJRT));
++			URL aspects = FileUtil.getFileURL(new File(TEST_BASE+"/MissingFile"));
++			URL[] classURLs = new URL[] { aspects, classes, aspectjrt };
++			URL[] aspectURLs = new URL[] { aspects };
++			WeavingURLClassLoader loader = new WeavingURLClassLoader(classURLs,aspectURLs,getClass().getClassLoader());
++	
++	        Class clazz = loader.loadClass("packag.Main");
++	        invokeMain(clazz,new String[] { }); 
++			fail("Should reject bad aspect MissingFile");
++		} catch (AbortException ae) {
++			assertTrue("Unexpected cause: "+ae.getMessage(), ae.getMessage().indexOf("bad aspect library")!=-1);
++		}
++	}
++    
+     private void doTestZipAspects(String aspectLib) throws Exception {
+         File classZip = new File(TEST_BASE + "/main.zip");        
+         File zipLib = new File(aspectLib);  
+@@ -397,14 +397,14 @@ public class BuildArgParser extends Main {
+ 					while (st.hasMoreTokens()) {
+ 						String filename = st.nextToken();
+ 						File file = makeFile(filename);
+-						if (file.exists() && FileUtil.hasZipSuffix(filename)) {
++						if (FileUtil.isZipFile(file)) {
+ 							inPath.add(file);    
+ 						} else {
+ 							if (file.isDirectory()) {
+ 								inPath.add(file);
+ 							} else 
+ 
+-							showError("bad inpath component: " + filename);  
++							showWarning("skipping missing, empty or corrupt inpath entry: " + filename);  
+ 						}
+ 					}
+ 					buildConfig.setInPath(inPath);
+@@ -420,7 +420,7 @@ public class BuildArgParser extends Main {
+ 		            while (st.hasMoreTokens()) {
+ 		            	String filename = st.nextToken();
+ 		            	File jarFile = makeFile(filename);
+-		            	if (jarFile.exists() && FileUtil.hasZipSuffix(filename)) {
++		            	if (FileUtil.isZipFile(jarFile)) {
+ 			            	buildConfig.getInJars().add(jarFile);    
+ 		            	} else {
+ 		            		File dirFile = makeFile(filename);
+@@ -428,7 +428,7 @@ public class BuildArgParser extends Main {
+ 		            			buildConfig.getInJars().add(dirFile);
+ 		            		} else 
+ 
+-                            showError("bad injar: " + filename);  
++                            showWarning("skipping missing, empty or corrupt injar: " + filename);  
+ 		            	}
+ 		            }
+ 
+@@ -442,10 +442,10 @@ public class BuildArgParser extends Main {
+ 		            while (st.hasMoreTokens()) {
+ 		            	String filename = st.nextToken();
+ 		            	File jarFile = makeFile(filename);
+-                        if (jarFile.exists() && (FileUtil.hasZipSuffix(filename) || jarFile.isDirectory())) {
++                        if (FileUtil.isZipFile(jarFile) || jarFile.isDirectory()) {
+ 			            	buildConfig.getAspectpath().add(jarFile);    
+ 		            	} else {
+-                            showError("bad aspectpath: " + filename);
++                            showWarning("skipping missing, empty or corrupt aspectpath entry: " + filename);  
+ 		            	}
+ 		            }
+ 
+@@ -476,7 +476,7 @@ public class BuildArgParser extends Main {
+ 				if (args.size() > nextArgIndex) {
+ //					buildConfig.getAjOptions().put(AjCompilerOptions.OPTION_OutJAR, CompilerOptions.GENERATE);
+ 					File jarFile = makeFile(((ConfigParser.Arg)args.get(nextArgIndex)).getValue());
+-					if (FileUtil.hasZipSuffix(jarFile)) {
++					if (!jarFile.isDirectory()) {
+ 						try {
+ 							if (!jarFile.exists()) {
+                                 jarFile.createNewFile();
+Binary files differ
+Binary files differ
+Binary files differ
+Binary files differ
+Binary files differ
+@@ -115,6 +115,7 @@ public class BuildArgParserTestCase extends TestCase {
+ 		String FILE_PATH =   "@" + TEST_DIR + "configWithClasspathExtdirsBootCPArgs.lst";
+ 		AjBuildConfig config = genBuildConfig(new String[] { FILE_PATH }, messageWriter);
+ 		List classpath = config.getFullClasspath();
++		// note that empty or corrupt jars are NOT included in the classpath
+ 		// should have three entries, resolved relative to location of .lst file
+ 		assertEquals("Three entries in classpath",3,classpath.size());
+ 		Iterator cpIter = classpath.iterator();
+@@ -507,6 +508,71 @@ public class BuildArgParserTestCase extends TestCase {
+ 		assertEquals("Wrong outxml","custom/aop.xml",config.getOutxmlName());
+ 		assertTrue("Following option currupted",config.getShowWeavingInformation());
+ 	}
++
++	public void testNonstandardInjars() {
++		AjBuildConfig config = setupNonstandardPath("-injars");
++		assertEquals("bad path: " + config.getInJars(), 3, config.getInJars().size());
++	}
++	
++	public void testNonstandardInpath() {
++		AjBuildConfig config = setupNonstandardPath("-inpath");
++		assertEquals("bad path: " + config.getInpath(), 3, config.getInpath().size());
++	}
++	
++	public void testNonstandardAspectpath() {
++		AjBuildConfig config = setupNonstandardPath("-aspectpath");
++		assertEquals("bad path: " + config.getAspectpath(), 3, config.getAspectpath().size());
++	}
++
++	public void testNonstandardClasspath() throws IOException {
++		AjBuildConfig config = setupNonstandardPath("-classpath");
++		checkPathSubset(config.getClasspath());
++	}
++	
++	public void testNonstandardBootpath() throws IOException {
++		AjBuildConfig config = setupNonstandardPath("-bootclasspath");
++		checkPathSubset(config.getBootclasspath());
++	}
++	
++	private void checkPathSubset(List path) throws IOException {
++		String files[] = { "aspectjJar.file", "jarChild", "parent.zip" };
++		for (int i = 0; i < files.length; i++) {
++			File file = new File(NONSTANDARD_JAR_DIR+files[i]);
++			assertTrue("bad path: " + path, path.contains(file.getCanonicalPath()));			
++		}
++	}
++
++	public void testNonstandardOutjar() {
++		final String OUT_JAR = NONSTANDARD_JAR_DIR + File.pathSeparator + "outputFile";
++		
++		AjBuildConfig config = genBuildConfig(new String[] { 
++			"-outjar", OUT_JAR }, 
++			messageWriter);
++
++		File newJar = new File(OUT_JAR);
++		assertEquals(
++			getCanonicalPath(newJar),config.getOutputJar().getAbsolutePath()); 
++	
++		newJar.delete();
++	}
++
++	public void testNonstandardOutputDirectorySetting() throws InvalidInputException {
++		String filePath = AjdtAjcTests.TESTDATA_PATH + File.separator + "ajc.jar" + File.separator;
++		File testDir = new File(filePath);
++		AjBuildConfig config = genBuildConfig(new String[] {  "-d", filePath }, messageWriter);
++		
++		assertEquals(testDir.getAbsolutePath(), config.getOutputDir().getAbsolutePath());	
++	}
++	
++	private static final String NONSTANDARD_JAR_DIR = AjdtAjcTests.TESTDATA_PATH + "/OutjarTest/folder.jar/";
++	
++	private AjBuildConfig setupNonstandardPath(String pathType) {
++		String NONSTANDARD_PATH_ENTRY = NONSTANDARD_JAR_DIR+"aspectjJar.file" + File.pathSeparator + NONSTANDARD_JAR_DIR+"aspectJar.file" + File.pathSeparator + NONSTANDARD_JAR_DIR+"jarChild" + File.pathSeparator + NONSTANDARD_JAR_DIR+"parent.zip";		
++		
++		return genBuildConfig(new String[] { 
++			pathType, NONSTANDARD_PATH_ENTRY }, 
++			messageWriter);
++	}
+ 
+ 	protected void setUp() throws Exception {
+ 		super.setUp();
+@@ -558,7 +558,8 @@ public class AjcTestCase extends TestCase {
+ 		lastRunResult = null;
+ 		StringBuffer cp = new StringBuffer();
+ 		if (classpath != null) {
+-			cp.append(classpath);
++			// allow replacing this special variable, rather than copying all files to allow tests of jars that don't end in .jar
++			cp.append(substituteSandbox(classpath));
+ 			cp.append(File.pathSeparator);
+ 		}
+ 		cp.append(ajc.getSandboxDirectory().getAbsolutePath());
+@@ -622,6 +623,10 @@ public class AjcTestCase extends TestCase {
+ 		}
+ 		return lastRunResult;
+ 	}
++
++	private String substituteSandbox(String classpath) {
++		return classpath.replace("$sandbox", ajc.getSandboxDirectory().getAbsolutePath());
++	}
+ 
+     /**
+      * Any central pre-processing of args.
+@@ -639,6 +644,7 @@ public class AjcTestCase extends TestCase {
+         		args[i] = adaptToPlatform(args[i]);
+             if ("-classpath".equals(args[i])) {
+                 cpIndex = i;
++                args[i+1] = substituteSandbox(args[i+1]);
+                 String next = args[i+1];
+                 hasruntime = ((null != next) 
+                         && (-1 != next.indexOf("aspectjrt.jar")));
+@@ -1106,12 +1106,8 @@ public class AjcTask extends MatchingTask {
+                     || (null != inpathDirCopyFilter)) {
+                 String path = outjar.getAbsolutePath();
+                 int len = FileUtil.zipSuffixLength(path);
+-                if (len < 1) {
+-                    this.logger.info("not copying resources - weird outjar: " + path);
+-                } else {
+-                    path = path.substring(0, path.length()-len) + ".tmp.jar";
+-                    tmpOutjar = new File(path);
+-                }
++                path = path.substring(0, path.length()-len) + ".tmp.jar";
++                tmpOutjar = new File(path);
+             }
+             if (null == tmpOutjar) {                
+                 cmd.addFlagged("-outjar", outjar.getAbsolutePath());        
+@@ -359,13 +359,22 @@ public class AjcTaskTest extends TestCase {
+     }
+ 
+     public void testInpathDirCopyFilterWithJar() throws IOException {
++    	checkInpathCopy("testInpathDirCopyFilterWithJar-out.jar");
++    }
++
++    // test resource copying for oddball jar files that don't end in .jar
++    public void testInpathDirCopyFilterWithOddjar() throws IOException {
++    	checkInpathCopy("testInpathDirCopyFilterWithJar-outJarFile");
++    }
++    
++    private void checkInpathCopy(String outjarFileStr) throws IOException {
+         // inpathDirCopyFilter works with output jar
+         File destDir = getTempDir();
+         assertTrue(
+             "unable to create " + destDir,
+             destDir.canRead() || destDir.mkdirs());
+         AjcTask task = getTask(NOFILE, null);        
+-        File destJar = new File(destDir, "testInpathDirCopyFilterWithJar-out.jar");
++        File destJar = new File(destDir, outjarFileStr);
+         task.setOutjar(destJar);
+         Project p = task.getProject();
+         Path indirs = new Path(p);
+@@ -134,8 +134,7 @@ public class CompileSpec implements ITestStep {
+ 	 * @param inpath The inpath to set.
+ 	 */
+ 	public void setInpath(String inpath) {
+-		this.inpath = inpath.replace(',',File.pathSeparatorChar);
+-		this.inpath = inpath.replace(';',File.pathSeparatorChar);
++		this.inpath = inpath.replace(',',File.pathSeparatorChar).replace(';',File.pathSeparatorChar);
+ 	}
+ 	/**
+ 	 * @return Returns the options.
+@@ -14,7 +14,9 @@ package org.aspectj.testing;
+ import java.io.File;
+ import java.io.IOException;
+ import java.util.ArrayList;
++import java.util.Enumeration;
+ import java.util.List;
++import java.util.Properties;
+ import java.util.StringTokenizer;
+ 
+ import org.aspectj.tools.ajc.AjcTestCase;
+@@ -53,12 +55,49 @@ public class RunSpec implements ITestStep {
+ //		System.err.println("? execute() inTestCase='" + inTestCase + "', ltwFile=" + ltwFile);
+ 		boolean useLtw = copyLtwFile(inTestCase.getSandboxDirectory());
+ 		copyXlintFile(inTestCase.getSandboxDirectory());
+-		AjcTestCase.RunResult rr = inTestCase.run(getClassToRun(),args,getClasspath(),useLtw);
+-		if (stdErrSpec != null) {
+-			stdErrSpec.matchAgainst(rr.getStdErr());
++		try {
++			setSystemProperty("test.base.dir", inTestCase.getSandboxDirectory().getAbsolutePath());
++			
++			AjcTestCase.RunResult rr = inTestCase.run(getClassToRun(),args,getClasspath(),useLtw);
++			
++			if (stdErrSpec != null) {
++				stdErrSpec.matchAgainst(rr.getStdErr());
++			}
++			if (stdOutSpec != null) {
++				stdOutSpec.matchAgainst(rr.getStdOut());
++			}
++		} finally {
++			restoreProperties();
+ 		}
+-		if (stdOutSpec != null) {
+-			stdOutSpec.matchAgainst(rr.getStdOut());
++	}
++	
++	/* 
++	 * Logic to save/restore system properties. Copied from LTWTests.
++	 * As Matthew noted, need to refactor LTWTests to use this 
++  	 */
++
++	private Properties savedProperties = new Properties();
++  	 	
++	public void setSystemProperty (String key, String value) {
++		Properties systemProperties = System.getProperties();
++		copyProperty(key,systemProperties,savedProperties);
++		systemProperties.setProperty(key,value);
++	}
++	
++	private static void copyProperty (String key, Properties from, Properties to) {
++		String value = from.getProperty(key,NULL);
++		to.setProperty(key,value);
++	}
++	
++	private final static String NULL = "null";
++
++	protected void restoreProperties() {
++		Properties systemProperties = System.getProperties();
++		for (Enumeration enu = savedProperties.keys(); enu.hasMoreElements(); ) {
++			String key = (String)enu.nextElement();
++			String value = savedProperties.getProperty(key);
++			if (value == NULL) systemProperties.remove(key);
++			else systemProperties.setProperty(key,value);
+ 		}
+ 	}
+ 
+@@ -84,7 +123,7 @@ public class RunSpec implements ITestStep {
+ 
+ 	public String getClasspath() {
+ 		if (cpath == null) return null;
+-		return this.cpath.replace('/', File.separatorChar);
++		return this.cpath.replace('/', File.separatorChar).replace(',', File.pathSeparatorChar);
+ 	}
+ 
+ 	public void setClasspath(String cpath) {
+@@ -510,7 +510,7 @@ public class Sandbox {
+             int len = (null == paths ? 0 : paths.length);
+             for (int j = 0; j < len; j++) {
+                 File f = paths[j];
+-                if (FileUtil.hasZipSuffix(f) && (!readable || f.canRead())) {
++                if (FileUtil.isZipFile(f) && (!readable || f.canRead())) {
+                     result.add(f);
+                 }
+ 			}
+@@ -0,0 +1,5 @@
++public aspect Before {
++    before() : call(* getName()) {
++        System.out.println("Before call");
++    }
++}
+@@ -0,0 +1,5 @@
++public aspect BeforeExec {
++    before() : execution(* getName()) {
++        System.out.println("Before execution");
++    }
++}
+@@ -0,0 +1,6 @@
++public class Hello {
++    public static void main(String argz[]) {
++        System.out.println("Hello "+getName());
++    }
++    public static String getName() { return "Java"; }
++}
+@@ -0,0 +1,5 @@
++public aspect Rename {
++    String around() : call(* getName()) { 
++    	return "AspectJ not just "+proceed(); 
++	}
++}
+@@ -0,0 +1,19 @@
++/*******************************************************************************
++ * Copyright (c) 2005 Contributors.
++ * All rights reserved. 
++ * This program and the accompanying materials are made available 
++ * under the terms of the Eclipse Public License v1.0 
++ * which accompanies this distribution and is available at 
++ * http://eclipse.org/legal/epl-v10.html 
++ * 
++ * Contributors:
++ *   Matthew Webster         initial implementation
++ *******************************************************************************/
++import org.aspectj.lang.JoinPoint;
++
++public aspect Aspect1 {
++	
++		before () : execution(void Main.test1()) {
++			System.err.println("Aspect1.before_" + thisJoinPoint.getSignature().getName());
++		}
++}
+@@ -0,0 +1,19 @@
++/*******************************************************************************
++ * Copyright (c) 2005 Contributors.
++ * All rights reserved. 
++ * This program and the accompanying materials are made available 
++ * under the terms of the Eclipse Public License v1.0 
++ * which accompanies this distribution and is available at 
++ * http://eclipse.org/legal/epl-v10.html 
++ * 
++ * Contributors:
++ *   Matthew Webster	initial implementation
++ *******************************************************************************/
++import org.aspectj.lang.JoinPoint;
++
++public aspect Aspect2 {
++	
++		before () : execution(void Main.test2()){
++			System.err.println("Aspect2.before_" + thisJoinPoint.getSignature().getName());
++		}
++}
+@@ -0,0 +1,41 @@
++/*******************************************************************************
++ * Copyright (c) 2005 Contributors.
++ * All rights reserved. 
++ * This program and the accompanying materials are made available 
++ * under the terms of the Eclipse Public License v1.0 
++ * which accompanies this distribution and is available at 
++ * http://eclipse.org/legal/epl-v10.html 
++ * 
++ * Contributors:
++ *   Matthew Webster         initial implementation
++ *******************************************************************************/
++import java.lang.reflect.Method;
++import java.lang.reflect.Modifier;
++
++public class Main {
++
++	public void test1 () {
++		System.out.println("Main.test1");
++	}
++
++	public void test2 () {
++		System.out.println("Main.test2");
++	}
++
++	public void invokeDeclaredMethods () throws Exception {
++		Method[] methods = getClass().getDeclaredMethods();
++		for (int i = 0; i < methods.length; i++) {
++			Method method = methods[i];
++			int modifiers = method.getModifiers();
++			if (!Modifier.isStatic(modifiers) && !method.getName().equals("invokeDeclaredMethods")) {
++				method.invoke(this,new Object[] {});
++			}
++		}
++	}
++	
++	public static void main (String[] args) throws Exception {
++		System.out.println("Main.main");
++		new Main().test1();
++		new Main().test2();
++	}
++}
+@@ -467,13 +467,16 @@
+     <ajc-test dir="bugs"  pr="43714"
+     	title="weaving using an empty jar in -injars"  >
+         <compile files="notAJar.jar" outjar="outJar.jar"> 
+-        	<message kind="error" line="0"/>
++        	<message kind="warning" text="build config error: skipping missing, empty or corrupt inpath entry"/>
++        	<message kind="error" text="no sources specified"/>
++        	<message kind="fail"/>
+         </compile>
+     </ajc-test>
+ 
+ 	 <ajc-test dir="bugs"  pr="43714"
+     	title="weaving using an empty jar in -aspectpath"  >
+         <compile files="WeaveLocal.java" aspectpath="notAJar.jar" outjar="outJar.jar" >         	
++        	<message kind="warning" text="build config error: skipping missing, empty or corrupt aspectpath entry"/>
+         </compile>
+     </ajc-test>
+     
+\ No newline at end of file
+@@ -89,6 +89,25 @@ public class LTWTests extends org.aspectj.testing.XMLBasedAjcTestCase {
+   		runTest("Override suppressing of warning when advice doesn't match using -Xlint:warning");
+   	}
+ 
++  	public void testNonstandardJarFiles() {
++  		runTest("Nonstandard jar file extensions");  		
++  	}
++  	
++  	public void testOddzipOnClasspath() {  	
++		runTest("Odd zip on classpath");  		
++  	}
++  	
++  	// separate bugzilla patch has this one... commented out
++//  	public void testSeparateCompilationDeclareParentsCall() {
++//  		runTest("Separate compilation with ltw: declare parents and call");
++//  	}
++//  	
++//  	public void testChildAspectDoesntWeaveParentDeclareParentsCall() {
++//		setSystemProperty(WeavingAdaptor.WEAVING_ADAPTOR_VERBOSE,"true");
++//		setSystemProperty(WeavingAdaptor.SHOW_WEAVE_INFO_PROPERTY,"true");
++//  		runTest("Child loader aspect won't weave parent loader: declare parents and call");
++//  	}
++  	
+   	/*
+   	 * Allow system properties to be set and restored
+   	 * TODO maw move to XMLBasedAjcTestCase or RunSpec
+@@ -1,6 +1,5 @@
+ 
+ <!-- Load-time weaving tests -->
+-
+ 	<ajc-test dir="ltw"
+       title="Ensure 1st aspect is rewoven when weaving 2nd aspect"
+       keywords="reweavable">
+@@ -339,4 +338,133 @@
+         	</stderr>
+         </run>
+     </ajc-test>
++
++	<!-- based on "Ensure 1st aspect is rewoven when weaving 2nd aspect" -->
++	<ajc-test dir="ltw"
++      title="Nonstandard jar file extensions" pr="137235">
++        <compile
++        	files="folder.jar/Main.java, folder.jar/Aspect1.aj"
++			outjar="folder.jar/main1.zip"
++            options="-showWeaveInfo"
++        >
++        	<message kind="weave" text="method-execution(void Main.test1())' in Type 'Main' (Main.java:17) advised by before advice from 'Aspect1' (Aspect1.aj:16)"/>
++        </compile>	
++        <compile
++        	classpath="$sandbox/folder.jar/main1.zip"
++        	files="Aspect2.aj"
++        	outjar="aspect2Jar"
++            options="-showWeaveInfo"
++        >
++        </compile>	
++        <run class="Main" ltw="aop-ltwreweavable.xml" classpath="$sandbox/folder.jar/main1.zip,$sandbox/aspect2Jar">
++        	<stdout>
++                <line text="Main.main"/>
++                <line text="Main.test1"/>
++                <line text="Main.test2"/>
++            </stdout>
++        	<stderr>
++	  	    	<line text="weaveinfo Join point 'method-execution(void Main.test1())' in Type 'Main' (Main.java:17) advised by before advice from 'Aspect1' (Aspect1.aj:16)"/>
++				<line text="weaveinfo Join point 'method-execution(void Main.test2())' in Type 'Main' (Main.java:21) advised by before advice from 'Aspect2' (Aspect2.aj:16)"/>
++                <line text="Aspect1.before_test1"/>
++                <line text="Aspect2.before_test2"/>
++            </stderr>
++        </run>
++    </ajc-test>
++
++	<ajc-test dir="ltw"
++      title="Odd zip on classpath" pr="137235">
++        <compile
++        	files="folder.jar/Main.java, folder.jar/Aspect1.aj"
++			outjar="folder.jar/main1.archive"
++            options="-showWeaveInfo"
++        >
++        	<message kind="weave" text="method-execution(void Main.test1())' in Type 'Main' (Main.java:17) advised by before advice from 'Aspect1' (Aspect1.aj:16)"/>
++        </compile>	
++        <compile
++        	classpath="$sandbox/folder.jar/main1.archive"
++        	files="Aspect2.aj"
++        	outjar="aspect2Jar"
++            options="-showWeaveInfo"
++        >
++        </compile>	
++        <run class="Main" ltw="aop-ltwreweavable.xml" classpath="$sandbox/folder.jar/main1.archive,$sandbox/aspect2Jar">
++        	<stdout>
++                <line text="Main.main"/>
++                <line text="Main.test1"/>
++                <line text="Main.test2"/>
++            </stdout>
++        	<stderr>
++	  	    	<line text="weaveinfo Join point 'method-execution(void Main.test1())' in Type 'Main' (Main.java:17) advised by before advice from 'Aspect1' (Aspect1.aj:16)"/>
++				<line text="weaveinfo Join point 'method-execution(void Main.test2())' in Type 'Main' (Main.java:21) advised by before advice from 'Aspect2' (Aspect2.aj:16)"/>
++                <line text="Aspect1.before_test1"/>
++                <line text="Aspect2.before_test2"/>
++            </stderr>
++        </run>
++    </ajc-test>
++
++<!--    
++commented out: reported in another bugzilla bug...
++
++	<ajc-test dir="ltw/hier"
++      title="Separate compilation with ltw: declare parents and call"
++      keywords="ltw">
++        <compile
++        	files="util/A.aj,util/T.aj"
++        />
++        <compile
++        	files="child/Executor.aj,child/Advisor.aj,top/SimpleMain.aj"
++        >
++        	<message kind="warning" text="this affected type is not exposed to the weaver: util.A"/>
++		</compile>        
++        <run class="top.SimpleMain" ltw="aop-single.xml">
++        	<stdout>
++                <line text="T call"/>
++        	</stdout>
++        	<stderr>
++        	    <line text="weaveinfo Extending interface set for type 'util.A' (A.aj) to include 'util.T' (Advisor.aj)"/>
++	        	< - - TODO: fix up any errors in the expected output when the join point actually matches - - >
++				<line text="weaveinfo Join point 'method-call(void A.foo())' in Type 'child.Executor' (Executor.aj:19) advised by before advice from 'child.Advisor' (Advisor.aj:20)"/>
++        	</stderr>
++        </run>
++    </ajc-test>
++
++	<ajc-test dir="ltw/hier"
++      title="Child loader aspect won't weave parent loader: declare parents and call"
++      keywords="ltw">
++        <compile
++        	files="top/HierMain.aj"
++        />
++        <compile
++        	files="util/A.aj,util/T.aj"
++			outjar="util.jar"
++        />
++        <compile
++        	files="child/Executor.aj,child/Advisor.aj"
++        	classpath="util.jar"
++            options="-outxml"
++            outjar="child.zip"
++        >
++        	<message kind="warning" text="this affected type is not exposed to the weaver: util.A"/>
++		</compile>        
++		< - - limitation: to turn on load-time weaving we HAVE to have a top-level aop.xml file
++		   since we don't want any top-level aspects, we deploy an empty one! 
++		   the important aop.xml file in this test was created with -outxml and lives in child.jar - - >
++        <run class="top.HierMain" ltw="null-aop.xml">
++        	<stdout/>
++        	<stderr>
++                <line text="info AspectJ Weaver Version"/>
++                <line text="info register classloader"/>
++                <line text="info using"/>
++	        	<line text="info weaving 'top.HierMain'"/>
++                <line text="info AspectJ Weaver Version"/>
++                <line text="info register classloader"/>
++                <line text="info using"/>
++                <line text="info using file:"/>
++                <line text="info register aspect child.Advisor"/>
++                <line text="info weaving 'child.Executor'"/>
++                <line text="info weaving 'util.A'"/>
++        	</stderr>
++        </run>
++    </ajc-test>
++-->
+ 
+@@ -45,6 +45,8 @@ public class Ajc152Tests extends org.aspectj.testing.XMLBasedAjcTestCase {
+ // this next one reported as a bug by Rob Harrop, but I can't reproduce the failure yet...
+ //public void testAtAspectWithReferencePCPerClause_pr138220() { runTest("@Aspect with reference pointcut in perclause");}  
+ 
++  public void testJarChecking_pr137235_1() { runTest("directory with .jar extension: source and outjar"); }	    
++  public void testJarChecking_pr137235_2() { runTest("directory with .jar extension"); }	  
+   /////////////////////////////////////////
+   public static Test suite() {
+     return XMLBasedAjcTestCase.loadSuite(Ajc152Tests.class);
+@@ -197,4 +197,30 @@
+ 	  </compile>
+ 	  <run class="a.b.c.AroundAdvicePassingPjpAsArgToSuper"/>
+ 	</ajc-test>
++	
++	  <ajc-test dir="bugs152/pr137235"  pr="137235"
++		title="directory with .jar extension: source and outjar">
++	    <compile files="directory.jar/Hello.java" outjar="directory.jar/run.custom"/>
++        <run class="Hello" classpath="$sandbox/directory.jar/run.custom">
++          <stdout>
++            <line text="Hello Java"/>
++          </stdout>
++        </run>
++    </ajc-test>
++    
++    <ajc-test dir="bugs152/pr137235"  pr="137235"
++		title="directory with .jar extension"  >
++	    <compile files="directory.jar/Before.java" outjar="directory.jar/inOne.custom"/>
++	    <compile files="directory.jar/BeforeExec.aj" outjar="directory.jar/inTwo"/>
++	    <compile files="directory.jar/Rename.aj" outjar="directory.jar/weave.jar"/>
++	    <compile files="directory.jar/Hello.java" inpath="directory.jar/inOne.custom,directory.jar/inTwo" aspectpath="directory.jar/weave.jar" outjar="directory.jar/outJar.jar"/>
++        <run class="Hello" classpath="$sandbox/directory.jar/outJar.jar,$sandbox/directory.jar/weave.jar">
++          <stdout>
++            <line text="Before call"/>
++            <line text="Before execution"/>
++            <line text="Hello AspectJ not just Java"/>
++          </stdout>
++        </run>
++    </ajc-test>
++    
+ </suite>
+\ No newline at end of file
+@@ -17,7 +17,6 @@ import java.io.*;
+ import java.net.*;
+ import java.util.*;
+ import java.util.zip.*;
+-import java.util.zip.ZipFile;
+ 
+ 
+ /**
+@@ -33,7 +32,7 @@ public class FileUtil {
+ 
+     public static final FileFilter ZIP_FILTER = new FileFilter() {
+         public boolean accept(File file) {
+-            return hasZipSuffix(file);
++            return isZipFile(file);
+         }
+         public String toString() { 
+             return "ZIP_FILTER"; 
+@@ -70,15 +69,19 @@ public class FileUtil {
+         PERMIT_CVS = LangUtil.getBoolean(name, false);
+     }
+ 
+-    /** @return true if file path has a zip/jar suffix */
+-    public static boolean hasZipSuffix(File file) {
+-        return ((null != file) && hasZipSuffix(file.getPath()));
++    /** @return true if file exists and is a zip file */
++    public static boolean isZipFile(File file) {
++        try {
++			return (null != file) && new ZipFile(file) != null;
++		} catch (IOException e) {
++			return false;
++		}
+     }
+ 
+     /** @return true if path ends with .zip or .jar */
+-    public static boolean hasZipSuffix(String path) {
+-        return ((null != path) && (0 != zipSuffixLength(path)));
+-    }
++//    public static boolean hasZipSuffix(String path) {
++//        return ((null != path) && (0 != zipSuffixLength(path)));
++//    }
+ 
+     /** @return 0 if file has no zip/jar suffix or 4 otherwise  */
+     public static int zipSuffixLength(File file) {
+@@ -136,7 +136,7 @@ public class Reflection {
+ //            if (!file.canRead()) {
+ //                throw new IllegalArgumentException("cannot read " + file);
+ //            }
+-            if (FileUtil.hasZipSuffix(file)) {
++            if (FileUtil.isZipFile(file)) {
+                 libs.add(file);
+             } else if (file.isDirectory()) {
+                 dirs.add(file);
+@@ -65,22 +65,23 @@ public class ClassPathManager {
+ 	public void addPath (String name, IMessageHandler handler) {
+ 		File f = new File(name);
+ 		String lc = name.toLowerCase();
+-		if (lc.endsWith(".jar") || lc.endsWith(".zip")) {
++		if (!f.isDirectory()) {
+ 			if (!f.isFile()) {
+-			MessageUtil.info(handler, WeaverMessages.format(WeaverMessages.ZIPFILE_ENTRY_MISSING,name));
+-			return;
++				if (!lc.endsWith(".jar") || lc.endsWith(".zip")) {
++					// heuristic-only: ending with .jar or .zip means probably a zip file
++					MessageUtil.info(handler, WeaverMessages.format(WeaverMessages.ZIPFILE_ENTRY_MISSING,name));
++				} else { 
++					MessageUtil.info(handler, WeaverMessages.format(WeaverMessages.DIRECTORY_ENTRY_MISSING,name));
++				}
++				return;
+ 			}
+ 			try {
+ 				entries.add(new ZipFileEntry(f));
+ 			} catch (IOException ioe) {
+-			MessageUtil.warn(handler, WeaverMessages.format(WeaverMessages.ZIPFILE_ENTRY_INVALID,name,ioe.getMessage()));
+-			return;
++				MessageUtil.warn(handler, WeaverMessages.format(WeaverMessages.ZIPFILE_ENTRY_INVALID,name,ioe.getMessage()));
++				return;
+ 			}
+ 		} else {
+-			if (!f.isDirectory()) {
+-			MessageUtil.info(handler, WeaverMessages.format(WeaverMessages.DIRECTORY_ENTRY_MISSING,name));
+-			return;
+-			}
+ 			entries.add(new DirEntry(f));
+ 		}
+ 	}
+@@ -317,8 +317,7 @@ public class WeavingAdaptor {
+ 	private void addAspectLibrary(String aspectLibraryName) {
+ 		File aspectLibrary = new File(aspectLibraryName);
+ 		if (aspectLibrary.isDirectory()
+-                || (aspectLibrary.isFile() 
+-                        && FileUtil.hasZipSuffix(aspectLibraryName))) {
++                || (FileUtil.isZipFile(aspectLibrary))) {
+ 			try {
+ 				info("adding aspect library: '" + aspectLibrary + "'");
+ 				weaver.addLibraryJarFile(aspectLibrary);
+Binary files differ
+Binary files differ

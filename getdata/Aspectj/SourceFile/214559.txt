@@ -1,0 +1,113 @@
+@@ -0,0 +1,8 @@
++
++public class DeclareParentsPrecedenceTest {
++  public static void main(String[]argv) {
++    TestClass t = new TestClass();
++    if (!(t instanceof Interface1)) throw new RuntimeException("t not instanceof Interface1");
++    if (!(t instanceof Interface1TestClass)) throw new RuntimeException("t not instanceof Interface1TestClass");
++  }
++}
+@@ -0,0 +1 @@
++interface Interface1 {}
+@@ -0,0 +1 @@
++interface Interface1TestClass {}
+@@ -0,0 +1,7 @@
++aspect TestAspect  {
++        declare parents: 
++                TestClass implements Interface1;
++
++        declare parents: 
++                TestClass && Interface1+ implements Interface1TestClass;
++}
+@@ -0,0 +1 @@
++class TestClass {}
+@@ -0,0 +1,23 @@
++
++package test;
++
++public class X {
++  public static void main(String[]argv) {
++    TestClass t = new TestClass();
++    if (!(t instanceof Interface1)) throw new RuntimeException("t not instanceof Interface1");
++    if (!(t instanceof Interface1TestClass)) throw new RuntimeException("t not instanceof Interface1TestClass");
++  }
++}
++
++interface Interface1 {}
++
++interface Interface1TestClass {}
++
++aspect TestAspect  {
++        declare parents: 
++                TestClass implements Interface1;
++
++        declare parents: 
++                TestClass && Interface1+ implements Interface1TestClass;
++}
++class TestClass {}
+@@ -0,0 +1,20 @@
++
++public class Y {
++  public static void main(String[]argv) {
++    TestClass t = new TestClass();
++    if (!(t instanceof Interface1)) throw new RuntimeException("t not instanceof Interface1");
++    if (!(t instanceof Interface1TestClass)) throw new RuntimeException("t not instanceof Interface1TestClass");
++  }
++}
++
++interface Interface1 {}
++
++interface Interface1TestClass {}
++
++aspect TestAspect  {
++        declare parents: TestClass implements Interface1;
++
++        declare parents: TestClass && Interface1+ implements Interface1TestClass;
++}
++
++class TestClass {}
+@@ -28,7 +28,10 @@ public class Ajc160Tests extends org.aspectj.testing.XMLBasedAjcTestCase {
+ 	public void testGenericsSuperITD_pr206911() { runTest("generics super itd"); }
+ 	public void testGenericsSuperITD_pr206911_2() { runTest("generics super itd - 2"); }
+ 	public void testSerializationAnnotationStyle_pr216311() { runTest("serialization and annotation style");}
+-
++	public void testDecpRepetition_pr214559() { runTest("decp repetition problem");} // all code in one file
++	public void testDecpRepetition_pr214559_2() { runTest("decp repetition problem - 2");} // all code in one file, default package
++	public void testDecpRepetition_pr214559_3() { runTest("decp repetition problem - 3");} // across multiple files
++	
+   /////////////////////////////////////////
+   public static Test suite() {
+     return XMLBasedAjcTestCase.loadSuite(Ajc160Tests.class);
+@@ -45,5 +45,20 @@
+      <compile options="-1.5" files="PersistabilityTest.java,IPersistable.java,Persistability.java"/>
+      <run class="PersistabilityTest"/>
+    </ajc-test>
++
++   <ajc-test dir="bugs160/pr214559" title="decp repetition problem">
++     <compile files="X.java"/>
++     <run class="test.X"/>
++   </ajc-test>
++   
++   <ajc-test dir="bugs160/pr214559" title="decp repetition problem - 2">
++     <compile files="Y.java"/>
++     <run class="Y"/>
++   </ajc-test>
++
++   <ajc-test dir="bugs160/pr214559" title="decp repetition problem - 3">
++     <compile files="TestClass.java Interface1.java Interface1TestClass.java DeclareParentsPrecedenceTest.java TestAspect.java"/>
++     <run class="DeclareParentsPrecedenceTest"/>
++   </ajc-test>
+ 
+ </suite>
+\ No newline at end of file
+@@ -1446,8 +1446,8 @@ public class BcelWeaver implements IWeaver {
+ 			boolean typeChanged = applyDeclareParents(decp,onType);
+ 			if (typeChanged) {
+ 				aParentChangeOccurred = true;
+-			} else { // Perhaps it would have matched if a 'dec @type' had modified the type
+-				if (!decp.getChild().isStarAnnotation()) decpToRepeat.add(decp);
++			} else {
++				decpToRepeat.add(decp);
+ 			}
+ 		}
+ 

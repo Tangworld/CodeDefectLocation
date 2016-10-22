@@ -1,0 +1,122 @@
+@@ -19,6 +19,7 @@ import junit.framework.Test;
+ 
+ import org.aspectj.apache.bcel.classfile.JavaClass;
+ import org.aspectj.apache.bcel.classfile.Method;
++import org.aspectj.apache.bcel.classfile.Signature;
+ import org.aspectj.apache.bcel.util.ClassPath;
+ import org.aspectj.apache.bcel.util.SyntheticRepository;
+ import org.aspectj.asm.AsmManager;
+@@ -39,6 +40,17 @@ public class Ajc150Tests extends org.aspectj.testing.XMLBasedAjcTestCase {
+   public void testBadDecp_pr110788_2() { runTest("bad generic decp - 2");}
+   public void testBadDecp_pr110788_3() { runTest("bad generic decp - 3");}
+   public void testBadDecp_pr110788_4() { runTest("bad generic decp - 4");}
++  
++  public void testBadGenericSigAttribute_pr110927() { 
++	runTest("cant create signature attribute");
++	Signature sig = GenericsTests.getClassSignature(ajc,"I");
++	if (sig==null) fail("Couldn't find signature attribute for type I");
++	String sigString = sig.getSignature();
++	if (!(sigString.equals("Ljava/lang/Object;LIE2;LIE1<Ljava/lang/String;>;") ||
++          sigString.equals("Ljava/lang/Object;LIE1<Ljava/lang/String;>;LIE2;"))) {
++		fail("Signature was "+sigString+" when should have been something like Ljava/lang/Object;LIE1<Ljava/lang/String;>;LIE2;");
++	}
++  }
+ 
+   public void test_typeProcessingOrderWhenDeclareParents() {
+ 	runTest("Order of types passed to compiler determines weaving behavior");
+@@ -10,6 +10,7 @@ import org.aspectj.apache.bcel.classfile.Signature;
+ import org.aspectj.apache.bcel.util.ClassPath;
+ import org.aspectj.apache.bcel.util.SyntheticRepository;
+ import org.aspectj.testing.XMLBasedAjcTestCase;
++import org.aspectj.tools.ajc.Ajc;
+ 
+ public class GenericsTests extends XMLBasedAjcTestCase {
+ 
+@@ -429,7 +430,7 @@ public class GenericsTests extends XMLBasedAjcTestCase {
+ 
+ 	public void testPR96220_GenericDecp() {
+ 		runTest("generic decp - simple");
+-		verifyClassSignature("Basic","Ljava/lang/Object;LJ<Ljava/lang/Double;>;LI<Ljava/lang/Double;>;");
++		verifyClassSignature(ajc,"Basic","Ljava/lang/Object;LJ<Ljava/lang/Double;>;LI<Ljava/lang/Double;>;");
+ 	}
+ 
+ 	// Both the existing type decl and the one adding via decp are parameterized
+@@ -473,7 +474,7 @@ public class GenericsTests extends XMLBasedAjcTestCase {
+ 
+ 	public void testGenericDecpParameterized() {
+ 		runTest("generic decp - with parameterized on the target");
+-		verifyClassSignature("Basic6","<J:Ljava/lang/Object;>Ljava/lang/Object;LI<TJ;>;LK<Ljava/lang/Integer;>;");
++		verifyClassSignature(ajc,"Basic6","<J:Ljava/lang/Object;>Ljava/lang/Object;LI<TJ;>;LK<Ljava/lang/Integer;>;");
+ 	}
+ 
+ 	public void testGenericDecpIncorrectNumberOfTypeParams() {
+@@ -723,8 +724,7 @@ public class GenericsTests extends XMLBasedAjcTestCase {
+ 
+ 	// --- helpers
+ 
+-	// Check the signature attribute on a class is correct
+-	private void verifyClassSignature(String classname,String sig) {
++	public static Signature getClassSignature(Ajc ajc,String classname) {
+ 		try {
+ 			ClassPath cp = 
+ 				new ClassPath(ajc.getSandboxDirectory() + File.pathSeparator + System.getProperty("java.class.path"));
+@@ -736,12 +736,18 @@ public class GenericsTests extends XMLBasedAjcTestCase {
+ 				Attribute attribute = attrs[i];
+ 				if (attribute.getName().equals("Signature")) sigAttr = (Signature)attribute;
+ 			}
+-			assertTrue("Failed to find signature attribute for class "+classname,sigAttr!=null);
+-			assertTrue("Expected signature to be '"+sig+"' but was '"+sigAttr.getSignature()+"'",
+-					sigAttr.getSignature().equals(sig));
++			return sigAttr;
+ 		} catch (ClassNotFoundException e) {
+ 			fail("Couldn't find class "+classname+" in the sandbox directory.");
+ 		}
++		return null;
++	}
++	// Check the signature attribute on a class is correct
++	public static void verifyClassSignature(Ajc ajc,String classname,String sig) {
++		Signature sigAttr = getClassSignature(ajc,classname);
++		assertTrue("Failed to find signature attribute for class "+classname,sigAttr!=null);
++		assertTrue("Expected signature to be '"+sig+"' but was '"+sigAttr.getSignature()+"'",
++				sigAttr.getSignature().equals(sig));		
+ 	}
+ 
+ 
+@@ -4846,4 +4846,8 @@
+    <ajc-test dir="bugs150/pr110788" title="bad generic decp - 4">
+      <compile files="Case4.java" options="-1.5"/>
+    </ajc-test>
++   
++   <ajc-test dir="bugs150/pr110927" title="cant create signature attribute">
++     <compile files="Case1.java" options="-1.5"/>
++   </ajc-test>
+ </suite>
+\ No newline at end of file
+@@ -96,6 +96,7 @@ public class ReferenceType extends ResolvedType {
+     }
+ 
+     public String getSignatureForAttribute() {
++    	if (genericType == null || typeParameters == null) return getSignature();
+     	return makeDeclaredSignature(genericType,typeParameters);	
+     }
+ 
+@@ -0,0 +1,18 @@
++interface I {
++}
++
++interface IE1<T> {
++
++}
++
++interface IE2 {
++
++}
++
++aspect A1 {
++       declare parents : I implements  IE1<String>;
++}
++
++aspect A2 {
++       declare parents : I implements  IE2;
++}
+\ No newline at end of file

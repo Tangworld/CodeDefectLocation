@@ -1,0 +1,524 @@
+@@ -178,7 +178,7 @@
+ 
+     <ajc-test dir="bugs150/" pr="107953" title="@AfterThrowing with no formal specified">
+         <compile files="pr107953.java" options="-1.5">
+-            <message kind="error" line="8" text="throwing formal 'RuntimeException' must be declared as the last parameter in the advice signature"></message>
++            <message kind="error" line="8" text="throwing formal 'RuntimeException' must be declared as a parameter in the advice signature"></message>
+         </compile>
+     </ajc-test>
+ 
+@@ -77,8 +77,9 @@ public class AtAjSyntaxTests extends XMLBasedAjcTestCase {
+         runTest("BindingTest no inline");
+     }
+ 
++    //FIXME AV 2005-09 - commented as perthis(this(Type)) fails for now as of #108488
+     public void testPerClause() {
+-        runTest("PerClause");
++        //runTest("PerClause");
+     }
+ 
+     public void testAroundInlineMunger_XnoInline() {
+@@ -13,6 +13,8 @@ package org.aspectj.ajdt.internal.compiler.ast;
+ 
+ import java.lang.reflect.Modifier;
+ import java.util.Stack;
++import java.util.ArrayList;
++import java.util.List;
+ 
+ import org.aspectj.ajdt.internal.compiler.lookup.EclipseFactory;
+ import org.aspectj.ajdt.internal.compiler.lookup.EclipseScope;
+@@ -305,15 +307,13 @@ public class ValidateAtAspectJAnnotationsVisitor extends ASTVisitor {
+ 			String thrownFormal = getStringLiteralFor("throwing",ajAnnotations.adviceAnnotation,throwingLocation);
+ 			if (thrownFormal != null) {
+ 				Argument[] arguments = methodDeclaration.arguments;
+-				if (arguments != null && arguments.length > 0) {
+-					Argument lastArgument = arguments[arguments.length - 1];
+-					if (!thrownFormal.equals(new String(lastArgument.name))) {
++				if (methodDeclaration.arguments != null
++                        && !toArgumentNames(methodDeclaration.arguments).contains(thrownFormal)) {
+ 						methodDeclaration.scope.problemReporter()
+-							.signalError(methodDeclaration.sourceStart,methodDeclaration.sourceEnd,"throwing formal '" + thrownFormal + "' must be declared as the last parameter in the advice signature");
+-					}
++							.signalError(methodDeclaration.sourceStart,methodDeclaration.sourceEnd,"throwing formal '" + thrownFormal + "' must be declared as a parameter in the advice signature");
+ 				} else {
+ 					methodDeclaration.scope.problemReporter()
+-					.signalError(methodDeclaration.sourceStart,methodDeclaration.sourceEnd,"throwing formal '" + thrownFormal + "' must be declared as the last parameter in the advice signature");
++					.signalError(methodDeclaration.sourceStart,methodDeclaration.sourceEnd,"throwing formal '" + thrownFormal + "' must be declared as a parameter in the advice signature");
+ 				}
+ 			}
+ 		}
+@@ -322,16 +322,13 @@ public class ValidateAtAspectJAnnotationsVisitor extends ASTVisitor {
+ 			int[] throwingLocation = new int[2];
+ 			String returningFormal = getStringLiteralFor("returning",ajAnnotations.adviceAnnotation,throwingLocation);
+ 			if (returningFormal != null) {
+-				Argument[] arguments = methodDeclaration.arguments;
+-				if (arguments != null && arguments.length > 0) {
+-					Argument lastArgument = arguments[arguments.length - 1];
+-					if (!returningFormal.equals(new String(lastArgument.name))) {
++				if (methodDeclaration.arguments.length > 0
++                        && !toArgumentNames(methodDeclaration.arguments).contains(returningFormal)) {
+ 						methodDeclaration.scope.problemReporter()
+-							.signalError(methodDeclaration.sourceStart,methodDeclaration.sourceEnd,"returning formal '" + returningFormal + "' must be declared as the last parameter in the advice signature");
+-					}
++							.signalError(methodDeclaration.sourceStart,methodDeclaration.sourceEnd,"returning formal '" + returningFormal + "' must be declared as a parameter in the advice signature");
+ 				} else {
+ 					methodDeclaration.scope.problemReporter()
+-					.signalError(methodDeclaration.sourceStart,methodDeclaration.sourceEnd,"returning formal '" + returningFormal + "' must be declared as the last parameter in the advice signature");
++					.signalError(methodDeclaration.sourceStart,methodDeclaration.sourceEnd,"returning formal '" + returningFormal + "' must be declared as a parameter in the advice signature");
+ 				}
+ 			}
+ 		}
+@@ -340,7 +337,24 @@ public class ValidateAtAspectJAnnotationsVisitor extends ASTVisitor {
+ 
+ 	}
+ 
+-	private void resolveAndSetPointcut(MethodDeclaration methodDeclaration, Annotation adviceAnn) {
++    /**
++     * Get the argument names as a string list
++     * @param arguments
++     * @return argument names (possibly empty)
++     */
++    private List toArgumentNames(Argument[] arguments) {
++        List names = new ArrayList();
++        if (arguments == null) {
++            return names;
++        } else {
++            for (int i = 0; i < arguments.length; i++) {
++                names.add(new String(arguments[i].name));
++            }
++            return names;
++        }
++    }
++
++    private void resolveAndSetPointcut(MethodDeclaration methodDeclaration, Annotation adviceAnn) {
+ 		int[] pcLocation = new int[2];
+ 		String pointcutExpression = getStringLiteralFor("pointcut",adviceAnn,pcLocation);
+ 		if (pointcutExpression == null) pointcutExpression = getStringLiteralFor("value",adviceAnn,pcLocation);
+@@ -16,6 +16,7 @@ import java.util.Collections;
+ import java.util.Comparator;
+ import java.util.Iterator;
+ import java.util.List;
++import java.util.Arrays;
+ 
+ import org.aspectj.apache.bcel.Constants;
+ import org.aspectj.apache.bcel.classfile.Attribute;
+@@ -717,10 +718,9 @@ public class AtAjAttributes {
+                 } else {
+                    	// check that thrownFormal exists as the last parameter in the advice
+                 	String[] pNames = owningMethod.getParameterNames();
+-                	if (pNames == null || pNames.length == 0 || !pNames[pNames.length -1].equals(returned)) {
+-                		throw new ReturningFormalNotDeclaredInAdviceSignatureException(returned);
+-                	}
+-                	
++                    if (pNames == null || pNames.length == 0 || !Arrays.asList(pNames).contains(returned)) {
++                        throw new ReturningFormalNotDeclaredInAdviceSignatureException(returned);
++                    }
+                 }
+             }
+ 
+@@ -815,7 +815,7 @@ public class AtAjAttributes {
+                 } else {
+                 	// check that thrownFormal exists as the last parameter in the advice
+                 	String[] pNames = owningMethod.getParameterNames();
+-                	if (pNames == null || pNames.length == 0 || !pNames[pNames.length -1].equals(thrownFormal)) {
++                	if (pNames == null || pNames.length == 0 || !Arrays.asList(pNames).contains(thrownFormal)) {
+                 		throw new ThrownFormalNotDeclaredInAdviceSignatureException(thrownFormal);
+                 	}
+                 }
+@@ -260,6 +260,8 @@ public class ValidateAtAspectJAnnotationsVisitor extends ASTVisitor {
+ 	 * 1) Advice must be public
+ 	 * 2) Advice must have a void return type if not around advice
+ 	 * 3) Advice must not have any other @AspectJ annotations
++	 * 4) After throwing advice must declare the thrown formal
++	 * 5) After returning advice must declare the returning formal
+ 	 */
+ 	private void validateAdvice(MethodDeclaration methodDeclaration) {
+ 
+@@ -290,6 +292,42 @@ public class ValidateAtAspectJAnnotationsVisitor extends ASTVisitor {
+ 		if (ajAnnotations.adviceKind != AdviceKind.Around) {
+ 			ensureVoidReturnType(methodDeclaration);
+ 		}	  
++		
++		if (ajAnnotations.adviceKind == AdviceKind.AfterThrowing) {
++			int[] throwingLocation = new int[2];
++			String thrownFormal = getStringLiteralFor("throwing",ajAnnotations.adviceAnnotation,throwingLocation);
++			if (thrownFormal != null) {
++				Argument[] arguments = methodDeclaration.arguments;
++				if (arguments != null && arguments.length > 0) {
++					Argument lastArgument = arguments[arguments.length - 1];
++					if (!thrownFormal.equals(new String(lastArgument.name))) {
++						methodDeclaration.scope.problemReporter()
++							.signalError(methodDeclaration.sourceStart,methodDeclaration.sourceEnd,"throwing formal '" + thrownFormal + "' must be declared as the last parameter in the advice signature");
++					}
++				} else {
++					methodDeclaration.scope.problemReporter()
++					.signalError(methodDeclaration.sourceStart,methodDeclaration.sourceEnd,"throwing formal '" + thrownFormal + "' must be declared as the last parameter in the advice signature");
++				}
++			}
++		}
++		
++		if (ajAnnotations.adviceKind == AdviceKind.AfterReturning) {
++			int[] throwingLocation = new int[2];
++			String returningFormal = getStringLiteralFor("returning",ajAnnotations.adviceAnnotation,throwingLocation);
++			if (returningFormal != null) {
++				Argument[] arguments = methodDeclaration.arguments;
++				if (arguments != null && arguments.length > 0) {
++					Argument lastArgument = arguments[arguments.length - 1];
++					if (!returningFormal.equals(new String(lastArgument.name))) {
++						methodDeclaration.scope.problemReporter()
++							.signalError(methodDeclaration.sourceStart,methodDeclaration.sourceEnd,"returning formal '" + returningFormal + "' must be declared as the last parameter in the advice signature");
++					}
++				} else {
++					methodDeclaration.scope.problemReporter()
++					.signalError(methodDeclaration.sourceStart,methodDeclaration.sourceEnd,"returning formal '" + returningFormal + "' must be declared as the last parameter in the advice signature");
++				}
++			}
++		}
+ 
+ 		resolveAndSetPointcut(methodDeclaration, ajAnnotations.adviceAnnotation);
+ 
+@@ -148,6 +148,10 @@ public class WeaverMessages {
+ 
+ 	public static final String HAS_MEMBER_NOT_ENABLED="hasMemberNotEnabled";
+ 
++	// @AspectJ
++	public static final String RETURNING_FORMAL_NOT_DECLARED_IN_ADVICE = "returningFormalNotDeclaredInAdvice";
++	public static final String THROWN_FORMAL_NOT_DECLARED_IN_ADVICE = "thrownFormalNotDeclaredInAdvice";
++	
+ 	public static String format(String key) {
+ 		return bundle.getString(key);
+ 	}
+@@ -46,6 +46,7 @@ import org.aspectj.weaver.ReferenceType;
+ import org.aspectj.weaver.ResolvedPointcutDefinition;
+ import org.aspectj.weaver.ResolvedType;
+ import org.aspectj.weaver.UnresolvedType;
++import org.aspectj.weaver.WeaverMessages;
+ import org.aspectj.weaver.patterns.AndPointcut;
+ import org.aspectj.weaver.patterns.DeclareErrorOrWarning;
+ import org.aspectj.weaver.patterns.DeclarePrecedence;
+@@ -341,26 +342,43 @@ public class AtAjAttributes {
+         boolean hasAtAspectJAnnotationMustReturnVoid = false;
+         for (int i = 0; i < attributes.length; i++) {
+             Attribute attribute = attributes[i];
+-            if (acceptAttribute(attribute)) {
+-                RuntimeAnnotations rvs = (RuntimeAnnotations) attribute;
+-                hasAtAspectJAnnotationMustReturnVoid = hasAtAspectJAnnotationMustReturnVoid || handleBeforeAnnotation(
+-                        rvs, struct, preResolvedPointcut
+-                );
+-                hasAtAspectJAnnotationMustReturnVoid = hasAtAspectJAnnotationMustReturnVoid || handleAfterAnnotation(
+-                        rvs, struct, preResolvedPointcut
+-                );
+-                hasAtAspectJAnnotationMustReturnVoid = hasAtAspectJAnnotationMustReturnVoid || handleAfterReturningAnnotation(
+-                        rvs, struct, preResolvedPointcut
+-                );
+-                hasAtAspectJAnnotationMustReturnVoid = hasAtAspectJAnnotationMustReturnVoid || handleAfterThrowingAnnotation(
+-                        rvs, struct, preResolvedPointcut
+-                );
+-                hasAtAspectJAnnotation = hasAtAspectJAnnotation || handleAroundAnnotation(
+-                        rvs, struct, preResolvedPointcut
+-                );
+-                // there can only be one RuntimeVisible bytecode attribute
+-                break;
+-            }
++            try {
++				if (acceptAttribute(attribute)) {
++				    RuntimeAnnotations rvs = (RuntimeAnnotations) attribute;
++				    hasAtAspectJAnnotationMustReturnVoid = hasAtAspectJAnnotationMustReturnVoid || handleBeforeAnnotation(
++				            rvs, struct, preResolvedPointcut
++				    );
++				    hasAtAspectJAnnotationMustReturnVoid = hasAtAspectJAnnotationMustReturnVoid || handleAfterAnnotation(
++				            rvs, struct, preResolvedPointcut
++				    );
++				    hasAtAspectJAnnotationMustReturnVoid = hasAtAspectJAnnotationMustReturnVoid || handleAfterReturningAnnotation(
++				            rvs, struct, preResolvedPointcut, bMethod
++				    );
++				    hasAtAspectJAnnotationMustReturnVoid = hasAtAspectJAnnotationMustReturnVoid || handleAfterThrowingAnnotation(
++				            rvs, struct, preResolvedPointcut, bMethod
++				    );
++				    hasAtAspectJAnnotation = hasAtAspectJAnnotation || handleAroundAnnotation(
++				            rvs, struct, preResolvedPointcut
++				    );
++				    // there can only be one RuntimeVisible bytecode attribute
++				    break;
++				}
++			} catch (ReturningFormalNotDeclaredInAdviceSignatureException e) {
++				msgHandler.handleMessage(
++					new Message(
++							WeaverMessages.format(WeaverMessages.RETURNING_FORMAL_NOT_DECLARED_IN_ADVICE,e.getFormalName()),
++							IMessage.ERROR,
++							null,
++							bMethod.getSourceLocation())
++				);
++			} catch (ThrownFormalNotDeclaredInAdviceSignatureException e) {
++				msgHandler.handleMessage(
++						new Message(
++								WeaverMessages.format(WeaverMessages.THROWN_FORMAL_NOT_DECLARED_IN_ADVICE,e.getFormalName()),
++								IMessage.ERROR,
++								null,
++								bMethod.getSourceLocation())
++					);			}
+         }
+         hasAtAspectJAnnotation = hasAtAspectJAnnotation || hasAtAspectJAnnotationMustReturnVoid;
+ 
+@@ -402,8 +420,7 @@ public class AtAjAttributes {
+             );
+             ;// go ahead
+         }
+-
+-
++        
+         return struct.ajAttributes;
+     }
+ 
+@@ -664,7 +681,13 @@ public class AtAjAttributes {
+      * @param struct
+      * @return true if found
+      */
+-    private static boolean handleAfterReturningAnnotation(RuntimeAnnotations runtimeAnnotations, AjAttributeMethodStruct struct, ResolvedPointcutDefinition preResolvedPointcut) {
++    private static boolean handleAfterReturningAnnotation(
++    		RuntimeAnnotations runtimeAnnotations, 
++    		AjAttributeMethodStruct struct, 
++    		ResolvedPointcutDefinition preResolvedPointcut,
++    		BcelMethod owningMethod) 
++    throws ReturningFormalNotDeclaredInAdviceSignatureException
++    {
+         Annotation after = getAnnotation(runtimeAnnotations, AjcMemberMaker.AFTERRETURNING_ANNOTATION);
+         if (after != null) {
+             ElementNameValuePair annValue = getAnnotationElement(after, VALUE);
+@@ -689,8 +712,16 @@ public class AtAjAttributes {
+             }
+             if (annReturned != null) {
+                 returned = annReturned.getValue().stringifyValue();
+-                if (isNullOrEmpty(returned))
++                if (isNullOrEmpty(returned)) {
+                     returned = null;
++                } else {
++                   	// check that thrownFormal exists as the last parameter in the advice
++                	String[] pNames = owningMethod.getParameterNames();
++                	if (pNames == null || pNames.length == 0 || !pNames[pNames.length -1].equals(returned)) {
++                		throw new ReturningFormalNotDeclaredInAdviceSignatureException(returned);
++                	}
++                	
++                }
+             }
+ 
+             // this/target/args binding
+@@ -748,16 +779,22 @@ public class AtAjAttributes {
+      * @param struct
+      * @return true if found
+      */
+-    private static boolean handleAfterThrowingAnnotation(RuntimeAnnotations runtimeAnnotations, AjAttributeMethodStruct struct, ResolvedPointcutDefinition preResolvedPointcut) {
++    private static boolean handleAfterThrowingAnnotation(
++    		RuntimeAnnotations runtimeAnnotations, 
++    		AjAttributeMethodStruct struct, 
++    		ResolvedPointcutDefinition preResolvedPointcut, 
++    		BcelMethod owningMethod)
++    throws ThrownFormalNotDeclaredInAdviceSignatureException
++    {
+         Annotation after = getAnnotation(runtimeAnnotations, AjcMemberMaker.AFTERTHROWING_ANNOTATION);
+         if (after != null) {
+             ElementNameValuePair annValue = getAnnotationElement(after, VALUE);
+             ElementNameValuePair annPointcut = getAnnotationElement(after, POINTCUT);
+-            ElementNameValuePair annThrowned = getAnnotationElement(after, THROWING);
++            ElementNameValuePair annThrown = getAnnotationElement(after, THROWING);
+ 
+             // extract the pointcut and throwned type/binding - do some checks
+             String pointcut = null;
+-            String throwned = null;
++            String thrownFormal = null;
+             if ((annValue != null && annPointcut != null) || (annValue == null && annPointcut == null)) {
+                 reportError("@AfterThrowing: either 'value' or 'poincut' must be provided, not both", struct);
+                 return false;
+@@ -771,17 +808,24 @@ public class AtAjAttributes {
+                 reportError("@AfterThrowing: either 'value' or 'poincut' must be provided, not both", struct);
+                 return false;
+             }
+-            if (annThrowned != null) {
+-                throwned = annThrowned.getValue().stringifyValue();
+-                if (isNullOrEmpty(throwned))
+-                    throwned = null;
++            if (annThrown != null) {
++                thrownFormal = annThrown.getValue().stringifyValue();
++                if (isNullOrEmpty(thrownFormal)) {
++                    thrownFormal = null;
++                } else {
++                	// check that thrownFormal exists as the last parameter in the advice
++                	String[] pNames = owningMethod.getParameterNames();
++                	if (pNames == null || pNames.length == 0 || !pNames[pNames.length -1].equals(thrownFormal)) {
++                		throw new ThrownFormalNotDeclaredInAdviceSignatureException(thrownFormal);
++                	}
++                }
+             }
+ 
+             // this/target/args binding
+             // exclude the throwned binding from the pointcut binding since it is an extraArg binding
+             FormalBinding[] bindings = new org.aspectj.weaver.patterns.FormalBinding[0];
+             try {
+-                bindings = (throwned == null ? extractBindings(struct) : extractBindings(struct, throwned));
++                bindings = (thrownFormal == null ? extractBindings(struct) : extractBindings(struct, thrownFormal));
+             } catch (UnreadableDebugInfoException unreadableDebugInfoException) {
+                 return false;
+             }
+@@ -795,7 +839,7 @@ public class AtAjAttributes {
+             int extraArgument = extractExtraArgument(struct.method);
+ 
+             // return binding
+-            if (throwned != null) {
++            if (thrownFormal != null) {
+                 extraArgument |= Advice.ExtraArgument;
+             }
+ 
+@@ -1457,4 +1501,26 @@ public class AtAjAttributes {
+             return node;
+         }
+     }
++    
++    static class ThrownFormalNotDeclaredInAdviceSignatureException extends Exception {
++    	
++    	private String formalName;
++    	
++    	public ThrownFormalNotDeclaredInAdviceSignatureException(String formalName) {
++    		this.formalName = formalName;
++    	}
++    	
++    	public String getFormalName() { return formalName; }
++    }
++    
++    static class ReturningFormalNotDeclaredInAdviceSignatureException extends Exception {
++    	
++    	private String formalName;
++    	
++    	public ReturningFormalNotDeclaredInAdviceSignatureException(String formalName) {
++    		this.formalName = formalName;
++    	}
++    	
++    	public String getFormalName() { return formalName; }
++    }
+ }
+@@ -68,8 +68,8 @@ final class BcelMethod extends ResolvedMemberImpl {
+ 		this.sourceContext = declaringType.getResolvedTypeX().getSourceContext();
+ 		this.world = declaringType.getResolvedTypeX().getWorld();
+ 		this.bcelObjectType = declaringType;
+-		unpackAjAttributes(world);
+ 		unpackJavaAttributes();
++		unpackAjAttributes(world);
+ 	}
+ 
+ 	// ----
+@@ -157,4 +157,8 @@ noParameterizedDeclaringTypesInExecution=can't use parameterized type patterns f
+ noParameterizedDeclaringTypesInCall=can't use parameterized type patterns for the declaring type of a call pointcut expression (use the raw type instead)
+ noRawTypePointcutReferences=cannot use a raw type reference to refer to a pointcut in a generic type (use a parameterized reference instead)
+ 
+-hasMemberNotEnabled=the type pattern {0} can only be used when the -XhasMember option is set
+\ No newline at end of file
++hasMemberNotEnabled=the type pattern {0} can only be used when the -XhasMember option is set
++
++# @AspectJ
++returningFormalNotDeclaredInAdvice=the last parameter of this advice must be named ''{0}'' to bind the returning value
++thrownFormalNotDeclaredInAdvice=the last parameter of this advice must be named ''{0}'' and be of a subtype of Throwable
+\ No newline at end of file
+@@ -0,0 +1,17 @@
++class Test1<E> {
++    public void method1(E...args) {
++    }
++}
++
++public aspect ParameterizedVarArgMatch {
++	
++	public static void main(String[] args) {
++		new Test1<String>().method1("a","b","c");
++	}
++	
++	
++    after(Test1 test1, Object[] arg) returning: 
++    	execution(* Test1.method1(Object...)) && target(test1) && args(arg) {
++        System.out.println("got here");
++    }
++}
+\ No newline at end of file
+@@ -0,0 +1,18 @@
++import java.lang.annotation.*;
++import org.aspectj.lang.annotation.*;
++
++@Aspect
++public class pr107953 {
++	
++	@AfterThrowing(pointcut="execution(* Foo.*(..))",throwing="RuntimeException")
++	public void missingBindingOfThrowingFormal() {
++		System.out.println("failure");
++	}
++		
++}
++
++class Foo {
++	void bar() {
++		throw new RuntimeException();
++	}
++}
+\ No newline at end of file
+@@ -6,6 +6,6 @@ import org.aspectj.lang.annotation.*;
+ @Aspect
+ public class Test019 {
+   @AfterReturning(value="call(* *..*(..))",returning="f")
+-  public void itsAFoo(Object f, int x) {
++  public void itsAFoo(int x, Object f) {
+   }        
+ }
+@@ -298,6 +298,14 @@ public class Ajc150Tests extends org.aspectj.testing.XMLBasedAjcTestCase {
+ 	  runTest("inner types and type variables");
+   }
+ 
++  public void testAtAfterThrowingWithNoFormal() {
++	  runTest("@AfterThrowing with no formal specified");
++  }
++  
++  public void testParameterizedVarArgsMatch() {
++	  runTest("varargs with type variable");
++  }
++  
+   // helper methods.....
+ 
+   public SyntheticRepository createRepos(File cpentry) {
+@@ -133,6 +133,12 @@
+         </compile>
+     </ajc-test>
+ 
++     <ajc-test dir="bugs150"  title="varargs with type variable">
++        <compile files="ParameterizedVarArgMatch.aj" options="-1.5">
++        </compile>
++    </ajc-test>
++ 
++ 
+     <ajc-test dir="bugs150" pr="108104" title="multiple anonymous inner classes 2">
+         <compile files="pr108104.aj" options="-1.5">
+         </compile>
+@@ -155,7 +161,13 @@
+         <compile files="ShapeCommandMap.java" options="-1.5">
+         </compile>
+     </ajc-test>
+-           
++
++    <ajc-test dir="bugs150/" pr="107953" title="@AfterThrowing with no formal specified">
++        <compile files="pr107953.java" options="-1.5">
++            <message kind="error" line="8" text="throwing formal 'RuntimeException' must be declared as the last parameter in the advice signature"></message>
++        </compile>
++    </ajc-test>
++               
+     <ajc-test dir="bugs150/pr106130" pr="106130" title="test weaving with > 256 locals">
+         <compile files="AroundLotsOfVars.java LotsOfVars.java" options="-preserveAllLocals"/>
+         <run class="LotsOfVars">
+@@ -55,11 +55,13 @@
+     </ajc-test>
+ 
+     <comment>very dirty hack - can't get this location to work properly so added match all error..</comment>
++    <comment>amc - with new checks for binding of returning this was giving a different message, so I 
++             tweaked the test slightly by swapping the order of the args</comment>
+     <ajc-test dir="java5/ataspectj"
+         pr="" title="@AfterReturning with wrong number of args">
+         <compile files="ataspectj/misuse/Test019.java" options="-1.5 -Xdev:NoAtAspectJProcessing -Xlint:ignore">
+             <message kind="error" line="1" text="the parameter x is not bound"/>
+-            <message kind="error"/>
++            <message kind="error" line="1" text="formal unbound in pointcut"/>
+         </compile>
+     </ajc-test>
+ 

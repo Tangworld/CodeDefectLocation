@@ -1,0 +1,300 @@
+@@ -1603,7 +1603,7 @@ class BcelClassWeaver implements IClassWeaver {
+ 	private void matchGetInstruction(LazyMethodGen mg, InstructionHandle ih, BcelShadow enclosingShadow, List shadowAccumulator) {
+ 		FieldInstruction fi = (FieldInstruction) ih.getInstruction();
+ 		Member field = BcelWorld.makeFieldJoinPointSignature(clazz, fi);
+-		
++
+ 		// synthetic fields are never join points
+ 		if (field.getName().startsWith(NameMangler.PREFIX)) return;
+ 
+@@ -1615,7 +1615,12 @@ class BcelClassWeaver implements IClassWeaver {
+ 			// sets of synthetics aren't join points in 1.1
+ 			return;
+ 		} else {
+-			match(BcelShadow.makeFieldGet(world, resolvedField, mg, ih, enclosingShadow), shadowAccumulator);
++			BcelShadow bs = BcelShadow.makeFieldGet(world,resolvedField,mg,ih,enclosingShadow);
++			String cname = fi.getClassName(cpg);
++			if (!resolvedField.getDeclaringType().getName().equals(cname)) {
++				bs.setActualTargetType(cname);
++			}
++			match(bs, shadowAccumulator);
+ 		}
+ 	}
+ 
+@@ -133,6 +133,10 @@ public class BcelShadow extends Shadow {
+     private final BcelWorld world;  
+     private final LazyMethodGen enclosingMethod;
+ 	private boolean fallsThrough;  //XXX not used anymore
++	
++	// Some instructions have a target type that will vary 
++    // from the signature (pr109728) (1.4 declaring type issue)
++	private String actualInstructionTargetType; 
+ 
+ 	// ---- initialization
+ 
+@@ -1221,6 +1225,8 @@ public class BcelShadow extends Shadow {
+      * are true, it has a sneak peek at the code before the call to see what is on the stack.
+      */
+     public UnresolvedType ensureTargetTypeIsCorrect(UnresolvedType tx) {
++    	
++    	
+     	if (tx.equals(ResolvedType.OBJECT) && getKind() == MethodCall && 
+     	    getSignature().getReturnType().equals(ResolvedType.OBJECT) && 
+ 			getSignature().getArity()==0 && 
+@@ -2938,6 +2944,15 @@ public class BcelShadow extends Shadow {
+         if (targetVar != null && targetVar != thisVar) {
+             UnresolvedType targetType = getTargetType();
+             targetType = ensureTargetTypeIsCorrect(targetType);
++            // see pr109728 - this fixes the case when the declaring class is sometype 'X' but the getfield
++            // in the bytecode refers to a subtype of 'X'.  This makes sure we use the type originally
++            // mentioned in the fieldget instruction as the method parameter and *not* the type upon which the
++            // field is declared because when the instructions are extracted into the new around body,
++            // they will still refer to the subtype.
++            if (getKind()==FieldGet && getActualTargetType()!=null && 
++            	!getActualTargetType().equals(targetType.getName())) {
++        		targetType =  UnresolvedType.forName(getActualTargetType()).resolve(world);
++        	}
+             ResolvedMember resolvedMember = getSignature().resolve(world);
+ 
+             if (resolvedMember != null && Modifier.isProtected(resolvedMember.getModifiers()) && 
+@@ -3072,4 +3087,12 @@ public class BcelShadow extends Shadow {
+ 	public boolean isFallsThrough() {
+ 		return !terminatesWithReturn(); //fallsThrough;
+ 	}
++
++	public void setActualTargetType(String className) {
++		this.actualInstructionTargetType = className;
++	}
++	
++	public String getActualTargetType() {
++		return actualInstructionTargetType;
++	}
+ }
+@@ -18,9 +18,9 @@ import java.io.File;
+ import java.io.IOException;
+ import java.lang.reflect.Modifier;
+ import java.util.ArrayList;
++import java.util.Iterator;
+ import java.util.List;
+ import java.util.StringTokenizer;
+-import java.util.Iterator;
+ 
+ import org.aspectj.apache.bcel.classfile.ClassParser;
+ import org.aspectj.apache.bcel.classfile.JavaClass;
+@@ -34,9 +34,9 @@ import org.aspectj.apache.bcel.generic.INVOKESTATIC;
+ import org.aspectj.apache.bcel.generic.InvokeInstruction;
+ import org.aspectj.apache.bcel.generic.PUTSTATIC;
+ import org.aspectj.apache.bcel.generic.Type;
++import org.aspectj.apache.bcel.util.ClassLoaderRepository;
+ import org.aspectj.apache.bcel.util.ClassPath;
+ import org.aspectj.apache.bcel.util.Repository;
+-import org.aspectj.apache.bcel.util.ClassLoaderRepository;
+ import org.aspectj.bridge.IMessageHandler;
+ import org.aspectj.weaver.Advice;
+ import org.aspectj.weaver.AdviceKind;
+@@ -49,14 +49,14 @@ import org.aspectj.weaver.ReferenceType;
+ import org.aspectj.weaver.ReferenceTypeDelegate;
+ import org.aspectj.weaver.ResolvedMember;
+ import org.aspectj.weaver.ResolvedMemberImpl;
+-import org.aspectj.weaver.ResolvedTypeMunger;
+ import org.aspectj.weaver.ResolvedType;
++import org.aspectj.weaver.ResolvedTypeMunger;
+ import org.aspectj.weaver.UnresolvedType;
+ import org.aspectj.weaver.World;
+ import org.aspectj.weaver.patterns.FormalBinding;
++import org.aspectj.weaver.patterns.PerClause;
+ import org.aspectj.weaver.patterns.Pointcut;
+ import org.aspectj.weaver.patterns.SimpleScope;
+-import org.aspectj.weaver.patterns.PerClause;
+ 
+ public class BcelWorld extends World implements Repository {
+ 	private ClassPathManager classPath;
+@@ -359,10 +359,12 @@ public class BcelWorld extends World implements Repository {
+ 
+     public Member makeJoinPointSignatureForMethodInvocation(LazyClassGen cg, InvokeInstruction ii) {
+     	ConstantPoolGen cpg = cg.getConstantPoolGen();
++    	String name = ii.getName(cpg);
+         String declaring = ii.getClassName(cpg);
+-        String name = ii.getName(cpg);
+-        String signature = ii.getSignature(cpg);
++        UnresolvedType declaringType = null;
+ 
++        String signature = ii.getSignature(cpg);
++       
+         int modifier = 
+             (ii instanceof INVOKEINTERFACE)
+             ? Modifier.INTERFACE
+@@ -383,16 +385,19 @@ public class BcelWorld extends World implements Repository {
+                 if (method.isStatic()) {
+                     if (name.equals(method.getName()) && signature.equals(method.getSignature())) {
+                         // we found it
+-                        declaring = method.getDeclaringType().getName();
++                        declaringType = method.getDeclaringType();
+                         break;
+                     }
+                 }
+ 
+             }
+         }
+-        //FIXME if not found we ll end up again with the bug.. can this happen?
+-
+-        return MemberImpl.method(UnresolvedType.forName(declaring), modifier, name, signature);
++        
++        if (declaringType == null) {
++        	if (declaring.charAt(0)=='[') declaringType = UnresolvedType.forSignature(declaring);
++        	else 						  declaringType = UnresolvedType.forName(declaring);
++        }
++        return MemberImpl.method(declaringType, modifier, name, signature);
+     }  
+ 
+     public static Member makeMungerMethodSignature(JavaClass javaClass, Method method) {
+@@ -441,21 +441,8 @@ public class UnresolvedType implements TypeVariableDeclaringElement {
+     }  
+ 
+     /**
+-     * Returns the name of this type in java language form.  For all 
+-     * UnresolvedType t:
+-     *
+-     * <blockquote><pre>
+-     *   UnresolvedType.forName(t.getName()).equals(t)
+-     * </pre></blockquote>
+-     *
+-     * and for all String s where s is a lexically valid java language typename:
+-     * 
+-     * <blockquote><pre>
+-     *   UnresolvedType.forName(s).getName().equals(s)
+-     * </pre></blockquote>
+-     * 
+-     * This produces a more esthetically pleasing string than 
+-     * {@link java.lang.Class#getName()}.
++     * Returns the name of this type in java language form (e.g. java.lang.Thread or boolean[]).
++     * This produces a more esthetically pleasing string than {@link java.lang.Class#getName()}.
+      *
+      * @return  the java language name of this type.
+      */
+@@ -723,50 +710,51 @@ public class UnresolvedType implements TypeVariableDeclaringElement {
+             return "[" + nameToSignature(name.substring(0, name.length() - 2));
+         if (name.length() != 0) {
+         	// lots more tests could be made here...
+-        	
+-        	// 1) If it is already an array type, do not mess with it.
+-        	if (name.charAt(0)=='[' && name.charAt(name.length()-1)==';') return name;
+-        	else {
+-				if (name.indexOf("<") == -1) {
+-					// not parameterised
+-					return "L" + name.replace('.', '/') + ";";
+-				} else {
+-					StringBuffer nameBuff = new StringBuffer();
+-					int nestLevel = 0;
+-					nameBuff.append("P");
+-					for (int i = 0; i < name.length(); i++) {
+-						char c = name.charAt(i);
+-						switch (c) {
+-						case '.' : nameBuff.append('/'); break;
+-						case '<' :	
+-							nameBuff.append("<");
+-							nestLevel++;
+-							StringBuffer innerBuff = new StringBuffer();
+-							while(nestLevel > 0) {
+-								c = name.charAt(++i);
+-								if (c == '<') nestLevel++;
+-								if (c == '>') nestLevel--;
+-								if (c == ',' && nestLevel == 1) {
+-									nameBuff.append(nameToSignature(innerBuff.toString()));
+-									innerBuff = new StringBuffer();
+-								} else {
+-									if (nestLevel > 0) innerBuff.append(c);
+-								}
++
++        	// check if someone is calling us with something that is a signature already
++        	if (name.charAt(0)=='[') {
++        		throw new BCException("Do not call nameToSignature with something that looks like a signature (descriptor): '"+name+"'");
++        	}
++    	
++			if (name.indexOf("<") == -1) {
++				// not parameterised
++				return "L" + name.replace('.', '/') + ";";
++			} else {
++				StringBuffer nameBuff = new StringBuffer();
++				int nestLevel = 0;
++				nameBuff.append("P");
++				for (int i = 0; i < name.length(); i++) {
++					char c = name.charAt(i);
++					switch (c) {
++					case '.' : nameBuff.append('/'); break;
++					case '<' :	
++						nameBuff.append("<");
++						nestLevel++;
++						StringBuffer innerBuff = new StringBuffer();
++						while(nestLevel > 0) {
++							c = name.charAt(++i);
++							if (c == '<') nestLevel++;
++							if (c == '>') nestLevel--;
++							if (c == ',' && nestLevel == 1) {
++								nameBuff.append(nameToSignature(innerBuff.toString()));
++								innerBuff = new StringBuffer();
++							} else {
++								if (nestLevel > 0) innerBuff.append(c);
+ 							}
+-							nameBuff.append(nameToSignature(innerBuff.toString()));
+-							nameBuff.append('>');
+-							break;
+-						case '>' : 
+-							throw new IllegalStateException("Should by matched by <");
+-						case ',' : 
+-							throw new IllegalStateException("Should only happen inside <...>");
+-						default: nameBuff.append(c);
+ 						}
++						nameBuff.append(nameToSignature(innerBuff.toString()));
++						nameBuff.append('>');
++						break;
++					case '>' : 
++						throw new IllegalStateException("Should by matched by <");
++					case ',' : 
++						throw new IllegalStateException("Should only happen inside <...>");
++					default: nameBuff.append(c);
+ 					}
+-					nameBuff.append(";");
+-					return nameBuff.toString();
+ 				}
+-        	}
++				nameBuff.append(";");
++				return nameBuff.toString();
++			}
+         }
+         else 
+             throw new BCException("Bad type name: " + name);
+@@ -0,0 +1,14 @@
++public class pr109728 {
++
++  public static void main(String[]argv) {
++    new pr109728().m().clone();
++  }
++
++  int[] m() { return null; }
++}
++
++
++
++aspect X {
++  before(): call(* *(..)) {}
++}
+@@ -439,6 +439,8 @@ public class Ajc150Tests extends org.aspectj.testing.XMLBasedAjcTestCase {
+ 	  runTest("raw and generic type conversion with itd cons");
+   }
+ 
++  public void testUnableToBuildShadows_pr109728() { runTest("Unable to build shadows");}
++  
+   // helper methods.....
+ 
+   public SyntheticRepository createRepos(File cpentry) {
+@@ -4775,4 +4775,8 @@
+        </run>
+    </ajc-test>
+ 
++   <ajc-test dir="bugs150" title="Unable to build shadows">
++     <compile files="pr109728.java" options="-1.5"/>
++   </ajc-test>
++   
+ </suite>
+\ No newline at end of file

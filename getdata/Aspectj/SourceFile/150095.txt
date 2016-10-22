@@ -1,0 +1,74 @@
+@@ -23,7 +23,7 @@ public class TestJava5ReflectionBasedReferenceTypeDelegate extends ReflectionBas
+ 		ResolvedMember[] methods = world.resolve(collectionType).getDeclaredMethods();
+ 		int i = findMethod("toArray", 1, methods);
+ 		assertTrue("Couldn't find 'toArray' in the set of methods? "+methods,i != -1);
+-		String expectedSignature = "T[] java.util.Collection.toArray(T[])";
++		String expectedSignature = "java.lang.Object[] java.util.Collection.toArray(java.lang.Object[])";
+ 		assertTrue("Expected signature of '"+expectedSignature+"' but it was '"+methods[i],methods[i].toString().equals(expectedSignature));
+ 	}
+ 
+@@ -681,7 +681,15 @@ public class ResolvedMemberImpl extends MemberImpl implements IHasPosition, Anno
+ 			} else {
+ 				return aType.getRawType();
+ 			}
+-		} 
++		} else if (aType.isArray()) {
++			// The component type might be a type variable (pr150095)
++			int dims = 1;
++			String sig = aType.getSignature();
++			while (sig.charAt(dims)=='[') dims++;
++			UnresolvedType componentSig = UnresolvedType.forSignature(sig.substring(dims));
++			UnresolvedType arrayType = ResolvedType.makeArray(parameterize(componentSig,typeVariableMap,inParameterizedType),dims);
++			return arrayType;
++		}
+ 		return aType;		
+ 	}
+ 
+@@ -0,0 +1,28 @@
++import java.util.*;
++
++interface I extends Collection { }
++
++class B implements I {
++
++  public Object[] toArray(Object[] os) { return os; }
++
++  public boolean add(Object o) { return false; }
++  public boolean addAll(Collection c) { return false; }
++  public void clear() { } 
++  public boolean contains(Object o) { return false; }
++  public boolean containsAll(Collection c) { return false; }
++  public boolean isEmpty() { return false; }
++  public Iterator iterator() { return null; }
++  public boolean remove(Object o) { return false; }
++  public boolean removeAll(Collection c) { return false; }
++  public boolean retainAll(Collection c) { return false; }
++  public int size() { return 0; }
++  public Object[] toArray() { return null; }
++}
++
++class C { }
++
++aspect X {
++  declare parents: C extends B;
++}
++
+@@ -21,6 +21,7 @@ public class Ajc153Tests extends org.aspectj.testing.XMLBasedAjcTestCase {
+ 
+   // public void testArgnamesAndJavac_pr148381() { runTest("argNames and javac");}
+   // public void testCFlowXMLAspectLTW_pr149096() { runTest("cflow xml concrete aspect"); }
++  public void testGenericInheritanceDecp_pr150095() { runTest("generics, inheritance and decp");}
+   public void testIllegalStateException_pr148737() { runTest("illegalstateexception for non generic type");}
+   public void testAtajInheritance_pr149305_1()     { runTest("ataj inheritance - 1");}
+   public void testAtajInheritance_pr149305_2()     { runTest("ataj inheritance - 2");}
+@@ -107,6 +107,10 @@
+      </run>
+     </ajc-test> 
+ 
++	<ajc-test dir="bugs153/pr150095" title="generics, inheritance and decp">
++     <compile files="Foo.java" options="-1.5"/>
++    </ajc-test> 
++    
+ 	<ajc-test dir="bugs153/pr149322" title="can't find type on interface call">
+ 		<compile files="Interface.java"/>
+         <compile

@@ -1,0 +1,201 @@
+@@ -0,0 +1,15 @@
++
++import org.aspectj.lang.annotation.Aspect;
++import org.aspectj.lang.annotation.DeclareWarning;
++import org.aspectj.lang.annotation.DeclareError;
++
++@Aspect
++public class A {
++
++	@DeclareWarning("execution(* C.warningMethod())")
++    static final String warning = "warning";
++
++    @DeclareError("execution(* C.badMethod())")
++    static final String error = "error";
++	
++}
+@@ -0,0 +1,11 @@
++
++
++public class C {
++
++	public void warningMethod() {
++	}
++	
++	public void badMethod() {
++	}
++	
++}
+@@ -11,12 +11,14 @@
+ package org.aspectj.systemtest.ajc151;
+ 
+ import java.io.File;
++import java.util.List;
+ 
+ import junit.framework.Test;
+ 
+ import org.aspectj.asm.AsmManager;
+ import org.aspectj.asm.IHierarchy;
+ import org.aspectj.asm.IProgramElement;
++import org.aspectj.asm.internal.Relationship;
+ import org.aspectj.systemtest.ajc150.GenericsTests;
+ import org.aspectj.testing.XMLBasedAjcTestCase;
+ 
+@@ -86,6 +88,67 @@ public class Ajc151Tests extends org.aspectj.testing.XMLBasedAjcTestCase {
+ 	  runTest("warning when inherited pointcut not made concrete"); 
+   }
+ 
++  public void testAtAspectDEOWInStructureModel_pr120356() {
++	  //AsmManager.setReporting("c:/debug.txt",true,true,true,true);
++	  runTest("@AJ deow appear correctly when structure model is generated");  
++  	  IHierarchy top = AsmManager.getDefault().getHierarchy();
++  	   
++  	  // get the IProgramElements corresponding to the @DeclareWarning statement
++  	  // and the method it matches.
++  	  IProgramElement warningMethodIPE = top.findElementForLabel(top.getRoot(),
++  			  IProgramElement.Kind.METHOD,"warningMethod()");  	   	 
++  	  assertNotNull("Couldn't find 'warningMethod()' element in the tree",warningMethodIPE);
++  	  IProgramElement atDeclareWarningIPE = top.findElementForLabel(top.getRoot(),
++  			  IProgramElement.Kind.FIELD,"warning");
++  	  assertNotNull("Couldn't find @DeclareWarning element in the tree",atDeclareWarningIPE);
++
++  	  // check that the method has a matches declare relationship with @DeclareWarning
++  	  List matches = AsmManager.getDefault().getRelationshipMap().get(warningMethodIPE);	
++  	  assertNotNull("warningMethod should have some relationships but does not",matches);
++  	  assertTrue("warningMethod should have one relationships but has " + matches.size(),matches.size()==1);
++  	  List matchesTargets = ((Relationship)matches.get(0)).getTargets();
++  	  assertTrue("warningMethod should have one targets but has" + matchesTargets.size(),matchesTargets.size()==1);
++  	  IProgramElement target = AsmManager.getDefault().getHierarchy().findElementForHandle((String)matchesTargets.get(0));
++  	  assertEquals("target of relationship should be the @DeclareWarning 'warning' but is IPE with label "
++  			  + target.toLabelString(),atDeclareWarningIPE,target);
++  	  
++  	  // check that the @DeclareWarning has a matches relationship with the warningMethod
++  	  List matchedBy = AsmManager.getDefault().getRelationshipMap().get(atDeclareWarningIPE);
++  	  assertNotNull("@DeclareWarning should have some relationships but does not",matchedBy);
++  	  assertTrue("@DeclareWarning should have one relationship but has " + matchedBy.size(), matchedBy.size() == 1);
++  	  List matchedByTargets = ((Relationship)matchedBy.get(0)).getTargets();
++  	  assertTrue("@DeclareWarning 'matched by' relationship should have one target " +
++  	  		"but has " + matchedByTargets.size(), matchedByTargets.size() == 1);
++  	  IProgramElement matchedByTarget = AsmManager.getDefault().getHierarchy().findElementForHandle((String)matchedByTargets.get(0));
++  	  assertEquals("target of relationship should be the warningMethod but is IPE with label "
++  			  + matchedByTarget.toLabelString(),warningMethodIPE,matchedByTarget);
++  	  
++  	  // get the IProgramElements corresponding to the @DeclareError statement
++  	  // and the method it matches.
++  	  IProgramElement errorMethodIPE = top.findElementForLabel(top.getRoot(),
++  			  IProgramElement.Kind.METHOD,"badMethod()");  	   	 
++  	  assertNotNull("Couldn't find 'badMethod()' element in the tree",errorMethodIPE);
++  	  IProgramElement atDeclarErrorIPE = top.findElementForLabel(top.getRoot(),
++  			  IProgramElement.Kind.FIELD,"error");
++  	  assertNotNull("Couldn't find @DeclareError element in the tree",atDeclarErrorIPE);
++
++  	  // check that the @DeclareError has a matches relationship with the badMethod
++  	  List matchedByE = AsmManager.getDefault().getRelationshipMap().get(atDeclarErrorIPE);
++  	  assertNotNull("@DeclareError should have some relationships but does not",matchedByE);
++  	  assertTrue("@DeclareError should have one relationship but has " + matchedByE.size(), matchedByE.size() == 1);
++  	  List matchedByTargetsE = ((Relationship)matchedByE.get(0)).getTargets();
++  	  assertTrue("@DeclareError 'matched by' relationship should have one target " +
++  	  		"but has " + matchedByTargetsE.size(), matchedByTargetsE.size() == 1);
++  	  IProgramElement matchedByTargetE = AsmManager.getDefault().getHierarchy().findElementForHandle((String)matchedByTargetsE.get(0));
++  	  assertEquals("target of relationship should be the badMethod but is IPE with label "
++  			  + matchedByTargetE.toLabelString(),errorMethodIPE,matchedByTargetE);
++
++  }
++  
++  public void testAtAspectNoNPEWithDEOWWithoutStructureModel_pr120356() {
++	  runTest("@AJ no NPE with deow when structure model isn't generated"); 
++  }
++  
+   /*
+    * Load-time weaving bugs and enhancements
+    */
+@@ -142,6 +142,20 @@
+         <compile files="Pr126316.aj" options="-1.5"/>
+     </ajc-test>
+ 
++    <ajc-test dir="bugs151/pr120356" title="@AJ deow appear correctly when structure model is generated">
++        <compile files="C.java, A.java" options="-1.5, -emacssym">
++         <message kind="error" line="8" text="error"/>
++          <message kind="warning" line="5" text="warning"/>
++        </compile>
++    </ajc-test> 
++
++    <ajc-test dir="bugs151/pr120356" title="@AJ no NPE with deow when structure model isn't generated">
++        <compile files="C.java, A.java" options="-1.5">
++         <message kind="error" line="8" text="error"/>
++          <message kind="warning" line="5" text="warning"/>
++        </compile>
++    </ajc-test>
++
+     <!-- New features down here... when they arent big enough to have their own test file -->
+ 
+     <ajc-test dir="features151/ptw" title="exposing withintype">
+@@ -33,6 +33,9 @@ import org.aspectj.apache.bcel.classfile.annotation.ElementNameValuePair;
+ import org.aspectj.apache.bcel.classfile.annotation.RuntimeAnnotations;
+ import org.aspectj.apache.bcel.classfile.annotation.RuntimeVisibleAnnotations;
+ import org.aspectj.apache.bcel.generic.Type;
++import org.aspectj.asm.AsmManager;
++import org.aspectj.asm.IHierarchy;
++import org.aspectj.asm.IProgramElement;
+ import org.aspectj.bridge.IMessage;
+ import org.aspectj.bridge.IMessageHandler;
+ import org.aspectj.bridge.ISourceLocation;
+@@ -1247,7 +1250,7 @@ public class AtAjAttributes {
+                 } else {
+                     pc .resolve(binding);
+                     DeclareErrorOrWarning deow = new DeclareErrorOrWarning(true, pc, struct.field.getConstantValue().toString());
+-                    deow.setLocation(struct.context, -1, -1);
++                    setDeclareErrorOrWarningLocation(deow,struct);
+                     struct.ajAttributes.add(new AjAttribute.DeclareAttribute(deow));
+                     hasError = true;
+                 }
+@@ -1274,7 +1277,7 @@ public class AtAjAttributes {
+                 } else {
+                     pc.resolve(binding);
+                     DeclareErrorOrWarning deow = new DeclareErrorOrWarning(false, pc, struct.field.getConstantValue().toString());
+-                    deow.setLocation(struct.context, -1, -1);
++                    setDeclareErrorOrWarningLocation(deow,struct);
+                     struct.ajAttributes.add(new AjAttribute.DeclareAttribute(deow));
+                     return hasWarning = true;
+                 }
+@@ -1284,6 +1287,40 @@ public class AtAjAttributes {
+     }
+ 
+     /**
++     * Sets the location for the declare error / warning using the corresponding 
++     * IProgramElement in the structure model. This will only fix bug 120356 if
++     * compiled with -emacssym, however, it does mean that the cross references 
++     * view in AJDT will show the correct information.
++     * 
++     * Other possibilities for fix: 
++     *  1. using the information in ajcDeclareSoft (if this is set correctly) 
++     *     which will fix the problem if compiled with ajc but not if compiled 
++     *     with javac.
++     *  2. creating an AjAttribute called FieldDeclarationLineNumberAttribute 
++     *     (much like MethodDeclarationLineNumberAttribute) which we can ask 
++     *     for the offset. This will fix bug 120356 both when compiled with ajc 
++     *     and javac.
++     * 
++     * @param deow
++     * @param struct
++     */
++    private static void setDeclareErrorOrWarningLocation(DeclareErrorOrWarning deow, AjAttributeFieldStruct struct) {
++        IHierarchy top = AsmManager.getDefault().getHierarchy();
++        if (top.getRoot() != null) {
++        	IProgramElement ipe = top.findElementForLabel(top.getRoot(),
++      			  IProgramElement.Kind.FIELD,struct.field.getName());
++        	if (ipe != null && ipe.getSourceLocation() != null) {
++    			ISourceLocation sourceLocation = ipe.getSourceLocation();
++    			int start = sourceLocation.getOffset();
++    			int end = start + struct.field.getName().length();
++    			deow.setLocation(struct.context,start,end);
++    			return;
++    		}
++		}
++        deow.setLocation(struct.context, -1, -1);												
++    }
++    
++    /**
+      * Returns a readable representation of a method.
+      * Method.toString() is not suitable.
+      *

@@ -1,0 +1,84 @@
+@@ -107,7 +107,7 @@
+ 		<property file="${aspectj.modules.build.dir}/junit-patterns.properties"/>
+ 
+ 		<property name="aspectj.tools.modules.13"
+-			value="ajbrowser,ajde,ajdoc,asm,bridge,loadtime,org.aspectj.ajdt.core,runtime,taskdefs,util,weaver"/>
++			value="ajbrowser,ajde,ajde.core,ajdoc,asm,bridge,loadtime,org.aspectj.ajdt.core,runtime,taskdefs,util,weaver"/>
+ 		<property name="aspectj.tools.modules.15"
+ 			value="loadtime5,aspectj5rt,weaver5"/>
+ 		<condition property="aspectj.tools.modules"
+@@ -2,15 +2,16 @@
+ <classpath>
+ 	<classpathentry kind="src" path="src"/>
+ 	<classpathentry kind="src" path="testsrc"/>
+-	<classpathentry sourcepath="JRE_SRC" kind="var" path="JRE_LIB"/>
++	<classpathentry kind="var" path="JRE_LIB" sourcepath="JRE_SRC"/>
+ 	<classpathentry kind="src" path="/ajde"/>
+ 	<classpathentry kind="src" path="/util"/>
+-	<classpathentry sourcepath="/lib/junit/junit-src.jar" kind="lib" path="/lib/junit/junit.jar"/>
++	<classpathentry kind="lib" path="/lib/junit/junit.jar" sourcepath="/lib/junit/junit-src.jar"/>
+ 	<classpathentry kind="src" path="/bridge"/>
+ 	<classpathentry kind="src" path="/asm"/>
+ 	<classpathentry kind="src" path="/taskdefs"/>
+ 	<classpathentry kind="src" path="/ajdoc"/>
+ 	<classpathentry kind="src" path="/loadtime"/>
+ 	<classpathentry combineaccessrules="false" kind="src" path="/weaver5"/>
++	<classpathentry combineaccessrules="false" kind="src" path="/ajde.core"/>
+ 	<classpathentry kind="output" path="bin"/>
+ </classpath>
+@@ -24,5 +24,6 @@
+ 	<classpathentry combineaccessrules="false" kind="src" path="/loadtime"/>
+ 	<classpathentry combineaccessrules="false" kind="src" path="/loadtime5"/>
+ 	<classpathentry combineaccessrules="false" kind="src" path="/weaver5"/>
++	<classpathentry combineaccessrules="false" kind="src" path="/ajde.core"/>
+ 	<classpathentry kind="output" path="bin"/>
+ </classpath>
+@@ -15,6 +15,7 @@ import junit.framework.TestCase;
+ import junit.framework.TestSuite;
+ 
+ import org.aspectj.ajde.AjdeModuleTests;
++import org.aspectj.ajde.core.AjdeCoreModuleTests;
+ import org.aspectj.ajdt.EajcModuleTests;
+ import org.aspectj.asm.AsmModuleTests;
+ import org.aspectj.bridge.BridgeModuleTests;
+@@ -43,6 +44,7 @@ public class AllTests extends TestCase {
+         TestSuite suite = new TestSuite(AllTests.class.getName());
+         suite.addTest(AjbrowserModuleTests.suite());
+         suite.addTest(AjdeModuleTests.suite());
++        suite.addTest(AjdeCoreModuleTests.suite());
+         suite.addTest(AjdocModuleTests.suite());
+         suite.addTest(AsmModuleTests.suite());
+         suite.addTest(BridgeModuleTests.suite());
+@@ -1,13 +1,14 @@
+ <?xml version="1.0" encoding="UTF-8"?>
+ <classpath>
+-    <classpathentry kind="src" path="src"/>
+-    <classpathentry kind="src" path="testsrc"/>
+-    <classpathentry kind="var" path="JRE_LIB" sourcepath="JRE_SRC"/>
+-    <classpathentry kind="src" path="/util"/>
+-    <classpathentry kind="lib" path="/lib/junit/junit.jar" sourcepath="/lib/junit/junit-src.jar"/>
+-    <classpathentry kind="src" path="/bridge"/>
+-    <classpathentry kind="src" path="/asm"/>
+-    <classpathentry kind="src" path="/org.aspectj.ajdt.core"/>
+-    <classpathentry kind="src" path="/org.eclipse.jdt.core"/>
+-    <classpathentry kind="output" path="bin"/>
++	<classpathentry kind="src" path="src"/>
++	<classpathentry kind="src" path="testsrc"/>
++	<classpathentry kind="var" path="JRE_LIB" sourcepath="JRE_SRC"/>
++	<classpathentry kind="src" path="/util"/>
++	<classpathentry kind="lib" path="/lib/junit/junit.jar" sourcepath="/lib/junit/junit-src.jar"/>
++	<classpathentry kind="src" path="/bridge"/>
++	<classpathentry kind="src" path="/asm"/>
++	<classpathentry kind="src" path="/org.aspectj.ajdt.core"/>
++	<classpathentry kind="src" path="/org.eclipse.jdt.core"/>
++	<classpathentry combineaccessrules="false" kind="src" path="/ajde.core"/>
++	<classpathentry kind="output" path="bin"/>
+ </classpath>
+@@ -665,6 +665,7 @@ public class CompilerAdapter {
+ 	}
+ 
+ 	public void setState(AjState buildState) {
++		init();
+ 		buildManager.setState(buildState);	
+ 		buildManager.setStructureModel(buildState.getStructureModel());
+ 	}

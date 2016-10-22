@@ -1,0 +1,217 @@
+@@ -214,6 +214,7 @@ public class AsmElementFormatter {
+ 						if (annotationSig.charAt(1) == 'o') {
+ 							if ("Lorg/aspectj/lang/annotation/Pointcut;".equals(annotationSig)) {
+ 								node.setKind(IProgramElement.Kind.POINTCUT);
++								node.setAnnotationStyleDeclaration(true); // pointcuts don't seem to get handled quite right...
+ 								break;
+ 							} else if ("Lorg/aspectj/lang/annotation/Before;".equals(annotationSig)
+ 									|| "Lorg/aspectj/lang/annotation/After;".equals(annotationSig)
+@@ -221,6 +222,7 @@ public class AsmElementFormatter {
+ 									|| "Lorg/aspectj/lang/annotation/AfterThrowing;".equals(annotationSig)
+ 									|| "Lorg/aspectj/lang/annotation/Around;".equals(annotationSig)) {
+ 								node.setKind(IProgramElement.Kind.ADVICE);
++								node.setAnnotationStyleDeclaration(true);
+ 								// TODO AV - all are considered anonymous - is that ok?
+ 								node.setDetails(AsmRelationshipUtils.POINTCUT_ANONYMOUS);
+ 								break;
+@@ -295,6 +295,7 @@ public class AsmHierarchyBuilder extends ASTVisitor {
+ 		else if (TypeDeclaration.kind(typeDeclaration.modifiers) == TypeDeclaration.ANNOTATION_TYPE_DECL)
+ 			kind = IProgramElement.Kind.ANNOTATION;
+ 
++		boolean isAnnotationStyleAspect = false;
+ 		// @AJ support
+ 		if (typeDeclaration.annotations != null) {
+ 			for (int i = 0; i < typeDeclaration.annotations.length; i++) {
+@@ -302,6 +303,9 @@ public class AsmHierarchyBuilder extends ASTVisitor {
+ 				if (Arrays.equals(annotation.type.getTypeBindingPublic(scope).signature(), "Lorg/aspectj/lang/annotation/Aspect;"
+ 						.toCharArray())) {
+ 					kind = IProgramElement.Kind.ASPECT;
++					if (!(typeDeclaration instanceof AspectDeclaration)) {
++						isAnnotationStyleAspect = true;
++					}
+ 				} else if (annotation.resolvedType != null) {
+ 					// Fix for the case where in a privileged aspect a parent declaration :
+ 					// declare parents: (@A C+) implements (B);
+@@ -339,6 +343,7 @@ public class AsmHierarchyBuilder extends ASTVisitor {
+ 				null, null);
+ 		peNode.setSourceSignature(genSourceSignature(typeDeclaration));
+ 		peNode.setFormalComment(generateJavadocComment(typeDeclaration));
++		peNode.setAnnotationStyleDeclaration(isAnnotationStyleAspect);
+ 
+ 		((IProgramElement) stack.peek()).addChild(peNode);
+ 		stack.push(peNode);
+@@ -385,6 +390,8 @@ public class AsmHierarchyBuilder extends ASTVisitor {
+ 		else if (typeDeclarationKind == TypeDeclaration.ANNOTATION_TYPE_DECL)
+ 			kind = IProgramElement.Kind.ANNOTATION;
+ 
++
++		boolean isAnnotationStyleAspect = false;
+ 		// @AJ support
+ 		if (memberTypeDeclaration.annotations != null) {
+ 			for (int i = 0; i < memberTypeDeclaration.annotations.length; i++) {
+@@ -392,6 +399,9 @@ public class AsmHierarchyBuilder extends ASTVisitor {
+ 				if (Arrays.equals(annotation.type.getTypeBindingPublic(scope).signature(), "Lorg/aspectj/lang/annotation/Aspect;"
+ 						.toCharArray())) {
+ 					kind = IProgramElement.Kind.ASPECT;
++					if (!(memberTypeDeclaration instanceof AspectDeclaration)) {
++						isAnnotationStyleAspect = true;
++					}
+ 				}
+ 			}
+ 		}
+@@ -405,6 +415,7 @@ public class AsmHierarchyBuilder extends ASTVisitor {
+ 				typeModifiers, null, null);
+ 		peNode.setSourceSignature(genSourceSignature(memberTypeDeclaration));
+ 		peNode.setFormalComment(generateJavadocComment(memberTypeDeclaration));
++		peNode.setAnnotationStyleDeclaration(isAnnotationStyleAspect);
+ 
+ 		((IProgramElement) stack.peek()).addChild(peNode);
+ 		stack.push(peNode);
+@@ -440,12 +451,16 @@ public class AsmHierarchyBuilder extends ASTVisitor {
+ 			kind = IProgramElement.Kind.ANNOTATION;
+ 
+ 		// @AJ support
++		boolean isAnnotationStyleAspect= false;
+ 		if (memberTypeDeclaration.annotations != null) {
+ 			for (int i = 0; i < memberTypeDeclaration.annotations.length; i++) {
+ 				Annotation annotation = memberTypeDeclaration.annotations[i];
+ 				if (Arrays.equals(annotation.type.getTypeBindingPublic(scope).signature(), "Lorg/aspectj/lang/annotation/Aspect;"
+ 						.toCharArray())) {
+ 					kind = IProgramElement.Kind.ASPECT;
++					if (!(memberTypeDeclaration instanceof AspectDeclaration)) {
++						isAnnotationStyleAspect = true;
++					}
+ 					break;
+ 				}
+ 			}
+@@ -455,6 +470,7 @@ public class AsmHierarchyBuilder extends ASTVisitor {
+ 				memberTypeDeclaration.modifiers, null, null);
+ 		peNode.setSourceSignature(genSourceSignature(memberTypeDeclaration));
+ 		peNode.setFormalComment(generateJavadocComment(memberTypeDeclaration));
++		peNode.setAnnotationStyleDeclaration(isAnnotationStyleAspect);
+ 		// if we're something like 'new Runnable(){..}' then set the
+ 		// bytecodeSignature to be the typename so we can match it later
+ 		// when creating the structure model
+@@ -395,4 +395,7 @@ public interface IProgramElement extends Serializable {
+ 			return this == PACKAGE_DECLARATION;
+ 		}
+ 	}
++
++	public void setAnnotationStyleDeclaration(boolean b);
++	public boolean isAnnotationStyleDeclaration();
+ }
+\ No newline at end of file
+@@ -88,7 +88,11 @@ public class HandleProviderDelimiter {
+ 				|| kind.equals(IProgramElement.Kind.ENUM) || kind.equals(IProgramElement.Kind.ANNOTATION)) {
+ 			return TYPE.getDelimiter();
+ 		} else if (kind.equals(IProgramElement.Kind.ASPECT)) {
+-			return ASPECT_TYPE.getDelimiter();
++			if (ipe.isAnnotationStyleDeclaration()) {
++				return TYPE.getDelimiter();
++			} else {
++				return ASPECT_TYPE.getDelimiter();
++			}
+ 		} else if (kind.equals(IProgramElement.Kind.INITIALIZER)) {
+ 			return INITIALIZER.getDelimiter();
+ 		} else if (kind.equals(IProgramElement.Kind.INTER_TYPE_FIELD) || kind.equals(IProgramElement.Kind.INTER_TYPE_METHOD)
+@@ -99,9 +103,17 @@ public class HandleProviderDelimiter {
+ 		} else if (kind.equals(IProgramElement.Kind.FIELD) || kind.equals(IProgramElement.Kind.ENUM_VALUE)) {
+ 			return FIELD.getDelimiter();
+ 		} else if (kind.equals(IProgramElement.Kind.POINTCUT)) {
+-			return POINTCUT.getDelimiter();
++			if (ipe.isAnnotationStyleDeclaration()) {
++				return METHOD.getDelimiter();
++			} else {
++				return POINTCUT.getDelimiter();
++			}
+ 		} else if (kind.equals(IProgramElement.Kind.ADVICE)) {
+-			return ADVICE.getDelimiter();
++			if (ipe.isAnnotationStyleDeclaration()) {
++				return METHOD.getDelimiter();
++			} else {
++				return ADVICE.getDelimiter();
++			}
+ 		} else if (kind.equals(IProgramElement.Kind.DECLARE_PARENTS) || kind.equals(IProgramElement.Kind.DECLARE_WARNING)
+ 				|| kind.equals(IProgramElement.Kind.DECLARE_ERROR) || kind.equals(IProgramElement.Kind.DECLARE_SOFT)
+ 				|| kind.equals(IProgramElement.Kind.DECLARE_PRECEDENCE)
+@@ -646,4 +646,17 @@ public class ProgramElement implements IProgramElement {
+ 	public ExtraInformation getExtraInfo() {
+ 		return (ExtraInformation) kvpairs.get("ExtraInformation");
+ 	}
++
++	public boolean isAnnotationStyleDeclaration() {
++		return kvpairs.get("annotationStyleDeclaration")!=null;
++	}
++
++	public void setAnnotationStyleDeclaration(boolean b) {		
++		if (b) {
++			if (kvpairs == Collections.EMPTY_MAP) {
++				kvpairs = new HashMap();
++			}
++			kvpairs.put("annotationStyleDeclaration", "true");
++		}
++	}
+ }
+@@ -0,0 +1,30 @@
++import org.aspectj.lang.annotation.*;
++
++@Aspect
++public class Logger {
++
++        @Before("execution(* O*.*())")
++        public void boo() {
++
++        }
++        @After("execution(* O*.*())")
++        public void aoo() {
++
++        }
++        @Around("execution(* O*.*())")
++        public void aroo() {
++
++        }
++
++@Pointcut("execution(* *(..))")
++public void ooo() {}
++
++
++@DeclareWarning("execution(* xxx(..))")
++public static final String message ="hello";
++
++@DeclareError("execution(* xxx(..))")
++public static final String message2 ="gello";
++
++}
++
+@@ -1067,6 +1067,31 @@ public class MultiProjectIncrementalTests extends AbstractMultiProjectIncrementa
+ 		assertEquals("=pr265993<{A.java[A~m13~QClass\\<QT;>;~QObject;~QString;", findElementAtLine(root, 17).getHandleIdentifier());
+ 	}
+ 
++	public void testHandlesForAnnotationStyle_pr269286() throws IOException {
++		String p = "pr269286";
++		initialiseProject(p);
++		build(p);
++		IProgramElement root = getModelFor(p).getHierarchy().getRoot();
++		dumptree(getModelFor(p).getHierarchy().getRoot(), 0);
++		PrintWriter pw = new PrintWriter(System.out);
++		getModelFor(p).dumprels(pw);
++		pw.flush();
++		assertEquals("=pr269286<{Logger.java[Logger", findElementAtLine(root, 4).getHandleIdentifier()); // type
++		assertEquals("=pr269286<{Logger.java[Logger~boo", findElementAtLine(root, 7).getHandleIdentifier()); // before
++		assertEquals("=pr269286<{Logger.java[Logger~aoo", findElementAtLine(root, 11).getHandleIdentifier()); // after
++		assertEquals("=pr269286<{Logger.java[Logger~aroo", findElementAtLine(root, 15).getHandleIdentifier()); // around
++		
++		// pointcuts are not fixed - seems to buggy handling of them internally
++		assertEquals("=pr269286<{Logger.java[Logger+ooo", findElementAtLine(root, 20).getHandleIdentifier()); 	
++		
++		// DeclareWarning
++		assertEquals("=pr269286<{Logger.java[Logger^message", findElementAtLine(root, 24).getHandleIdentifier()); 	
++		
++		// DeclareError
++		assertEquals("=pr269286<{Logger.java[Logger^message2", findElementAtLine(root, 27).getHandleIdentifier()); 	
++	}
++
++	
+ 	public void testX() throws IOException {
+ 		String p = "prx";
+ 		initialiseProject(p);

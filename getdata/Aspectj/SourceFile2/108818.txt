@@ -1,0 +1,196 @@
+@@ -251,7 +251,10 @@ public class ReferencePointcut extends Pointcut {
+ 
+ 	//??? This is not thread safe, but this class is not designed for multi-threading
+ 	private boolean concretizing = false;
+-	public Pointcut concretize1(ResolvedType searchStart, IntMap bindings) {
++	// declaring type is the type that declared the member referencing this pointcut.
++	// If it declares a matching private pointcut, then that pointcut should be used
++	// and not one in a subtype that happens to have the same name.
++	public Pointcut concretize1(ResolvedType searchStart, ResolvedType declaringType, IntMap bindings) {
+ 		if (concretizing) {
+ 			//Thread.currentThread().dumpStack();
+ 			searchStart.getWorld().getMessageHandler().handleMessage(
+@@ -270,13 +273,19 @@ public class ReferencePointcut extends Pointcut {
+ 					return Pointcut.makeMatchesNothing(Pointcut.CONCRETE);
+ 				}
+ 			}
+-			pointcutDec = searchStart.findPointcut(name);
+-			if (pointcutDec == null) {
+-				searchStart.getWorld().getMessageHandler().handleMessage(
+-					MessageUtil.error(WeaverMessages.format(WeaverMessages.CANT_FIND_POINTCUT,name,searchStart.getName()), 
+-									getSourceLocation())
+-				);
+-				return Pointcut.makeMatchesNothing(Pointcut.CONCRETE);
++			
++			if (declaringType == null) declaringType = searchStart;
++			pointcutDec = declaringType.findPointcut(name);
++			boolean foundMatchingPointcut = (pointcutDec != null && pointcutDec.isPrivate());
++			if (!foundMatchingPointcut) {				
++				pointcutDec = searchStart.findPointcut(name);
++				if (pointcutDec == null) {
++					searchStart.getWorld().getMessageHandler().handleMessage(
++						MessageUtil.error(WeaverMessages.format(WeaverMessages.CANT_FIND_POINTCUT,name,searchStart.getName()), 
++										getSourceLocation())
++					);
++					return Pointcut.makeMatchesNothing(Pointcut.CONCRETE);
++				}
+ 			}
+ 
+ 			if (pointcutDec.isAbstract()) {
+@@ -327,7 +336,7 @@ public class ReferencePointcut extends Pointcut {
+ 			try {
+ 				Pointcut ret = pointcutDec.getPointcut();
+ 				if (typeVariableMap != null) ret = ret.parameterizeWith(typeVariableMap);
+-				return ret.concretize(searchStart, newBindings);
++				return ret.concretize(searchStart, declaringType, newBindings);
+ 			} finally {
+ 				newBindings.popEnclosingDefinitition();
+ 			}
+@@ -270,7 +270,7 @@ public abstract class Advice extends ShadowMunger {
+      */
+     public ShadowMunger concretize(ResolvedType fromType, World world, PerClause clause) {
+     	// assert !fromType.isAbstract();
+-        Pointcut p = pointcut.concretize(fromType, signature.getArity(), this);
++        Pointcut p = pointcut.concretize(fromType, getDeclaringType(), signature.getArity(), this);
+         if (clause != null) {
+         	Pointcut oldP = p;
+         	p = new AndPointcut(clause, p);
+@@ -32,7 +32,7 @@ public class Checker extends ShadowMunger {
+ 	}		 
+ 
+     public ShadowMunger concretize(ResolvedType fromType, World world, PerClause clause) {
+-        pointcut = pointcut.concretize(fromType, 0, this);
++        pointcut = pointcut.concretize(fromType, getDeclaringType(), 0, this);
+         return this;
+     }
+ 
+@@ -111,6 +111,7 @@ public class CrosscuttingMembers {
+ 		// this is not extensible, oh well
+ 		if (declare instanceof DeclareErrorOrWarning) {
+ 			ShadowMunger m = new Checker((DeclareErrorOrWarning)declare);
++			m.setDeclaringType(declare.getDeclaringType());
+ 			addShadowMunger(m);
+ 		} else if (declare instanceof DeclarePrecedence) {
+ 			declareDominates.add(declare);
+@@ -122,7 +123,8 @@ public class CrosscuttingMembers {
+ 			DeclareSoft d = (DeclareSoft)declare;
+ 			// Ordered so that during concretization we can check the related munger
+ 			ShadowMunger m = Advice.makeSoftener(world, d.getPointcut(), d.getException(),inAspect,d);
+-			Pointcut concretePointcut = d.getPointcut().concretize(inAspect, 0,m);
++			m.setDeclaringType(d.getDeclaringType());
++			Pointcut concretePointcut = d.getPointcut().concretize(inAspect, d.getDeclaringType(), 0,m);
+ 			m.pointcut = concretePointcut;
+ 			declareSofts.add(new DeclareSoft(d.getException(), concretePointcut));
+ 			addConcreteShadowMunger(m);
+@@ -421,6 +421,7 @@ public class ReferenceType extends ResolvedType {
+ 
+ 	protected Collection getDeclares() {
+ 		if (parameterizedDeclares != null) return parameterizedDeclares;
++		Collection declares = null;
+ 		if (isParameterizedType()) {
+ 			Collection genericDeclares = delegate.getDeclares();
+ 			parameterizedDeclares = new ArrayList();
+@@ -429,10 +430,15 @@ public class ReferenceType extends ResolvedType {
+ 				Declare declareStatement = (Declare) iter.next();
+ 				parameterizedDeclares.add(declareStatement.parameterizeWith(parameterizationMap));
+ 			}
+-			return parameterizedDeclares;
++			declares = parameterizedDeclares;
+ 		} else {
+-			return delegate.getDeclares();
++			declares = delegate.getDeclares();
+ 		}
++		for (Iterator iter = declares.iterator(); iter.hasNext();) {
++			Declare d = (Declare) iter.next();
++			d.setDeclaringType(this);
++		}
++		return declares;
+ 	}
+ 
+ 	protected Collection getTypeMungers() { return delegate.getTypeMungers(); }
+@@ -633,6 +633,7 @@ public abstract class ResolvedType extends UnresolvedType implements AnnotatedEl
+ 				if (this.isParameterizedType()) {
+ 					munger.setPointcut(munger.getPointcut().parameterizeWith(typeVariableMap));
+ 				}
++				munger.setDeclaringType(this);
+ 				l.add(munger);
+ 			}
+ 		}
+@@ -41,6 +41,7 @@ public abstract class ShadowMunger implements PartialOrder.PartialComparable, IH
+ 	protected ISourceContext sourceContext;
+ 	private ISourceLocation sourceLocation;
+ 	private String handle = null;
++	private ResolvedType declaringType;  // the type that declared this munger.
+ 
+ 
+ 	public ShadowMunger(Pointcut pointcut, int start, int end, ISourceContext sourceContext) {
+@@ -112,7 +113,18 @@ public abstract class ShadowMunger implements PartialOrder.PartialComparable, IH
+ 		this.pointcut = pointcut;
+ 	}
+ 
+-
++	/**
++	 * Invoked when the shadow munger of a resolved type are processed.
++	 * @param aType
++	 */
++	public void setDeclaringType(ResolvedType aType) {
++		this.declaringType = aType;
++	}
++	
++	public ResolvedType getDeclaringType() {
++		return this.declaringType;
++	}
++	
+ 	/**
+ 	 * @return a Collection of ResolvedType for all checked exceptions that
+ 	 *          might be thrown by this munger
+@@ -0,0 +1,23 @@
++abstract aspect SuperAspect {
++	
++	private pointcut matchedJP() : execution(* foo(..));
++	
++	declare warning : matchedJP() : "matched join point from super advice";
++	
++}
++
++public aspect PrivatePointcutOverriding extends SuperAspect {
++	
++	private pointcut matchedJP() : execution(* bar(..));
++	
++	declare warning : matchedJP() : "matched join point from sub advice";
++	
++}
++
++class C {
++	
++	void foo() {}
++	
++	void bar() {}
++	
++}
+\ No newline at end of file
+@@ -390,6 +390,10 @@ public class Ajc150Tests extends org.aspectj.testing.XMLBasedAjcTestCase {
+ 	  runTest("final itd methods on interfaces");
+   }
+ 
++  public void testPrivatePointcutOverriding() {
++	  runTest("can't override private pointcut in abstract aspect");
++  }
++  
+   // helper methods.....
+ 
+   public SyntheticRepository createRepos(File cpentry) {
+@@ -494,6 +494,13 @@
+         </compile>
+     </ajc-test>
+ 
++   <ajc-test dir="bugs150" pr="108818" title="can't override private pointcut in abstract aspect">
++        <compile files="PrivatePointcutOverriding.aj">
++            <message kind="warning" line="19" text="matched join point from super advice"/>
++            <message kind="warning" line="21" text="matched join point from sub advice"/>
++        </compile>
++    </ajc-test>
++    
+     <!-- ============================================================================ -->
+     <!-- ============================================================================ -->
+ 

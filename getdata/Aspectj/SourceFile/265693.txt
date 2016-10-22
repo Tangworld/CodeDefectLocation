@@ -1,0 +1,460 @@
+@@ -1,17 +0,0 @@
+-public aspect Asp2 {
+-
+-
+-
+-
+-
+-
+-
+-
+-
+-
+-
+-
+-
+-
+- before(): execution(* fo*(..)) {}
+-}
+@@ -0,0 +1,7 @@
++package a.b.c;
++
++aspect Asp {
++//  before(): staticinitialization(*) {}
++
++  int C.i = 5;
++}
+@@ -0,0 +1,4 @@
++package a.b.c;
++
++class C {
++}
+@@ -0,0 +1,12 @@
++package a.b.c;
++import java.util.List;
++import java.lang.annotation.Retention;
++import org.aspectj.lang.annotation.Around;
++
++public class C {
++  public static void main(String []argv) {
++    new C().foo();
++  }
++
++  public void foo() {}
++}
+@@ -976,13 +976,33 @@ public class MultiProjectIncrementalTests extends AbstractMultiProjectIncrementa
+ 		configureAspectPath(bug2, getProjectRelativePath(bug, "bin"));
+ 		build(bug);
+ 		build(bug2);
+-		dumptree(getModelFor(bug2).getHierarchy().getRoot(), 0);
+-		PrintWriter pw = new PrintWriter(System.out);
+-		getModelFor(bug2).dumprels(pw);
+-		pw.flush();
++		// dumptree(getModelFor(bug2).getHierarchy().getRoot(), 0);
++		// PrintWriter pw = new PrintWriter(System.out);
++		// getModelFor(bug2).dumprels(pw);
++		// pw.flush();
+ 		IProgramElement root = getModelFor(bug2).getHierarchy().getRoot();
+-		assertEquals("=AspectPath4/binaries<pkg(Asp.class}Asp&before", findElementAtLine(root, 5).getHandleIdentifier());
+-		assertEquals("=AspectPath4/binaries<(Asp2.class}Asp2&before", findElementAtLine(root, 16).getHandleIdentifier());
++		IProgramElement binariesNode = getChild(root, "binaries");
++		assertNotNull(binariesNode);
++		IProgramElement packageNode = (IProgramElement) binariesNode.getChildren().get(0);
++		assertEquals("a.b.c", packageNode.getName());
++		IProgramElement fileNode = (IProgramElement) packageNode.getChildren().get(0);
++		assertEquals(IProgramElement.Kind.FILE, fileNode.getKind());
++	}
++
++	private IProgramElement getChild(IProgramElement start, String name) {
++		if (start.getName().equals(name)) {
++			return start;
++		}
++		List kids = start.getChildren();
++		if (kids != null) {
++			for (int i = 0; i < kids.size(); i++) {
++				IProgramElement found = getChild((IProgramElement) kids.get(i), name);
++				if (found != null) {
++					return found;
++				}
++			}
++		}
++		return null;
+ 	}
+ 
+ 	public void testHandleQualification_pr265993() throws IOException {
+@@ -0,0 +1,17 @@
++public aspect Asp2 {
++
++
++
++
++
++
++
++
++
++
++
++
++
++
++ before(): execution(* fo*(..)) {}
++}
+@@ -0,0 +1,6 @@
++package pkg;
++
++public aspect Asp {
++
++ before(): execution(* fo*(..)) {}
++}
+@@ -0,0 +1,17 @@
++public aspect Asp2 {
++
++
++before(): staticinitialization(C*) {}
++
++
++
++
++
++
++
++
++
++
++
++ before(): execution(* fo*(..)) {}
++}
+@@ -0,0 +1,12 @@
++package com.foo.goo;
++import java.util.List;
++import java.lang.annotation.Retention;
++import org.aspectj.lang.annotation.Around;
++
++public class C {
++  public static void main(String []argv) {
++    new C().foo();
++  }
++
++  public void foo() {}
++}
+@@ -108,8 +108,7 @@ public class AsmRelationshipProvider {
+ 	}
+ 
+ 	/**
+-	 * Add a relationship for a type transformation (declare parents, intertype
+-	 * method declaration, declare annotation on type).
++	 * Add a relationship for a type transformation (declare parents, intertype method declaration, declare annotation on type).
+ 	 */
+ 	public static void addRelationship(AsmManager model, ResolvedType onType, ResolvedTypeMunger typeTransformer,
+ 			ResolvedType originatingAspect) {
+@@ -174,10 +173,9 @@ public class AsmRelationshipProvider {
+ 	}
+ 
+ 	/**
+-	 * Returns the binarySourceLocation for the given sourcelocation. This isn't
+-	 * cached because it's used when faulting in the binary nodes and is called
+-	 * with ISourceLocations for all advice, pointcuts and deows contained
+-	 * within the resolvedDeclaringAspect.
++	 * Returns the binarySourceLocation for the given sourcelocation. This isn't cached because it's used when faulting in the
++	 * binary nodes and is called with ISourceLocations for all advice, pointcuts and deows contained within the
++	 * resolvedDeclaringAspect.
+ 	 */
+ 	private static ISourceLocation getBinarySourceLocation(ResolvedType aspect, ISourceLocation sl) {
+ 		if (sl == null) {
+@@ -219,12 +217,9 @@ public class AsmRelationshipProvider {
+ 	}
+ 
+ 	/**
+-	 * Returns the File with pathname to the class file, for example either
+-	 * C:\temp
+-	 * \ajcSandbox\workspace\ajcTest16957.tmp\simple.jar!pkg\BinaryAspect.class
+-	 * if the class file is in a jar file, or
+-	 * C:\temp\ajcSandbox\workspace\ajcTest16957.tmp!pkg\BinaryAspect.class if
+-	 * the class file is in a directory
++	 * Returns the File with pathname to the class file, for example either C:\temp
++	 * \ajcSandbox\workspace\ajcTest16957.tmp\simple.jar!pkg\BinaryAspect.class if the class file is in a jar file, or
++	 * C:\temp\ajcSandbox\workspace\ajcTest16957.tmp!pkg\BinaryAspect.class if the class file is in a directory
+ 	 */
+ 	private static File getBinaryFile(ResolvedType aspect) {
+ 		String s = aspect.getBinaryPath();
+@@ -241,8 +236,7 @@ public class AsmRelationshipProvider {
+ 	}
+ 
+ 	/**
+-	 * Create a basic hierarchy to represent an aspect only available in binary
+-	 * (from the aspectpath).
++	 * Create a basic hierarchy to represent an aspect only available in binary (from the aspectpath).
+ 	 */
+ 	private static void createHierarchy(AsmManager model, ResolvedTypeMunger typeTransformer, ResolvedType aspect) {
+ 		// assert aspect != null;
+@@ -319,8 +313,9 @@ public class AsmRelationshipProvider {
+ 		// }
+ 
+ 		// add and create empty import declaration ipe
+-		classFileNode.addChild(new ProgramElement(model, "import declarations", IProgramElement.Kind.IMPORT_REFERENCE, null, 0,
+-				null, null));
++		// no import container for binary type - 265693
++		// classFileNode.addChild(new ProgramElement(model, "import declarations", IProgramElement.Kind.IMPORT_REFERENCE, null, 0,
++		// null, null));
+ 
+ 		// add and create aspect ipe
+ 		IProgramElement aspectNode = new ProgramElement(model, aspect.getSimpleName(), IProgramElement.Kind.ASPECT,
+@@ -335,9 +330,8 @@ public class AsmRelationshipProvider {
+ 	}
+ 
+ 	/**
+-	 * Adds a declare annotation relationship, sometimes entities don't have
+-	 * source locs (methods/fields) so use other variants of this method if that
+-	 * is the case as they will look the entities up in the structure model.
++	 * Adds a declare annotation relationship, sometimes entities don't have source locs (methods/fields) so use other variants of
++	 * this method if that is the case as they will look the entities up in the structure model.
+ 	 */
+ 	public static void addDeclareAnnotationRelationship(AsmManager model, ISourceLocation declareAnnotationLocation,
+ 			ISourceLocation annotatedLocation) {
+@@ -444,8 +438,9 @@ public class AsmRelationshipProvider {
+ 		// }
+ 
+ 		// add and create empty import declaration ipe
+-		classFileNode.addChild(new ProgramElement(asm, "import declarations", IProgramElement.Kind.IMPORT_REFERENCE, null, 0, null,
+-				null));
++		// classFileNode.addChild(new ProgramElement(asm, "import declarations", IProgramElement.Kind.IMPORT_REFERENCE, null, 0,
++		// null,
++		// null));
+ 
+ 		// add and create aspect ipe
+ 		IProgramElement aspectNode = new ProgramElement(asm, aspect.getSimpleName(), IProgramElement.Kind.ASPECT, munger
+@@ -560,11 +555,9 @@ public class AsmRelationshipProvider {
+ 	}
+ 
+ 	/**
+-	 * Half baked implementation - will need completing if we go down this route
+-	 * rather than replacing it all for binary aspects. Doesn't attempt to get
+-	 * parameter names correct - they may have been lost during
+-	 * (de)serialization of the munger, but the member could still be located so
+-	 * they might be retrievable.
++	 * Half baked implementation - will need completing if we go down this route rather than replacing it all for binary aspects.
++	 * Doesn't attempt to get parameter names correct - they may have been lost during (de)serialization of the munger, but the
++	 * member could still be located so they might be retrievable.
+ 	 */
+ 	private static IProgramElement createIntertypeDeclaredChild(AsmManager model, ResolvedType aspect, BcelTypeMunger itd) {
+ 		ResolvedTypeMunger rtMunger = itd.getMunger();
+@@ -772,19 +765,14 @@ public class AsmRelationshipProvider {
+ 	/**
+ 	 * Finds or creates a code IProgramElement for the given shadow.
+ 	 * 
+-	 * The byteCodeName of the created node is set to 'shadowSig.getName() + "!"
+-	 * + counter', eg "println!3". The counter is the occurence count of
+-	 * children within the enclosingNode which have the same name. So, for
+-	 * example, if a method contains two System.out.println statements, the
+-	 * first one will have byteCodeName 'println!1' and the second will have
+-	 * byteCodeName 'println!2'. This is to ensure the two nodes have unique
+-	 * handles when the handles do not depend on sourcelocations.
++	 * The byteCodeName of the created node is set to 'shadowSig.getName() + "!" + counter', eg "println!3". The counter is the
++	 * occurence count of children within the enclosingNode which have the same name. So, for example, if a method contains two
++	 * System.out.println statements, the first one will have byteCodeName 'println!1' and the second will have byteCodeName
++	 * 'println!2'. This is to ensure the two nodes have unique handles when the handles do not depend on sourcelocations.
+ 	 * 
+-	 * Currently the shadows are examined in the sequence they appear in the
+-	 * source file. This means that the counters are consistent over incremental
+-	 * builds. All aspects are compiled up front and any new aspect created will
+-	 * force a full build. Moreover, if the body of the enclosingShadow is
+-	 * changed, then the model for this is rebuilt from scratch.
++	 * Currently the shadows are examined in the sequence they appear in the source file. This means that the counters are
++	 * consistent over incremental builds. All aspects are compiled up front and any new aspect created will force a full build.
++	 * Moreover, if the body of the enclosingShadow is changed, then the model for this is rebuilt from scratch.
+ 	 */
+ 	private static IProgramElement findOrCreateCodeNode(AsmManager asm, IProgramElement enclosingNode, Member shadowSig,
+ 			Shadow shadow) {
+@@ -840,10 +828,8 @@ public class AsmRelationshipProvider {
+ 	}
+ 
+ 	/**
+-	 * Add a relationship for a matching declare annotation method or declare
+-	 * annotation constructor. Locating the method is a messy (for messy read
+-	 * 'fragile') bit of code that could break at any moment but it's working
+-	 * for my simple testcase.
++	 * Add a relationship for a matching declare annotation method or declare annotation constructor. Locating the method is a messy
++	 * (for messy read 'fragile') bit of code that could break at any moment but it's working for my simple testcase.
+ 	 */
+ 	public static void addDeclareAnnotationMethodRelationship(ISourceLocation sourceLocation, String affectedTypeName,
+ 			ResolvedMember affectedMethod, AsmManager model) {
+@@ -916,10 +902,8 @@ public class AsmRelationshipProvider {
+ 	}
+ 
+ 	/**
+-	 * Add a relationship for a matching declare ATfield. Locating the field is
+-	 * trickier than it might seem since we have no line number info for it, we
+-	 * have to dig through the structure model under the fields' type in order
+-	 * to locate it.
++	 * Add a relationship for a matching declare ATfield. Locating the field is trickier than it might seem since we have no line
++	 * number info for it, we have to dig through the structure model under the fields' type in order to locate it.
+ 	 */
+ 	public static void addDeclareAnnotationFieldRelationship(AsmManager model, ISourceLocation declareLocation,
+ 			String affectedTypeName, ResolvedMember affectedFieldName) {
+@@ -995,6 +995,24 @@ public class MultiProjectIncrementalTests extends AbstractMultiProjectIncrementa
+ 		assertEquals("=AspectPathTwo/binaries<(Asp2.class}Asp2&before", findElementAtLine(root, 16).getHandleIdentifier());
+ 	}
+ 
++	public void testAspectPath_pr265693() throws IOException {
++		String bug = "AspectPath3";
++		String bug2 = "AspectPath4";
++		addSourceFolderForSourceFile(bug2, getProjectRelativePath(bug2, "src/C.java"), "src");
++		initialiseProject(bug);
++		initialiseProject(bug2);
++		configureAspectPath(bug2, getProjectRelativePath(bug, "bin"));
++		build(bug);
++		build(bug2);
++		dumptree(getModelFor(bug2).getHierarchy().getRoot(), 0);
++		PrintWriter pw = new PrintWriter(System.out);
++		getModelFor(bug2).dumprels(pw);
++		pw.flush();
++		IProgramElement root = getModelFor(bug2).getHierarchy().getRoot();
++		assertEquals("=AspectPath4/binaries<pkg(Asp.class}Asp&before", findElementAtLine(root, 5).getHandleIdentifier());
++		assertEquals("=AspectPath4/binaries<(Asp2.class}Asp2&before", findElementAtLine(root, 16).getHandleIdentifier());
++	}
++
+ 	/**
+ 	 * A change is made to an aspect on the aspectpath (staticinitialization() advice is added) for another project.
+ 	 * <p>
+@@ -18,25 +18,24 @@
+   binaries  [source folder] 
+     pkg  [package] 
+       BinaryAspect.class  [file] TEST_SANDBOX\simple.jar!pkg\BinaryAspect.class:1:
+-        import declarations  [import reference] 
+         BinaryAspect  [aspect] TEST_SANDBOX\simple.jar!pkg\BinaryAspect.class:1:
+           p()  [pointcut] TEST_SANDBOX\simple.jar!pkg\BinaryAspect.class:7:
+           before(): p..  [advice] TEST_SANDBOX\simple.jar!pkg\BinaryAspect.class:9:
+           declare warning: "There should be n.."  [declare warning] TEST_SANDBOX\simple.jar!pkg\BinaryAspect.class:5:
+ === END OF MODEL REPORT =========
+ === RELATIONSHIPS REPORT ========= After a batch build
+-(targets=2) <pack{C.java[C~method1 (advised by) <pkg*SourceAspect.aj}SourceAspect&before
+-(targets=2) <pack{C.java[C~method1 (advised by) /binaries<pkg(BinaryAspect.class}BinaryAspect&before
+-(targets=1) <pkg*SourceAspect.aj}SourceAspect`declare warning (matched by) <pack{C.java[C~method1?field-get(java.io.PrintStream java.lang.System.out)
+-(targets=1) <pkg*SourceAspect.aj}SourceAspect&before (advises) <pack{C.java[C~method1
+ (targets=2) <pack{C.java[C~method1?field-get(java.io.PrintStream java.lang.System.out) (matches declare) <pkg*SourceAspect.aj}SourceAspect`declare warning
+ (targets=2) <pack{C.java[C~method1?field-get(java.io.PrintStream java.lang.System.out) (matches declare) /binaries<pkg(BinaryAspect.class}BinaryAspect`declare warning
+-(targets=1) /binaries<pkg(BinaryAspect.class}BinaryAspect&before (advises) <pack{C.java[C~method1
++(targets=1) <pkg*SourceAspect.aj}SourceAspect`declare warning (matched by) <pack{C.java[C~method1?field-get(java.io.PrintStream java.lang.System.out)
+ (targets=1) /binaries<pkg(BinaryAspect.class}BinaryAspect`declare warning (matched by) <pack{C.java[C~method1?field-get(java.io.PrintStream java.lang.System.out)
++(targets=1) /binaries<pkg(BinaryAspect.class}BinaryAspect&before (advises) <pack{C.java[C~method1
++(targets=2) <pack{C.java[C~method1 (advised by) <pkg*SourceAspect.aj}SourceAspect&before
++(targets=2) <pack{C.java[C~method1 (advised by) /binaries<pkg(BinaryAspect.class}BinaryAspect&before
++(targets=1) <pkg*SourceAspect.aj}SourceAspect&before (advises) <pack{C.java[C~method1
+ === END OF RELATIONSHIPS REPORT ==
+ === Properties of the model and relationships map =====
+ method=1
+-import reference=3
++import reference=2
+ aspect=2
+ code=1
+ declare warning=2
+@@ -18,25 +18,24 @@
+   binaries  [source folder] 
+     pkg  [package] 
+       BinaryAspect.class  [file] TEST_SANDBOX!pkg\BinaryAspect.class:1:
+-        import declarations  [import reference] 
+         BinaryAspect  [aspect] TEST_SANDBOX!pkg\BinaryAspect.class:1:
+           p()  [pointcut] TEST_SANDBOX!pkg\BinaryAspect.class:7:
+           before(): p..  [advice] TEST_SANDBOX!pkg\BinaryAspect.class:9:
+           declare warning: "There should be n.."  [declare warning] TEST_SANDBOX!pkg\BinaryAspect.class:5:
+ === END OF MODEL REPORT =========
+ === RELATIONSHIPS REPORT ========= After a batch build
+-(targets=2) <pack{C.java[C~method1 (advised by) <pkg*SourceAspect.aj}SourceAspect&before
+-(targets=2) <pack{C.java[C~method1 (advised by) /binaries<pkg(BinaryAspect.class}BinaryAspect&before
+-(targets=1) <pkg*SourceAspect.aj}SourceAspect`declare warning (matched by) <pack{C.java[C~method1?field-get(java.io.PrintStream java.lang.System.out)
+-(targets=1) <pkg*SourceAspect.aj}SourceAspect&before (advises) <pack{C.java[C~method1
+ (targets=2) <pack{C.java[C~method1?field-get(java.io.PrintStream java.lang.System.out) (matches declare) <pkg*SourceAspect.aj}SourceAspect`declare warning
+ (targets=2) <pack{C.java[C~method1?field-get(java.io.PrintStream java.lang.System.out) (matches declare) /binaries<pkg(BinaryAspect.class}BinaryAspect`declare warning
+-(targets=1) /binaries<pkg(BinaryAspect.class}BinaryAspect&before (advises) <pack{C.java[C~method1
++(targets=1) <pkg*SourceAspect.aj}SourceAspect`declare warning (matched by) <pack{C.java[C~method1?field-get(java.io.PrintStream java.lang.System.out)
+ (targets=1) /binaries<pkg(BinaryAspect.class}BinaryAspect`declare warning (matched by) <pack{C.java[C~method1?field-get(java.io.PrintStream java.lang.System.out)
++(targets=1) /binaries<pkg(BinaryAspect.class}BinaryAspect&before (advises) <pack{C.java[C~method1
++(targets=2) <pack{C.java[C~method1 (advised by) <pkg*SourceAspect.aj}SourceAspect&before
++(targets=2) <pack{C.java[C~method1 (advised by) /binaries<pkg(BinaryAspect.class}BinaryAspect&before
++(targets=1) <pkg*SourceAspect.aj}SourceAspect&before (advises) <pack{C.java[C~method1
+ === END OF RELATIONSHIPS REPORT ==
+ === Properties of the model and relationships map =====
+ method=1
+-import reference=3
++import reference=2
+ aspect=2
+ code=1
+ declare warning=2
+@@ -9,17 +9,16 @@
+   binaries  [source folder] 
+       [package] 
+       AspectInDefaultPackage.class  [file] TEST_SANDBOX\simple.jar!\AspectInDefaultPackage.class:1:
+-        import declarations  [import reference] 
+         AspectInDefaultPackage  [aspect] TEST_SANDBOX\simple.jar!\AspectInDefaultPackage.class:1:
+           declare warning: "There should be n.."  [declare warning] TEST_SANDBOX\simple.jar!\AspectInDefaultPackage.class:4:
+ === END OF MODEL REPORT =========
+ === RELATIONSHIPS REPORT ========= After a batch build
+-(targets=1) /binaries<(AspectInDefaultPackage.class}AspectInDefaultPackage`declare warning (matched by) <{C.java[C~method1?field-get(java.io.PrintStream java.lang.System.out)
+ (targets=1) <{C.java[C~method1?field-get(java.io.PrintStream java.lang.System.out) (matches declare) /binaries<(AspectInDefaultPackage.class}AspectInDefaultPackage`declare warning
++(targets=1) /binaries<(AspectInDefaultPackage.class}AspectInDefaultPackage`declare warning (matched by) <{C.java[C~method1?field-get(java.io.PrintStream java.lang.System.out)
+ === END OF RELATIONSHIPS REPORT ==
+ === Properties of the model and relationships map =====
+ method=1
+-import reference=2
++import reference=1
+ aspect=1
+ code=1
+ declare warning=1
+@@ -10,7 +10,6 @@
+   binaries  [source folder] 
+       [package] 
+       A.class  [file] TEST_SANDBOX\simple.jar!\A.class:1:
+-        import declarations  [import reference] 
+         A  [aspect] TEST_SANDBOX\simple.jar!\A.class:1:
+           declare warning: "There should be n.."  [declare warning] TEST_SANDBOX\simple.jar!\A.class:4:
+ === END OF MODEL REPORT =========
+@@ -20,7 +19,7 @@
+ === END OF RELATIONSHIPS REPORT ==
+ === Properties of the model and relationships map =====
+ method=1
+-import reference=2
++import reference=1
+ aspect=1
+ code=1
+ declare warning=1
+@@ -9,7 +9,6 @@
+   binaries  [source folder] 
+     pkg  [package] 
+       AbstractBeanConfigurerAspect.class  [file] TEST_SANDBOX\aspects.jar!pkg\AbstractBeanConfigurerAspect.class:1:
+-        import declarations  [import reference] 
+         AbstractBeanConfigurerAspect  [aspect] TEST_SANDBOX\aspects.jar!pkg\AbstractBeanConfigurerAspect.class:1:
+           beanCreation()  [pointcut] TEST_SANDBOX\aspects.jar!pkg\AbstractBeanConfigurerAspect.class:1:
+           afterReturning(): beanCreation..  [advice] TEST_SANDBOX\aspects.jar!pkg\AbstractBeanConfigurerAspect.class:6:
+@@ -17,12 +16,12 @@
+ === END OF MODEL REPORT =========
+ === RELATIONSHIPS REPORT ========= After a batch build
+ (targets=1) /binaries<pkg(AbstractBeanConfigurerAspect.class}AbstractBeanConfigurerAspect&before (advises) <test{Simple.java[Simple~Simple
+-(targets=1) /binaries<pkg(AbstractBeanConfigurerAspect.class}AbstractBeanConfigurerAspect&afterReturning (advises) <test{Simple.java[Simple~Simple
+ (targets=2) <test{Simple.java[Simple~Simple (advised by) /binaries<pkg(AbstractBeanConfigurerAspect.class}AbstractBeanConfigurerAspect&afterReturning
+ (targets=2) <test{Simple.java[Simple~Simple (advised by) /binaries<pkg(AbstractBeanConfigurerAspect.class}AbstractBeanConfigurerAspect&before
++(targets=1) /binaries<pkg(AbstractBeanConfigurerAspect.class}AbstractBeanConfigurerAspect&afterReturning (advises) <test{Simple.java[Simple~Simple
+ === END OF RELATIONSHIPS REPORT ==
+ === Properties of the model and relationships map =====
+-import reference=2
++import reference=1
+ aspect=1
+ constructor=1
+ file=1
+@@ -9,7 +9,6 @@
+   binaries  [source folder] 
+     pkg  [package] 
+       AbstractBeanConfigurerAspect.class  [file] TEST_SANDBOX\aspects.jar!pkg\AbstractBeanConfigurerAspect.class:1:
+-        import declarations  [import reference] 
+         AbstractBeanConfigurerAspect  [aspect] TEST_SANDBOX\aspects.jar!pkg\AbstractBeanConfigurerAspect.class:1:
+           beanCreation()  [pointcut] TEST_SANDBOX\aspects.jar!pkg\AbstractBeanConfigurerAspect.class:1:
+           declare warning: "warning"  [declare warning] TEST_SANDBOX\aspects.jar!pkg\AbstractBeanConfigurerAspect.class:7:
+@@ -19,7 +18,7 @@
+ (targets=1) <test{Simple.java[Simple~Simple (matches declare) /binaries<pkg(AbstractBeanConfigurerAspect.class}AbstractBeanConfigurerAspect`declare warning
+ === END OF RELATIONSHIPS REPORT ==
+ === Properties of the model and relationships map =====
+-import reference=2
++import reference=1
+ aspect=1
+ declare warning=1
+ constructor=1

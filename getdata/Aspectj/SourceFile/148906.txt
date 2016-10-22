@@ -1,0 +1,485 @@
+@@ -55,7 +55,7 @@
+         on the inpath and rebuild.)
+     </para>
+ 
+-    <refsect2>
++    <refsect2 id="ajc_options" xreflabel="ajc_options">
+     <title>Options</title>
+ 
+      <variablelist>
+@@ -1,7 +1,7 @@
+ <refentry id="ajdoc-ref" xreflabel="The ajdoc Command-line Reference">  
+ <refnamediv>
+     <refname>ajdoc</refname>
+-    <refpurpose>generate HTML API documentation, including crosscutting structure (early-access)
++    <refpurpose>generate HTML API documentation, including crosscutting structure
+     </refpurpose>
+   </refnamediv>
+ 
+@@ -32,23 +32,20 @@
+         <arg>@<replaceable>file...</replaceable></arg>
+         <arg>-argfile <replaceable>file...</replaceable></arg>
+       </group>
++      <arg choice="opt">
++        <replaceable>ajc options</replaceable>
++      </arg>
+     </cmdsynopsis>
+   </refsynopsisdiv>
+ 
+   <refsect1>
+     <title>Description</title>
+     <para>
+-      Similar to <command>javadoc</command>, 
+-      <command>ajdoc</command> renders HTML documentation for pointcuts,
+-      advice, and inter-type declarations, as 
+-      well as the Java constructs that Javadoc renders.
+-      <command>ajdoc</command> also links 
+-      advice from members affected by the advice and
+-      the inter-type declaration for members declared from aspects.
+-      The aspect will be fully documented, 
+-      as will your target classes, including links to any
+-      advice or declarations that affect the class. 
+-      That means, for example, that 
++      <command>ajdoc</command> renders HTML documentation for AspectJ 
++      constructs as well as the Java constructs that 
++      <command>javadoc</command> renders.
++      In addition <command>ajdoc</command> displays the crosscutting
++      nature in the form of links. That means, for example, that 
+       you can see everything affecting a method when reading 
+       the documentation for the method.
+     </para>
+@@ -68,8 +65,8 @@
+       As with <command>ajc</command> (but unlike <command>javadoc</command>),
+       you pass <command>ajdoc</command> all your aspect source files 
+       and any files containing types affected by the aspects;
+-      it's often easiest to just pass all the <filename>.java</filename> files 
+-      in your system.
++      it's often easiest to just pass all the <filename>.java</filename> 
++      and <filename>.aj</filename> files in your system.
+       Unlike <command>ajc</command>,
+       <command>ajdoc</command> will try to find package sources using the
+       specified sourcepath if you list packages on the command line. 
+@@ -90,6 +87,12 @@
+       for details on the text file format.
+     </para>
+ 
++	<para>
++	  <command>ajdoc</command> honours <command>ajc</command> options. See
++      the <link linkend="ajc_options">ajc documentation</link> for details on
++      these options.
++	</para>
++
+     <para>
+       <command>ajdoc</command> currently requires the 
+       <filename>tools.jar</filename> from J2SE 1.3 to be on the classpath.
+@@ -102,15 +105,6 @@
+   </refsect1>
+ 
+   <refsect1>
+-    <title>Known limitations</title>
+-    <para>
+-      <command>ajdoc</command> documents advice and pointcut members, shows where advice applies and
+-      links affected members back to the advice.
+-      It currently does not document or add structural links for any inter-type declarations or other declare forms.
+-    </para>
+-  </refsect1>
+-
+-  <refsect1>
+     <title>Examples</title>
+     <example id="ajdocdocumentingspacewar"> <!-- docbook bug - rendering this as example 4? -->
+       <title>Documenting Spacewar</title>
+@@ -11,6 +11,8 @@
+  * ******************************************************************/
+  package org.aspectj.tools.ajdoc;
+ 
++import org.aspectj.bridge.IMessage;
++
+ /**
+  * Wrapper for ajdoc's use of the AspectJ compiler.
+  * 
+@@ -29,4 +31,8 @@ public class CompilerWrapper extends org.aspectj.tools.ajc.Main {
+ 	public static boolean hasErrors() {
+ 		return INSTANCE.ourHandler.getErrors().length > 0;
+ 	}
++	
++	public static IMessage[] getErrors() {
++		return INSTANCE.ourHandler.getErrors();
++	}
+ }
+@@ -36,9 +36,11 @@ interface Config {
+                                "  -argfile <file>           Build config file (wildcards not supported)\n" +
+                                "  -verbose                  Output messages about what Javadoc is doing\n" +
+                                "  -v                        Print out the version of ajdoc\n" +
+-							   "  -source <version>         set source level (1.3, 1.4 or 1.5)" +
++							   "  -source <version>         set source level (1.3, 1.4 or 1.5)\n" +
++							   "\n" +
++                               "as well as the AspectJ Compiler options.\n" +
+                                "\n"+
+                                "If an argument is of the form @<filename>, the file will be interpreted as\n"+
+-                               "a line delimited set of arguments to insert into the argument list.";
++                               "a line delimited set of arguments to insert into the argument list.\n";
+ 
+ }
+@@ -431,12 +431,24 @@ class HtmlDecorator {
+     }
+ 
+     private static boolean isAboveVisibility(IProgramElement element) {
+-        return 
+-            (docVisibilityModifier.equals("private")) || // everything
+-            (docVisibilityModifier.equals("package") && element.getAccessibility().equals(IProgramElement.Accessibility.PACKAGE)) || // package
+-            (docVisibilityModifier.equals("protected") && (element.getAccessibility().equals(IProgramElement.Accessibility.PROTECTED) ||
+-                    element.getAccessibility().equals(IProgramElement.Accessibility.PUBLIC))) ||
+-            (docVisibilityModifier.equals("public") && element.getAccessibility().equals(IProgramElement.Accessibility.PUBLIC));
++    	IProgramElement.Accessibility acc = element.getAccessibility();
++    	if (docVisibilityModifier.equals("private")) {
++    		// show all classes and members
++			return true;
++		} else if (docVisibilityModifier.equals("package")) {
++			// show package, protected and public classes and members
++			return acc.equals(IProgramElement.Accessibility.PACKAGE) 
++					|| acc.equals(IProgramElement.Accessibility.PROTECTED)
++					|| acc.equals(IProgramElement.Accessibility.PUBLIC);	
++		} else if (docVisibilityModifier.equals("protected")) {
++			// show protected and public classes and members
++			return acc.equals(IProgramElement.Accessibility.PROTECTED)
++					|| acc.equals(IProgramElement.Accessibility.PUBLIC);	
++		} else if (docVisibilityModifier.equals("public")){
++			// show public classes and members
++			return acc.equals(IProgramElement.Accessibility.PUBLIC);
++		}
++    	return false;
+     }
+ 
+     private static String genAccessibility(IProgramElement decl) {
+@@ -19,6 +19,7 @@ import java.util.*;
+ 
+ import java.io.FileFilter;
+ 
++import org.aspectj.bridge.IMessage;
+ import org.aspectj.bridge.Version;
+ import org.aspectj.util.FileUtil;
+ 
+@@ -64,6 +65,8 @@ public class Main implements Config {
+     private static boolean deleteTempFilesOnExit = true;
+ 
+ 	private static boolean aborted = false;
++	private static IMessage[] errors;
++	private static boolean shownAjdocUsageMessage = false;
+ 
+ 	// creating a local variable to enable us to create the ajdocworkingdir
+ 	// in a local sandbox during testing
+@@ -117,6 +120,7 @@ public class Main implements Config {
+             if (CompilerWrapper.hasErrors()) {
+             	System.out.println(FAIL_MESSAGE);
+             	aborted = true;
++            	errors = CompilerWrapper.getErrors();
+             	return;
+             }    
+ 
+@@ -454,11 +458,7 @@ public class Main implements Config {
+         for (int i = 0; i < vargs.size() ; i++) {
+             String arg = (String)vargs.get(i);  
+             ignoreArg = false;
+-            if ( addNextToAJCOptions ) {
+-                ajcOptions.addElement( arg );
+-                addNextToAJCOptions = false;
+-            }
+-            if ( addNextAsDocDir ) {
++            if (addNextAsDocDir) {
+                 docDir = arg;
+                 addNextAsDocDir = false;
+             }
+@@ -521,7 +521,7 @@ public class Main implements Config {
+             	System.out.println("> Ignoring unsupported option: -use");
+             } else if (arg.equals("-splitindex")) {
+             	// passed to javadoc
+-            } else if (arg.startsWith("-") || addNextAsOption) {
++            } else if (arg.startsWith("-") || addNextAsOption || addNextToAJCOptions) {
+                 if ( arg.equals( "-private" ) ) {
+                     docModifier = "private";
+                 } else if ( arg.equals( "-package" ) ) {
+@@ -553,8 +553,25 @@ public class Main implements Config {
+                 	|| arg.equals("-noindex")) {
+                 	// pass through 
+                 	//System.err.println("> ignoring unsupported option: " + arg);
+-                } else if ( addNextAsOption ) {
+-                    //  pass through
++                } else if (addNextToAJCOptions || addNextAsOption) {
++                	// deal with these two options together even though effectively
++                	// just falling through if addNextAsOption is true. Otherwise
++                	// will have to ensure check "addNextToAJCOptions" before
++                	// "addNextAsOption" so as the options are added to the 
++                	// correct lists.
++                	if (addNextToAJCOptions) {
++                    	ajcOptions.addElement(arg);
++                    	if (!arg.startsWith("-")) {
++                    		addNextToAJCOptions = false;
++    					}
++                    	if (!addNextAsOption) {
++    						continue;
++    					}						
++					}
++                } else if (arg.startsWith("-")) {
++                	ajcOptions.addElement(arg);
++					addNextToAJCOptions = true;
++					continue;
+                 } else {
+                 	System.err.println("> unrecognized argument: " + arg);
+                     displayHelpAndExit( null );
+@@ -672,6 +689,7 @@ public class Main implements Config {
+ 
+ 
+     static void displayHelpAndExit(String message) {
++    	shownAjdocUsageMessage = true;
+         if (message != null) {
+ 			System.err.println(message);
+ 			System.err.println();
+@@ -712,6 +730,14 @@ public class Main implements Config {
+ 		return aborted;
+ 	}
+ 
++	public static IMessage[] getErrors() {
++		return errors;
++	}
++	
++	public static boolean hasShownAjdocUsageMessage() {
++		return shownAjdocUsageMessage;
++	}
++	
+ 	/**
+ 	 * Sets the output working dir to be <fullyQualifiedOutputDir>\ajdocworkingdir
+ 	 * Useful in testing to redirect the ajdocworkingdir to the sandbox
+@@ -0,0 +1,6 @@
++public aspect AdviceDidNotMatch {
++	
++	before() : execution(* *.*(..)) {
++	}
++	
++}
+@@ -0,0 +1,6 @@
++public class C {
++	
++	public void foo() {
++	}
++	
++}
+@@ -0,0 +1,3 @@
++to regenerate the jar files contained in this project:
++
++1. ajc AdviceDidNotMatch.aj -outjar simple.jar
+@@ -0,0 +1 @@
++adviceDidNotMatch=error
+Binary files differ
+@@ -0,0 +1,3 @@
++public class C {
++	
++}
+@@ -12,6 +12,8 @@ package org.aspectj.tools.ajdoc;
+ 
+ import java.io.File;
+ import java.io.IOException;
++import java.util.Iterator;
++import java.util.List;
+ 
+ import junit.framework.AssertionFailedError;
+ import junit.framework.TestCase;
+@@ -156,6 +158,36 @@ public class AjdocTestCase extends TestCase{
+ 	}
+ 
+ 	/**
++	 * Run the ajdoc command with the default visibility
++	 * and source level, the given input files and the given
++	 * aspectj options
++	 */
++	public void runAjdoc(File[] inputFiles, String sourceLevel, String[] ajOptions) {
++		if (inputFiles.length == 0) {
++			fail("need to pass some files into ajdoc");
++		} 
++		if (!sourceLevel.equals("1.3")
++				&& !sourceLevel.equals("1.4")
++				&& !sourceLevel.equals("1.5")) {
++			fail("need to pass ajdoc '1.3', '1.4', or '1.5' as the source level");
++		}
++ 		String[] args = new String[6 + inputFiles.length + ajOptions.length];
++ 		args[0] = "-source";
++		args[1] = sourceLevel;
++		args[2] = "-classpath";
++		args[3] = AjdocTests.ASPECTJRT_PATH.getPath();
++		args[4] = "-d";
++		args[5] = getAbsolutePathOutdir();
++		for (int i = 0; i < ajOptions.length; i++) {
++			args[6 + i] = ajOptions[i];
++		}
++		for (int i = 0; i < inputFiles.length; i++) {
++			args[6 + i +ajOptions.length] = inputFiles[i].getAbsolutePath();
++		}
++        org.aspectj.tools.ajdoc.Main.main(args);		
++	}
++	
++	/**
+ 	 * Run the ajdoc command with the given visibility argument,
+ 	 * the given source level argument and the given input files. 
+ 	 */
+@@ -263,4 +295,18 @@ public class AjdocTestCase extends TestCase{
+ 		args[7] = "@" + getAbsoluteProjectDir() + File.separatorChar + lstFile;
+         org.aspectj.tools.ajdoc.Main.main(args);
+ 	}
++	
++	/**
++	 * Run the ajdoc command with the given options
++	 */
++	public void runAjdoc(List options) {
++		String[] args = new String[options.size()];
++		int i = 0;                
++		for (Iterator iter = options.iterator(); iter.hasNext();) {
++			String element = (String) iter.next();
++			args[i] = element;
++			i++;
++		}
++		org.aspectj.tools.ajdoc.Main.main(args);
++	}
+ }
+@@ -44,7 +44,8 @@ public class AjdocTests extends TestCase {
+         suite.addTestSuite(FullyQualifiedArgumentTest.class);
+         suite.addTestSuite(EnumTest.class);
+         suite.addTestSuite(PointcutVisibilityTest.class);
+-        suite.addTestSuite(ExecutionTestCase.class);// !!! must be last because it exists
++        suite.addTestSuite(ExecutionTestCase.class); 
++        suite.addTestSuite(BugTests.class);
+         //$JUnit-END$
+         return suite;
+     }
+@@ -0,0 +1,133 @@
++/********************************************************************
++ * Copyright (c) 2006 Contributors. All rights reserved. 
++ * This program and the accompanying materials are made available 
++ * under the terms of the Eclipse Public License v1.0 
++ * which accompanies this distribution and is available at 
++ * http://eclipse.org/legal/epl-v10.html 
++ *  
++ * Contributors: IBM Corporation - initial API and implementation 
++ * 				 Helen Hawkins   - initial version
++ *******************************************************************/
++package org.aspectj.tools.ajdoc;
++
++import java.io.File;
++import java.util.ArrayList;
++import java.util.List;
++
++public class BugTests extends AjdocTestCase {
++
++	public void testPr160302() throws Exception {
++		initialiseProject("pr160302");
++		File[] files = {new File(getAbsoluteProjectDir() + "/C.java")};
++		runAjdoc(files);
++		assertFalse("expected clean build of project but found that build aborted",Main.hasAborted());
++		File html = new File(getAbsolutePathOutdir() + File.separator + "C.html");
++		if (html == null || !html.exists()) {
++			fail("couldn't find " + getAbsolutePathOutdir() + File.separator + "C.html - were there javadoc/compilation errors?");
++		}
++		assertFalse("expected all decorating tags to be removed but found that they" +
++				" weren't",AjdocOutputChecker.containsString(html, Config.DECL_ID_STRING));
++	}
++	
++	/**
++	 * Passing the "-Xlint:error" option through to the compiler should
++	 * cause the ajc build to fail because the advice did not match
++	 */
++	public void testPr148906_1() {
++		initialiseProject("pr148906");
++		File[] files = {new File(getAbsoluteProjectDir() + "/AdviceDidNotMatch.aj")};
++		String[] ajOptions = {new String("-Xlint:error")};
++		runAjdoc(files,"1.5",ajOptions);
++		assertTrue("expected ajc to fail but it did not", Main.hasAborted());
++		assertEquals("expected ajc to fail with an adviceDidNotMatch error but it" +
++				" failed instead with " + Main.getErrors()[0].getMessage(),
++				"advice defined in AdviceDidNotMatch has not been applied [Xlint:adviceDidNotMatch]",
++				Main.getErrors()[0].getMessage());
++	}
++
++	/**
++	 * Passing the "-Xlintfile" option through to the compiler should
++	 * cause the ajc build to fail because the advice did not match
++	 */
++	public void testPr148906_2() {
++		initialiseProject("pr148906");
++		File[] files = {new File(getAbsoluteProjectDir() + "/AdviceDidNotMatch.aj")};
++		String[] ajOptions = {new String("-Xlintfile"), new String(getAbsoluteProjectDir() + File.separator + "Xlint.properties")};
++		runAjdoc(files,"1.5",ajOptions);
++		assertTrue("expected ajc to fail but it did not", Main.hasAborted());
++		assertEquals("expected ajc to fail with an adviceDidNotMatch error but it" +
++				" failed instead with " + Main.getErrors()[0].getMessage(),
++				"advice defined in AdviceDidNotMatch has not been applied [Xlint:adviceDidNotMatch]",
++				Main.getErrors()[0].getMessage());
++	}
++	
++	/**
++	 * Passing the -aspectpath option though to the compiler should
++	 * result in relationships being displayed
++	 */
++	public void testPr148906_3() throws Exception {
++		initialiseProject("pr148906");
++		File[] files = {new File(getAbsoluteProjectDir() + "/C.java")};
++		String[] ajOptions = {new String("-aspectpath"), new String(getAbsoluteProjectDir() + File.separator + "simple.jar")};
++		runAjdoc(files,"1.5",ajOptions);
++		assertFalse("expected clean build of project but found that build aborted",Main.hasAborted());
++		File html = new File(getAbsolutePathOutdir() + File.separator + "C.html");
++		if (html == null || !html.exists()) {
++			fail("couldn't find " + getAbsolutePathOutdir() + File.separator + "C.html - were there javadoc/compilation errors?");
++		}
++		assertTrue("expected to find 'Advised by' in the html output but did " +
++				" not",AjdocOutputChecker.containsString(html, 
++						HtmlDecorator.HtmlRelationshipKind.ADVISED_BY.getName()));
++	}
++	
++	/**
++	 * Passing an option starting with "-" that doesn't require a second entry 
++	 * should mean everything is correctly given to the compiler. For example:
++	 * '-outxml -aspectpath <file>" should mean both '-outxml' and the aspectpath
++	 * options are given correctly.
++	 */
++	public void testPr148906_4() throws Exception {
++		initialiseProject("pr148906");
++		File[] files = {new File(getAbsoluteProjectDir() + "/C.java")};
++		String[] ajOptions = {new String("-outxml"),new String("-aspectpath"), new String(getAbsoluteProjectDir() + File.separator + "simple.jar")};
++		runAjdoc(files,"1.5",ajOptions);
++		assertFalse("expected clean build of project but found that build aborted",Main.hasAborted());
++		File html = new File(getAbsolutePathOutdir() + File.separator + "C.html");
++		if (html == null || !html.exists()) {
++			fail("couldn't find " + getAbsolutePathOutdir() + File.separator + "C.html - were there javadoc/compilation errors?");
++		}
++		assertTrue("expected to find 'Advised by' in the html output but did " +
++				" not",AjdocOutputChecker.containsString(html, 
++						HtmlDecorator.HtmlRelationshipKind.ADVISED_BY.getName()));
++		File aopFile = new File(getAbsolutePathOutdir() + File.separator 
++				+ "META-INF" + File.separator + "aop-ajc.xml");
++		assertTrue("couldn't find " + getAbsolutePathOutdir() + File.separator 
++				+ "META-INF" + File.separator + "aop-ajc.xml" , 
++				aopFile != null && aopFile.exists());
++	}	
++	
++	/**
++	 * Passing bogus option to ajc
++	 */
++	public void testPr148906_5() throws Exception {
++		initialiseProject("pr148906");
++		File[] files = {new File(getAbsoluteProjectDir() + "/C.java")};
++		String[] ajOptions = {new String("-bogus")};
++		runAjdoc(files,"1.5",ajOptions);
++		assertTrue("expected build of project to abort",Main.hasAborted());
++	}
++	
++	/**
++	 * Not passing any files to ajdoc should result in both the ajdoc
++	 * and ajc usage messages
++	 */
++	public void testPr148906_6() throws Exception {
++		initialiseProject("pr148906");
++		List options = new ArrayList();
++		options.add("-verbose");
++		runAjdoc(options);
++		assertTrue("expected the ajdoc usage message to be reported",Main.hasShownAjdocUsageMessage());
++		assertTrue("expected build of project to abort",Main.hasAborted());		
++	}
++	
++}

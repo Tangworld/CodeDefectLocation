@@ -1,0 +1,65 @@
+@@ -28,11 +28,12 @@ public class DeclareSoftImpl implements DeclareSoft {
+ 	private String missingTypeName;
+ 
+ 
+-	public DeclareSoftImpl(AjType declaringType, String pcut, String exceptionTypeName) {
++	public DeclareSoftImpl(AjType<?> declaringType, String pcut, String exceptionTypeName) {
+ 		this.declaringType = declaringType;
+ 		this.pointcut = new PointcutExpressionImpl(pcut);
+ 		try {
+-			this.exceptionType = AjTypeSystem.getAjType(Class.forName(exceptionTypeName));
++			ClassLoader cl = declaringType.getJavaClass().getClassLoader();
++			this.exceptionType = AjTypeSystem.getAjType(Class.forName(exceptionTypeName,false,cl));
+ 		} catch (ClassNotFoundException ex) {
+ 			this.missingTypeName = exceptionTypeName;
+ 		}
+@@ -40,7 +40,7 @@ public class StringToType {
+ 	throws ClassNotFoundException {
+ 		try {
+ 			if (typeName.indexOf("<") == -1) {
+-				return AjTypeSystem.getAjType(Class.forName(typeName));
++				return AjTypeSystem.getAjType(Class.forName(typeName,false,classScope.getClassLoader()));
+ 			} else {
+ 				return makeParameterizedType(typeName,classScope);
+ 			}
+@@ -60,7 +60,7 @@ public class StringToType {
+ 	throws ClassNotFoundException {
+ 		int paramStart = typeName.indexOf('<');
+ 		String baseName = typeName.substring(0, paramStart);
+-		final Class baseClass = Class.forName(baseName);
++		final Class baseClass = Class.forName(baseName,false,classScope.getClassLoader());
+ 		int paramEnd = typeName.lastIndexOf('>');
+ 		String params = typeName.substring(paramStart+1,paramEnd);
+ 		final Type[] typeParams = commaSeparatedListToTypeArray(params,classScope);
+@@ -150,15 +150,15 @@
+     </ajc-test>          
+ 
+    <ajc-test dir="java5/ataspectj/annotationGen" title="ann gen for decp">
+-        <compile files="DeclareParentsTest.aj" options="-1.5">
++        <compile files="DeclareParentsTest.aj" options="-1.5, -outxml">
+         </compile>
+-        <run class="DeclareParentsTest"/>
++        <run class="DeclareParentsTest" ltw=""/>
+     </ajc-test>          
+ 
+       <ajc-test dir="java5/ataspectj/annotationGen" title="ann gen for decp 2">
+-        <compile files="DeclareParentsTestAdvanced.aj" options="-1.5">
++        <compile files="DeclareParentsTestAdvanced.aj" options="-1.5, -outxml">
+         </compile>
+-        <run class="a.b.c.DeclareParentsTestAdvanced"/>
++        <run class="a.b.c.DeclareParentsTestAdvanced" ltw=""/>
+     </ajc-test>
+ 
+     <ajc-test dir="java5/ataspectj/annotationGen" title="ann gen for decs">
+@@ -180,8 +180,8 @@
+     </ajc-test>
+ 
+     <ajc-test dir="java5/ataspectj/annotationGen" title="ann gen for itds">
+-        <compile files="ITDTest.aj" options="-1.5">
++        <compile files="ITDTest.aj" options="-1.5, -outxml">
+         </compile>
+-        <run class="a.b.c.ITDTest"/>
++        <run class="a.b.c.ITDTest" ltw=""/>
+     </ajc-test>    
+ </suite>
+\ No newline at end of file

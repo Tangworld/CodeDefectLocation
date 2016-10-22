@@ -1,0 +1,365 @@
+@@ -32,6 +32,32 @@ public class Ajc163Tests extends org.aspectj.testing.XMLBasedAjcTestCase {
+ 	// runTest("ataspectj decp");
+ 	// }
+ 
++	public void testIncorrectArgOrdering_pr219419() {
++		runTest("incorrect arg ordering anno style");
++	}
++
++	public void testIncorrectArgOrdering_pr219419_2() {
++		runTest("incorrect arg ordering anno style - 2");
++	}
++
++	public void testIncorrectArgOrdering_pr219419_3() {
++		runTest("incorrect arg ordering anno style - 3");
++	}
++
++	// similar to 3 but parameters other way round
++	public void testIncorrectArgOrdering_pr219419_4() {
++		runTest("incorrect arg ordering anno style - 4");
++	}
++
++	// similar to 3 but also JoinPoint passed into advice
++	public void testIncorrectArgOrdering_pr219419_5() {
++		runTest("incorrect arg ordering anno style - 5");
++	}
++
++	// public void testDecpAnnoStyle_pr257754() {
++	// runTest("decp anno style");
++	// }
++
+ 	public void testPoorAtAjIfMessage_pr256458() {
+ 		runTest("poor ataj if message - 1");
+ 	}
+@@ -39,15 +65,12 @@ public class Ajc163Tests extends org.aspectj.testing.XMLBasedAjcTestCase {
+ 	public void testPoorAtAjIfMessage_pr256458_2() {
+ 		runTest("poor ataj if message - 2");
+ 	}
+-/*
+-	public void testInheritedAnnotations_pr128664() {
+-		runTest("inherited annotations");
+-	}
+ 
+-	public void testInheritedAnnotations_pr128664_2() {
+-		runTest("inherited annotations - 2");
+-	}
+-*/
++	/*
++	 * public void testInheritedAnnotations_pr128664() { runTest("inherited annotations"); }
++	 * 
++	 * public void testInheritedAnnotations_pr128664_2() { runTest("inherited annotations - 2"); }
++	 */
+ 	public void testGetMethodNull_pr154427() {
+ 		runTest("getMethod returning null");
+ 	}
+@@ -98,6 +121,10 @@ public class Ajc163Tests extends org.aspectj.testing.XMLBasedAjcTestCase {
+ 		IProgramElement itd = findElementAtLine(top.getRoot(), 10);
+ 		String type = itd.getCorrespondingType(true);
+ 		assertEquals("java.util.List<java.lang.String>", type);
++
++		itd = findElementAtLine(top.getRoot(), 16);
++		type = itd.getCorrespondingType(true);
++		assertEquals("java.util.List<java.lang.String>", type);
+ 	}
+ 
+ 	private IProgramElement findElementAtLine(IProgramElement whereToLook, int line) {
+@@ -33,6 +33,61 @@
+    	  <run class="Bug2"/>
+     </ajc-test>
+ 
++    <ajc-test dir="bugs163/pr257754" title="decp anno style">
++   	  <compile files="Main.java" options="-1.5"/>
++   	  <run class="example.Main"/>
++    </ajc-test>
++    
++    <ajc-test dir="bugs163/pr219419" title="incorrect arg ordering anno style">
++   	  <compile files="Code.java" options="-1.5"/>
++   	  <run class="Code">
++   	    <stdout>
++   	    <line text="Catching mess. Argument was ewwww"/>
++   	    </stdout>
++   	  </run>
++    </ajc-test>
++    
++    <ajc-test dir="bugs163/pr219419" title="incorrect arg ordering anno style - 2">
++   	  <compile files="Code2.java" options="-1.5"/>
++   	  <run class="Code2">
++   	    <stdout>
++   	    <line text="Catching mess. Argument was ewwww"/>
++   	    </stdout>
++   	  </run>
++    </ajc-test>
++    
++    <ajc-test dir="bugs163/pr219419" title="incorrect arg ordering anno style - 3">
++   	  <compile files="Code3.java" options="-1.5"/>
++   	  <run class="Code3">
++   	    <stdout>
++   	    <line text="afterReturningCreateBean advice input='s' ret=37"/>
++   	    <line text="Code3.main returned from call to createBean 37"/>
++   	    </stdout>
++   	  </run>
++    </ajc-test>
++    
++    <ajc-test dir="bugs163/pr219419" title="incorrect arg ordering anno style - 4">
++   	  <compile files="Code4.java" options="-1.5"/>
++   	  <run class="Code4">
++   	    <stdout>
++   	    <line text="afterReturningCreateBean advice input='s' ret=37"/>
++   	    <line text="Code4.main returned from call to createBean 37"/>
++   	    </stdout>
++   	  </run>
++    </ajc-test>
++    
++    <ajc-test dir="bugs163/pr219419" title="incorrect arg ordering anno style - 5">
++   	  <compile files="Code5.java" options="-1.5"/>
++   	  <run class="Code5">
++   	    <stdout>
++   	    <line text="afterReturningCreateBean advice input='s' ret=37"/>
++   	    <line text="Code5.main returned from call to createBean 37"/>
++   	    </stdout>
++   	  </run>
++    </ajc-test>
++    
++    
++    
+     <ajc-test dir="bugs163/pr256458" title="poor ataj if message - 1">
+    	  <compile files="Code.java" options="-1.5">
+    	    <message kind="error" text="in annotation style, if(...) pointcuts cannot contain code"/>
+@@ -294,25 +294,70 @@ public abstract class Advice extends ShadowMunger {
+ 		return result;
+ 	}
+ 
++
++	/**
++	 * Return the type of the 'extra argument'. For either after returning or after throwing advice, the extra argument will be the
++	 * returned value or the thrown exception respectively. With annotation style the user may declare the parameters in any order,
++	 * whereas for code style they are in a well defined order. So there is some extra complexity in here for annotation style that
++	 * looks up the correct parameter in the advice signature by name, based on the name specified in the annotation. If this fails
++	 * then we 'fallback' to guessing at positions, where the extra argument is presumed to come at the end.
++	 * 
++	 * @return the type of the extraParameter
++	 */
+ 	public UnresolvedType getExtraParameterType() {
+-		if (!hasExtraParameter())
++		if (!hasExtraParameter()) {
+ 			return ResolvedType.MISSING;
++		}
+ 		if (signature instanceof ResolvedMember) {
++			ResolvedMember method = (ResolvedMember) signature;
++			UnresolvedType[] parameterTypes = method.getGenericParameterTypes();
+ 			if (getConcreteAspect().isAnnotationStyleAspect()) {
++
++				// Examine the annotation to determine the parameter name then look it up in the parameters for the method
++				String[] pnames = method.getParameterNames();
++				if (pnames != null) {
++					// It is worth attempting to look up the correct parameter
++					AnnotationAJ[] annos = getSignature().getAnnotations();
++					String parameterToLookup = null;
++					if (annos != null && (getKind() == AdviceKind.AfterThrowing || getKind() == AdviceKind.AfterReturning)) {
++						for (int i = 0; i < annos.length && parameterToLookup == null; i++) {
++							AnnotationAJ anno = annos[i];
++							String annosig = anno.getType().getSignature();
++							if (annosig.equals("Lorg/aspectj/lang/annotation/AfterThrowing;")) {
++								// the 'throwing' value in the annotation will name the parameter to bind to
++								parameterToLookup = anno.getStringFormOfValue("throwing");
++							} else if (annosig.equals("Lorg/aspectj/lang/annotation/AfterReturning;")) {
++								// the 'returning' value in the annotation will name the parameter to bind to
++								parameterToLookup = anno.getStringFormOfValue("returning");
++							}
++						}
++					}
++					if (parameterToLookup != null) {
++						for (int i = 0; i < pnames.length; i++) {
++							if (pnames[i].equals(parameterToLookup)) {
++								return parameterTypes[i];
++							}
++						}
++					}
++				}
++
++				// Don't think this code works so well... why isnt it getBaseParameterCount()-1 ?
++
++				int baseParmCnt = getBaseParameterCount();
++
+ 				// bug 122742 - if we're an annotation style aspect then one
+ 				// of the extra parameters could be JoinPoint which we want
+ 				// to ignore
+-				int baseParmCnt = getBaseParameterCount();
+-				UnresolvedType[] genericParameterTypes = ((ResolvedMember) signature).getGenericParameterTypes();
+-				while ((baseParmCnt + 1 < genericParameterTypes.length)
+-						&& (genericParameterTypes[baseParmCnt].equals(AjcMemberMaker.TYPEX_JOINPOINT)
+-								|| genericParameterTypes[baseParmCnt].equals(AjcMemberMaker.TYPEX_STATICJOINPOINT) || genericParameterTypes[baseParmCnt]
++				while ((baseParmCnt + 1 < parameterTypes.length)
++						&& (parameterTypes[baseParmCnt].equals(AjcMemberMaker.TYPEX_JOINPOINT)
++								|| parameterTypes[baseParmCnt].equals(AjcMemberMaker.TYPEX_STATICJOINPOINT) || parameterTypes[baseParmCnt]
+ 								.equals(AjcMemberMaker.TYPEX_ENCLOSINGSTATICJOINPOINT))) {
+ 					baseParmCnt++;
+ 				}
+-				return ((ResolvedMember) signature).getGenericParameterTypes()[baseParmCnt];
++				return parameterTypes[baseParmCnt];
++			} else {
++				return parameterTypes[getBaseParameterCount()];
+ 			}
+-			return ((ResolvedMember) signature).getGenericParameterTypes()[getBaseParameterCount()];
+ 		} else {
+ 			return signature.getParameterTypes()[getBaseParameterCount()];
+ 		}
+@@ -0,0 +1,26 @@
++import org.aspectj.lang.annotation.*;
++
++public class Code {
++  public void emitGooeyMess(String argument) throws Exception {
++    throw new RuntimeException("Gooey Mess");
++  }
++
++  public static void main(String []argv) {
++	  try {
++	  new Code().emitGooeyMess("ewwww");
++	  } catch (Exception e) {}
++  }
++}
++
++@Aspect
++class TestAspect {
++  @Pointcut("execution(* Code.*(..)) && args(s)")
++  public void squidStringMethods(String s) {}
++
++  @AfterThrowing(pointcut="squidStringMethods(s)", throwing="e")
++  public void catchGooeyMess(Exception e, String s) {
++  //public void catchGooeyMess(String s, Exception e) {
++    System.out.println("Catching mess. Argument was " + s);
++  }
++}
++
+@@ -0,0 +1,26 @@
++import org.aspectj.lang.annotation.*;
++
++public class Code2 {
++  public void emitGooeyMess(String argument) throws Exception {
++    throw new RuntimeException("Gooey Mess");
++  }
++
++  public static void main(String []argv) {
++	  try {
++	  new Code2().emitGooeyMess("ewwww");
++	  } catch (Exception e) {}
++  }
++}
++
++@Aspect
++class TestAspect {
++  @Pointcut("execution(* Code2.*(..)) && args(s)")
++  public void squidStringMethods(String s) {}
++
++  @AfterThrowing(pointcut="squidStringMethods(s)", throwing="e")
++  public void catchGooeyMess(String s, Exception e) {
++  //public void catchGooeyMess(String s, Exception e) {
++    System.out.println("Catching mess. Argument was " + s);
++  }
++}
++
+@@ -0,0 +1,39 @@
++import org.aspectj.lang.annotation.*;
++import org.aspectj.lang.JoinPoint;
++import org.aspectj.lang.annotation.AfterReturning;
++import org.aspectj.lang.annotation.Aspect;
++
++public class Code3 {
++
++  public Object createBean(String name) {
++    return 37;
++  }
++
++  public static void main(String[] args) {
++    Code3 factory = new Code3();
++    System.out.println("Code3.main returned from call to createBean "+factory.createBean("s"));
++  }
++}
++
++@Aspect
++class AfterReturningTestAspect {
++
++  @AfterReturning(pointcut = "call(Object createBean(String)) && args(beanName)", returning = "bean")
++  // this does not run
++  public void afterReturningCreateBean(/*JoinPoint joinPoint,*/ String beanName, Object bean) throws Throwable {
++  // this matches:
++  //public void afterReturningCreateBean(JoinPoint joinPoint, Object bean, String beanName) throws Throwable {
++    System.out.println("afterReturningCreateBean advice input='" + beanName + "' ret=" + bean);
++  }
++
++  /*
++  @AfterReturning(pointcut = "call(Object aspects.SimpleAfterReturningTest.createBean(String)) " +
++				                                "&& args(beanName)", returning = "bean")
++			        public void afterReturningCreateBean(JoinPoint joinPoint, Object bean,
++						String beanName) throws Throwable {
++					        System.out.println("afterReturningCreateBean(JoinPoint joinPoint,
++						Object bean, String beanName) for '" + beanName + "'=" + bean);
++						    }
++						    */
++}
++
+@@ -0,0 +1,36 @@
++import org.aspectj.lang.annotation.*;
++import org.aspectj.lang.JoinPoint;
++import org.aspectj.lang.annotation.AfterReturning;
++import org.aspectj.lang.annotation.Aspect;
++
++public class Code4 {
++
++  public Object createBean(String name) {
++    return 37;
++  }
++
++  public static void main(String[] args) {
++    Code4 factory = new Code4();
++    System.out.println("Code4.main returned from call to createBean "+factory.createBean("s"));
++  }
++}
++
++@Aspect
++class AfterReturningTestAspect {
++
++  @AfterReturning(pointcut = "call(Object createBean(String)) && args(beanName)", returning = "bean")
++  public void afterReturningCreateBean(Object bean, String beanName) throws Throwable {
++    System.out.println("afterReturningCreateBean advice input='" + beanName + "' ret=" + bean);
++  }
++
++  /*
++  @AfterReturning(pointcut = "call(Object aspects.SimpleAfterReturningTest.createBean(String)) " +
++				                                "&& args(beanName)", returning = "bean")
++			        public void afterReturningCreateBean(JoinPoint joinPoint, Object bean,
++						String beanName) throws Throwable {
++					        System.out.println("afterReturningCreateBean(JoinPoint joinPoint,
++						Object bean, String beanName) for '" + beanName + "'=" + bean);
++						    }
++						    */
++}
++
+@@ -0,0 +1,27 @@
++import org.aspectj.lang.annotation.*;
++import org.aspectj.lang.JoinPoint;
++import org.aspectj.lang.annotation.AfterReturning;
++import org.aspectj.lang.annotation.Aspect;
++
++public class Code5 {
++
++  public Object createBean(String name) {
++    return 37;
++  }
++
++  public static void main(String[] args) {
++    Code5 factory = new Code5();
++    System.out.println("Code5.main returned from call to createBean "+factory.createBean("s"));
++  }
++}
++
++@Aspect
++class AfterReturningTestAspect {
++
++  @AfterReturning(pointcut = "call(Object createBean(String)) && args(beanName)", returning = "bean")
++  public void afterReturningCreateBean(JoinPoint joinPoint, String beanName, Object bean) throws Throwable {
++    System.out.println("afterReturningCreateBean advice input='" + beanName + "' ret=" + bean);
++  }
++
++}
++

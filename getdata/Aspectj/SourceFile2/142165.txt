@@ -1,0 +1,60 @@
+@@ -16,7 +16,11 @@ import junit.framework.Test;
+ import org.aspectj.testing.XMLBasedAjcTestCase;
+ 
+ public class Ajc152Tests extends org.aspectj.testing.XMLBasedAjcTestCase {
+-	
++
++//	public void testMisbehavingDeclareAnnotation_pr135865() { runTest("misbehaving declare annotation");}
++  public void testCompletelyBrokenAopConcretization_pr142165_1() { runTest("broken concretization");}
++  public void testCompletelyBrokenAopConcretization_pr142165_2() { runTest("broken concretization - 2");}
++  public void testCompletelyBrokenAopConcretization_pr142165_3() { runTest("broken concretization - 3");}
+   public void testVerifyErrorLTW_pr135068() { runTest("ltw verifyerror");}
+   public void testVerifyErrorLTW_pr135068_2() { runTest("ltw verifyerror - 2");}
+   public void testVerifyErrorLTW_pr135068_3() { runTest("ltw verifyerror - 3");}
+@@ -710,7 +710,7 @@ public class LangUtil {
+         while (-1 != (loc = in.indexOf(sought, start))) {
+             result.append(in.substring(start, loc));
+             if (!LangUtil.isEmpty(replace)) {
+-                result.append(in.substring(start, loc));
++                result.append(replace);
+             }
+             start = loc + len;
+         }
+@@ -1720,7 +1720,9 @@ public class AtAjAttributes {
+      */
+     private static Pointcut parsePointcut(String pointcutString, AjAttributeStruct struct, boolean allowIf) {
+         try {
+-            Pointcut pointcut = new PatternParser(pointcutString, struct.context).parsePointcut();
++        	PatternParser parser = new PatternParser(pointcutString, struct.context);
++            Pointcut pointcut = parser.parsePointcut();
++            parser.checkEof();
+             if (!allowIf && pointcutString.indexOf("if()") >= 0 && hasIf(pointcut)) {
+                 reportError("if() pointcut is not allowed at this pointcut location '" + pointcutString +"'", struct);
+                 return null;
+@@ -1728,10 +1730,12 @@ public class AtAjAttributes {
+             pointcut.setLocation(struct.context, -1, -1);//FIXME -1,-1 is not good enough
+             return pointcut;
+         } catch (ParserException e) {
+-            reportError("Invalid pointcut '" + pointcutString + "': " + e.toString(), struct);
++            reportError("Invalid pointcut '" + pointcutString + "': " + e.toString() +
++            		(e.getLocation()==null?"":" at position "+e.getLocation().getStart()), struct);
+             return null;
+         }
+     }
++    
+ 
+     private static boolean hasIf(Pointcut pointcut) {
+         IfFinder visitor = new IfFinder();
+@@ -1424,6 +1424,12 @@ public class PatternParser {
+ 		return next.getString() == token;
+ 	}
+ 
++	public void checkEof() {
++		IToken last = tokenSource.next();
++		if (last != IToken.EOF) {
++			throw new ParserException("unexpected pointcut element", last);
++		}
++	}
+ 
+ 	public PatternParser(String data) {
+ 		this(BasicTokenSource.makeTokenSource(data,null));

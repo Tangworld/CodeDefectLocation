@@ -1,0 +1,118 @@
+@@ -652,8 +652,29 @@ commands to your environment as needed.
+       <para>To access compiler messages programmatically, use the methods
+          <literal>setHolder(IMessageHolder holder)</literal> and/or
+          <literal>run(String[] args, IMessageHolder holder)</literal>.
++		  <literal>ajc</literal> reports each message to the holder
++		  using <literal>IMessageHolder.handleMessage(..)</literal>.
++		  If you just want to collect the messages, use
++		  <literal>MessageHandler</literal> as your		  
++		  <literal>IMessageHolder</literal>.
++		  For example, compile and run the following with 
++		  <literal>aspectjtools.jar</literal> on the classpath:
+       </para>
+-
++        <programlisting>
++import org.aspectj.bridge.*;
++import org.aspectj.tools.ajc.Main;
++import java.util.Arrays;
++
++public class WrapAjc {
++  public static void main(String[] args) {
++    Main compiler = new Main();
++    MessageHandler m = new MessageHandler();
++    compiler.run(args, m);
++    IMessage[] ms = m.getMessages(null, true);
++    System.out.println("messages: " + Arrays.asList(ms));
++  }
++}
++        </programlisting>
+     </refsect2>
+ 
+     <refsect2>
+@@ -21,6 +21,7 @@ import org.aspectj.ajde.ui.StructureSearchManager;
+ import org.aspectj.ajde.ui.StructureViewManager;
+ import org.aspectj.ajde.ui.StructureViewNodeFactory;
+ import org.aspectj.asm.AsmManager;
++import org.aspectj.bridge.IMessageHandler;
+ import org.aspectj.bridge.Version;
+ import org.aspectj.util.LangUtil;
+ import org.aspectj.util.Reflection;
+@@ -53,6 +54,7 @@ public class Ajde {
+ 	private IdeUIAdapter ideUIAdapter;
+ 	private ErrorHandler errorHandler;
+ 	private PrintStream logPrintStream = null;
++	private IMessageHandler messageHandler = null; // allow provision of custom handler
+ 
+ 	/**
+ 	 * This class can only be constructured by itself (as a singleton) or by sub-classes. 
+@@ -114,6 +116,19 @@ public class Ajde {
+ 	public void setConfigurationManager(BuildConfigManager configurationManager) {
+ 		this.configurationManager = configurationManager;	
+ 	}
++	
++	/**
++	 * Call this method with a custom IMessageHandler to override the default message
++	 * handling.
++	 * @param aHandler
++	 */
++	public void setMessageHandler(IMessageHandler aHandler) {
++		this.messageHandler = aHandler;
++	}
++	
++	public IMessageHandler getMessageHandler() {
++		return messageHandler;
++	}
+ 
+ 	public BuildManager getBuildManager() {
+ 		return buildManager;
+@@ -45,7 +45,7 @@ public class CompilerAdapter {
+ 
+ //	private Map optionsMap;
+ 	private AjBuildManager buildManager = null;
+-    private MessageHandlerAdapter messageHandler = null;
++    private IMessageHandler messageHandler = null;
+     private BuildNotifierAdapter currNotifier = null;
+ 	private boolean initialized = false;
+ 	private boolean structureDirty = true;
+@@ -99,7 +99,6 @@ public class CompilerAdapter {
+ 			buildConfig.setGenerateModelMode(buildModel);
+ 			currNotifier = new BuildNotifierAdapter(progressMonitor, buildManager);		
+ 			buildManager.setProgressListener(currNotifier);
+-			messageHandler.setBuildNotifierAdapter(currNotifier);
+ 
+ 			String rtInfo = buildManager.checkRtJar(buildConfig); // !!! will get called twice
+ 			if (rtInfo != null) {
+@@ -600,7 +599,11 @@ public class CompilerAdapter {
+ 	private void init() {
+ 		if (!initialized) {  // XXX plug into AJDE initialization
+ //			Ajde.getDefault().setErrorHandler(new DebugErrorHandler());
+-			this.messageHandler = new MessageHandlerAdapter();
++			if (Ajde.getDefault().getMessageHandler() != null) {
++				this.messageHandler = Ajde.getDefault().getMessageHandler();
++			} else {
++				this.messageHandler = new MessageHandlerAdapter();
++			}
+ 			buildManager = new AjBuildManager(messageHandler);
+             // XXX need to remove the properties file each time!
+ 			initialized = true;
+@@ -609,8 +612,7 @@ public class CompilerAdapter {
+ 
+ 	class MessageHandlerAdapter extends MessageHandler {
+ 		private TaskListManager taskListManager;
+-		private BuildNotifierAdapter buildNotifierAdapter;
+-		
++
+ 		public MessageHandlerAdapter() {
+ 			this.taskListManager = Ajde.getDefault().getTaskListManager();
+ 		}	
+@@ -625,10 +627,6 @@ public class CompilerAdapter {
+ 			taskListManager.addSourcelineTask(message);
+ 			return super.handleMessage(message); // also store...	
+ 		}
+-        // --------------- adje methods
+-		public void setBuildNotifierAdapter(BuildNotifierAdapter buildNotifierAdapter) {
+-			this.buildNotifierAdapter = buildNotifierAdapter;
+-		}
+ 	}
+ 
+ 	public void setState(AjState buildState) {

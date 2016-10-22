@@ -1,0 +1,69 @@
+@@ -245,7 +245,9 @@ public class AspectDeclaration extends TypeDeclaration {
+ 
+ 
+ 		if (!isAbstract()) {
+-			initFailureField = factory.createSyntheticFieldBinding(binding,AjcMemberMaker.initFailureCauseField(typeX));
++			if (perClause!=null && perClause.getKind()==PerClause.SINGLETON) {
++				initFailureField = factory.createSyntheticFieldBinding(binding,AjcMemberMaker.initFailureCauseField(typeX));
++			}
+ //			binding.addSyntheticField((SyntheticFieldBinding)initFailureField);
+ 			//initFailureField = factory.makeFieldBinding(AjcMemberMaker.initFailureCauseField(typeX));
+ 			//binding.addField(initFailureField);
+@@ -168,7 +168,9 @@ public class BcelPerClauseAspectAdder extends BcelTypeMunger {
+ 
+         //FIXME Alex percflowX is not using this one but AJ code style does generate it so..
+         ResolvedMember failureFieldInfo = AjcMemberMaker.initFailureCauseField(aspectType);
+-        classGen.addField(makeFieldGen(classGen, failureFieldInfo), null);
++        if (kind == PerClause.SINGLETON) {
++        	classGen.addField(makeFieldGen(classGen, failureFieldInfo), null);
++        }
+ 
+         if (kind == PerClause.SINGLETON) {
+             ResolvedMember perSingletonFieldInfo = AjcMemberMaker.perSingletonField(aspectType);
+@@ -0,0 +1,26 @@
++import java.lang.reflect.*;
++
++aspect X pertypewithin(A*) {
++  before(): execution(* *(..)) {}
++}
++
++class A {
++  public void foo() {}
++}
++
++class AA {
++  public void foo() {}
++}
++public class PTW {
++  public void foo() {}
++  
++  public static void main(String []argv) {
++	  Field[] fs = X.class.getDeclaredFields();
++	  for (int i=0;i<fs.length;i++) {
++		  if (fs[i].getName().equals("ajc$initFailureCause")) {
++			  throw new RuntimeException("Should be no ajc$initFailureCause field for ptw");
++		  }
++	  }
++  }
++}
++
+@@ -19,6 +19,7 @@ import org.aspectj.testing.XMLBasedAjcTestCase;
+ public class Ajc162Tests extends org.aspectj.testing.XMLBasedAjcTestCase {
+ 
+ 	// AspectJ1.6.2	
++	public void testPTW_pr244830() { runTest("ptw initFailureCause"); }
+ 	public void testGenericItdsOverrides_pr222648() { runTest("generic itds - overrides"); }
+ 	public void testGenericItdsOverrides_pr222648_2() { runTest("generic itds - overrides - 2"); }
+     public void testItdCallingGenericMethod_pr145391() { runTest("itd calling generic method");}
+@@ -3,6 +3,11 @@
+ <!-- AspectJ v1.6.2 Tests -->
+ <suite>
+ 
++	<ajc-test dir="bugs162/pr244830" title="ptw initFailureCause">
++	  <compile files="PTW.java" options="-1.5"/>
++	  <run class="PTW"/>
++	</ajc-test>
++
+ 	<ajc-test dir="bugs162/pr222648" title="generic itds - overrides">
+ 	  <compile files="DataAspect.aj DataInterface.java Foo.java FooBase.java Marker.java Resource.java" options="-1.5"/>
+ 	</ajc-test>

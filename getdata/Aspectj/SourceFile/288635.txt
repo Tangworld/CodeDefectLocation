@@ -1,0 +1,578 @@
+@@ -14,6 +14,7 @@
+ package org.aspectj.weaver.bcel;
+ 
+ import java.lang.reflect.Modifier;
++import java.util.HashSet;
+ import java.util.Iterator;
+ import java.util.List;
+ import java.util.Map;
+@@ -73,10 +74,12 @@ public class BcelTypeMunger extends ConcreteTypeMunger {
+ 		super(munger, aspectType);
+ 	}
+ 
++	@Override
+ 	public String toString() {
+ 		return "(BcelTypeMunger " + getMunger() + ")";
+ 	}
+ 
++	@Override
+ 	public boolean shouldOverwrite() {
+ 		return false;
+ 	}
+@@ -789,8 +792,7 @@ public class BcelTypeMunger extends ConcreteTypeMunger {
+ 			return false;
+ 		}
+ 
+-		// If we are processing the intended ITD target type (might be an
+-		// interface)
++		// If we are processing the intended ITD target type (might be an interface)
+ 		if (onType.equals(gen.getType())) {
+ 			ResolvedMember mangledInterMethod = AjcMemberMaker.interMethod(unMangledInterMethod, aspectType, onInterface);
+ 
+@@ -809,8 +811,9 @@ public class BcelTypeMunger extends ConcreteTypeMunger {
+ 			if (weaver.getWorld().isInJava5Mode()) {
+ 				AnnotationAJ annotationsOnRealMember[] = null;
+ 				ResolvedType toLookOn = aspectType;
+-				if (aspectType.isRawType())
++				if (aspectType.isRawType()) {
+ 					toLookOn = aspectType.getGenericType();
++				}
+ 				ResolvedMember realMember = getRealMemberForITDFromAspect(toLookOn, memberHoldingAnyAnnotations, false);
+ 				// 266602 - consider it missing to mean that the corresponding aspect had errors
+ 				if (realMember == null) {
+@@ -819,13 +822,14 @@ public class BcelTypeMunger extends ConcreteTypeMunger {
+ 				} else {
+ 					annotationsOnRealMember = realMember.getAnnotations();
+ 				}
+-
++				Set<ResolvedType> addedAnnotations = new HashSet<ResolvedType>();
+ 				if (annotationsOnRealMember != null) {
+ 					for (int i = 0; i < annotationsOnRealMember.length; i++) {
+ 						AnnotationAJ annotationX = annotationsOnRealMember[i];
+ 						AnnotationGen a = ((BcelAnnotation) annotationX).getBcelAnnotation();
+ 						AnnotationGen ag = new AnnotationGen(a, weaver.getLazyClassGen().getConstantPool(), true);
+ 						newMethod.addAnnotation(new BcelAnnotation(ag, weaver.getWorld()));
++						addedAnnotations.add(annotationX.getType());
+ 					}
+ 				}
+ 				if (realMember != null) {
+@@ -844,15 +848,19 @@ public class BcelTypeMunger extends ConcreteTypeMunger {
+ 						}
+ 					}
+ 				}
+-				// the below loop fixes the very special (and very stupid)
+-				// case where an aspect declares an annotation
+-				// on an ITD it declared on itself.
+-				List allDecams = weaver.getWorld().getDeclareAnnotationOnMethods();
+-				for (Iterator i = allDecams.iterator(); i.hasNext();) {
+-					DeclareAnnotation decaMC = (DeclareAnnotation) i.next();
+-					if (decaMC.matches(unMangledInterMethod, weaver.getWorld())
+-							&& newMethod.getEnclosingClass().getType() == aspectType) {
+-						newMethod.addAnnotation(decaMC.getAnnotationX());
++				// the code below was originally added to cope with the case where an aspect declares an annotation on an ITD
++				// declared within itself (an unusual situation). However, it also addresses the case where we may not find the
++				// annotation on the real representation of the ITD. This can happen in a load-time weaving situation where
++				// we couldn't add the annotation in time - and so here we recheck the declare annotations. Not quite ideal but
++				// works. pr288635
++				List<DeclareAnnotation> allDecams = w.getDeclareAnnotationOnMethods();
++				for (DeclareAnnotation declareAnnotationMC : allDecams) {
++					if (declareAnnotationMC.matches(unMangledInterMethod, w)) {
++						// && newMethod.getEnclosingClass().getType() == aspectType) {
++						AnnotationAJ annotation = declareAnnotationMC.getAnnotation();
++						if (!addedAnnotations.contains(annotation.getType())) {
++							newMethod.addAnnotation(annotation);
++						}
+ 					}
+ 				}
+ 			}
+@@ -1568,7 +1576,7 @@ public class BcelTypeMunger extends ConcreteTypeMunger {
+ 			for (Iterator i = allDecams.iterator(); i.hasNext();) {
+ 				DeclareAnnotation decaMC = (DeclareAnnotation) i.next();
+ 				if (decaMC.matches(explicitConstructor, weaver.getWorld()) && mg.getEnclosingClass().getType() == aspectType) {
+-					mg.addAnnotation(decaMC.getAnnotationX());
++					mg.addAnnotation(decaMC.getAnnotation());
+ 				}
+ 			}
+ 		}
+@@ -1897,10 +1905,12 @@ public class BcelTypeMunger extends ConcreteTypeMunger {
+ 		gen.addMethodGen(bridgeMethod);
+ 	}
+ 
++	@Override
+ 	public ConcreteTypeMunger parameterizedFor(ResolvedType target) {
+ 		return new BcelTypeMunger(munger.parameterizedFor(target), aspectType);
+ 	}
+ 
++	@Override
+ 	public ConcreteTypeMunger parameterizeWith(Map m, World w) {
+ 		return new BcelTypeMunger(munger.parameterizeWith(m, w), aspectType);
+ 	}
+@@ -1913,6 +1923,7 @@ public class BcelTypeMunger extends ConcreteTypeMunger {
+ 		return munger.getTypeVariableAliases();
+ 	}
+ 
++	@Override
+ 	public boolean equals(Object other) {
+ 		if (!(other instanceof BcelTypeMunger))
+ 			return false;
+@@ -1929,6 +1940,7 @@ public class BcelTypeMunger extends ConcreteTypeMunger {
+ 
+ 	private volatile int hashCode = 0;
+ 
++	@Override
+ 	public int hashCode() {
+ 		if (hashCode == 0) {
+ 			int result = 17;
+@@ -0,0 +1,3 @@
++public aspect AddAnnotation {
++  declare @method : public int *do*(..) : @Anno;
++}
+@@ -0,0 +1,9 @@
++import java.lang.annotation.ElementType;
++import java.lang.annotation.Retention;
++import java.lang.annotation.RetentionPolicy;
++import java.lang.annotation.Target;
++
++@Retention(RetentionPolicy.RUNTIME)
++public @interface Anno {
++  String level() default "debug";
++}
+@@ -0,0 +1,11 @@
++public aspect InterceptTraceds {
++
++	before(Anno t) : execution(@Anno * *.*(..)) && @annotation(t) {
++		if (t != null) {
++			System.out.println("Executing " + thisJoinPoint + " on level " + t.level());
++		} else {
++			System.out.println("Annotation was null on " + thisJoinPoint);
++		}
++	}
++	
++}
+@@ -0,0 +1,5 @@
++public aspect MakeItd {
++  public int TestClass.doAnother() {
++    return 2;
++  }
++}
+@@ -0,0 +1,8 @@
++public class TestClass {
++
++	public static void main(String[] args) {
++		TestClass tc = new TestClass();
++		tc.doAnother();
++	}
++	
++}
+@@ -0,0 +1,11 @@
++<aspectj>
++<aspects>
++  <aspect name="AddAnnotation"/>
++  <aspect name="MakeItd"/>
++  <aspect name="InterceptTraceds"/>
++</aspects>
++  <weaver options="-showWeaveInfo -verbose">
++    <dump within="*" beforeandafter="true"/> 
++  </weaver>
++</aspectj>
++
+@@ -30,6 +30,10 @@ public class Ajc166Tests extends org.aspectj.testing.XMLBasedAjcTestCase {
+ 		runTest("munger cce");
+ 	}
+ 
++	public void testMungerCCE_288635_2() {
++		runTest("munger cce - 2");
++	}
++
+ 	public void testNPEonBadAspectDecl_286375() {
+ 		runTest("npe on bad aspect decl");
+ 	}
+@@ -14,9 +14,24 @@
+     <run class="Main"/>
+   </ajc-test>
+ 
++  <ajc-test dir="bugs166/pr288635" title="munger cce - 2">
++     <compile files="AddAnnotation.java MakeItd.java InterceptTraceds.java TestClass.java Anno.java" options="-1.5 -XterminateAfterCompilation"/>
++     <run class="TestClass" ltw="aop1.xml">
++       <stdout>
++         <line text="Executing execution(int TestClass.doAnother()) on level debug"/>
++       </stdout>
++     </run>
++  </ajc-test>
++  
+   <ajc-test dir="bugs166/pr288635" title="munger cce">
+      <compile files="org/tests/atann/AddAnnotations.aj org/tests/atann/AddITDDoMethod.aj org/tests/atann/InterceptTraceds.aj org/tests/atann/TestClass.java org/tests/atann/Traced.java" options="-1.5"/>
+-     <run class="org.tests.atann.TestClass"/>
++     <run class="org.tests.atann.TestClass">
++       <stdout>
++         <line text="Executing execution(String org.tests.atann.TestClass.doAnnotated()) on level debug"/>
++         <line text="Executing execution(int org.tests.atann.TestClass.doITDAnnotation()) on level debug"/>
++         <line text="Executing execution(int org.tests.atann.TestClass.doAnother()) on level debug"/>
++       </stdout>
++     </run>
+   </ajc-test>
+ 
+   <ajc-test dir="bugs166/pr286375" title="npe on bad aspect decl">
+@@ -14,6 +14,7 @@
+ package org.aspectj.weaver.bcel;
+ 
+ import java.lang.reflect.Modifier;
++import java.util.HashSet;
+ import java.util.Iterator;
+ import java.util.List;
+ import java.util.Map;
+@@ -73,10 +74,12 @@ public class BcelTypeMunger extends ConcreteTypeMunger {
+ 		super(munger, aspectType);
+ 	}
+ 
++	@Override
+ 	public String toString() {
+ 		return "(BcelTypeMunger " + getMunger() + ")";
+ 	}
+ 
++	@Override
+ 	public boolean shouldOverwrite() {
+ 		return false;
+ 	}
+@@ -789,8 +792,7 @@ public class BcelTypeMunger extends ConcreteTypeMunger {
+ 			return false;
+ 		}
+ 
+-		// If we are processing the intended ITD target type (might be an
+-		// interface)
++		// If we are processing the intended ITD target type (might be an interface)
+ 		if (onType.equals(gen.getType())) {
+ 			ResolvedMember mangledInterMethod = AjcMemberMaker.interMethod(unMangledInterMethod, aspectType, onInterface);
+ 
+@@ -809,8 +811,9 @@ public class BcelTypeMunger extends ConcreteTypeMunger {
+ 			if (weaver.getWorld().isInJava5Mode()) {
+ 				AnnotationAJ annotationsOnRealMember[] = null;
+ 				ResolvedType toLookOn = aspectType;
+-				if (aspectType.isRawType())
++				if (aspectType.isRawType()) {
+ 					toLookOn = aspectType.getGenericType();
++				}
+ 				ResolvedMember realMember = getRealMemberForITDFromAspect(toLookOn, memberHoldingAnyAnnotations, false);
+ 				// 266602 - consider it missing to mean that the corresponding aspect had errors
+ 				if (realMember == null) {
+@@ -819,13 +822,14 @@ public class BcelTypeMunger extends ConcreteTypeMunger {
+ 				} else {
+ 					annotationsOnRealMember = realMember.getAnnotations();
+ 				}
+-
++				Set<ResolvedType> addedAnnotations = new HashSet<ResolvedType>();
+ 				if (annotationsOnRealMember != null) {
+ 					for (int i = 0; i < annotationsOnRealMember.length; i++) {
+ 						AnnotationAJ annotationX = annotationsOnRealMember[i];
+ 						AnnotationGen a = ((BcelAnnotation) annotationX).getBcelAnnotation();
+ 						AnnotationGen ag = new AnnotationGen(a, weaver.getLazyClassGen().getConstantPool(), true);
+ 						newMethod.addAnnotation(new BcelAnnotation(ag, weaver.getWorld()));
++						addedAnnotations.add(annotationX.getType());
+ 					}
+ 				}
+ 				if (realMember != null) {
+@@ -844,15 +848,19 @@ public class BcelTypeMunger extends ConcreteTypeMunger {
+ 						}
+ 					}
+ 				}
+-				// the below loop fixes the very special (and very stupid)
+-				// case where an aspect declares an annotation
+-				// on an ITD it declared on itself.
+-				List allDecams = weaver.getWorld().getDeclareAnnotationOnMethods();
+-				for (Iterator i = allDecams.iterator(); i.hasNext();) {
+-					DeclareAnnotation decaMC = (DeclareAnnotation) i.next();
+-					if (decaMC.matches(unMangledInterMethod, weaver.getWorld())
+-							&& newMethod.getEnclosingClass().getType() == aspectType) {
+-						newMethod.addAnnotation(decaMC.getAnnotationX());
++				// the code below was originally added to cope with the case where an aspect declares an annotation on an ITD
++				// declared within itself (an unusual situation). However, it also addresses the case where we may not find the
++				// annotation on the real representation of the ITD. This can happen in a load-time weaving situation where
++				// we couldn't add the annotation in time - and so here we recheck the declare annotations. Not quite ideal but
++				// works. pr288635
++				List<DeclareAnnotation> allDecams = w.getDeclareAnnotationOnMethods();
++				for (DeclareAnnotation declareAnnotationMC : allDecams) {
++					if (declareAnnotationMC.matches(unMangledInterMethod, w)) {
++						// && newMethod.getEnclosingClass().getType() == aspectType) {
++						AnnotationAJ annotation = declareAnnotationMC.getAnnotation();
++						if (!addedAnnotations.contains(annotation.getType())) {
++							newMethod.addAnnotation(annotation);
++						}
+ 					}
+ 				}
+ 			}
+@@ -1568,7 +1576,7 @@ public class BcelTypeMunger extends ConcreteTypeMunger {
+ 			for (Iterator i = allDecams.iterator(); i.hasNext();) {
+ 				DeclareAnnotation decaMC = (DeclareAnnotation) i.next();
+ 				if (decaMC.matches(explicitConstructor, weaver.getWorld()) && mg.getEnclosingClass().getType() == aspectType) {
+-					mg.addAnnotation(decaMC.getAnnotationX());
++					mg.addAnnotation(decaMC.getAnnotation());
+ 				}
+ 			}
+ 		}
+@@ -1897,10 +1905,12 @@ public class BcelTypeMunger extends ConcreteTypeMunger {
+ 		gen.addMethodGen(bridgeMethod);
+ 	}
+ 
++	@Override
+ 	public ConcreteTypeMunger parameterizedFor(ResolvedType target) {
+ 		return new BcelTypeMunger(munger.parameterizedFor(target), aspectType);
+ 	}
+ 
++	@Override
+ 	public ConcreteTypeMunger parameterizeWith(Map m, World w) {
+ 		return new BcelTypeMunger(munger.parameterizeWith(m, w), aspectType);
+ 	}
+@@ -1913,6 +1923,7 @@ public class BcelTypeMunger extends ConcreteTypeMunger {
+ 		return munger.getTypeVariableAliases();
+ 	}
+ 
++	@Override
+ 	public boolean equals(Object other) {
+ 		if (!(other instanceof BcelTypeMunger))
+ 			return false;
+@@ -1929,6 +1940,7 @@ public class BcelTypeMunger extends ConcreteTypeMunger {
+ 
+ 	private volatile int hashCode = 0;
+ 
++	@Override
+ 	public int hashCode() {
+ 		if (hashCode == 0) {
+ 			int result = 17;
+@@ -0,0 +1,3 @@
++public aspect AddAnnotation {
++  declare @method : public int *do*(..) : @Anno;
++}
+@@ -0,0 +1,9 @@
++import java.lang.annotation.ElementType;
++import java.lang.annotation.Retention;
++import java.lang.annotation.RetentionPolicy;
++import java.lang.annotation.Target;
++
++@Retention(RetentionPolicy.RUNTIME)
++public @interface Anno {
++  String level() default "debug";
++}
+@@ -0,0 +1,11 @@
++public aspect InterceptTraceds {
++
++	before(Anno t) : execution(@Anno * *.*(..)) && @annotation(t) {
++		if (t != null) {
++			System.out.println("Executing " + thisJoinPoint + " on level " + t.level());
++		} else {
++			System.out.println("Annotation was null on " + thisJoinPoint);
++		}
++	}
++	
++}
+@@ -0,0 +1,5 @@
++public aspect MakeItd {
++  public int TestClass.doAnother() {
++    return 2;
++  }
++}
+@@ -0,0 +1,8 @@
++public class TestClass {
++
++	public static void main(String[] args) {
++		TestClass tc = new TestClass();
++		tc.doAnother();
++	}
++	
++}
+@@ -0,0 +1,11 @@
++<aspectj>
++<aspects>
++  <aspect name="AddAnnotation"/>
++  <aspect name="MakeItd"/>
++  <aspect name="InterceptTraceds"/>
++</aspects>
++  <weaver options="-showWeaveInfo -verbose">
++    <dump within="*" beforeandafter="true"/> 
++  </weaver>
++</aspectj>
++
+@@ -30,6 +30,10 @@ public class Ajc166Tests extends org.aspectj.testing.XMLBasedAjcTestCase {
+ 		runTest("munger cce");
+ 	}
+ 
++	public void testMungerCCE_288635_2() {
++		runTest("munger cce - 2");
++	}
++
+ 	public void testNPEonBadAspectDecl_286375() {
+ 		runTest("npe on bad aspect decl");
+ 	}
+@@ -14,9 +14,24 @@
+     <run class="Main"/>
+   </ajc-test>
+ 
++  <ajc-test dir="bugs166/pr288635" title="munger cce - 2">
++     <compile files="AddAnnotation.java MakeItd.java InterceptTraceds.java TestClass.java Anno.java" options="-1.5 -XterminateAfterCompilation"/>
++     <run class="TestClass" ltw="aop1.xml">
++       <stdout>
++         <line text="Executing execution(int TestClass.doAnother()) on level debug"/>
++       </stdout>
++     </run>
++  </ajc-test>
++  
+   <ajc-test dir="bugs166/pr288635" title="munger cce">
+      <compile files="org/tests/atann/AddAnnotations.aj org/tests/atann/AddITDDoMethod.aj org/tests/atann/InterceptTraceds.aj org/tests/atann/TestClass.java org/tests/atann/Traced.java" options="-1.5"/>
+-     <run class="org.tests.atann.TestClass"/>
++     <run class="org.tests.atann.TestClass">
++       <stdout>
++         <line text="Executing execution(String org.tests.atann.TestClass.doAnnotated()) on level debug"/>
++         <line text="Executing execution(int org.tests.atann.TestClass.doITDAnnotation()) on level debug"/>
++         <line text="Executing execution(int org.tests.atann.TestClass.doAnother()) on level debug"/>
++       </stdout>
++     </run>
+   </ajc-test>
+ 
+   <ajc-test dir="bugs166/pr286375" title="npe on bad aspect decl">
+@@ -47,6 +47,7 @@ import org.aspectj.weaver.Advice;
+ import org.aspectj.weaver.AdviceKind;
+ import org.aspectj.weaver.AjcMemberMaker;
+ import org.aspectj.weaver.BCException;
++import org.aspectj.weaver.ConcreteTypeMunger;
+ import org.aspectj.weaver.IntMap;
+ import org.aspectj.weaver.Member;
+ import org.aspectj.weaver.MemberImpl;
+@@ -1430,7 +1431,7 @@ public class BcelShadow extends Shadow {
+ 		// check the ITD'd dooberries
+ 		List mungers = relevantType.resolve(world).getInterTypeMungers();
+ 		for (Iterator iter = mungers.iterator(); iter.hasNext();) {
+-			BcelTypeMunger typeMunger = (BcelTypeMunger) iter.next();
++			ConcreteTypeMunger typeMunger = (ConcreteTypeMunger) iter.next();
+ 			if (typeMunger.getMunger() instanceof NewMethodTypeMunger || typeMunger.getMunger() instanceof NewConstructorTypeMunger) {
+ 				ResolvedMember fakerm = typeMunger.getSignature();
+ 				if (fakerm.getName().equals(getSignature().getName())
+@@ -1454,7 +1455,8 @@ public class BcelShadow extends Shadow {
+ 			// check the ITD'd dooberries
+ 			List mungers = relevantType.resolve(world).getInterTypeMungers();
+ 			for (Iterator iter = mungers.iterator(); iter.hasNext();) {
+-				BcelTypeMunger typeMunger = (BcelTypeMunger) iter.next();
++				Object munger = iter.next();
++				ConcreteTypeMunger typeMunger = (ConcreteTypeMunger) munger;
+ 				if (typeMunger.getMunger() instanceof NewMethodTypeMunger
+ 						|| typeMunger.getMunger() instanceof NewConstructorTypeMunger) {
+ 					ResolvedMember fakerm = typeMunger.getSignature();
+@@ -0,0 +1,7 @@
++package org.tests.atann;
++
++public aspect AddAnnotations {
++	
++	declare @method : public int *do*(..) : @Traced;
++
++}
+@@ -0,0 +1,9 @@
++package org.tests.atann;
++
++public aspect AddITDDoMethod {
++
++	public int TestClass.doAnother() {
++		return 2;
++	}
++	
++}
+@@ -0,0 +1,13 @@
++package org.tests.atann;
++
++public aspect InterceptTraceds {
++
++	before(Traced t) : execution(@Traced * *.*(..)) && @annotation(t) {
++		if (t != null) {
++			System.out.println("Executing " + thisJoinPoint + " on level " + t.level());
++		} else {
++			System.out.println("Annotation was null on " + thisJoinPoint);
++		}
++	}
++	
++}
+@@ -0,0 +1,21 @@
++package org.tests.atann;
++
++public class TestClass {
++
++	@Traced
++	public String doAnnotated() {
++		return "annotated";
++	}
++	
++	public int doITDAnnotation() {
++		return 1;
++	}
++	
++	public static void main(String[] args) {
++		TestClass tc = new TestClass();
++		tc.doAnnotated();
++		tc.doITDAnnotation();
++		tc.doAnother();
++	}
++	
++}
+@@ -0,0 +1,14 @@
++package org.tests.atann;
++
++import java.lang.annotation.ElementType;
++import java.lang.annotation.Retention;
++import java.lang.annotation.RetentionPolicy;
++import java.lang.annotation.Target;
++
++@Retention(RetentionPolicy.RUNTIME)
++@Target(ElementType.METHOD)
++public @interface Traced {
++	
++	String level() default "debug";
++
++}
+@@ -18,6 +18,22 @@ import org.aspectj.testing.XMLBasedAjcTestCase;
+ 
+ public class Ajc166Tests extends org.aspectj.testing.XMLBasedAjcTestCase {
+ 
++	public void testMungerCCE_288635() {
++		runTest("munger cce");
++	}
++
++	// public void testNPEonBadAspectDecl_286375() {
++	// runTest("npe on bad aspect decl");
++	// }
++	//
++	// public void testAnnoModifierOrdering_287597_1() {
++	// runTest("anno modifier ordering - 1");
++	// }
++	//
++	// public void testDeclareAnnoCompoundExpression_287613() {
++	// runTest("dec anno compound expressions");
++	// }
++
+ 	public void testHasMember_284862() {
+ 		runTest("npe hasmember");
+ 	}
+@@ -1,7 +1,28 @@
+ <!DOCTYPE suite SYSTEM "../tests/ajcTestSuite.dtd"[]>
+ 
+ <suite>
++
++  <ajc-test dir="bugs166/pr288635" title="munger cce">
++     <compile files="org/tests/atann/AddAnnotations.aj org/tests/atann/AddITDDoMethod.aj org/tests/atann/InterceptTraceds.aj org/tests/atann/TestClass.java org/tests/atann/Traced.java" options="-1.5"/>
++     <run class="org.tests.atann.TestClass"/>
++  </ajc-test>
++  
+ 
++  <ajc-test dir="bugs166/pr286375" title="npe on bad aspect decl">
++     <compile files="DatabaseOperationMonitor.java" options="-1.5" outjar="wibble.jar"/>
++     <compile files="" inpath="wibble.jar" options="-1.5"/>
++  </ajc-test>
++  
++  <ajc-test dir="bugs166/pr287597" title="anno modifier ordering - 1">
++     <compile files="A.java" options="-1.5 -showWeaveInfo">
++       <message kind="weave" text="foo"/>
++     </compile>
++  </ajc-test>
++  
++  <ajc-test dir="bugs166/pr287613" title="dec anno compound expressions">
++     <compile files="DeclareAnnot.java" options="-1.5"/>
++  </ajc-test>
++  
+   <ajc-test dir="bugs166/pr284862" title="npe hasmember">
+      <compile files="InterfaceToAdd.java AnnotatedMethodImpl.aj AspectToMatch.aj AnnotatedMethodInterface.java Entity.java EntityClass.java PresentAnnotation.java SearchAnnotation.java" options="-1.5 -XhasMember"/>
+   </ajc-test>

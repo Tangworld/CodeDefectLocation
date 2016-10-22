@@ -1,0 +1,820 @@
+@@ -68,18 +68,20 @@ public class ValidateAtAspectJAnnotationsVisitor extends ASTVisitor {
+ 	private static final char[] aspectSig = "Lorg/aspectj/lang/annotation/Aspect;".toCharArray();
+ 	private static final char[] declareParentsSig = "Lorg/aspectj/lang/annotation/DeclareParents;".toCharArray();
+ 	private static final char[] adviceNameSig = "Lorg/aspectj/lang/annotation/AdviceName;".toCharArray();
+-	// private static final char[] orgAspectJLangAnnotation = "org/aspectj/lang/annotation/".toCharArray();
++	// private static final char[] orgAspectJLangAnnotation =
++	// "org/aspectj/lang/annotation/".toCharArray();
+ 	private static final char[] voidType = "void".toCharArray();
+ 	private static final char[] booleanType = "boolean".toCharArray();
+ 	private static final char[] joinPoint = "Lorg/aspectj/lang/JoinPoint;".toCharArray();
+ 	private static final char[] joinPointStaticPart = "Lorg/aspectj/lang/JoinPoint$StaticPart;".toCharArray();
+ 	private static final char[] joinPointEnclosingStaticPart = "Lorg/aspectj/lang/JoinPoint$EnclosingStaticPart;".toCharArray();
+ 	private static final char[] proceedingJoinPoint = "Lorg/aspectj/lang/ProceedingJoinPoint;".toCharArray();
+-	// private static final char[][] adviceSigs = new char[][] { beforeAdviceSig, afterAdviceSig, afterReturningAdviceSig,
++	// private static final char[][] adviceSigs = new char[][] {
++	// beforeAdviceSig, afterAdviceSig, afterReturningAdviceSig,
+ 	// afterThrowingAdviceSig, aroundAdviceSig };
+ 
+-	private CompilationUnitDeclaration unit;
+-	private Stack typeStack = new Stack();
++	private final CompilationUnitDeclaration unit;
++	private final Stack typeStack = new Stack();
+ 	private AspectJAnnotations ajAnnotations;
+ 
+ 	public ValidateAtAspectJAnnotationsVisitor(CompilationUnitDeclaration unit) {
+@@ -143,7 +145,8 @@ public class ValidateAtAspectJAnnotationsVisitor extends ASTVisitor {
+ 				}
+ 			}
+ 		} else {
+-			// check that aspect doesn't have @Aspect annotation, we've already added on ourselves.
++			// check that aspect doesn't have @Aspect annotation, we've already
++			// added on ourselves.
+ 			if (ajAnnotations.hasMultipleAspectAnnotations) {
+ 				typeDecl.scope.problemReporter().signalError(typeDecl.sourceStart, typeDecl.sourceEnd,
+ 						"aspects cannot have @Aspect annotation");
+@@ -169,7 +172,8 @@ public class ValidateAtAspectJAnnotationsVisitor extends ASTVisitor {
+ 				CompilationAndWeavingContext.VALIDATING_AT_ASPECTJ_ANNOTATIONS, methodDeclaration.selector);
+ 		ajAnnotations = new AspectJAnnotations(methodDeclaration.annotations);
+ 		if (!methodDeclaration.getClass().equals(AjMethodDeclaration.class)) {
+-			// simply test for innapropriate use of annotations on code-style members
++			// simply test for innapropriate use of annotations on code-style
++			// members
+ 			if (methodDeclaration instanceof PointcutDeclaration) {
+ 				if (ajAnnotations.hasMultiplePointcutAnnotations || ajAnnotations.hasAdviceAnnotation
+ 						|| ajAnnotations.hasAspectAnnotation || ajAnnotations.hasAdviceNameAnnotation) {
+@@ -221,7 +225,8 @@ public class ValidateAtAspectJAnnotationsVisitor extends ASTVisitor {
+ 	}
+ 
+ 	/**
+-	 * aspect must be public nested aspect must be static cannot extend a concrete aspect pointcut in perclause must be good.
++	 * aspect must be public nested aspect must be static cannot extend a
++	 * concrete aspect pointcut in perclause must be good.
+ 	 */
+ 	private void validateAspectDeclaration(TypeDeclaration typeDecl) {
+ 		if (typeStack.size() > 1) {
+@@ -243,7 +248,8 @@ public class ValidateAtAspectJAnnotationsVisitor extends ASTVisitor {
+ 
+ 		// FIXME AV - do we really want that
+ 		// if (!Modifier.isPublic(typeDecl.modifiers)) {
+-		// typeDecl.scope.problemReporter().signalError(typeDecl.sourceStart,typeDecl.sourceEnd,"@Aspect class must be public");
++		// typeDecl.scope.problemReporter().signalError(typeDecl.sourceStart,
++		// typeDecl.sourceEnd,"@Aspect class must be public");
+ 		// }
+ 
+ 		TypeReference parentRef = typeDecl.superclass;
+@@ -251,7 +257,9 @@ public class ValidateAtAspectJAnnotationsVisitor extends ASTVisitor {
+ 			TypeBinding parentBinding = parentRef.resolvedType;
+ 			if (parentBinding instanceof SourceTypeBinding) {
+ 				SourceTypeBinding parentSTB = (SourceTypeBinding) parentBinding;
+-				if (parentSTB.scope != null) { // scope is null if its a binarytypebinding (in AJ world, thats a subclass of
++				if (parentSTB.scope != null) { // scope is null if its a
++					// binarytypebinding (in AJ
++					// world, thats a subclass of
+ 					// SourceTypeBinding)
+ 					TypeDeclaration parentDecl = parentSTB.scope.referenceContext;
+ 					if (isAspect(parentDecl) && !Modifier.isAbstract(parentDecl.modifiers)) {
+@@ -266,7 +274,8 @@ public class ValidateAtAspectJAnnotationsVisitor extends ASTVisitor {
+ 
+ 		int[] pcLoc = new int[2];
+ 		String perClause = getStringLiteralFor("value", aspectAnnotation, pcLoc);
+-		// AspectDeclaration aspectDecl = new AspectDeclaration(typeDecl.compilationResult);
++		// AspectDeclaration aspectDecl = new
++		// AspectDeclaration(typeDecl.compilationResult);
+ 
+ 		try {
+ 			if (perClause != null && !perClause.equals("")) {
+@@ -284,9 +293,10 @@ public class ValidateAtAspectJAnnotationsVisitor extends ASTVisitor {
+ 	}
+ 
+ 	/**
+-	 * 1) Advice must be public 2) Advice must have a void return type if not around advice 3) Advice must not have any other @AspectJ
+-	 * annotations 4) After throwing advice must declare the thrown formal 5) After returning advice must declare the returning
+-	 * formal 6) Advice must not be static
++	 * 1) Advice must be public 2) Advice must have a void return type if not
++	 * around advice 3) Advice must not have any other @AspectJ annotations 4)
++	 * After throwing advice must declare the thrown formal 5) After returning
++	 * advice must declare the returning formal 6) Advice must not be static
+ 	 */
+ 	private void validateAdvice(MethodDeclaration methodDeclaration) {
+ 
+@@ -382,7 +392,8 @@ public class ValidateAtAspectJAnnotationsVisitor extends ASTVisitor {
+ 			FormalBinding[] bindings = buildFormalAdviceBindingsFrom(methodDeclaration);
+ 			pc.resolve(new EclipseScope(bindings, methodDeclaration.scope));
+ 			EclipseFactory factory = EclipseFactory.fromScopeLookupEnvironment(methodDeclaration.scope);
+-			// now create a ResolvedPointcutDefinition,make an attribute out of it, and add it to the method
++			// now create a ResolvedPointcutDefinition,make an attribute out of
++			// it, and add it to the method
+ 			UnresolvedType[] paramTypes = new UnresolvedType[bindings.length];
+ 			for (int i = 0; i < paramTypes.length; i++)
+ 				paramTypes[i] = bindings[i].getType();
+@@ -528,20 +539,31 @@ public class ValidateAtAspectJAnnotationsVisitor extends ASTVisitor {
+ 			pcDecl.setGenerateSyntheticPointcutMethod();
+ 			TypeDeclaration onType = (TypeDeclaration) typeStack.peek();
+ 			pcDecl.postParse(onType);
+-			// EclipseFactory factory = EclipseFactory.fromScopeLookupEnvironment(methodDeclaration.scope);
+-			// int argsLength = methodDeclaration.arguments == null ? 0 : methodDeclaration.arguments.length;
++			// EclipseFactory factory =
++			// EclipseFactory.fromScopeLookupEnvironment
++			// (methodDeclaration.scope);
++			// int argsLength = methodDeclaration.arguments == null ? 0 :
++			// methodDeclaration.arguments.length;
+ 			FormalBinding[] bindings = buildFormalAdviceBindingsFrom(methodDeclaration);
+ 			// FormalBinding[] bindings = new FormalBinding[argsLength];
+ 			// for (int i = 0, len = bindings.length; i < len; i++) {
+ 			// Argument arg = methodDeclaration.arguments[i];
+ 			// String name = new String(arg.name);
+-			// UnresolvedType type = factory.fromBinding(methodDeclaration.binding.parameters[i]);
+-			// bindings[i] = new FormalBinding(type, name, i, arg.sourceStart, arg.sourceEnd, "unknown");
++			// UnresolvedType type =
++			// factory.fromBinding(methodDeclaration.binding.parameters[i]);
++			// bindings[i] = new FormalBinding(type, name, i, arg.sourceStart,
++			// arg.sourceEnd, "unknown");
+ 			// }
+ 			swap(onType, methodDeclaration, pcDecl);
+ 			if (pc != null) {
+ 				// has an expression
+-				pc.resolve(new EclipseScope(bindings, methodDeclaration.scope));
++				EclipseScope eScope = new EclipseScope(bindings, methodDeclaration.scope);
++				char[] packageName = null;
++				if (typeDecl.binding != null && typeDecl.binding.getPackage() != null) {
++					packageName = typeDecl.binding.getPackage().readableName();
++				}
++				eScope.setLimitedImports(packageName);
++				pc.resolve(eScope);
+ 				HasIfPCDVisitor ifFinder = new HasIfPCDVisitor();
+ 				pc.traverse(ifFinder, null);
+ 				containsIfPcd = ifFinder.containsIfPcd;
+@@ -579,10 +601,17 @@ public class ValidateAtAspectJAnnotationsVisitor extends ASTVisitor {
+ 		}
+ 
+ 		if (pcDecl.pointcutDesignator == null) {
+-			if (Modifier.isAbstract(methodDeclaration.modifiers) || noValueSupplied // this is a matches nothing pointcut
+-			// those 2 checks makes sense for aop.xml concretization but NOT for regular abstraction of pointcut
++			if (Modifier.isAbstract(methodDeclaration.modifiers) || noValueSupplied // this
++			// is
++			// a
++			// matches
++			// nothing
++			// pointcut
++			// those 2 checks makes sense for aop.xml concretization but NOT for
++			// regular abstraction of pointcut
+ 			// && returnsVoid
+-			// && (methodDeclaration.arguments == null || methodDeclaration.arguments.length == 0)) {
++			// && (methodDeclaration.arguments == null ||
++			// methodDeclaration.arguments.length == 0)) {
+ 			) {
+ 				// fine
+ 			} else {
+@@ -10,7 +10,6 @@
+  *     PARC     initial implementation 
+  * ******************************************************************/
+ 
+-
+ package org.aspectj.ajdt.internal.compiler.lookup;
+ 
+ import java.util.ArrayList;
+@@ -20,194 +19,194 @@ import org.aspectj.bridge.IMessage;
+ import org.aspectj.bridge.IMessageHandler;
+ import org.aspectj.bridge.ISourceLocation;
+ import org.aspectj.bridge.Message;
+-import org.aspectj.weaver.IHasPosition;
+-import org.aspectj.weaver.ResolvedType;
+-import org.aspectj.weaver.UnresolvedType;
+-import org.aspectj.weaver.World;
+-import org.aspectj.weaver.patterns.*;
++import org.aspectj.org.eclipse.jdt.core.compiler.CharOperation;
+ import org.aspectj.org.eclipse.jdt.internal.compiler.lookup.ClassScope;
+ import org.aspectj.org.eclipse.jdt.internal.compiler.lookup.CompilationUnitScope;
+ import org.aspectj.org.eclipse.jdt.internal.compiler.lookup.ImportBinding;
+ import org.aspectj.org.eclipse.jdt.internal.compiler.lookup.ReferenceBinding;
+ import org.aspectj.org.eclipse.jdt.internal.compiler.lookup.Scope;
+ import org.aspectj.org.eclipse.jdt.internal.compiler.lookup.TypeBinding;
+-import org.aspectj.org.eclipse.jdt.core.compiler.CharOperation;
++import org.aspectj.weaver.IHasPosition;
++import org.aspectj.weaver.ResolvedType;
++import org.aspectj.weaver.UnresolvedType;
++import org.aspectj.weaver.World;
++import org.aspectj.weaver.patterns.FormalBinding;
++import org.aspectj.weaver.patterns.IScope;
++import org.aspectj.weaver.patterns.WildTypePattern;
+ 
+ /**
+- * Adaptor from org.eclipse.jdt.internal.compiler.lookup.Scope to org.aspectj.weaver.IScope
++ * Adaptor from org.eclipse.jdt.internal.compiler.lookup.Scope to
++ * org.aspectj.weaver.IScope
+  * 
+  * @author Jim Hugunin
+  */
+ public class EclipseScope implements IScope {
+-	private Scope scope;
+-	private EclipseFactory world;
+-	private ResolvedType enclosingType;
+-	private FormalBinding[] bindings;
+-	
++	private static final char[] javaLang = "java.lang".toCharArray();
++	private static final String[] JL = new String[] { "java.lang." };
++	private static final String[] NONE = new String[0];
++	private final Scope scope;
++	private final EclipseFactory world;
++	private final ResolvedType enclosingType;
++	private final FormalBinding[] bindings;
++
+ 	private String[] importedPrefixes = null;
+ 	private String[] importedNames = null;
+ 
+-
+ 	public EclipseScope(FormalBinding[] bindings, Scope scope) {
+ 		this.bindings = bindings;
+-		
++
+ 		this.scope = scope;
+-		this.world = EclipseFactory.fromScopeLookupEnvironment(scope);
+-		
+-		this.enclosingType = world.fromEclipse(scope.enclosingSourceType());
++		world = EclipseFactory.fromScopeLookupEnvironment(scope);
++
++		enclosingType = world.fromEclipse(scope.enclosingSourceType());
+ 	}
+-	
+-	
++
+ 	public UnresolvedType lookupType(String name, IHasPosition location) {
+-		char[][] splitName = WildTypePattern.splitNames(name,true);
+-		TypeBinding b = scope.getType(splitName,splitName.length);
+-		//FIXME ??? need reasonable error handling...
++		char[][] splitName = WildTypePattern.splitNames(name, true);
++		TypeBinding b = scope.getType(splitName, splitName.length);
++		// FIXME ??? need reasonable error handling...
+ 		if (!b.isValidBinding()) {
+ 			return ResolvedType.MISSING;
+ 		}
+-		
+-		//System.err.println("binding: " + b);
+-		//  Binding(tokens, bits & RestrictiveFlagMASK, this)
+-		return world.fromBinding(b);
+-		
+-		/*
+-		computeImports();
+-		
+-//		System.out.println("lookup: " + name + " in " + 
+-//			Arrays.asList(importedPrefixes));
+-		
+-		ResolvedType ret = null;
+-		String dotName = "." + name;
+-		for (int i=0; i<importedNames.length; i++) {
+-			String importedName = importedNames[i];
+-			//??? can this be right
+-			if (importedName.endsWith(name) && 
+-				((importedName.length() == name.length()) ||
+-				 (importedName.endsWith(dotName))))
+-			{
+-				ResolvedType found = resolveVisible(importedName);
+-				if (found == ResolvedType.MISSING) continue;
+-				if (ret != null) {
+-					message(IMessage.ERROR, location, 
+-						"ambiguous type reference, both " + ret.getName() + " and " + importedName);
+-					return ResolvedType.MISSING;
+-				} else {
+-					ret = found;
++
++		if (referenceFromAnnotationStylePointcut) { // pr265360
++			// it must be fully qualified in the pointcut text or in the same
++			// package as the type containing the pointcut
++			char[] qualifiedPackageName = b.qualifiedPackageName();
++			if (!CharOperation.equals(qualifiedPackageName, javaLang)) {
++				String packagePrefix = new String(qualifiedPackageName);
++				if (!name.startsWith(packagePrefix)) {
++					if (validPackage != null && CharOperation.equals(validPackage, qualifiedPackageName)) {
++						// it is OK, found in same package as the aspect
++					} else {
++						return ResolvedType.MISSING;
++					}
+ 				}
+ 			}
+ 		}
+-		
+-		if (ret != null) return ret;
+-		
+-		//XXX need to handle ambiguous references here
+-		for (int i=0; i<importedPrefixes.length; i++) {
+-			String importedPrefix = importedPrefixes[i];
+-			ResolvedType tryType = resolveVisible(importedPrefix + name);
+-			if (tryType != ResolvedType.MISSING) {
+-				return tryType;
+-			}
+-		}
+ 
+-		return resolveVisible(name);
+-		*/
++		// System.err.println("binding: " + b);
++		// Binding(tokens, bits & RestrictiveFlagMASK, this)
++		return world.fromBinding(b);
++
++		/*
++		 * computeImports();
++		 * 
++		 * // System.out.println("lookup: " + name + " in " + //
++		 * Arrays.asList(importedPrefixes));
++		 * 
++		 * ResolvedType ret = null; String dotName = "." + name; for (int i=0;
++		 * i<importedNames.length; i++) { String importedName =
++		 * importedNames[i]; //??? can this be right if
++		 * (importedName.endsWith(name) && ((importedName.length() ==
++		 * name.length()) || (importedName.endsWith(dotName)))) { ResolvedType
++		 * found = resolveVisible(importedName); if (found ==
++		 * ResolvedType.MISSING) continue; if (ret != null) {
++		 * message(IMessage.ERROR, location, "ambiguous type reference, both " +
++		 * ret.getName() + " and " + importedName); return ResolvedType.MISSING;
++		 * } else { ret = found; } } }
++		 * 
++		 * if (ret != null) return ret;
++		 * 
++		 * //XXX need to handle ambiguous references here for (int i=0;
++		 * i<importedPrefixes.length; i++) { String importedPrefix =
++		 * importedPrefixes[i]; ResolvedType tryType =
++		 * resolveVisible(importedPrefix + name); if (tryType !=
++		 * ResolvedType.MISSING) { return tryType; } }
++		 * 
++		 * return resolveVisible(name);
++		 */
+ 	}
+-	
+-	
+-//	private ResolvedType resolveVisible(String name) {
+-//		ResolvedType found = world.getWorld().resolve(UnresolvedType.forName(name), true);
+-//		if (found == ResolvedType.MISSING) return found;
+-//		if (ResolvedType.isVisible(found.getModifiers(), found, enclosingType)) return found;
+-//		return ResolvedType.MISSING; 
+-//	}
+-	
+-
+-//	public UnresolvedType lookupType(String name, IHasPosition location) {
+-//		char[][] namePieces = CharOperation.splitOn('.', name.toCharArray());
+-//		TypeBinding binding;
+-//		if (namePieces.length == 1) {
+-//			binding = scope.getType(namePieces[0]);
+-//		} else {
+-//			binding = scope.getType(namePieces);
+-//		}
+-//		
+-//		
+-//		if (!binding.isValidBinding()) {
+-//			//XXX do we do this always or sometimes
+-//			System.err.println("error: " + binding);
+-//			scope.problemReporter().invalidType(EclipseWorld.astForLocation(location), binding);
+-//			return ResolvedType.MISSING;
+-//		}
+-//		//??? do we want this too
+-////		if (AstNode.isTypeUseDeprecated(binding, scope))
+-////			scope.problemReporter().deprecatedType(binding, EclipseWorld.astForLocation(location));
+-//		
+-//		return EclipseWorld.fromBinding(binding);
+-//	}
+-	
+-	
+-	
++
++	// private ResolvedType resolveVisible(String name) {
++	// ResolvedType found =
++	// world.getWorld().resolve(UnresolvedType.forName(name), true);
++	// if (found == ResolvedType.MISSING) return found;
++	// if (ResolvedType.isVisible(found.getModifiers(), found, enclosingType))
++	// return found;
++	// return ResolvedType.MISSING;
++	// }
++
++	// public UnresolvedType lookupType(String name, IHasPosition location) {
++	// char[][] namePieces = CharOperation.splitOn('.', name.toCharArray());
++	// TypeBinding binding;
++	// if (namePieces.length == 1) {
++	// binding = scope.getType(namePieces[0]);
++	// } else {
++	// binding = scope.getType(namePieces);
++	// }
++	//		
++	//		
++	// if (!binding.isValidBinding()) {
++	// //XXX do we do this always or sometimes
++	// System.err.println("error: " + binding);
++	//scope.problemReporter().invalidType(EclipseWorld.astForLocation(location),
++	// binding);
++	// return ResolvedType.MISSING;
++	// }
++	// //??? do we want this too
++	// // if (AstNode.isTypeUseDeprecated(binding, scope))
++	// // scope.problemReporter().deprecatedType(binding,
++	// EclipseWorld.astForLocation(location));
++	//		
++	// return EclipseWorld.fromBinding(binding);
++	// }
++
+ 	private void computeImports() {
+-		if (importedNames != null) return;
+-		
++		if (importedNames != null)
++			return;
++
+ 		List importedNamesList = new ArrayList();
+ 		List importedPrefixesList = new ArrayList();
+-		
+-		
++
+ 		Scope currentScope = scope;
+-		//add any enclosing types to this list
++		// add any enclosing types to this list
+ 		while (!(currentScope instanceof CompilationUnitScope)) {
+ 			if (currentScope == null) {
+ 				throw new RuntimeException("unimplemented");
+ 			}
+ 			if (currentScope instanceof ClassScope) {
+-				addClassAndParentsToPrefixes(((ClassScope)currentScope).referenceType().binding, importedPrefixesList);
++				addClassAndParentsToPrefixes(((ClassScope) currentScope).referenceType().binding, importedPrefixesList);
+ 			}
+ 			currentScope = currentScope.parent;
+ 		}
+-		
+-		CompilationUnitScope cuScope = (CompilationUnitScope)currentScope;
+ 
+-		String packageName = 
+-			new String(CharOperation.concatWith(cuScope.currentPackageName, '.'));
+-		//System.err.println("package: " + packageName);
++		CompilationUnitScope cuScope = (CompilationUnitScope) currentScope;
++
++		String packageName = new String(CharOperation.concatWith(cuScope.currentPackageName, '.'));
++		// System.err.println("package: " + packageName);
+ 		if (packageName.length() > 0) {
+ 			importedPrefixesList.add(packageName + ".");
+ 		}
+-		
+ 
+ 		ImportBinding[] imports = cuScope.imports;
+ 		for (int i = 0; i < imports.length; i++) {
+ 			ImportBinding importBinding = imports[i];
+-			String importName =
+-			  new String(CharOperation.concatWith(importBinding.compoundName, '.'));
+-			
+-			//XXX wrong behavior for java.util.Map.*
++			String importName = new String(CharOperation.concatWith(importBinding.compoundName, '.'));
++
++			// XXX wrong behavior for java.util.Map.*
+ 			if (importBinding.onDemand) {
+ 				importedPrefixesList.add(importName + ".");
+ 			} else {
+ 				importedNamesList.add(importName);
+ 			}
+ 		}
+-		
++
+ 		TypeBinding[] topTypes = cuScope.topLevelTypes;
+ 		for (int i = 0; i < topTypes.length; i++) {
+ 			importedNamesList.add(world.fromBinding(topTypes[i]).getName());
+ 		}
+-		
+-		importedNames =
+-			(String[])importedNamesList.toArray(new String[importedNamesList.size()]);
+-		
+-		importedPrefixes =
+-			(String[])importedPrefixesList.toArray(new String[importedPrefixesList.size()]);
++
++		importedNames = (String[]) importedNamesList.toArray(new String[importedNamesList.size()]);
++
++		importedPrefixes = (String[]) importedPrefixesList.toArray(new String[importedPrefixesList.size()]);
+ 	}
+ 
+-	private void addClassAndParentsToPrefixes(
+-		ReferenceBinding binding,
+-		List importedPrefixesList)
+-	{
+-		if (binding == null) return;
+-		importedPrefixesList.add(world.fromBinding(binding).getName()+"$");
+-		
++	private void addClassAndParentsToPrefixes(ReferenceBinding binding, List importedPrefixesList) {
++		if (binding == null)
++			return;
++		importedPrefixesList.add(world.fromBinding(binding).getName() + "$");
++
+ 		addClassAndParentsToPrefixes(binding.superclass(), importedPrefixesList);
+ 		ReferenceBinding[] superinterfaces = binding.superInterfaces();
+ 		if (superinterfaces != null) {
+@@ -216,7 +215,6 @@ public class EclipseScope implements IScope {
+ 			}
+ 		}
+ 	}
+-	
+ 
+ 	public String[] getImportedNames() {
+ 		computeImports();
+@@ -225,57 +223,48 @@ public class EclipseScope implements IScope {
+ 
+ 	public String[] getImportedPrefixes() {
+ 		computeImports();
+-		//System.err.println("prefixes: " + Arrays.asList(importedPrefixes));
++		// System.err.println("prefixes: " + Arrays.asList(importedPrefixes));
+ 		return importedPrefixes;
+ 	}
+ 
+-
+-	//XXX add good errors when would bind to extra parameters
+-    public FormalBinding lookupFormal(String name) {
+-        for (int i = 0, len = bindings.length; i < len; i++) {
+-            if (bindings[i].getName().equals(name)) return bindings[i];
+-        }
+-        return null;
+-    }
+-
++	// XXX add good errors when would bind to extra parameters
++	public FormalBinding lookupFormal(String name) {
++		for (int i = 0, len = bindings.length; i < len; i++) {
++			if (bindings[i].getName().equals(name))
++				return bindings[i];
++		}
++		return null;
++	}
+ 
+ 	public FormalBinding getFormal(int i) {
+ 		return bindings[i];
+ 	}
+ 
+-    public int getFormalCount() {
+-    	return bindings.length;
+-    }
++	public int getFormalCount() {
++		return bindings.length;
++	}
+ 
+ 	public ISourceLocation makeSourceLocation(IHasPosition location) {
+-		return new EclipseSourceLocation(scope.problemReporter().referenceContext.compilationResult(),
+-						location.getStart(), location.getEnd());
++		return new EclipseSourceLocation(scope.problemReporter().referenceContext.compilationResult(), location.getStart(),
++				location.getEnd());
+ 	}
+ 
+ 	public IMessageHandler getMessageHandler() {
+ 		return world.getWorld().getMessageHandler();
+ 	}
+ 
+-
+-	public void message(
+-		IMessage.Kind kind,
+-		IHasPosition location1,
+-		IHasPosition location2,
+-		String message) {
+-			message(kind, location1, message);
+-			message(kind, location2, message);
++	public void message(IMessage.Kind kind, IHasPosition location1, IHasPosition location2, String message) {
++		message(kind, location1, message);
++		message(kind, location2, message);
+ 	}
+ 
+-	public void message(
+-		IMessage.Kind kind,
+-		IHasPosition location,
+-		String message) {
+-			//System.out.println("message: " + message + " loc: " + makeSourceLocation(location));
+-			getMessageHandler()
+-			.handleMessage(new Message(message, kind, null, makeSourceLocation(location)));
++	public void message(IMessage.Kind kind, IHasPosition location, String message) {
++		// System.out.println("message: " + message + " loc: " +
++		// makeSourceLocation(location));
++		getMessageHandler().handleMessage(new Message(message, kind, null, makeSourceLocation(location)));
+ 
+ 	}
+-	
++
+ 	public void message(IMessage aMessage) {
+ 		getMessageHandler().handleMessage(aMessage);
+ 	}
+@@ -288,4 +277,25 @@ public class EclipseScope implements IScope {
+ 		return enclosingType;
+ 	}
+ 
++	private boolean referenceFromAnnotationStylePointcut = false;
++	private char[] validPackage;
++
++	/**
++	 * Mark this scope as only allowing limited support for imports. This is to
++	 * ensure that references in annotation style pointcuts are accidentally
++	 * resolved against import statements. They won't be if javac is used (and
++	 * the resulting .class file will contain 'bad pointcuts') so this method
++	 * enables it to also be policed when compiling with ajc.
++	 * 
++	 * @param validPackage unqualified references can be resolved if the type is
++	 *            in the same package as the type containing the pointcut
++	 *            declaration.
++	 */
++	public void setLimitedImports(char[] validPackage) {
++		referenceFromAnnotationStylePointcut = true;
++		this.validPackage = validPackage;
++		importedPrefixes = JL; // Consider only java.lang. as an import
++		importedNames = NONE; // No imported names
++	}
++
+ }
+@@ -0,0 +1,12 @@
++package example;
++import java.util.Date;
++import java.util.List;
++
++public class Foo {
++  Date foo() {
++    return null;
++  }
++  List goo() {
++	    return null;
++	  }
++}
+@@ -0,0 +1,15 @@
++package example;
++
++import org.aspectj.lang.annotation.*;
++
++import java.util.Date;
++
++@Aspect
++public class Main {
++  @Pointcut("execution(Date foo())") 
++  public void pc() {}
++  
++  @Before("pc()")
++  public void log() {}
++  
++}
+@@ -11,6 +11,9 @@
+ package org.aspectj.systemtest.ajc164;
+ 
+ import java.io.File;
++import java.util.ArrayList;
++import java.util.Collections;
++import java.util.Comparator;
+ import java.util.Iterator;
+ import java.util.List;
+ 
+@@ -29,6 +32,10 @@ import org.aspectj.testing.XMLBasedAjcTestCase;
+ 
+ public class Ajc164Tests extends org.aspectj.testing.XMLBasedAjcTestCase {
+ 
++	public void testIncorrectDateResolution_pr265360() {
++		runTest("incorrect resolution of Date");
++	}
++
+ 	public void testDualPreClinit_pr233032() {
+ 		runTest("dual preClinit");
+ 	}
+@@ -40,7 +47,8 @@ public class Ajc164Tests extends org.aspectj.testing.XMLBasedAjcTestCase {
+ 		ipe = findElementAtLine(top.getRoot(), 13);
+ 		assertEquals("<p{HandleTestingAspect.java}HandleTestingAspect[InnerClass}InnerInnerAspect|1", ipe.getHandleIdentifier());
+ 		// ipe = findElementAtLine(top.getRoot(), 29);
+-		// assertEquals("<x*OverrideOptions.aj}OverrideOptions&around!2", ipe.getHandleIdentifier());
++		// assertEquals("<x*OverrideOptions.aj}OverrideOptions&around!2",
++		// ipe.getHandleIdentifier());
+ 	}
+ 
+ 	public void testHandles_pr263666() {
+@@ -58,7 +66,8 @@ public class Ajc164Tests extends org.aspectj.testing.XMLBasedAjcTestCase {
+ 		runTest("aop config - 1");
+ 	}
+ 
+-	// Only one of two aspects named - and named one is scoped to only affect one type
++	// Only one of two aspects named - and named one is scoped to only affect
++	// one type
+ 	public void testAopConfig2() {
+ 		runTest("aop config - 2");
+ 	}
+@@ -88,9 +97,11 @@ public class Ajc164Tests extends org.aspectj.testing.XMLBasedAjcTestCase {
+ 			fail("Local variable table should not be null");
+ 		}
+ 		// Method:
+-		// private static final void method_aroundBody1$advice(Service, long, JoinPoint, ServiceInterceptor, ProceedingJoinPoint);
++		// private static final void method_aroundBody1$advice(Service, long,
++		// JoinPoint, ServiceInterceptor, ProceedingJoinPoint);
+ 		LocalVariable[] lvt = m.getLocalVariableTable().getLocalVariableTable();
+-		assertEquals(7, lvt.length); // no aroundClosure compared to second version of this test
++		assertEquals(7, lvt.length); // no aroundClosure compared to second
++		// version of this test
+ 		assertEquals("LService; this(0) start=0 len=86", stringify(m.getLocalVariableTable(), 0));
+ 		assertEquals("J l(1) start=0 len=86", stringify(m.getLocalVariableTable(), 1));
+ 		assertEquals("Lorg/aspectj/lang/JoinPoint; thisJoinPoint(3) start=0 len=86", stringify(m.getLocalVariableTable(), 2));
+@@ -110,7 +121,8 @@ public class Ajc164Tests extends org.aspectj.testing.XMLBasedAjcTestCase {
+ 		System.out.println(m.getLocalVariableTable());
+ 		LocalVariable[] lvt = m.getLocalVariableTable().getLocalVariableTable();
+ 		assertEquals(8, lvt.length);
+-		// private static final void method_aroundBody1$advice(Service, long, JoinPoint, ServiceInterceptorCodeStyle, AroundClosure,
++		// private static final void method_aroundBody1$advice(Service, long,
++		// JoinPoint, ServiceInterceptorCodeStyle, AroundClosure,
+ 		// JoinPoint);
+ 		assertEquals("LService; this(0) start=0 len=68", stringify(m.getLocalVariableTable(), 0));
+ 		assertEquals("J l(1) start=0 len=68", stringify(m.getLocalVariableTable(), 1));
+@@ -124,9 +136,11 @@ public class Ajc164Tests extends org.aspectj.testing.XMLBasedAjcTestCase {
+ 	}
+ 
+ 	/**
+-	 * This test checks that local variable table for the interMethodDispatcher is built correctly, for the related code see
+-	 * IntertypeMethodDeclaration.generateDispatchMethod(). It checks non-static and static ITDs. Once the information here is
+-	 * correct then around advice on ITDs can also be correct.
++	 * This test checks that local variable table for the interMethodDispatcher
++	 * is built correctly, for the related code see
++	 * IntertypeMethodDeclaration.generateDispatchMethod(). It checks non-static
++	 * and static ITDs. Once the information here is correct then around advice
++	 * on ITDs can also be correct.
+ 	 */
+ 	public void testBrokenLVT_pr194314_3() throws Exception {
+ 		runTest("broken lvt - 3");
+@@ -180,7 +194,8 @@ public class Ajc164Tests extends org.aspectj.testing.XMLBasedAjcTestCase {
+ 
+ 	}
+ 
+-	// Single piece of advice on before execution of a method with a this and a parameter
++	// Single piece of advice on before execution of a method with a this and a
++	// parameter
+ 	public void testDebuggingBeforeAdvice_pr262509() {
+ 		runTest("debugging before advice");
+ 		Method method = getMethodFromClass(getClassFrom(ajc.getSandboxDirectory(), "Foo"), "foo");
+@@ -188,20 +203,51 @@ public class Ajc164Tests extends org.aspectj.testing.XMLBasedAjcTestCase {
+ 		assertEquals("LBar; bar(1) start=0 len=13", stringify(method.getLocalVariableTable(), 1));
+ 	}
+ 
+-	// Single piece of advice on before execution of a method with a this and a parameter and other various locals within it
++	// Single piece of advice on before execution of a method with a this and a
++	// parameter and other various locals within it
+ 	public void testDebuggingBeforeAdvice_pr262509_2() {
+ 		// Compile with -preserveAllLocals
+ 		runTest("debugging before advice - 2");
+ 		Method method = getMethodFromClass(getClassFrom(ajc.getSandboxDirectory(), "Foo2"), "foo");
+-		System.out.println(stringify(method.getLocalVariableTable()));
+-		assertEquals("LFoo2; this(0) start=0 len=34", stringify(method.getLocalVariableTable(), 0));
+-		assertEquals("LBar; bar(1) start=0 len=34", stringify(method.getLocalVariableTable(), 1));
+-		assertEquals("Ljava/lang/String; s(2) start=15 len=19", stringify(method.getLocalVariableTable(), 2));
+-		assertEquals("Ljava/lang/String; s2(3) start=18 len=10", stringify(method.getLocalVariableTable(), 3));
+-		assertEquals("Ljava/lang/Exception; e(3) start=29 len=4", stringify(method.getLocalVariableTable(), 4));
++		// System.out.println(stringify(method.getLocalVariableTable()));
++		List l = sortedLocalVariables(method.getLocalVariableTable());
++		assertEquals("LBar; bar(1) start=0 len=34", stringify(l, 0));
++		assertEquals("Ljava/lang/Exception; e(3) start=29 len=4", stringify(l, 1));
++		assertEquals("LFoo2; this(0) start=0 len=34", stringify(l, 4));
++		assertEquals("Ljava/lang/String; s(2) start=15 len=19", stringify(l, 2));
++		assertEquals("Ljava/lang/String; s2(3) start=18 len=10", stringify(l, 3));
++	}
++
++	/**
++	 * Sort it by name then start position
++	 */
++	private List sortedLocalVariables(LocalVariableTable lvt) {
++		List l = new ArrayList();
++		StringBuffer sb = new StringBuffer();
++		LocalVariable lv[] = lvt.getLocalVariableTable();
++		for (int i = 0; i < lv.length; i++) {
++			LocalVariable lvEntry = lv[i];
++			l.add(lvEntry);
++		}
++		Collections.sort(l, new MyComparator());
++		return l;
+ 	}
+ 
+-	// Two pieces of advice on before execution of a method with a this and a parameter and another local within it
++	private static class MyComparator implements Comparator {
++		public int compare(Object o1, Object o2) {
++			LocalVariable l1 = (LocalVariable) o1;
++			LocalVariable l2 = (LocalVariable) o2;
++			if (l1.getName().equals(l2.getName())) {
++				return l1.getStartPC() - l2.getStartPC();
++			} else {
++				return l1.getName().compareTo(l2.getName());
++			}
++		}
++
++	}
++
++	// Two pieces of advice on before execution of a method with a this and a
++	// parameter and another local within it
+ 	public void testDebuggingBeforeAdvice_pr262509_3() {
+ 		// Compile with -preserveAllLocals
+ 		runTest("debugging before advice - 3");
+@@ -289,6 +335,14 @@ public class Ajc164Tests extends org.aspectj.testing.XMLBasedAjcTestCase {
+ 		return sb.toString();
+ 	}
+ 
++	private String stringify(List l, int slotIndex) {
++		LocalVariable lvEntry = (LocalVariable) l.get(slotIndex);
++		StringBuffer sb = new StringBuffer();
++		sb.append(lvEntry.getSignature()).append(" ").append(lvEntry.getName()).append("(").append(lvEntry.getIndex()).append(
++				") start=").append(lvEntry.getStartPC()).append(" len=").append(lvEntry.getLength());
++		return sb.toString();
++	}
++
+ 	private String stringify(LocalVariableTable lvt) {
+ 		StringBuffer sb = new StringBuffer();
+ 		sb.append("LocalVariableTable.  Entries=#" + lvt.getTableLength()).append("\n");
+@@ -2,6 +2,12 @@
+ 
+ <suite>
+ 
++    <ajc-test dir="bugs164/pr265360" title="incorrect resolution of Date">
++      <compile files="Foo.java Main.java" options="-1.5">
++        <message kind="warning" text="no match for this type name: Date "/>
++        <message kind="warning" test="advice defined in"/>
++      </compile>
++    </ajc-test>
+ 
+     <ajc-test dir="bugs164/pr233032" title="dual preClinit">
+       <compile files="A.java" options="-1.5"/>

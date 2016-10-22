@@ -1,0 +1,260 @@
+@@ -0,0 +1,44 @@
++package hello;
++
++import java.io.BufferedInputStream;
++import java.io.BufferedReader;
++import java.io.ByteArrayInputStream;
++import java.io.ByteArrayOutputStream;
++import java.io.IOException;
++import java.io.InputStreamReader;
++import java.io.PrintStream;
++
++public class HelloWorld {
++
++	public void println () {
++		System.out.println("Hello World!");
++	}
++
++	private void testStackTrace () throws IOException {
++		try {
++			println();
++		}
++		catch (Exception ex) {
++			printRelevantStackEntries(ex,getClass().getName());
++		}
++	}
++	
++	private static void printRelevantStackEntries (Exception ex, String className) throws IOException {
++		ByteArrayOutputStream baos = new ByteArrayOutputStream();
++		PrintStream ps = new PrintStream(baos);
++		ex.printStackTrace(ps);
++		ByteArrayInputStream bais = new ByteArrayInputStream(baos.toByteArray());
++		BufferedReader br = new BufferedReader(new InputStreamReader(bais));
++		String entry;
++		while ((entry = br.readLine()) != null) {
++			if (entry.indexOf(className) != -1) {
++				System.err.println(entry);
++			}
++		}
++	}
++	
++	public static void main(String[] args) throws Exception {
++		new HelloWorld().testStackTrace();
++	}
++
++}
+@@ -0,0 +1,8 @@
++package hello;
++
++public aspect ThrowExceptionAfter {
++
++	after () : execution(public void println()) {
++		throw new UnsupportedOperationException();
++	}
++}
+@@ -0,0 +1,8 @@
++package hello;
++
++public aspect ThrowExceptionAround {
++
++	void around () : execution(public void println()) {
++		throw new UnsupportedOperationException();
++	}
++}
+@@ -0,0 +1,8 @@
++package hello;
++
++public aspect ThrowExceptionBefore {
++
++	before () : execution(public void println()) {
++		throw new UnsupportedOperationException();
++	}
++}
+@@ -19,7 +19,9 @@ import org.aspectj.testing.XMLBasedAjcTestCase;
+ 
+ public class Ajc153Tests extends org.aspectj.testing.XMLBasedAjcTestCase {
+ 
+-  // public void testMissingLineNumbersInStacktrace_pr145442() { runTest("missing line numbers in stacktrace");}
++   public void testMissingLineNumbersInStacktraceBefore_pr145442() { runTest("missing line numbers in stacktrace before");}
++   public void testMissingLineNumbersInStacktraceAfter_pr145442() { runTest("missing line numbers in stacktrace after");}
++   public void testMissingLineNumbersInStacktraceAround_pr145442() { runTest("missing line numbers in stacktrace around");}
+   // public void testArgnamesAndJavac_pr148381() { runTest("argNames and javac");}
+   // public void testCFlowXMLAspectLTW_pr149096() { runTest("cflow xml concrete aspect"); }
+   // public void testAmbiguousBinding_pr121805() { runTest("ambiguous binding");}
+@@ -115,9 +115,43 @@
+      <compile files="Complex.java"/>
+     </ajc-test> 
+ 
+-	<ajc-test dir="bugs153/pr145442" title="missing line numbers in stacktrace">
+-     <compile files="MissingLineNumbers.java"/>
+-     <run class="MissingLineNumbers"/>
++	<ajc-test dir="bugs153/pr145442" title="missing line numbers in stacktrace before">
++     <compile files="hello/HelloWorld.java hello/ThrowExceptionBefore.aj"/>
++     <run class="hello.HelloWorld">
++		<stderr>
++<!--		
++	    	<line text="hello.HelloWorld.println(HelloWorld.java:13)"/>
++-->	    	
++	    	<line text="hello.HelloWorld.println(HelloWorld.java)"/>
++	    	<line text="hello.HelloWorld.testStackTrace(HelloWorld.java:19)"/>
++	    	<line text="hello.HelloWorld.main(HelloWorld.java:41)"/>
++		</stderr>
++     </run>
++    </ajc-test> 
++    
++	<ajc-test dir="bugs153/pr145442" title="missing line numbers in stacktrace after">
++     <compile files="hello/HelloWorld.java hello/ThrowExceptionAfter.aj"/>
++     <run class="hello.HelloWorld">
++		<stderr>
++	    	<line text="hello.HelloWorld.println(HelloWorld.java:15)"/>
++	    	<line text="hello.HelloWorld.testStackTrace(HelloWorld.java:19)"/>
++	    	<line text="hello.HelloWorld.main(HelloWorld.java:41)"/>
++		</stderr>
++     </run>
++    </ajc-test> 
++    
++	<ajc-test dir="bugs153/pr145442" title="missing line numbers in stacktrace around">
++     <compile files="hello/HelloWorld.java hello/ThrowExceptionAround.aj" options="-XnoInline"/>
++     <run class="hello.HelloWorld">
++		<stderr>
++<!--		
++	    	<line text="hello.HelloWorld.println(HelloWorld.java:13)"/>
++-->	    	
++	    	<line text="hello.HelloWorld.println(HelloWorld.java:1)"/>
++	    	<line text="hello.HelloWorld.testStackTrace(HelloWorld.java:19)"/>
++	    	<line text="hello.HelloWorld.main(HelloWorld.java:41)"/>
++		</stderr>
++     </run>
+     </ajc-test> 
+ 
+ 	<ajc-test dir="bugs153/pr149322" title="can't find type on interface call 1">
+@@ -0,0 +1,44 @@
++package hello;
++
++import java.io.BufferedInputStream;
++import java.io.BufferedReader;
++import java.io.ByteArrayInputStream;
++import java.io.ByteArrayOutputStream;
++import java.io.IOException;
++import java.io.InputStreamReader;
++import java.io.PrintStream;
++
++public class HelloWorld {
++
++	public void println () {
++		System.out.println("Hello World!");
++	}
++
++	private void testStackTrace () throws IOException {
++		try {
++			println();
++		}
++		catch (Exception ex) {
++			printRelevantStackEntries(ex,getClass().getName());
++		}
++	}
++	
++	private static void printRelevantStackEntries (Exception ex, String className) throws IOException {
++		ByteArrayOutputStream baos = new ByteArrayOutputStream();
++		PrintStream ps = new PrintStream(baos);
++		ex.printStackTrace(ps);
++		ByteArrayInputStream bais = new ByteArrayInputStream(baos.toByteArray());
++		BufferedReader br = new BufferedReader(new InputStreamReader(bais));
++		String entry;
++		while ((entry = br.readLine()) != null) {
++			if (entry.indexOf(className) != -1) {
++				System.err.println(entry);
++			}
++		}
++	}
++	
++	public static void main(String[] args) throws Exception {
++		new HelloWorld().testStackTrace();
++	}
++
++}
+@@ -0,0 +1,8 @@
++package hello;
++
++public aspect ThrowExceptionAfter {
++
++	after () : execution(public void println()) {
++		throw new UnsupportedOperationException();
++	}
++}
+@@ -0,0 +1,8 @@
++package hello;
++
++public aspect ThrowExceptionAround {
++
++	void around () : execution(public void println()) {
++		throw new UnsupportedOperationException();
++	}
++}
+@@ -0,0 +1,8 @@
++package hello;
++
++public aspect ThrowExceptionBefore {
++
++	before () : execution(public void println()) {
++		throw new UnsupportedOperationException();
++	}
++}
+@@ -19,7 +19,9 @@ import org.aspectj.testing.XMLBasedAjcTestCase;
+ 
+ public class Ajc153Tests extends org.aspectj.testing.XMLBasedAjcTestCase {
+ 
+-  // public void testMissingLineNumbersInStacktrace_pr145442() { runTest("missing line numbers in stacktrace");}
++   public void testMissingLineNumbersInStacktraceBefore_pr145442() { runTest("missing line numbers in stacktrace before");}
++   public void testMissingLineNumbersInStacktraceAfter_pr145442() { runTest("missing line numbers in stacktrace after");}
++   public void testMissingLineNumbersInStacktraceAround_pr145442() { runTest("missing line numbers in stacktrace around");}
+   // public void testArgnamesAndJavac_pr148381() { runTest("argNames and javac");}
+   // public void testCFlowXMLAspectLTW_pr149096() { runTest("cflow xml concrete aspect"); }
+   // public void testAmbiguousBinding_pr121805() { runTest("ambiguous binding");}
+@@ -115,9 +115,43 @@
+      <compile files="Complex.java"/>
+     </ajc-test> 
+ 
+-	<ajc-test dir="bugs153/pr145442" title="missing line numbers in stacktrace">
+-     <compile files="MissingLineNumbers.java"/>
+-     <run class="MissingLineNumbers"/>
++	<ajc-test dir="bugs153/pr145442" title="missing line numbers in stacktrace before">
++     <compile files="hello/HelloWorld.java hello/ThrowExceptionBefore.aj"/>
++     <run class="hello.HelloWorld">
++		<stderr>
++<!--		
++	    	<line text="hello.HelloWorld.println(HelloWorld.java:13)"/>
++-->	    	
++	    	<line text="hello.HelloWorld.println(HelloWorld.java)"/>
++	    	<line text="hello.HelloWorld.testStackTrace(HelloWorld.java:19)"/>
++	    	<line text="hello.HelloWorld.main(HelloWorld.java:41)"/>
++		</stderr>
++     </run>
++    </ajc-test> 
++    
++	<ajc-test dir="bugs153/pr145442" title="missing line numbers in stacktrace after">
++     <compile files="hello/HelloWorld.java hello/ThrowExceptionAfter.aj"/>
++     <run class="hello.HelloWorld">
++		<stderr>
++	    	<line text="hello.HelloWorld.println(HelloWorld.java:15)"/>
++	    	<line text="hello.HelloWorld.testStackTrace(HelloWorld.java:19)"/>
++	    	<line text="hello.HelloWorld.main(HelloWorld.java:41)"/>
++		</stderr>
++     </run>
++    </ajc-test> 
++    
++	<ajc-test dir="bugs153/pr145442" title="missing line numbers in stacktrace around">
++     <compile files="hello/HelloWorld.java hello/ThrowExceptionAround.aj" options="-XnoInline"/>
++     <run class="hello.HelloWorld">
++		<stderr>
++<!--		
++	    	<line text="hello.HelloWorld.println(HelloWorld.java:13)"/>
++-->	    	
++	    	<line text="hello.HelloWorld.println(HelloWorld.java:1)"/>
++	    	<line text="hello.HelloWorld.testStackTrace(HelloWorld.java:19)"/>
++	    	<line text="hello.HelloWorld.main(HelloWorld.java:41)"/>
++		</stderr>
++     </run>
+     </ajc-test> 
+ 
+ 	<ajc-test dir="bugs153/pr149322" title="can't find type on interface call 1">

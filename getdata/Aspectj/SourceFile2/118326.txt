@@ -1,0 +1,18 @@
+@@ -0,0 +1,10 @@
++public aspect Bar {
++    public int Foo.x = null; // error
++    
++    public int Foo.y = 3;
++    
++    public int Foo.z = new Integer(42); // autoboxing
++    
++    public int Foo.i = "hello"; // error
++
++}
+@@ -0,0 +1,6 @@
++public class Foo {
++    //int y = null;
++    public static void main(String[] args) {
++        Foo f = new Foo();
++    }
++}

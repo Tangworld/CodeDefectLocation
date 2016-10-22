@@ -1,0 +1,52 @@
+@@ -232,7 +232,9 @@ public class InterTypeConstructorDeclaration extends InterTypeDeclaration {
+ 		ResolvedMember signature = world.makeResolvedMember(binding,onTypeBinding);
+ 		signature.resetKind(Member.CONSTRUCTOR);
+ 		signature.resetName("<init>");
+-		signature.resetModifiers(declaredModifiers);
++		int resetModifiers = declaredModifiers;
++		if (binding.isVarargs())  resetModifiers = resetModifiers | Constants.ACC_VARARGS;
++		signature.resetModifiers(resetModifiers);
+ 
+ 		ResolvedMember syntheticInterMember =
+ 			AjcMemberMaker.interConstructor(declaringTypeX,  signature, aspectType);
+@@ -0,0 +1,14 @@
++public class pr111481 {
++
++  public static void main(String []argv) {
++    new pr111481(new Object[]{"a","b","c"});
++    new pr111481("a","b","c");
++  }
++
++}
++aspect A {
++    public pr111481.new(Object... names) {
++    	System.out.println(names[0]);
++    }
++
++}
+@@ -596,6 +596,9 @@ public class Ajc150Tests extends org.aspectj.testing.XMLBasedAjcTestCase {
+   	  assertNotNull("Couldn't find 'method-call(void pack.Test.someMethod())' element in the tree",pe);
+   }
+ 
++  public void testVarArgsIITDInConstructor() {
++	  runTest("ITD varargs in constructor");
++  }
+ 
+   // helper methods.....
+ 
+@@ -4914,4 +4914,14 @@
+      <compile files="pr102357.aj"/>
+      <run class="pr102357"/>
+    </ajc-test>
++
++   <ajc-test dir="bugs150" title="ITD varargs in constructor">
++     <compile files="pr111481.aj" options="-1.5"/>
++	 <run class="pr111481">
++       <stdout>
++           <line text="a"/>
++           <line text="a"/>
++       </stdout>
++      </run>
++   </ajc-test>
+ </suite>
+\ No newline at end of file

@@ -1,0 +1,48 @@
+@@ -142,7 +142,7 @@ public class AccessForInlineVisitor extends ASTVisitor {
+ 
+ 	private FieldBinding getAccessibleField(FieldBinding binding, TypeBinding receiverType) {
+ 		//System.err.println("checking field: " + binding);
+-		if (!binding.isValidBinding()) return binding;
++		if (binding == null || !binding.isValidBinding()) return binding;
+ 
+ 		makePublic(receiverType);
+ 		if (isPublic(binding)) return binding;
+@@ -0,0 +1,12 @@
++class Foo {
++  Foo field;
++  void test() {}
++}
++
++public aspect pr107858 {
++  void around() : call(void Foo.test()) {
++    Foo foo = new Foo().field;
++    proceed(foo); // caught at compile time
++    proceed(new Foo().field); // crashes
++  }
++}
+\ No newline at end of file
+@@ -330,6 +330,10 @@ public class Ajc150Tests extends org.aspectj.testing.XMLBasedAjcTestCase {
+ 	  runTest("inner class passed as argument to varargs method");
+   }
+ 
++  public void testInlinedFieldAccessInProceedCall() {
++	  runTest("inlined field access in proceed call");
++  }
++  
+   // helper methods.....
+ 
+   public SyntheticRepository createRepos(File cpentry) {
+@@ -390,6 +390,13 @@
+         <compile files="pr104024.aj" options="-1.5"/>
+     </ajc-test>  
+ 
++    <ajc-test dir="bugs150" pr="107858" title="inlined field access in proceed call">
++        <compile files="pr107858.aj" options="-1.5">
++            <message kind="error" line="9" text="too many arguments to proceed, expected 0"></message>
++            <message kind="error" line="10" text="too many arguments to proceed, expected 0"></message>
++        </compile>
++    </ajc-test>  
++ 
+     <!-- ============================================================================ -->
+     <!-- ============================================================================ -->
+ 

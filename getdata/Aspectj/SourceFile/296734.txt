@@ -1,0 +1,2135 @@
+@@ -104,9 +104,13 @@ class BcelAdvice extends Advice {
+ 
+ 	@Override
+ 	public ShadowMunger concretize(ResolvedType fromType, World world, PerClause clause) {
+-		suppressLintWarnings(world);
++		if (!world.areAllLintIgnored()) {
++			suppressLintWarnings(world);
++		}
+ 		ShadowMunger ret = super.concretize(fromType, world, clause);
+-		clearLintSuppressions(world, this.suppressedLintKinds);
++		if (!world.areAllLintIgnored()) {
++			clearLintSuppressions(world, this.suppressedLintKinds);
++		}
+ 		IfFinder ifinder = new IfFinder();
+ 		ret.getPointcut().accept(ifinder, null);
+ 		boolean hasGuardTest = ifinder.hasIf && getKind() != AdviceKind.Around;
+@@ -138,10 +142,14 @@ class BcelAdvice extends Advice {
+ 
+ 	@Override
+ 	public boolean match(Shadow shadow, World world) {
+-		suppressLintWarnings(world);
+-		boolean ret = super.match(shadow, world);
+-		clearLintSuppressions(world, this.suppressedLintKinds);
+-		return ret;
++		if (world.areAllLintIgnored()) {
++			return super.match(shadow, world);
++		} else {
++			suppressLintWarnings(world);
++			boolean ret = super.match(shadow, world);
++			clearLintSuppressions(world, this.suppressedLintKinds);
++			return ret;
++		}
+ 	}
+ 
+ 	@Override
+@@ -167,9 +175,13 @@ class BcelAdvice extends Advice {
+ 		}
+ 
+ 		World world = shadow.getIWorld();
+-		suppressLintWarnings(world);
++		if (!world.areAllLintIgnored()) {
++			suppressLintWarnings(world);
++		}
+ 		runtimeTest = getPointcut().findResidue(shadow, exposedState);
+-		clearLintSuppressions(world, this.suppressedLintKinds);
++		if (!world.areAllLintIgnored()) {
++			clearLintSuppressions(world, this.suppressedLintKinds);
++		}
+ 
+ 		// these initializations won't be performed by findResidue, but need to be
+ 		// so that the joinpoint is primed for weaving
+@@ -184,11 +184,12 @@ class BcelMethod extends ResolvedMemberImpl {
+ 
+ 	private void unpackAjAttributes(World world) {
+ 		associatedShadowMunger = null;
+-		List<AjAttribute> as = Utility.readAjAttributes(getDeclaringType().getClassName(), method.getAttributes(),
+-				getSourceContext(world), world, bcelObjectType.getWeaverVersionAttribute());
++		ResolvedType resolvedDeclaringType = getDeclaringType().resolve(world);
++		List<AjAttribute> as = Utility.readAjAttributes(resolvedDeclaringType.getClassName(), method.getAttributes(),
++				resolvedDeclaringType.getSourceContext(), world, bcelObjectType.getWeaverVersionAttribute());
+ 		processAttributes(world, as);
+-		as = AtAjAttributes.readAj5MethodAttributes(method, this, world.resolve(getDeclaringType()), preResolvedPointcut,
+-				getSourceContext(world), world.getMessageHandler());
++		as = AtAjAttributes.readAj5MethodAttributes(method, this, resolvedDeclaringType, preResolvedPointcut, resolvedDeclaringType
++				.getSourceContext(), world.getMessageHandler());
+ 		processAttributes(world, as);
+ 	}
+ 
+@@ -68,6 +68,7 @@ import org.aspectj.weaver.patterns.PerClause;
+ 
+ public class BcelObjectType extends AbstractReferenceTypeDelegate {
+ 	public JavaClass javaClass;
++	private boolean artificial; // Was the BcelObject built from an artificial set of bytes? Or from the real ondisk stuff?
+ 	private LazyClassGen lazyClassGen = null; // set lazily if it's an aspect
+ 
+ 	private int modifiers;
+@@ -135,9 +136,10 @@ public class BcelObjectType extends AbstractReferenceTypeDelegate {
+ 	 * that's a bigger piece of work. XXX
+ 	 */
+ 
+-	BcelObjectType(ReferenceType resolvedTypeX, JavaClass javaClass, boolean exposedToWeaver) {
++	BcelObjectType(ReferenceType resolvedTypeX, JavaClass javaClass, boolean artificial, boolean exposedToWeaver) {
+ 		super(resolvedTypeX, exposedToWeaver);
+ 		this.javaClass = javaClass;
++		this.artificial = artificial;
+ 		initializeFromJavaclass();
+ 
+ 		// ATAJ: set the delegate right now for @AJ pointcut, else it is done
+@@ -163,8 +165,9 @@ public class BcelObjectType extends AbstractReferenceTypeDelegate {
+ 	}
+ 
+ 	// repeat initialization
+-	public void setJavaClass(JavaClass newclass) {
++	public void setJavaClass(JavaClass newclass, boolean artificial) {
+ 		this.javaClass = newclass;
++		this.artificial = artificial;
+ 		resetState();
+ 		initializeFromJavaclass();
+ 	}
+@@ -475,6 +478,10 @@ public class BcelObjectType extends AbstractReferenceTypeDelegate {
+ 		return javaClass;
+ 	}
+ 
++	public boolean isArtificial() {
++		return artificial;
++	}
++
+ 	public void resetState() {
+ 		if (javaClass == null) {
+ 			// we might store the classname and allow reloading?
+@@ -933,6 +940,8 @@ public class BcelObjectType extends AbstractReferenceTypeDelegate {
+ 				fields[i].evictWeavingState();
+ 			}
+ 			javaClass = null;
++
++			this.artificial = true;
+ 			// setSourceContext(SourceContextImpl.UNKNOWN_SOURCE_CONTEXT); //
+ 			// bit naughty
+ 			// interfaces=null; // force reinit - may get us the right
+@@ -959,4 +968,8 @@ public class BcelObjectType extends AbstractReferenceTypeDelegate {
+ 	public boolean copySourceContext() {
+ 		return false;
+ 	}
++
++	public void setExposedToWeaver(boolean b) {
++		exposedToWeaver = b;
++	}
+ }
+@@ -186,10 +186,10 @@ public class BcelWeaver {
+ 			if (wsi != null && wsi.isReweavable()) {
+ 				BcelObjectType classType = getClassType(type.getName());
+ 				JavaClass wovenJavaClass = classType.getJavaClass();
+-				JavaClass unwovenJavaClass = Utility.makeJavaClass(wovenJavaClass.getFileName(), wsi
+-						.getUnwovenClassFileData(wovenJavaClass.getBytes()));
++				byte[] bytes = wsi.getUnwovenClassFileData(wovenJavaClass.getBytes());
++				JavaClass unwovenJavaClass = Utility.makeJavaClass(wovenJavaClass.getFileName(), bytes);
+ 				world.storeClass(unwovenJavaClass);
+-				classType.setJavaClass(unwovenJavaClass);
++				classType.setJavaClass(unwovenJavaClass, true);
+ 				// classType.setJavaClass(Utility.makeJavaClass(classType.
+ 				// getJavaClass().getFileName(),
+ 				// wsi.getUnwovenClassFileData(classType.getJavaClass().getBytes(
+@@ -263,11 +263,12 @@ public class BcelWeaver {
+ 				}
+ 
+ 				// FIXME ASC performance? of this alternative soln.
++				int size = (int) entry.getSize();
+ 				ClassParser parser = new ClassParser(new ByteArrayInputStream(FileUtil.readAsByteArray(inStream)), entry.getName());
+ 				JavaClass jc = parser.parse();
+ 				inStream.closeEntry();
+ 
+-				ResolvedType type = world.addSourceObjectType(jc).getResolvedTypeX();
++				ResolvedType type = world.addSourceObjectType(jc, false).getResolvedTypeX();
+ 				type.setBinaryPath(inFile.getAbsolutePath());
+ 				if (type.isAspect()) {
+ 					addedAspects.add(type);
+@@ -301,7 +302,7 @@ public class BcelWeaver {
+ 	private void addIfAspect(byte[] bytes, String name, List<ResolvedType> toList, File dir) throws IOException {
+ 		ClassParser parser = new ClassParser(new ByteArrayInputStream(bytes), name);
+ 		JavaClass jc = parser.parse();
+-		ResolvedType type = world.addSourceObjectType(jc).getResolvedTypeX();
++		ResolvedType type = world.addSourceObjectType(jc, false).getResolvedTypeX();
+ 		String typeName = type.getName().replace('.', File.separatorChar);
+ 		int end = name.lastIndexOf(typeName + ".class");
+ 		String binaryPath = null;
+@@ -454,7 +455,7 @@ public class BcelWeaver {
+ 		// classFile)) {
+ 		// // throw new RuntimeException(classFile.getClassName());
+ 		// }
+-		ReferenceType type = world.addSourceObjectType(classFile.getJavaClass()).getResolvedTypeX();
++		ReferenceType type = world.addSourceObjectType(classFile.getJavaClass(), false).getResolvedTypeX();
+ 		if (fromInpath) {
+ 			type.setBinaryPath(classFile.getFilename());
+ 		}
+@@ -1437,7 +1438,8 @@ public class BcelWeaver {
+ 		ResolvedType superclassType = resolvedTypeToWeave.getSuperclass();
+ 		String superclassTypename = (superclassType == null ? null : superclassType.getName());
+ 
+-		if (superclassType != null && !superclassType.isTypeHierarchyComplete() && superclassType.isExposedToWeaver()) { // typesForWeaving.contains(superclassTypename))																							// {
++		if (superclassType != null && !superclassType.isTypeHierarchyComplete() && superclassType.isExposedToWeaver()) { // typesForWeaving.contains(superclassTypename))
++			// // {
+ 			weaveParentsFor(typesForWeaving, superclassTypename, superclassType);
+ 		}
+ 
+@@ -1514,8 +1516,9 @@ public class BcelWeaver {
+ 			// ().getFileName(), wsi.getUnwovenClassFileData()));
+ 			// new: reweavable default with clever diff
+ 			if (!world.isOverWeaving()) {
+-				classType.setJavaClass(Utility.makeJavaClass(classType.getJavaClass().getFileName(), wsi
+-						.getUnwovenClassFileData(classType.getJavaClass().getBytes())));
++
++				byte[] bytes = wsi.getUnwovenClassFileData(classType.getJavaClass().getBytes());
++				classType.setJavaClass(Utility.makeJavaClass(classType.getJavaClass().getFileName(), bytes), true);
+ 				// } else {
+ 				// System.out.println("overweaving " + className);
+ 			}
+@@ -1788,34 +1791,34 @@ public class BcelWeaver {
+ 				return null;
+ 			}
+ 			ReferenceType resolvedClassType = classType.getResolvedTypeX();
+-	
++
+ 			if (world.isXmlConfigured() && world.getXmlConfiguration().excludesType(resolvedClassType)) {
+ 				if (!world.getMessageHandler().isIgnoring(IMessage.INFO)) {
+ 					world.getMessageHandler().handleMessage(
+ 							MessageUtil.info("Type '" + resolvedClassType.getName()
+ 									+ "' not woven due to exclusion via XML weaver exclude section"));
+-	
++
+ 				}
+ 				if (dump) {
+ 					dumpUnchanged(classFile);
+ 				}
+ 				return null;
+ 			}
+-	
++
+ 			List<ShadowMunger> shadowMungers = fastMatch(shadowMungerList, resolvedClassType);
+ 			List<ConcreteTypeMunger> typeMungers = classType.getResolvedTypeX().getInterTypeMungers();
+-	
++
+ 			resolvedClassType.checkInterTypeMungers();
+-	
++
+ 			// Decide if we need to do actual weaving for this class
+ 			boolean mightNeedToWeave = shadowMungers.size() > 0 || typeMungers.size() > 0 || classType.isAspect()
+ 					|| world.getDeclareAnnotationOnMethods().size() > 0 || world.getDeclareAnnotationOnFields().size() > 0;
+-	
++
+ 			// May need bridge methods if on 1.5 and something in our hierarchy is
+ 			// affected by ITDs
+ 			boolean mightNeedBridgeMethods = world.isInJava5Mode() && !classType.isInterface()
+ 					&& resolvedClassType.getInterTypeMungersIncludingSupers().size() > 0;
+-	
++
+ 			LazyClassGen clazz = null;
+ 			if (mightNeedToWeave || mightNeedBridgeMethods) {
+ 				clazz = classType.getLazyClassGen();
+@@ -1823,16 +1826,16 @@ public class BcelWeaver {
+ 				// clazz.getWeaverState());
+ 				try {
+ 					boolean isChanged = false;
+-	
++
+ 					if (mightNeedToWeave) {
+ 						isChanged = BcelClassWeaver.weave(world, clazz, shadowMungers, typeMungers, lateTypeMungerList,
+ 								inReweavableMode);
+ 					}
+-	
++
+ 					if (mightNeedBridgeMethods) {
+ 						isChanged = BcelClassWeaver.calculateAnyRequiredBridgeMethods(world, clazz) || isChanged;
+ 					}
+-	
++
+ 					if (isChanged) {
+ 						if (dump) {
+ 							dump(classFile, clazz);
+@@ -1867,15 +1870,15 @@ public class BcelWeaver {
+ 			 * world.getModelAsAsmManager(); if (asm != null) { IHierarchy model = asm.getHierarchy(); if (!classType.isAspect()) {
+ 			 * 
+ 			 * String pkgname = classType.getResolvedTypeX().getPackageName(); String tname =
+-			 * classType.getResolvedTypeX().getSimpleBaseName(); IProgramElement typeElement = model.findElementForType(pkgname, tname);
+-			 * if (typeElement != null) { Set deleted = new HashSet();
++			 * classType.getResolvedTypeX().getSimpleBaseName(); IProgramElement typeElement = model.findElementForType(pkgname,
++			 * tname); if (typeElement != null) { Set deleted = new HashSet();
+ 			 * deleted.add(asm.getCanonicalFilePath(typeElement.getSourceLocation().getSourceFile()));
+ 			 * 
+-			 * model.updateHandleMap(deleted); IProgramElement parent = typeElement.getParent(); // parent may have children: PACKAGE
+-			 * DECL, IMPORT-REFEFERENCE, TYPE_DECL if (parent != null) { typeElement.getParent().removeChild(typeElement); //
+-			 * System.out.println("Removing " + classType.getResolvedTypeX().getName() + "? " // + ); } } } }
++			 * model.updateHandleMap(deleted); IProgramElement parent = typeElement.getParent(); // parent may have children:
++			 * PACKAGE DECL, IMPORT-REFEFERENCE, TYPE_DECL if (parent != null) { typeElement.getParent().removeChild(typeElement);
++			 * // System.out.println("Removing " + classType.getResolvedTypeX().getName() + "? " // + ); } } } }
+ 			 */
+-			if (dump) { 
++			if (dump) {
+ 				dumpUnchanged(classFile);
+ 				return clazz;
+ 			} else {
+@@ -374,12 +374,12 @@ public class BcelWorld extends World implements Repository {
+ 		if (jc == null) {
+ 			return null;
+ 		} else {
+-			return buildBcelDelegate(ty, jc, false);
++			return buildBcelDelegate(ty, jc, false, false);
+ 		}
+ 	}
+ 
+-	public BcelObjectType buildBcelDelegate(ReferenceType type, JavaClass jc, boolean exposedToWeaver) {
+-		BcelObjectType ret = new BcelObjectType(type, jc, exposedToWeaver);
++	public BcelObjectType buildBcelDelegate(ReferenceType type, JavaClass jc, boolean artificial, boolean exposedToWeaver) {
++		BcelObjectType ret = new BcelObjectType(type, jc, artificial, exposedToWeaver);
+ 		return ret;
+ 	}
+ 
+@@ -420,11 +420,59 @@ public class BcelWorld extends World implements Repository {
+ 		}
+ 	}
+ 
+-	public BcelObjectType addSourceObjectType(JavaClass jc) {
++	// public BcelObjectType addSourceObjectType(JavaClass jc) {
++	// return addSourceObjectType(jc.getClassName(), jc, -1);
++	// }
++
++	public BcelObjectType addSourceObjectType(JavaClass jc, boolean artificial) {
++		return addSourceObjectType(jc.getClassName(), jc, artificial);
++	}
++
++	public BcelObjectType addSourceObjectType(String classname, JavaClass jc, boolean artificial) {
+ 		BcelObjectType ret = null;
++		if (!jc.getClassName().equals(classname)) {
++			throw new RuntimeException(jc.getClassName() + "!=" + classname);
++		}
+ 		String signature = UnresolvedType.forName(jc.getClassName()).getSignature();
+ 
+-		Object fromTheMap = typeMap.get(signature);
++		ResolvedType fromTheMap = typeMap.get(signature);
++
++		if (fromTheMap != null && !(fromTheMap instanceof ReferenceType)) {
++			// what on earth is it then? See pr 112243
++			StringBuffer exceptionText = new StringBuffer();
++			exceptionText.append("Found invalid (not a ReferenceType) entry in the type map. ");
++			exceptionText.append("Signature=[" + signature + "] Found=[" + fromTheMap + "] Class=[" + fromTheMap.getClass() + "]");
++			throw new BCException(exceptionText.toString());
++		}
++
++		ReferenceType nameTypeX = (ReferenceType) fromTheMap;
++
++		if (nameTypeX == null) {
++			if (jc.isGeneric() && isInJava5Mode()) {
++				nameTypeX = ReferenceType.fromTypeX(UnresolvedType.forRawTypeName(jc.getClassName()), this);
++				ret = buildBcelDelegate(nameTypeX, jc, artificial, true);
++				ReferenceType genericRefType = new ReferenceType(UnresolvedType.forGenericTypeSignature(signature, ret
++						.getDeclaredGenericSignature()), this);
++				nameTypeX.setDelegate(ret);
++				genericRefType.setDelegate(ret);
++				nameTypeX.setGenericType(genericRefType);
++				typeMap.put(signature, nameTypeX);
++			} else {
++				nameTypeX = new ReferenceType(signature, this);
++				ret = buildBcelDelegate(nameTypeX, jc, artificial, true);
++				typeMap.put(signature, nameTypeX);
++			}
++		} else {
++			ret = buildBcelDelegate(nameTypeX, jc, artificial, true);
++		}
++		return ret;
++	}
++
++	public BcelObjectType addSourceObjectType(String classname, byte[] bytes, boolean artificial) {
++		BcelObjectType ret = null;
++		String signature = UnresolvedType.forName(classname).getSignature();
++
++		ResolvedType fromTheMap = typeMap.get(signature);
+ 
+ 		if (fromTheMap != null && !(fromTheMap instanceof ReferenceType)) {
+ 			// what on earth is it then? See pr 112243
+@@ -437,9 +485,10 @@ public class BcelWorld extends World implements Repository {
+ 		ReferenceType nameTypeX = (ReferenceType) fromTheMap;
+ 
+ 		if (nameTypeX == null) {
++			JavaClass jc = Utility.makeJavaClass(classname, bytes);
+ 			if (jc.isGeneric() && isInJava5Mode()) {
+ 				nameTypeX = ReferenceType.fromTypeX(UnresolvedType.forRawTypeName(jc.getClassName()), this);
+-				ret = buildBcelDelegate(nameTypeX, jc, true);
++				ret = buildBcelDelegate(nameTypeX, jc, artificial, true);
+ 				ReferenceType genericRefType = new ReferenceType(UnresolvedType.forGenericTypeSignature(signature, ret
+ 						.getDeclaredGenericSignature()), this);
+ 				nameTypeX.setDelegate(ret);
+@@ -448,11 +497,25 @@ public class BcelWorld extends World implements Repository {
+ 				typeMap.put(signature, nameTypeX);
+ 			} else {
+ 				nameTypeX = new ReferenceType(signature, this);
+-				ret = buildBcelDelegate(nameTypeX, jc, true);
++				ret = buildBcelDelegate(nameTypeX, jc, artificial, true);
+ 				typeMap.put(signature, nameTypeX);
+ 			}
+ 		} else {
+-			ret = buildBcelDelegate(nameTypeX, jc, true);
++			Object o = nameTypeX.getDelegate();
++			if (!(o instanceof BcelObjectType)) {
++				throw new IllegalStateException("For " + classname + " should be BcelObjectType, but is " + o.getClass());
++			}
++			ret = (BcelObjectType) o;
++			// byte[] bs = ret.javaClass.getBytes();
++			// if (bs.length != bytes.length) {
++			// throw new RuntimeException("Shit");
++			// }
++			if (ret.isArtificial()) {
++				// System.out.println("Rebuilding " + nameTypeX.getName());
++				ret = buildBcelDelegate(nameTypeX, Utility.makeJavaClass(classname, bytes), artificial, true);
++			} else {
++				ret.setExposedToWeaver(true);
++			}
+ 		}
+ 		return ret;
+ 	}
+@@ -1028,4 +1091,8 @@ public class BcelWorld extends World implements Repository {
+ 		}
+ 	}
+ 
++	public TypeMap getTypeMap() {
++		return typeMap;
++	}
++
+ }
+@@ -53,7 +53,6 @@ import org.aspectj.weaver.bcel.BcelObjectType;
+ import org.aspectj.weaver.bcel.BcelWeaver;
+ import org.aspectj.weaver.bcel.BcelWorld;
+ import org.aspectj.weaver.bcel.UnwovenClassFile;
+-import org.aspectj.weaver.bcel.Utility;
+ 
+ // OPTIMIZE add guards for all the debug/info/etc
+ /**
+@@ -84,7 +83,7 @@ public class WeavingAdaptor implements IMessageContext {
+ 	private boolean abortOnError = false;
+ 	protected GeneratedClassHandler generatedClassHandler;
+ 	protected Map generatedClasses = new HashMap(); /* String -> UnwovenClassFile */
+-	protected BcelObjectType delegateForCurrentClass; // lazily initialized, should be used to prevent parsing bytecode multiple
++	public BcelObjectType delegateForCurrentClass; // lazily initialized, should be used to prevent parsing bytecode multiple
+ 	// times
+ 
+ 	private boolean haveWarnedOnJavax = false;
+@@ -293,6 +292,8 @@ public class WeavingAdaptor implements IMessageContext {
+ 				return bytes;
+ 			}
+ 
++			boolean debugOn = !messageHandler.isIgnoring(Message.DEBUG);
++
+ 			try {
+ 				delegateForCurrentClass = null;
+ 				name = name.replace('/', '.');
+@@ -303,21 +304,27 @@ public class WeavingAdaptor implements IMessageContext {
+ 						// a valid aspectOf()/hasAspect() generated in them. However - if they are excluded
+ 						// (via include/exclude in aop.xml) they really should only get aspectOf()/hasAspect()
+ 						// and not be included in the full set of aspects being applied by 'this' weaver
+-						debug("weaving '" + name + "'");
+-						bytes = getWovenBytes(name, bytes);
+-					} else if (shouldWeaveAnnotationStyleAspect(name, bytes)) {
+-						if (mustWeave) {
+-							if (bcelWorld.getLint().mustWeaveXmlDefinedAspects.isEnabled()) {
+-								bcelWorld.getLint().mustWeaveXmlDefinedAspects.signal(name, null);
+-							}
++						if (debugOn) {
++							debug("weaving '" + name + "'");
+ 						}
+-						// an @AspectJ aspect needs to be at least munged by the aspectOf munger
+-						debug("weaving '" + name + "'");
+-						bytes = getAtAspectJAspectBytes(name, bytes);
+-					} else {
++						bytes = getWovenBytes(name, bytes);
++						// temporarily out - searching for @Aspect annotated types is a slow thing to do - we should
++						// expect the user to name them if they want them woven - just like code style
++						// } else if (shouldWeaveAnnotationStyleAspect(name, bytes)) {
++						// if (mustWeave) {
++						// if (bcelWorld.getLint().mustWeaveXmlDefinedAspects.isEnabled()) {
++						// bcelWorld.getLint().mustWeaveXmlDefinedAspects.signal(name, null);
++						// }
++						// }
++						// // an @AspectJ aspect needs to be at least munged by the aspectOf munger
++						// if (debugOn) {
++						// debug("weaving '" + name + "'");
++						// }
++						// bytes = getAtAspectJAspectBytes(name, bytes);
++					} else if (debugOn) {
+ 						debug("not weaving '" + name + "'");
+ 					}
+-				} else {
++				} else if (debugOn) {
+ 					debug("cannot weave '" + name + "'");
+ 				}
+ 			} finally {
+@@ -351,44 +358,46 @@ public class WeavingAdaptor implements IMessageContext {
+ 	}
+ 
+ 	private boolean shouldWeaveName(String name) {
+-		if ((weavingSpecialTypes & INITIALIZED) == 0) {
+-			weavingSpecialTypes |= INITIALIZED;
+-			// initialize it
+-			Properties p = weaver.getWorld().getExtraConfiguration();
+-			if (p != null) {
+-				boolean b = p.getProperty(World.xsetWEAVE_JAVA_PACKAGES, "false").equalsIgnoreCase("true");
+-				if (b) {
+-					weavingSpecialTypes |= WEAVE_JAVA_PACKAGE;
+-				}
+-				b = p.getProperty(World.xsetWEAVE_JAVAX_PACKAGES, "false").equalsIgnoreCase("true");
+-				if (b) {
+-					weavingSpecialTypes |= WEAVE_JAVAX_PACKAGE;
++		if ("osj".indexOf(name.charAt(0)) != -1) {
++			if ((weavingSpecialTypes & INITIALIZED) == 0) {
++				weavingSpecialTypes |= INITIALIZED;
++				// initialize it
++				Properties p = weaver.getWorld().getExtraConfiguration();
++				if (p != null) {
++					boolean b = p.getProperty(World.xsetWEAVE_JAVA_PACKAGES, "false").equalsIgnoreCase("true");
++					if (b) {
++						weavingSpecialTypes |= WEAVE_JAVA_PACKAGE;
++					}
++					b = p.getProperty(World.xsetWEAVE_JAVAX_PACKAGES, "false").equalsIgnoreCase("true");
++					if (b) {
++						weavingSpecialTypes |= WEAVE_JAVAX_PACKAGE;
++					}
+ 				}
+ 			}
+-		}
+-		if (name.startsWith("org.aspectj.")) {
+-			return false;
+-		}
+-		if (name.startsWith("sun.reflect.")) {// JDK reflect
+-			return false;
+-		}
+-		if (name.startsWith("javax.")) {
+-			if ((weavingSpecialTypes & WEAVE_JAVAX_PACKAGE) != 0) {
+-				return true;
+-			} else {
+-				if (!haveWarnedOnJavax) {
+-					haveWarnedOnJavax = true;
+-					warn("javax.* types are not being woven because the weaver option '-Xset:weaveJavaxPackages=true' has not been specified");
+-				}
++			if (name.startsWith("org.aspectj.")) {
+ 				return false;
+ 			}
+-		}
+-		if (name.startsWith("java.")) {
+-			if ((weavingSpecialTypes & WEAVE_JAVA_PACKAGE) != 0) {
+-				return true;
+-			} else {
++			if (name.startsWith("sun.reflect.")) {// JDK reflect
+ 				return false;
+ 			}
++			if (name.startsWith("javax.")) {
++				if ((weavingSpecialTypes & WEAVE_JAVAX_PACKAGE) != 0) {
++					return true;
++				} else {
++					if (!haveWarnedOnJavax) {
++						haveWarnedOnJavax = true;
++						warn("javax.* types are not being woven because the weaver option '-Xset:weaveJavaxPackages=true' has not been specified");
++					}
++					return false;
++				}
++			}
++			if (name.startsWith("java.")) {
++				if ((weavingSpecialTypes & WEAVE_JAVA_PACKAGE) != 0) {
++					return true;
++				} else {
++					return false;
++				}
++			}
+ 		}
+ 		// boolean should = !(name.startsWith("org.aspectj.")
+ 		// || (name.startsWith("java.") && (weavingSpecialTypes & WEAVE_JAVA_PACKAGE) == 0)
+@@ -432,7 +441,8 @@ public class WeavingAdaptor implements IMessageContext {
+ 
+ 	protected void ensureDelegateInitialized(String name, byte[] bytes) {
+ 		if (delegateForCurrentClass == null) {
+-			delegateForCurrentClass = ((BcelWorld) weaver.getWorld()).addSourceObjectType(Utility.makeJavaClass(name, bytes));
++			BcelWorld world = (BcelWorld) weaver.getWorld();
++			delegateForCurrentClass = world.addSourceObjectType(name, bytes, false);
+ 		}
+ 	}
+ 
+@@ -406,9 +406,11 @@ public class ReferenceType extends ResolvedType {
+ 				return true;
+ 			}
+ 		}
++
+ 		if (this == other) {
+ 			return true;
+ 		}
++
+ 		if (this.getSignature().equals(ResolvedType.OBJECT.getSignature())) {
+ 			return true;
+ 		}
+@@ -428,11 +430,6 @@ public class ReferenceType extends ResolvedType {
+ 				return true;
+ 			}
+ 		}
+-		// if (this.isParameterizedType() && other.isRawType()) {
+-		// if (((ReferenceType) this.getRawType()).isAssignableFrom(other.getGenericType())) {
+-		// return true;
+-		// }
+-		// }
+ 
+ 		if (this.isParameterizedType()) {
+ 			// look at wildcards...
+@@ -555,8 +552,15 @@ public class ReferenceType extends ResolvedType {
+ 			return false;
+ 		}
+ 
+-		for (Iterator i = other.getDirectSupertypes(); i.hasNext();) {
+-			if (this.isAssignableFrom((ResolvedType) i.next(), allowMissing)) {
++		ResolvedType[] interfaces = other.getDeclaredInterfaces();
++		for (ResolvedType intface : interfaces) {
++			if (this.isAssignableFrom(intface, allowMissing)) {
++				return true;
++			}
++		}
++		ResolvedType superclass = other.getSuperclass();
++		if (superclass != null) {
++			if (this.isAssignableFrom(superclass, allowMissing)) {
+ 				return true;
+ 			}
+ 		}
+@@ -1749,7 +1749,6 @@ public abstract class ResolvedType extends UnresolvedType implements AnnotatedEl
+ 		interTypeMungers.add(munger);
+ 	}
+ 
+-
+ 	/**
+ 	 * Compare the type transformer with the existing members. A clash may not be an error (the ITD may be the 'default
+ 	 * implementation') so returning false is not always a sign of an error.
+@@ -2204,21 +2203,23 @@ public abstract class ResolvedType extends UnresolvedType implements AnnotatedEl
+ 	}
+ 
+ 	public boolean isTopmostImplementor(ResolvedType interfaceType) {
++		boolean b = true;
+ 		if (isInterface()) {
+-			return false;
+-		}
+-		if (!interfaceType.isAssignableFrom(this, true)) {
+-			return false;
+-		}
++			b = false;
++		} else if (!interfaceType.isAssignableFrom(this, true)) {
++			b = false;
++		} else
+ 		// check that I'm truly the topmost implementor
+ 		if (this.getSuperclass().isMissing()) {
+-			return true; // we don't know anything about supertype, and it can't
+-		}
++			b = true; // we don't know anything about supertype, and it can't
++		} else
+ 		// be exposed to weaver
+ 		if (interfaceType.isAssignableFrom(this.getSuperclass(), true)) {
+-			return false;
++			b = false;
+ 		}
+-		return true;
++		// System.out.println("is " + getName() + " topmostimplementor of " + interfaceType + "? " + b);
++		// System.err.println("Was topmostimplementor? "+interfaceType.getName()+" "+b);
++		return b;
+ 	}
+ 
+ 	public ResolvedType getTopmostImplementor(ResolvedType interfaceType) {
+@@ -2241,14 +2242,14 @@ public abstract class ResolvedType extends UnresolvedType implements AnnotatedEl
+ 		if (getSuperclass() != null) {
+ 			ret.addAll(getSuperclass().getExposedPointcuts());
+ 		}
+-		
+-		for (ResolvedType type: getDeclaredInterfaces()) {
++
++		for (ResolvedType type : getDeclaredInterfaces()) {
+ 			addPointcutsResolvingConflicts(ret, Arrays.asList(type.getDeclaredPointcuts()), false);
+ 		}
+-		
++
+ 		addPointcutsResolvingConflicts(ret, Arrays.asList(getDeclaredPointcuts()), true);
+-		
+-		for (ResolvedMember member: ret) {
++
++		for (ResolvedMember member : ret) {
+ 			ResolvedPointcutDefinition inherited = (ResolvedPointcutDefinition) member;
+ 			if (inherited != null && inherited.isAbstract()) {
+ 				if (!this.isAbstract()) {
+@@ -2266,11 +2267,11 @@ public abstract class ResolvedType extends UnresolvedType implements AnnotatedEl
+ 			ResolvedPointcutDefinition toAdd = (ResolvedPointcutDefinition) i.next();
+ 			for (Iterator j = acc.iterator(); j.hasNext();) {
+ 				ResolvedPointcutDefinition existing = (ResolvedPointcutDefinition) j.next();
+-				if (toAdd==null || existing==null || existing == toAdd) {
++				if (toAdd == null || existing == null || existing == toAdd) {
+ 					continue;
+ 				}
+ 				UnresolvedType pointcutDeclaringTypeUT = existing.getDeclaringType();
+-				if (pointcutDeclaringTypeUT!=null) {
++				if (pointcutDeclaringTypeUT != null) {
+ 					ResolvedType pointcutDeclaringType = pointcutDeclaringTypeUT.resolve(getWorld());
+ 					if (!isVisible(existing.getModifiers(), pointcutDeclaringType, this)) {
+ 						// if they intended to override it but it is not visible,
+@@ -2278,7 +2279,8 @@ public abstract class ResolvedType extends UnresolvedType implements AnnotatedEl
+ 						if (existing.isAbstract() && conflictingSignature(existing, toAdd)) {
+ 							getWorld().showMessage(
+ 									IMessage.ERROR,
+-									WeaverMessages.format(WeaverMessages.POINTCUT_NOT_VISIBLE, existing.getDeclaringType().getName()
++									WeaverMessages.format(WeaverMessages.POINTCUT_NOT_VISIBLE, existing.getDeclaringType()
++											.getName()
+ 											+ "." + existing.getName() + "()", this.getName()), toAdd.getSourceLocation(), null);
+ 							j.remove();
+ 						}
+@@ -583,6 +583,16 @@ public abstract class World implements Dump.INode {
+ 		return declaring.lookupSyntheticMember(member);
+ 	}
+ 
++	private boolean allLintIgnored = false;
++
++	public void setAllLintIgnored() {
++		allLintIgnored = true;
++	}
++
++	public boolean areAllLintIgnored() {
++		return allLintIgnored;
++	}
++
+ 	public abstract IWeavingSupport getWeavingSupport();
+ 
+ 	/**
+@@ -907,7 +917,7 @@ public abstract class World implements Dump.INode {
+ 	 * Map of types in the world, can have 'references' to expendable ones which can be garbage collected to recover memory. An
+ 	 * expendable type is a reference type that is not exposed to the weaver (ie just pulled in for type resolution purposes).
+ 	 */
+-	protected static class TypeMap {
++	public static class TypeMap {
+ 
+ 		private static boolean debug = false;
+ 
+@@ -947,6 +957,16 @@ public abstract class World implements Dump.INode {
+ 			// INFO);
+ 		}
+ 
++		// For testing
++		public Map getExpendableMap() {
++			return expendableMap;
++		}
++
++		// For testing
++		public Map getMainMap() {
++			return tMap;
++		}
++
+ 		/**
+ 		 * Go through any types added during the previous file weave. If any are suitable for demotion, then put them in the
+ 		 * expendable map where GC can claim them at some point later. Demotion means: the type is not an aspect, the type is not
+@@ -24,11 +24,11 @@ import org.aspectj.util.FileUtil;
+ public class AtAjLTWTests extends XMLBasedAjcTestCase {
+ 
+ 	public static Test suite() {
+-	    return XMLBasedAjcTestCase.loadSuite(org.aspectj.systemtest.ajc150.ataspectj.AtAjLTWTests.class);
++		return XMLBasedAjcTestCase.loadSuite(org.aspectj.systemtest.ajc150.ataspectj.AtAjLTWTests.class);
+ 	}
+ 
+ 	protected File getSpecFile() {
+-	  return new File("../tests/src/org/aspectj/systemtest/ajc150/ataspectj/ltw.xml");
++		return new File("../tests/src/org/aspectj/systemtest/ajc150/ataspectj/ltw.xml");
+ 	}
+ 
+ 	public void testRunThemAllWithJavacCompiledAndLTW() {
+@@ -43,194 +43,195 @@ public class AtAjLTWTests extends XMLBasedAjcTestCase {
+ 		runTest("AjcLTW PerClauseTest -Xreweavable");
+ 	}
+ 
+-    public void testJavaCAjcLTWPerClauseTest() {
+-        runTest("JavaCAjcLTW PerClauseTest");
+-    }
+-
+-    public void testAjcLTWAroundInlineMungerTest_XterminateAfterCompilation() {
+-        runTest("AjcLTW AroundInlineMungerTest -XterminateAfterCompilation");
+-    }
+-
+-    public void testAjcLTWAroundInlineMungerTest_Xreweavable() {
+-        runTest("AjcLTW AroundInlineMungerTest");
+-    }
+-
+-    public void testAjcLTWAroundInlineMungerTest() {
+-        runTest("AjcLTW AroundInlineMungerTest");
+-    }
+-
+-    public void testAjcLTWAroundInlineMungerTest_XnoInline_Xreweavable() {
+-        runTest("AjcLTW AroundInlineMungerTest -XnoInline -Xreweavable");
+-    }
+-
+-    public void testAjcLTWAroundInlineMungerTest2() {
+-        runTest("AjcLTW AroundInlineMungerTest2");
+-    }
+-
+-    public void testLTWDumpNone() {
+-        runTest("LTW DumpTest none");
+-
+-        File f = new File("_ajdump/ataspectj/DumpTest.class");
+-        assertFalse(f.exists());
+-        f = new File("_ajdump/_before/ataspectj/DumpTestTheDump.class");
+-        assertFalse(f.exists());
+-        f = new File("_ajdump/ataspectj/DumpTestTheDump.class");
+-        assertFalse(f.exists());
+-    }
+-
+-    public void testLTWDump() {
+-        runTest("LTW DumpTest");
+-        
+-        File f = new File("_ajdump/ataspectj/DumpTest.class");
+-        assertFalse(f.exists());
+-        f = new File("_ajdump/_before/ataspectj/DumpTestTheDump.class");
+-        assertFalse(f.exists());
+-        f = new File("_ajdump/ataspectj/DumpTestTheDump.class");
+-        assertTrue(f.exists());
+-        
+-        // tidy up...
+-        f = new File("_ajdump");
+-        FileUtil.deleteContents(f);
+-        f.delete();
+-    }
+-
+-    public void testLTWDumpBeforeAndAfter() {
+-        runTest("LTW DumpTest before and after");
+-        
+-        // before
+-        File f = new File("_ajdump/_before/com/foo/bar");
+-        CountingFilenameFilter cff = new CountingFilenameFilter(".class");
+-        f.listFiles(cff);
+-        assertEquals("Expected dump file in " + f.getAbsolutePath(),1,cff.getCount());
+-
+-        // after
+-        f = new File("_ajdump/com/foo/bar");
+-        cff = new CountingFilenameFilter(".class");
+-        f.listFiles(cff);
+-        assertEquals("Expected dump file in " + f.getAbsolutePath(),1,cff.getCount());
+-        
+-        // tidy up...
+-        f = new File("_ajdump");
+-        FileUtil.deleteContents(f);
+-        f.delete();
+-    }
+-
+-    public void testLTWDumpClosure() {
+-        runTest("LTW DumpTest closure");
+-
+-        File f = new File("_ajdump/ataspectj/DumpTestTheDump$AjcClosure1.class");
+-        assertTrue("Missing dump file " + f.getAbsolutePath(),f.exists());
+-        
+-        // tidy up...
+-        f = new File("_ajdump");
+-        FileUtil.deleteContents(f);
+-        f.delete();
+-    }
+-
+-    public void testLTWDumpProxy() {
+-        runTest("LTW DumpTest proxy");
+-
+-        // The working directory is different because this test must be forked
+-        File dir = new File("../tests/java5/ataspectj");
+-        File f = new File(dir,"_ajdump/_before");
+-        CountingFilenameFilter cff = new CountingFilenameFilter(".class");
+-        f.listFiles(cff);
+-        assertEquals("Expected dump file in " + f.getAbsolutePath(),1,cff.getCount());
+-        f = new File(dir,"_ajdump");
+-        cff = new CountingFilenameFilter(".class");
+-        f.listFiles(cff);
+-        assertEquals(1,cff.getCount());
+-        
+-        // tidy up...
+-        f = new File(dir,"_ajdump");
+-        FileUtil.deleteContents(f);
+-        f.delete();
+-    }
+-
+-    public void testLTWDumpJSP () {
+-        runTest("LTW DumpTest JSP");
+-
+-        // The working directory is different because this test must be forked
+-        File f = new File("_ajdump/_before/com/ibm/_jsp");
+-        CountingFilenameFilter cff = new CountingFilenameFilter(".class");
+-        f.listFiles(cff);
+-        assertEquals("Expected dump file in " + f.getAbsolutePath(),1,cff.getCount());
+-        f = new File("_ajdump/com/ibm/_jsp");
+-        cff = new CountingFilenameFilter(".class");
+-        f.listFiles(cff);
+-        assertEquals(1,cff.getCount());
+-        
+-        // tidy up...
+-        f = new File("_ajdump");
+-        FileUtil.deleteContents(f);
+-        f.delete();
+-    }
+-    
+-    public void testAjcAspect1LTWAspect2_Xreweavable() {
+-        runTest("Ajc Aspect1 LTW Aspect2 -Xreweavable");
+-    }
+-
+-    public void testLTWLogSilent() {
+-        runTest("LTW Log silent");
+-    }
+-
+-    public void testLTWLogVerbose() {
+-        runTest("LTW Log verbose");
+-    }
+-
+-    public void testLTWLogVerboseAndShow() {
+-        runTest("LTW Log verbose and showWeaveInfo");
+-    }
+-
+-    public void testLTWLogMessageHandlerClass() {
+-        runTest("LTW Log messageHandlerClass");
+-    }
+-
+-    public void testLTWUnweavable() {
+-        // actually test that we do LTW proxy and jit classes
+-        runTest("LTW Unweavable");
+-    }
+-
+-    public void testLTWDecp() {
+-        runTest("LTW Decp");
+-    }
+-
+-    public void testLTWDecp2() {
+-        runTest("LTW Decp2");
+-    }
+-
+-    public void testCompileTimeAspectsDeclaredToLTWWeaver() {
+-        runTest("Compile time aspects declared to ltw weaver");
+-    }
+-
+-    public void testConcreteAtAspect() {
+-        runTest("Concrete@Aspect");
+-    }
+-
+-    public void testConcreteAspect() {
+-        runTest("ConcreteAspect");
+-    }
+-
+-    public void testConcretePrecedenceAspect() {
+-        runTest("ConcretePrecedenceAspect");
+-    }
+-
+-    public void testAspectOfWhenAspectNotInInclude() {
+-        runTest("AspectOfWhenAspectNotInInclude");
+-    }
+-
+-    public void testAspectOfWhenAspectExcluded_pr152873() {
+-        runTest("AspectOfWhenAspectExcluded");
+-    }
+-    public void testAspectOfWhenNonAspectExcluded_pr152873() {
+-    	runTest("AspectOfWhenNonAspectExcluded");
+-    }
+-
+-    public void testAppContainer() {
+-        runTest("AppContainer");
+-    }
+-
+-    public void testCflowBelowStack() {
+-        runTest("CflowBelowStack");
+-    }
++	public void testJavaCAjcLTWPerClauseTest() {
++		runTest("JavaCAjcLTW PerClauseTest");
++	}
++
++	public void testAjcLTWAroundInlineMungerTest_XterminateAfterCompilation() {
++		runTest("AjcLTW AroundInlineMungerTest -XterminateAfterCompilation");
++	}
++
++	public void testAjcLTWAroundInlineMungerTest_Xreweavable() {
++		runTest("AjcLTW AroundInlineMungerTest");
++	}
++
++	public void testAjcLTWAroundInlineMungerTest() {
++		runTest("AjcLTW AroundInlineMungerTest");
++	}
++
++	public void testAjcLTWAroundInlineMungerTest_XnoInline_Xreweavable() {
++		runTest("AjcLTW AroundInlineMungerTest -XnoInline -Xreweavable");
++	}
++
++	public void testAjcLTWAroundInlineMungerTest2() {
++		runTest("AjcLTW AroundInlineMungerTest2");
++	}
++
++	public void testLTWDumpNone() {
++		runTest("LTW DumpTest none");
++
++		File f = new File("_ajdump/ataspectj/DumpTest.class");
++		assertFalse(f.exists());
++		f = new File("_ajdump/_before/ataspectj/DumpTestTheDump.class");
++		assertFalse(f.exists());
++		f = new File("_ajdump/ataspectj/DumpTestTheDump.class");
++		assertFalse(f.exists());
++	}
++
++	public void testLTWDump() {
++		runTest("LTW DumpTest");
++
++		File f = new File("_ajdump/ataspectj/DumpTest.class");
++		assertFalse(f.exists());
++		f = new File("_ajdump/_before/ataspectj/DumpTestTheDump.class");
++		assertFalse(f.exists());
++		f = new File("_ajdump/ataspectj/DumpTestTheDump.class");
++		assertTrue(f.exists());
++
++		// tidy up...
++		f = new File("_ajdump");
++		FileUtil.deleteContents(f);
++		f.delete();
++	}
++
++	public void testLTWDumpBeforeAndAfter() {
++		runTest("LTW DumpTest before and after");
++
++		// before
++		File f = new File("_ajdump/_before/com/foo/bar");
++		CountingFilenameFilter cff = new CountingFilenameFilter(".class");
++		f.listFiles(cff);
++		assertEquals("Expected dump file in " + f.getAbsolutePath(), 1, cff.getCount());
++
++		// after
++		f = new File("_ajdump/com/foo/bar");
++		cff = new CountingFilenameFilter(".class");
++		f.listFiles(cff);
++		assertEquals("Expected dump file in " + f.getAbsolutePath(), 1, cff.getCount());
++
++		// tidy up...
++		f = new File("_ajdump");
++		FileUtil.deleteContents(f);
++		f.delete();
++	}
++
++	public void testLTWDumpClosure() {
++		runTest("LTW DumpTest closure");
++
++		File f = new File("_ajdump/ataspectj/DumpTestTheDump$AjcClosure1.class");
++		assertTrue("Missing dump file " + f.getAbsolutePath(), f.exists());
++
++		// tidy up...
++		f = new File("_ajdump");
++		FileUtil.deleteContents(f);
++		f.delete();
++	}
++
++	public void testLTWDumpProxy() {
++		runTest("LTW DumpTest proxy");
++
++		// The working directory is different because this test must be forked
++		File dir = new File("../tests/java5/ataspectj");
++		File f = new File(dir, "_ajdump/_before");
++		CountingFilenameFilter cff = new CountingFilenameFilter(".class");
++		f.listFiles(cff);
++		assertEquals("Expected dump file in " + f.getAbsolutePath(), 1, cff.getCount());
++		f = new File(dir, "_ajdump");
++		cff = new CountingFilenameFilter(".class");
++		f.listFiles(cff);
++		assertEquals(1, cff.getCount());
++
++		// tidy up...
++		f = new File(dir, "_ajdump");
++		FileUtil.deleteContents(f);
++		f.delete();
++	}
++
++	public void testLTWDumpJSP() {
++		runTest("LTW DumpTest JSP");
++
++		// The working directory is different because this test must be forked
++		File f = new File("_ajdump/_before/com/ibm/_jsp");
++		CountingFilenameFilter cff = new CountingFilenameFilter(".class");
++		f.listFiles(cff);
++		assertEquals("Expected dump file in " + f.getAbsolutePath(), 1, cff.getCount());
++		f = new File("_ajdump/com/ibm/_jsp");
++		cff = new CountingFilenameFilter(".class");
++		f.listFiles(cff);
++		assertEquals(1, cff.getCount());
++
++		// tidy up...
++		f = new File("_ajdump");
++		FileUtil.deleteContents(f);
++		f.delete();
++	}
++
++	public void testAjcAspect1LTWAspect2_Xreweavable() {
++		runTest("Ajc Aspect1 LTW Aspect2 -Xreweavable");
++	}
++
++	public void testLTWLogSilent() {
++		runTest("LTW Log silent");
++	}
++
++	public void testLTWLogVerbose() {
++		runTest("LTW Log verbose");
++	}
++
++	public void testLTWLogVerboseAndShow() {
++		runTest("LTW Log verbose and showWeaveInfo");
++	}
++
++	public void testLTWLogMessageHandlerClass() {
++		runTest("LTW Log messageHandlerClass");
++	}
++
++	public void testLTWUnweavable() {
++		// actually test that we do LTW proxy and jit classes
++		runTest("LTW Unweavable");
++	}
++
++	public void testLTWDecp() {
++		runTest("LTW Decp");
++	}
++
++	public void testLTWDecp2() {
++		runTest("LTW Decp2");
++	}
++
++	public void testCompileTimeAspectsDeclaredToLTWWeaver() {
++		runTest("Compile time aspects declared to ltw weaver");
++	}
++
++	public void testConcreteAtAspect() {
++		runTest("Concrete@Aspect");
++	}
++
++	public void testConcreteAspect() {
++		runTest("ConcreteAspect");
++	}
++
++	public void testConcretePrecedenceAspect() {
++		runTest("ConcretePrecedenceAspect");
++	}
++
++	// public void testAspectOfWhenAspectNotInInclude() {
++	// runTest("AspectOfWhenAspectNotInInclude");
++	// }
++	//
++	// public void testAspectOfWhenAspectExcluded_pr152873() {
++	// runTest("AspectOfWhenAspectExcluded");
++	// }
++
++	public void testAspectOfWhenNonAspectExcluded_pr152873() {
++		runTest("AspectOfWhenNonAspectExcluded");
++	}
++
++	public void testAppContainer() {
++		runTest("AppContainer");
++	}
++
++	public void testCflowBelowStack() {
++		runTest("CflowBelowStack");
++	}
+ }
+@@ -13,7 +13,6 @@ package org.aspectj.systemtest.ajc154;
+ import java.io.File;
+ import java.lang.reflect.Field;
+ 
+-import junit.framework.AssertionFailedError;
+ import junit.framework.Test;
+ 
+ import org.aspectj.apache.bcel.classfile.ConstantPool;
+@@ -47,22 +46,22 @@ public class Ajc154Tests extends org.aspectj.testing.XMLBasedAjcTestCase {
+ 	// public void testAfterThrowingAnnotationStyle_pr211674_2() { runTest("after throwing annotation style problem - 2");}
+ 
+ 	// crappy solution - see the bug
+-	public void testCflowLtwProblem_pr166647_1() {
+-		try {
+-			runTest("ltw and cflow problem");
+-		} catch (AssertionFailedError afe) {
+-			// this is OK.... sadly
+-			// at least lets check we warned the user it was going to happen:
+-			String stderr = (getLastRunResult() == null ? "" : getLastRunResult().getStdErr());
+-			// Expected line:
+-			// [WeavingURLClassLoader] warning XML Defined aspects must be woven in cases where cflow pointcuts are involved.
+-			// Currently the include/exclude patterns exclude 'x.Aspect2' [Xlint:mustWeaveXmlDefinedAspects]
+-			assertTrue("Did not see warning about needing to weave xml defined aspects", stderr
+-					.indexOf("warning XML Defined aspects must be woven in cases where cflow pointcuts are involved.") != -1);
+-			assertTrue("Xlint warning was expected '[Xlint:mustWeaveXmlDefinedAspects]'", stderr
+-					.indexOf("[Xlint:mustWeaveXmlDefinedAspects]") != -1);
+-		}
+-	}
++	// public void testCflowLtwProblem_pr166647_1() {
++	// try {
++	// runTest("ltw and cflow problem");
++	// } catch (AssertionFailedError afe) {
++	// // this is OK.... sadly
++	// // at least lets check we warned the user it was going to happen:
++	// String stderr = (getLastRunResult() == null ? "" : getLastRunResult().getStdErr());
++	// // Expected line:
++	// // [WeavingURLClassLoader] warning XML Defined aspects must be woven in cases where cflow pointcuts are involved.
++	// // Currently the include/exclude patterns exclude 'x.Aspect2' [Xlint:mustWeaveXmlDefinedAspects]
++	// assertTrue("Did not see warning about needing to weave xml defined aspects", stderr
++	// .indexOf("warning XML Defined aspects must be woven in cases where cflow pointcuts are involved.") != -1);
++	// assertTrue("Xlint warning was expected '[Xlint:mustWeaveXmlDefinedAspects]'", stderr
++	// .indexOf("[Xlint:mustWeaveXmlDefinedAspects]") != -1);
++	// }
++	// }
+ 
+ 	// Testing some issues with declare at type
+ 	public void testDeclareAtTypeProblems_pr211052_1() {
+@@ -219,8 +218,9 @@ public class Ajc154Tests extends org.aspectj.testing.XMLBasedAjcTestCase {
+ 		Method oneWeWant = null;
+ 		for (int i = 0; i < meths.length && oneWeWant == null; i++) {
+ 			Method method = meths[i];
+-			if (method.getName().equals("main"))
++			if (method.getName().equals("main")) {
+ 				oneWeWant = meths[i];
++			}
+ 		}
+ 
+ 		/**
+@@ -263,8 +263,9 @@ public class Ajc154Tests extends org.aspectj.testing.XMLBasedAjcTestCase {
+ 		Method oneWeWant = null;
+ 		for (int i = 0; i < meths.length && oneWeWant == null; i++) {
+ 			Method method = meths[i];
+-			if (method.getName().equals("main"))
++			if (method.getName().equals("main")) {
+ 				oneWeWant = meths[i];
++			}
+ 		}
+ 		// see previous test for dump of main method
+ 
+@@ -354,7 +355,6 @@ public class Ajc154Tests extends org.aspectj.testing.XMLBasedAjcTestCase {
+ 		return XMLBasedAjcTestCase.loadSuite(Ajc154Tests.class);
+ 	}
+ 
+-	
+ 	protected File getSpecFile() {
+ 		return new File("../tests/src/org/aspectj/systemtest/ajc154/ajc154.xml");
+ 	}
+@@ -431,8 +431,9 @@ public class Ajc154Tests extends org.aspectj.testing.XMLBasedAjcTestCase {
+ 		}
+ 
+ 		public FuzzyBoolean matchesStatically(MatchingContext matchContext) {
+-			if (this.simulateDynamicTest)
++			if (this.simulateDynamicTest) {
+ 				return FuzzyBoolean.MAYBE;
++			}
+ 			if (this.beanNamePattern.equals(matchContext.getBinding("beanName"))) {
+ 				return FuzzyBoolean.YES;
+ 			} else {
+@@ -14,5 +14,6 @@
+ 	<classpathentry kind="lib" path="/lib/bcel/bcel.jar" sourcepath="/lib/bcel/bcel-src.zip"/>
+ 	<classpathentry kind="lib" path="/lib/ext/jrockit/jrockit.jar"/>
+ 	<classpathentry combineaccessrules="false" kind="src" path="/org.aspectj.matcher"/>
++	<classpathentry kind="lib" path="/lib/aspectj/lib/aspectjrt.jar"/>
+ 	<classpathentry kind="output" path="bin"/>
+ </classpath>
+@@ -63,10 +63,21 @@ public class ClassLoaderWeavingAdaptor extends WeavingAdaptor {
+ 	private List m_dumpTypePattern = new ArrayList();
+ 	private boolean m_dumpBefore = false;
+ 	private boolean dumpDirPerClassloader = false;
+-	private List m_includeTypePattern = new ArrayList();
+-	private List m_excludeTypePattern = new ArrayList();
+-	private List m_includeStartsWith = new ArrayList();
+-	private List m_excludeStartsWith = new ArrayList();
++
++	private boolean hasExcludes = false;
++	private List<TypePattern> excludeTypePattern = new ArrayList<TypePattern>(); // anything
++	private List<String> excludeStartsWith = new ArrayList<String>(); // com.foo..*
++	private List<String> excludeStarDotDotStar = new ArrayList<String>(); // *..*CGLIB*
++	private List<String> excludeExactName = new ArrayList<String>(); // com.foo.Bar
++	private List<String> excludeEndsWith = new ArrayList<String>(); // com.foo.Bar
++	private List<String[]> excludeSpecial = new ArrayList<String[]>();
++
++	private boolean hasIncludes = false;
++	private List<TypePattern> includeTypePattern = new ArrayList<TypePattern>();
++	private List<String> m_includeStartsWith = new ArrayList<String>();
++	private List<String> includeExactName = new ArrayList<String>();
++	private boolean includeStar = false;
++
+ 	private List m_aspectExcludeTypePattern = new ArrayList();
+ 	private List m_aspectExcludeStartsWith = new ArrayList();
+ 	private List m_aspectIncludeTypePattern = new ArrayList();
+@@ -135,7 +146,6 @@ public class ClassLoaderWeavingAdaptor extends WeavingAdaptor {
+ 		}
+ 
+ 		boolean success = true;
+-		// if (trace.isTraceEnabled()) trace.enter("initialize",this,new Object[] { classLoader, context });
+ 
+ 		this.weavingContext = context;
+ 		if (weavingContext == null) {
+@@ -155,9 +165,8 @@ public class ClassLoaderWeavingAdaptor extends WeavingAdaptor {
+ 			return;
+ 		}
+ 
+-		bcelWorld = new LTWWorld(classLoader, weavingContext, // TODO when the world works in terms of the context, we can remove
+-				// the loader...
+-				getMessageHandler(), null);
++		// TODO when the world works in terms of the context, we can remove the loader
++		bcelWorld = new LTWWorld(classLoader, weavingContext, getMessageHandler(), null);
+ 
+ 		weaver = new BcelWeaver(bcelWorld);
+ 
+@@ -371,6 +380,9 @@ public class ClassLoaderWeavingAdaptor extends WeavingAdaptor {
+ 				bcelWorld.getLint().loadDefaultProperties();
+ 			} else {
+ 				bcelWorld.getLint().setAll(weaverOption.lint);
++				if (weaverOption.lint.equals("ignore")) {
++					bcelWorld.setAllLintIgnored();
++				}
+ 			}
+ 		}
+ 		// TODO proceedOnError option
+@@ -474,7 +486,8 @@ public class ClassLoaderWeavingAdaptor extends WeavingAdaptor {
+ 						break;
+ 					}
+ 
+-					((BcelWorld) weaver.getWorld()).addSourceObjectType(Utility.makeJavaClass(concreteAspect.name, gen.getBytes()));
++					((BcelWorld) weaver.getWorld()).addSourceObjectType(Utility.makeJavaClass(concreteAspect.name, gen.getBytes()),
++							true);
+ 
+ 					concreteAspects.add(gen);
+ 
+@@ -534,7 +547,7 @@ public class ClassLoaderWeavingAdaptor extends WeavingAdaptor {
+ 	}
+ 
+ 	/**
+-	 * Register the include / exclude filters We duplicate simple patterns in startWith filters that will allow faster matching
++	 * Register the include / exclude filters. We duplicate simple patterns in startWith filters that will allow faster matching
+ 	 * without ResolvedType
+ 	 * 
+ 	 * @param weaver
+@@ -546,38 +559,120 @@ public class ClassLoaderWeavingAdaptor extends WeavingAdaptor {
+ 		for (Iterator iterator = definitions.iterator(); iterator.hasNext();) {
+ 			Definition definition = (Definition) iterator.next();
+ 			for (Iterator iterator1 = definition.getIncludePatterns().iterator(); iterator1.hasNext();) {
++				hasIncludes = true;
+ 				String include = (String) iterator1.next();
+-				TypePattern includePattern = new PatternParser(include).parseTypePattern();
+-				m_includeTypePattern.add(includePattern);
+ 				fastMatchInfo = looksLikeStartsWith(include);
+ 				if (fastMatchInfo != null) {
+ 					m_includeStartsWith.add(fastMatchInfo);
++				} else if (include.equals("*")) {
++					includeStar = true;
++				} else if ((fastMatchInfo = looksLikeExactName(include)) != null) {
++					includeExactName.add(fastMatchInfo);
++				} else {
++					TypePattern includePattern = new PatternParser(include).parseTypePattern();
++					includeTypePattern.add(includePattern);
+ 				}
+ 			}
+ 			for (Iterator iterator1 = definition.getExcludePatterns().iterator(); iterator1.hasNext();) {
++				hasExcludes = true;
+ 				String exclude = (String) iterator1.next();
+-				TypePattern excludePattern = new PatternParser(exclude).parseTypePattern();
+-				m_excludeTypePattern.add(excludePattern);
+ 				fastMatchInfo = looksLikeStartsWith(exclude);
+ 				if (fastMatchInfo != null) {
+-					m_excludeStartsWith.add(fastMatchInfo);
++					excludeStartsWith.add(fastMatchInfo);
++				} else if ((fastMatchInfo = looksLikeStarDotDotStarExclude(exclude)) != null) {
++					excludeStarDotDotStar.add(fastMatchInfo);
++				} else if ((fastMatchInfo = looksLikeExactName(exclude)) != null) {
++					excludeExactName.add(exclude);
++				} else if ((fastMatchInfo = looksLikeEndsWith(exclude)) != null) {
++					excludeEndsWith.add(fastMatchInfo);
++				} else if (exclude
++						.equals("org.codehaus.groovy..* && !org.codehaus.groovy.grails.web.servlet.mvc.SimpleGrailsController*")) {
++					// TODO need a more sophisticated analysis here, to allow for similar situations
++					excludeSpecial.add(new String[] { "org.codehaus.groovy.",
++							"org.codehaus.groovy.grails.web.servlet.mvc.SimpleGrailsController" });
++					// for the related test:
++					// } else if (exclude.equals("testdata..* && !testdata.sub.Oran*")) {
++					// excludeSpecial.add(new String[] { "testdata.", "testdata.sub.Oran" });
++				} else {
++					TypePattern excludePattern = new PatternParser(exclude).parseTypePattern();
++					excludeTypePattern.add(excludePattern);
+ 				}
+ 			}
+ 		}
+ 	}
+ 
+ 	/**
+-	 * Checks if the type pattern can be handled as a startswith check
+-	 * 
+-	 * TODO AV - enhance to support "char.sss" ie FQN direclty (match iff equals) we could also add support for "*..*charss"
+-	 * endsWith style?
++	 * Checks if the pattern looks like "*..*XXXX*" and if so returns XXXX. This will enable fast name matching of CGLIB exclusion
+ 	 * 
+-	 * @param typePattern
+-	 * @return null if not possible, or the startWith sequence to test against
++	 */
++	private String looksLikeStarDotDotStarExclude(String typePattern) {
++		if (!typePattern.startsWith("*..*")) {
++			return null;
++		}
++		if (!typePattern.endsWith("*")) {
++			return null;
++		}
++		String subPattern = typePattern.substring(4, typePattern.length() - 1);
++		if (hasStarDot(subPattern, 0)) {
++			return null;
++		}
++		return subPattern.replace('$', '.');
++	}
++
++	/**
++	 * Checks if the pattern looks like "com.foo.Bar" - an exact name
++	 */
++	private String looksLikeExactName(String typePattern) {
++		if (hasSpaceAnnotationPlus(typePattern, 0) || typePattern.indexOf("*") != -1) {
++			return null;
++		}
++		return typePattern.replace('$', '.');
++	}
++
++	/**
++	 * Checks if the pattern looks like "*Exception"
++	 */
++	private String looksLikeEndsWith(String typePattern) {
++		if (typePattern.charAt(0) != '*') {
++			return null;
++		}
++		if (hasSpaceAnnotationPlus(typePattern, 1) || hasStarDot(typePattern, 1)) {
++			return null;
++		}
++		return typePattern.substring(1).replace('$', '.');
++	}
++
++	/**
++	 * Determine if something in the string is going to affect our ability to optimize. Checks for: ' ' '@' '+'
++	 */
++	private boolean hasSpaceAnnotationPlus(String string, int pos) {
++		for (int i = pos, max = string.length(); i < max; i++) {
++			char ch = string.charAt(i);
++			if (ch == ' ' || ch == '@' || ch == '+') {
++				return true;
++			}
++		}
++		return false;
++	}
++
++	/**
++	 * Determine if something in the string is going to affect our ability to optimize. Checks for: '*' '.'
++	 */
++	private boolean hasStarDot(String string, int pos) {
++		for (int i = pos, max = string.length(); i < max; i++) {
++			char ch = string.charAt(i);
++			if (ch == '*' || ch == '.') {
++				return true;
++			}
++		}
++		return false;
++	}
++
++	/**
++	 * Checks if the type pattern looks like "com.foo..*"
+ 	 */
+ 	private String looksLikeStartsWith(String typePattern) {
+-		if (typePattern.indexOf('@') >= 0 || typePattern.indexOf('+') >= 0 || typePattern.indexOf(' ') >= 0
+-				|| typePattern.charAt(typePattern.length() - 1) != '*') {
++		if (hasSpaceAnnotationPlus(typePattern, 0) || typePattern.charAt(typePattern.length() - 1) != '*') {
+ 			return null;
+ 		}
+ 		// now must looks like with "charsss..*" or "cha.rss..*" etc
+@@ -586,9 +681,8 @@ public class ClassLoaderWeavingAdaptor extends WeavingAdaptor {
+ 		int length = typePattern.length();
+ 		if (typePattern.endsWith("..*") && length > 3) {
+ 			if (typePattern.indexOf("..") == length - 3 // no ".." before last sequence
+-					&& typePattern.indexOf('*') == length - 1) { // no "*" before last sequence
+-				return typePattern.substring(0, length - 2).replace('$', '.');
+-				// ie "charsss." or "char.rss." etc
++					&& typePattern.indexOf('*') == length - 1) { // no earlier '*'
++				return typePattern.substring(0, length - 2).replace('$', '.'); // "charsss." or "char.rss." etc
+ 			}
+ 		}
+ 		return null;
+@@ -618,67 +712,120 @@ public class ClassLoaderWeavingAdaptor extends WeavingAdaptor {
+ 		}
+ 	}
+ 
++	/**
++	 * Determine whether a type should be accepted for weaving, by checking it against any includes/excludes.
++	 * 
++	 * @param className the name of the type to possibly accept
++	 * @param bytes the bytecode for the type (in case we need to look inside, eg. annotations)
++	 * @return true if it should be accepted for weaving
++	 */
+ 	@Override
+ 	protected boolean accept(String className, byte[] bytes) {
+-		// avoid ResolvedType if not needed
+-		if (m_excludeTypePattern.isEmpty() && m_includeTypePattern.isEmpty()) {
++
++		if (!hasExcludes && !hasIncludes) {
+ 			return true;
+ 		}
+ 
+ 		// still try to avoid ResolvedType if we have simple patterns
+ 		String fastClassName = className.replace('/', '.').replace('$', '.');
+-		for (int i = 0; i < m_excludeStartsWith.size(); i++) {
+-			if (fastClassName.startsWith((String) m_excludeStartsWith.get(i))) {
++		for (String excludeStartsWithString : excludeStartsWith) {
++			if (fastClassName.startsWith(excludeStartsWithString)) {
+ 				return false;
+ 			}
+ 		}
+ 
++		// Fast exclusion of patterns like: "*..*CGLIB*"
++		if (!excludeStarDotDotStar.isEmpty()) {
++			for (String namePiece : excludeStarDotDotStar) {
++				int index = fastClassName.lastIndexOf('.');
++				if (fastClassName.indexOf(namePiece, index + 1) != -1) {
++					return false;
++				}
++			}
++		}
++
++		if (!excludeEndsWith.isEmpty()) {
++			for (String lastPiece : excludeEndsWith) {
++				if (fastClassName.endsWith(lastPiece)) {
++					return false;
++				}
++			}
++		}
++
++		// Fast exclusion of exact names
++		if (!excludeExactName.isEmpty()) {
++			for (String name : excludeExactName) {
++				if (fastClassName.equals(name)) {
++					return false;
++				}
++			}
++		}
++
++		if (!excludeSpecial.isEmpty()) {
++			for (String[] entry : excludeSpecial) {
++				String excludeThese = entry[0];
++				String exceptThese = entry[1];
++				if (fastClassName.startsWith(excludeThese) && !fastClassName.startsWith(exceptThese)) {
++					return false;
++				}
++			}
++		}
++
+ 		/*
+ 		 * Bug 120363 If we have an exclude pattern that cannot be matched using "starts with" then we cannot fast accept
+ 		 */
+-		if (m_excludeTypePattern.isEmpty()) {
++		boolean didSomeIncludeMatching = false;
++		if (excludeTypePattern.isEmpty()) {
++			if (includeStar) {
++				return true;
++			}
++			if (!includeExactName.isEmpty()) {
++				didSomeIncludeMatching = true;
++				for (String exactname : includeExactName) {
++					if (fastClassName.equals(exactname)) {
++						return true;
++					}
++				}
++			}
+ 			boolean fastAccept = false;// defaults to false if no fast include
+ 			for (int i = 0; i < m_includeStartsWith.size(); i++) {
+-				fastAccept = fastClassName.startsWith((String) m_includeStartsWith.get(i));
++				didSomeIncludeMatching = true;
++				fastAccept = fastClassName.startsWith(m_includeStartsWith.get(i));
+ 				if (fastAccept) {
+-					break;
++					return true;
+ 				}
+ 			}
++			// We may have processed all patterns now... check that and return
++			if (includeTypePattern.isEmpty()) {
++				return !didSomeIncludeMatching;
++			}
+ 		}
+ 
+-		// needs further analysis
+-		// TODO AV - needs refactoring
+-		// during LTW this calling resolve at that stage is BAD as we do have the bytecode from the classloader hook
+-		// but still go thru resolve that will do a getResourcesAsStream on disk
+-		// this is also problematic for jit stub which are not on disk - as often underlying infra
+-		// does returns null or some other info for getResourceAsStream (f.e. WLS 9 CR248491)
+-		// Instead I parse the given bytecode. But this also means it will be parsed again in
+-		// new WeavingClassFileProvider() from WeavingAdaptor.getWovenBytes()...
+-
+-		ensureDelegateInitialized(className, bytes);
+-		ResolvedType classInfo = delegateForCurrentClass.getResolvedTypeX();// BAD:
+-		// weaver.getWorld().resolve(UnresolvedType.forName(
+-		// className), true);
++		boolean accept;
++		try {
++			ensureDelegateInitialized(className, bytes);
+ 
+-		// exclude are "AND"ed
+-		for (Iterator iterator = m_excludeTypePattern.iterator(); iterator.hasNext();) {
+-			TypePattern typePattern = (TypePattern) iterator.next();
+-			if (typePattern.matchesStatically(classInfo)) {
+-				// exclude match - skip
+-				return false;
++			ResolvedType classInfo = delegateForCurrentClass.getResolvedTypeX();
++
++			// exclude are "AND"ed
++			for (TypePattern typePattern : excludeTypePattern) {
++				if (typePattern.matchesStatically(classInfo)) {
++					// exclude match - skip
++					return false;
++				}
+ 			}
+-		}
+-		// include are "OR"ed
+-		boolean accept = true;// defaults to true if no include
+-		for (Iterator iterator = m_includeTypePattern.iterator(); iterator.hasNext();) {
+-			TypePattern typePattern = (TypePattern) iterator.next();
+-			accept = typePattern.matchesStatically(classInfo);
+-			if (accept) {
+-				break;
++			// include are "OR"ed
++			accept = !didSomeIncludeMatching; // only true if no includes at all
++			for (TypePattern typePattern : includeTypePattern) {
++				accept = typePattern.matchesStatically(classInfo);
++				if (accept) {
++					break;
++				}
++				// goes on if this include did not match ("OR"ed)
+ 			}
+-			// goes on if this include did not match ("OR"ed)
++		} finally {
++			this.bcelWorld.demote();
+ 		}
+-		this.bcelWorld.demote();
+ 		return accept;
+ 	}
+ 
+@@ -270,12 +270,14 @@ public class ConcreteAspectCodeGen {
+ 	// hierarchy that have not been
+ 	// concretized.
+ 	private void getOutstandingAbstractMethodsHelper(ResolvedType type, Map collector) {
+-		if (type == null)
++		if (type == null) {
+ 			return;
++		}
+ 		// Get to the top
+ 		if (!type.equals(ResolvedType.OBJECT)) {
+-			if (type.getSuperclass() != null)
++			if (type.getSuperclass() != null) {
+ 				getOutstandingAbstractMethodsHelper(type.getSuperclass(), collector);
++			}
+ 		}
+ 		ResolvedMember[] rms = type.getDeclaredMethods();
+ 		if (rms != null) {
+@@ -309,8 +311,9 @@ public class ConcreteAspectCodeGen {
+ 
+ 	private boolean hasPointcutAnnotation(ResolvedMember member) {
+ 		AnnotationAJ[] as = member.getAnnotations();
+-		if (as == null || as.length == 0)
++		if (as == null || as.length == 0) {
+ 			return false;
++		}
+ 		for (int i = 0; i < as.length; i++) {
+ 			if (as[i].getTypeSignature().equals("Lorg/aspectj/lang/annotation/Pointcut;")) {
+ 				return true;
+@@ -440,7 +443,7 @@ public class ConcreteAspectCodeGen {
+ 		// register the fresh new class into the world repository as it does not
+ 		// exist on the classpath anywhere
+ 		JavaClass jc = cg.getJavaClass((BcelWorld) world);
+-		((BcelWorld) world).addSourceObjectType(jc);
++		((BcelWorld) world).addSourceObjectType(jc, true);
+ 
+ 		return jc.getBytes();
+ 	}
+@@ -10,42 +10,484 @@
+  *******************************************************************************/
+ package org.aspectj.weaver.loadtime;
+ 
++import java.io.File;
++import java.lang.reflect.Field;
+ import java.net.URL;
+ import java.net.URLClassLoader;
++import java.util.ArrayList;
++import java.util.List;
++import java.util.Map;
+ 
+ import junit.framework.TestCase;
+ 
++import org.aspectj.apache.bcel.classfile.JavaClass;
++import org.aspectj.apache.bcel.util.ClassPath;
++import org.aspectj.apache.bcel.util.SyntheticRepository;
++import org.aspectj.lang.annotation.Aspect;
++import org.aspectj.weaver.World;
++import org.aspectj.weaver.World.TypeMap;
++import org.aspectj.weaver.bcel.BcelWorld;
++import org.aspectj.weaver.loadtime.definition.Definition;
++import org.aspectj.weaver.tools.WeavingAdaptor;
++
+ public class ClassLoaderWeavingAdaptorTest extends TestCase {
+ 
+ 	public void testClassLoaderWeavingAdaptor() {
+ 		ClassLoader loader = new URLClassLoader(new URL[] {}, null);
+ 		ClassLoaderWeavingAdaptor adaptor = new ClassLoaderWeavingAdaptor();
+-		adaptor.initialize(loader,null);
++		adaptor.initialize(loader, null);
+ 	}
+ 
+ 	public void testGetNamespace() {
+ 		ClassLoader loader = new URLClassLoader(new URL[] {}, null);
+ 		ClassLoaderWeavingAdaptor adaptor = new ClassLoaderWeavingAdaptor();
+-		adaptor.initialize(loader,null);
++		adaptor.initialize(loader, null);
+ 		String namespace = adaptor.getNamespace();
+-		assertEquals("Namespace should be empty","",namespace);
++		assertEquals("Namespace should be empty", "", namespace);
+ 	}
+ 
+ 	public void testGeneratedClassesExistFor() {
+ 		ClassLoader loader = new URLClassLoader(new URL[] {}, null);
+ 		ClassLoaderWeavingAdaptor adaptor = new ClassLoaderWeavingAdaptor();
+-		adaptor.initialize(loader,null);
++		adaptor.initialize(loader, null);
+ 		boolean exist = adaptor.generatedClassesExistFor("Junk");
+-		assertFalse("There should be no generated classes",exist);
++		assertFalse("There should be no generated classes", exist);
+ 	}
+ 
+ 	public void testFlushGeneratedClasses() {
+ 		ClassLoader loader = new URLClassLoader(new URL[] {}, null);
+ 		ClassLoaderWeavingAdaptor adaptor = new ClassLoaderWeavingAdaptor();
+-		adaptor.initialize(loader,null);
++		adaptor.initialize(loader, null);
+ 		adaptor.flushGeneratedClasses();
+ 		boolean exist = adaptor.generatedClassesExistFor("Junk");
+-		assertFalse("There should be no generated classes",exist);
++		assertFalse("There should be no generated classes", exist);
++	}
++
++	/**
++	 * Testing fast excludes of the pattern "com.foo..*". World should not have any new types in it after rejection.
++	 */
++	public void testFastExclusionOne() throws Exception {
++		TestClassLoaderWeavingAdaptor adaptor = getAdaptor(null, "testdata..*");
++
++		String orangesSub = "testdata.sub.Oranges";
++		JavaClass orangesClass = getClassFrom(orangesSub);
++		byte[] orangesBytes = orangesClass.getBytes();
++
++		boolean accepted = adaptor.accept(orangesSub, orangesBytes);
++		assertFalse("Should not be accepted", accepted);
++		TypeMap map = accessTypeMap(adaptor);
++
++		// The aspect
++		assertEquals(1, map.getExpendableMap().size());
++
++		// primitives, void and jlObject
++		assertEquals(10, map.getMainMap().size());
++
++		// Important thing here is that the rejection of testdata.sub.Oranges did not require it to be loaded into the world at all
++	}
++
++	/**
++	 * Testing fast includes of the pattern "*". World should not have any new types in it after inclusion.
++	 */
++	public void testFastInclusionOne() throws Exception {
++		TestClassLoaderWeavingAdaptor adaptor = getAdaptor("*", null);
++
++		String orangesSub = "testdata.sub.Oranges";
++		JavaClass orangesClass = getClassFrom(orangesSub);
++		byte[] orangesBytes = orangesClass.getBytes();
++
++		boolean accepted = adaptor.accept(orangesSub, orangesBytes);
++		assertTrue("Should be accepted", accepted);
++		TypeMap map = accessTypeMap(adaptor);
++
++		// The aspect
++		assertEquals(1, map.getExpendableMap().size());
++
++		// primitives, void and jlObject
++		assertEquals(10, map.getMainMap().size());
++
++		// Important thing here is that the rejection of testdata.sub.Oranges did not require it to be loaded into the world at all
++	}
++
++	/**
++	 * Testing fast excludes of the pattern "*Oranges". World should not have any new types in it after rejection.
++	 */
++	public void testFastExclusionTwo() throws Exception {
++		TestClassLoaderWeavingAdaptor adaptor = getAdaptor(null, "*Oranges");
++
++		String oranges = "testdata.Oranges";
++		JavaClass orangesClass = getClassFrom(oranges);
++		byte[] orangesBytes = orangesClass.getBytes();
++
++		boolean accepted = adaptor.accept(oranges, orangesBytes);
++		assertFalse("Should not be accepted", accepted);
++		TypeMap map = accessTypeMap(adaptor);
++
++		// The aspect
++		assertEquals(1, map.getExpendableMap().size());
++		// primitives, void and jlObject
++		assertEquals(10, map.getMainMap().size());
++
++		String orangesSub = "testdata.sub.Oranges";
++
++		JavaClass orangesSubClass = getClassFrom(orangesSub);
++		byte[] orangesSubBytes = orangesSubClass.getBytes();
++
++		accepted = adaptor.accept(orangesSub, orangesSubBytes);
++		assertFalse("Should not be accepted", accepted);
++		map = accessTypeMap(adaptor);
++
++		// The aspect
++		assertEquals(1, map.getExpendableMap().size());
++		// primitives, void and jlObject
++		assertEquals(10, map.getMainMap().size());
++	}
++
++	/**
++	 * Testing fast excludes of the pattern "*..*Oranges*". World should not have any new types in it after rejection.
++	 */
++	public void testFastExclusionThree() throws Exception {
++		TestClassLoaderWeavingAdaptor adaptor = getAdaptor(null, "*..*ran*");
++
++		String oranges = "testdata.Oranges";
++		JavaClass orangesClass = getClassFrom(oranges);
++		byte[] orangesBytes = orangesClass.getBytes();
++
++		boolean accepted = adaptor.accept(oranges, orangesBytes);
++		assertFalse("Should not be accepted", accepted);
++		TypeMap map = accessTypeMap(adaptor);
++
++		// The aspect
++		assertEquals(1, map.getExpendableMap().size());
++
++		// primitives, void and jlObject
++		assertEquals(10, map.getMainMap().size());
++
++		String orangesSub = "testdata.sub.Oranges";
++		JavaClass orangesSubClass = getClassFrom(orangesSub);
++		byte[] orangesSubBytes = orangesSubClass.getBytes();
++
++		accepted = adaptor.accept(orangesSub, orangesSubBytes);
++		assertFalse("Should not be accepted", accepted);
++		map = accessTypeMap(adaptor);
++
++		// The aspect
++		assertEquals(1, map.getExpendableMap().size());
++		// primitives, void and jlObject
++		assertEquals(10, map.getMainMap().size());
++
++		String apples = "testdata.Apples";
++		JavaClass applesClass = getClassFrom(apples);
++		byte[] applesBytes = applesClass.getBytes();
++
++		accepted = adaptor.accept(apples, applesBytes);
++		assertTrue("Should be accepted", accepted);
++		map = accessTypeMap(adaptor);
++
++		// The aspect and the Apples type
++		assertEquals(1, map.getExpendableMap().size());
++		// primitives, void and jlObject
++		assertEquals(10, map.getMainMap().size());
++	}
++
++	/**
++	 * Testing fast inclusion checking of exact include names eg. "testdata.sub.Oranges"
++	 */
++	public void testFastInclusionTwo() throws Exception {
++		TestClassLoaderWeavingAdaptor adaptor = getAdaptor("testdata.sub.Oranges", null);
++
++		String oranges = "testdata.Oranges";
++		JavaClass orangesClass = getClassFrom(oranges);
++		byte[] orangesBytes = orangesClass.getBytes();
++
++		boolean accepted = adaptor.accept(oranges, orangesBytes);
++		assertFalse("Should not be accepted", accepted);
++		TypeMap map = accessTypeMap(adaptor);
++
++		// The aspect
++		assertEquals(1, map.getExpendableMap().size());
++
++		// primitives, void and jlObject
++		assertEquals(10, map.getMainMap().size());
++
++		String orangesSub = "testdata.sub.Oranges";
++		JavaClass orangesSubClass = getClassFrom(orangesSub);
++		byte[] orangesSubBytes = orangesSubClass.getBytes();
++
++		accepted = adaptor.accept(orangesSub, orangesSubBytes);
++		assertTrue("Should be accepted", accepted);
++		map = accessTypeMap(adaptor);
++
++		// The aspect
++		assertEquals(1, map.getExpendableMap().size());
++		// primitives, void and jlObject
++		assertEquals(10, map.getMainMap().size());
++
++		String apples = "testdata.Apples";
++		JavaClass applesClass = getClassFrom(apples);
++		byte[] applesBytes = applesClass.getBytes();
++
++		accepted = adaptor.accept(apples, applesBytes);
++		assertFalse("Should not be accepted", accepted);
++		map = accessTypeMap(adaptor);
++
++		// The aspect and the Apples type
++		assertEquals(1, map.getExpendableMap().size());
++		// primitives, void and jlObject
++		assertEquals(10, map.getMainMap().size());
+ 	}
+ 
++	/**
++	 * Testing fast excludes of the pattern groovy related pattern -
++	 */
++	// public void testFastExclusionFour() throws Exception {
++	// TestClassLoaderWeavingAdaptor adaptor = getAdaptor("*", "testdata..* && !testdata.sub.Oran*");
++	//
++	// String oranges = "testdata.Oranges";
++	// JavaClass orangesClass = getClassFrom(oranges);
++	// byte[] orangesBytes = orangesClass.getBytes();
++	//
++	// boolean accepted = adaptor.accept(oranges, orangesBytes);
++	// assertFalse("Should not be accepted", accepted);
++	// TypeMap map = accessTypeMap(adaptor);
++	//
++	// // The aspect
++	// assertEquals(1, map.getExpendableMap().size());
++	//
++	// // primitives, void and jlObject
++	// assertEquals(10, map.getMainMap().size());
++	//
++	// String orangesSub = "testdata.sub.Oranges";
++	// JavaClass orangesSubClass = getClassFrom(orangesSub);
++	// byte[] orangesSubBytes = orangesSubClass.getBytes();
++	//
++	// accepted = adaptor.accept(orangesSub, orangesSubBytes);
++	// assertTrue("Should be accepted", accepted);
++	// map = accessTypeMap(adaptor);
++	//
++	// // The aspect
++	// assertEquals(1, map.getExpendableMap().size());
++	// // primitives, void and jlObject
++	// assertEquals(10, map.getMainMap().size());
++	// }
++
++	public void testAcceptanceSpeedStarDotDotStar() throws Exception {
++		URLClassLoader loader = new URLClassLoader(new URL[] { new File("../loadtime/bin").toURI().toURL() }, null);
++
++		JavaClass jc = getClassFrom("../loadtime/bin", "org.aspectj.weaver.loadtime.ClassLoaderWeavingAdaptorTest$TestOne");
++		byte[] bs = jc.getBytes();
++		jc = getClassFrom("../loadtime/bin", "org.aspectj.weaver.loadtime.ClassLoaderWeavingAdaptorTest$TestOneCGLIB");
++		byte[] bs2 = jc.getBytes();
++		// InputStream is = loader.getResourceAsStream("org.aspectj.weaver.loadtime.ClassLoaderWeaverAdaptorTests$TestOne");
++		assertNotNull(bs);
++		TestWeavingContext wc = new TestWeavingContext(loader);
++		Definition d = new Definition();
++		d.getExcludePatterns().add("*..*CGLIB*");
++		d.getAspectClassNames().add("org.aspectj.weaver.loadtime.ClassLoaderWeavingAdaptorTest$AnAspect");
++		wc.addDefinition(d);
++		ClassLoaderWeavingAdaptor adaptor = new ClassLoaderWeavingAdaptor();
++		adaptor.initialize(loader, wc);
++		boolean exist = adaptor.generatedClassesExistFor("Junk");
++		assertFalse("There should be no generated classes", exist);
++
++		// before:
++		// Acceptance 331ms
++		// Rejection 3368ms
++
++		// after:
++		// Acceptance 343ms
++		// Rejection 80ms
++
++		long stime = System.currentTimeMillis();
++		for (int i = 0; i < 100000; i++) {
++			boolean b = adaptor.accept("org.aspectj.weaver.loadtime.ClassLoaderWeavingAdaptorTest$TestOne", bs);
++			assertTrue("Should be accepted", b);
++		}
++		long etime = System.currentTimeMillis();
++		System.out.println("Acceptance " + (etime - stime) + "ms");
++		stime = System.currentTimeMillis();
++		for (int i = 0; i < 100000; i++) {
++			adaptor.delegateForCurrentClass = null;
++			boolean b = adaptor.accept("org.aspectj.weaver.loadtime.ClassLoaderWeavingAdaptorTest$TestOneCGLIB", bs2);
++			assertFalse("Should not be accepting CGLIB", b);
++		}
++		etime = System.currentTimeMillis();
++		System.out.println("Rejection " + (etime - stime) + "ms");
++
++	}
++
++	// TODO
++	// shouldn't add it to the type patterns if we are going to fast handle it
++	// include for exact name, what does it mean?
++	// excludes="!xxxx" should also be fast matched...
++
++	public void testAcceptanceSpeedExactName() throws Exception {
++		URLClassLoader loader = new URLClassLoader(new URL[] { new File("../loadtime/bin").toURI().toURL() }, null);
++
++		JavaClass jc = getClassFrom("../loadtime/bin", "org.aspectj.weaver.loadtime.ClassLoaderWeavingAdaptorTest$TestOne");
++		byte[] bs = jc.getBytes();
++		jc = getClassFrom("../loadtime/bin", "org.aspectj.weaver.loadtime.ClassLoaderWeavingAdaptorTest$TestOneCGLIB");
++		byte[] bs2 = jc.getBytes();
++		// InputStream is = loader.getResourceAsStream("org.aspectj.weaver.loadtime.ClassLoaderWeaverAdaptorTests$TestOne");
++		assertNotNull(bs);
++		TestWeavingContext wc = new TestWeavingContext(loader);
++		Definition d = new Definition();
++		d.getExcludePatterns().add("org.aspectj.weaver.loadtime.ClassLoaderWeavingAdaptorTest.TestOneCGLIB");
++		d.getAspectClassNames().add("org.aspectj.weaver.loadtime.ClassLoaderWeavingAdaptorTest$AnAspect");
++		wc.addDefinition(d);
++		TestClassLoaderWeavingAdaptor adaptor = new TestClassLoaderWeavingAdaptor();
++		adaptor.initialize(loader, wc);
++		boolean exist = adaptor.generatedClassesExistFor("Junk");
++		assertFalse("There should be no generated classes", exist);
++
++		// before:
++		// Acceptance 331ms
++		// Rejection 3160ms
++
++		// after:
++		// Acceptance 379ms
++		// Rejection 103ms
++
++		long stime = System.currentTimeMillis();
++		for (int i = 0; i < 100000; i++) {
++			boolean b = adaptor.accept("org.aspectj.weaver.loadtime.ClassLoaderWeavingAdaptorTest$TestOne", bs);
++			assertTrue("Should be accepted", b);
++		}
++		long etime = System.currentTimeMillis();
++		System.out.println("Acceptance " + (etime - stime) + "ms");
++		stime = System.currentTimeMillis();
++		for (int i = 0; i < 100000; i++) {
++			adaptor.delegateForCurrentClass = null;
++			boolean b = adaptor.accept("org.aspectj.weaver.loadtime.ClassLoaderWeavingAdaptorTest$TestOneCGLIB", bs2);
++			assertFalse("Should not be accepting CGLIB", b);
++		}
++		etime = System.currentTimeMillis();
++		System.out.println("Rejection " + (etime - stime) + "ms");
++		BcelWorld world = adaptor.getWorld();
++		Field f = World.class.getDeclaredField("typeMap");
++		f.setAccessible(true);
++		TypeMap typeMap = (TypeMap) f.get(world);
++		System.out.println(typeMap.getExpendableMap().size());
++		System.out.println(typeMap.getMainMap().size());
++		printExpendableMap(typeMap.getExpendableMap());
++		printMainMap(typeMap.getMainMap());
++	}
++
++	// --- infrastructure ---
++
++	private TypeMap accessTypeMap(TestClassLoaderWeavingAdaptor adaptor) {
++		try {
++			BcelWorld world = adaptor.getWorld();
++			Field f = World.class.getDeclaredField("typeMap");
++			f.setAccessible(true);
++			TypeMap typeMap = (TypeMap) f.get(world);
++			return typeMap;
++		} catch (Exception e) {
++			throw new RuntimeException(e);
++		}
++	}
++
++	public TestClassLoaderWeavingAdaptor getAdaptor(String includePattern, String excludePattern) {
++		return getAdaptor(includePattern == null ? null : new String[] { includePattern }, excludePattern == null ? null
++				: new String[] { excludePattern });
++	}
++
++	public TestClassLoaderWeavingAdaptor getAdaptor(String[] includePatterns, String[] excludePatterns) {
++		try {
++			URLClassLoader loader = new URLClassLoader(new URL[] { new File("../loadtime/bin").toURI().toURL() }, null);
++			TestWeavingContext wc = new TestWeavingContext(loader);
++			Definition d = new Definition();
++			if (includePatterns != null) {
++				for (String s : includePatterns) {
++					d.getIncludePatterns().add(s);
++				}
++			}
++			if (excludePatterns != null) {
++				for (String s : excludePatterns) {
++					d.getExcludePatterns().add(s);
++				}
++			}
++			// need some random aspect or the weaver will shut down!
++			d.getAspectClassNames().add("org.aspectj.weaver.loadtime.ClassLoaderWeavingAdaptorTest$AnAspect");
++			wc.addDefinition(d);
++			TestClassLoaderWeavingAdaptor adaptor = new TestClassLoaderWeavingAdaptor();
++			adaptor.initialize(loader, wc);
++			return adaptor;
++		} catch (Exception e) {
++			throw new RuntimeException(e);
++		}
++	}
++
++	private void printMaps(TypeMap map) {
++		printExpendableMap(map.getExpendableMap());
++		printMainMap(map.getMainMap());
++	}
++
++	private void printExpendableMap(Map m) {
++		for (Object o : m.keySet()) {
++			String sig = (String) o;
++			System.out.println(sig + "=" + m.get(sig));
++		}
++	}
++
++	private void printMainMap(Map m) {
++		for (Object o : m.keySet()) {
++			String sig = (String) o;
++			System.out.println(sig + "=" + m.get(sig));
++		}
++	}
++
++	static class TestClassLoaderWeavingAdaptor extends ClassLoaderWeavingAdaptor {
++
++		public BcelWorld getWorld() {
++			return bcelWorld;
++		}
++	}
++
++	public static JavaClass getClassFrom(String clazzname) throws ClassNotFoundException {
++		return getClassFrom("../loadtime/bin", clazzname);
++	}
++
++	public static JavaClass getClassFrom(String frompath, String clazzname) throws ClassNotFoundException {
++		SyntheticRepository repos = createRepos(frompath);
++		return repos.loadClass(clazzname);
++	}
++
++	public static SyntheticRepository createRepos(String cpentry) {
++		ClassPath cp = new ClassPath(cpentry + File.pathSeparator + System.getProperty("java.class.path"));
++		return SyntheticRepository.getInstance(cp);
++	}
++
++	@Aspect
++	class AnAspect {
++
++	}
++
++	class TestOne {
++
++	}
++
++	class TestOneCGLIB {
++
++	}
++
++	static class TestWeavingContext extends DefaultWeavingContext {
++
++		List testList = new ArrayList();
++
++		public TestWeavingContext(ClassLoader loader) {
++			super(loader);
++		}
++
++		public void addDefinition(Definition d) {
++			testList.add(d);
++		}
++
++		@Override
++		public List getDefinitions(final ClassLoader loader, final WeavingAdaptor adaptor) {
++			return testList;
++		}
++	}
+ }
++
++// --- testclasses and aspects ---
+\ No newline at end of file

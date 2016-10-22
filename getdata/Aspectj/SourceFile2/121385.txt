@@ -1,0 +1,243 @@
+@@ -0,0 +1,16 @@
++import org.aspectj.lang.annotation.*;
++
++ abstract aspect X {
++  void around(): execution(* foo(..)) {}
++}
++
++
++@Aspect class B extends X { }
++
++public class A {
++  public void foo() { } 
++
++public static void main(String []argv) {
++   new A().foo();
++}
++}
+@@ -0,0 +1,5 @@
++public aspect ConcreteWorld extends World {
++    pointcut greeting() :
++    	execution(* Hello.sayWorld(..))
++    	|| execution(* Hello.sayHello(..));
++}
+@@ -0,0 +1,16 @@
++public class Hello {
++
++        public static void main(String[] args) {
++                sayHello();
++        } 
++
++        public static void sayHello() {
++                System.out.println("Hello");
++                sayWorld();
++        } 
++
++        public static int sayWorld() {
++                System.out.println("World");
++                return 0;
++        }
++}
+@@ -0,0 +1,24 @@
++import org.aspectj.lang.Signature;
++import org.aspectj.lang.JoinPoint;
++public abstract aspect World { 
++    //private Object result;
++        pointcut greeting() : execution(* Hello.sayWorld(..)); 
++
++        Object around(): greeting() {
++        System.out.println("around start!");
++        Object result = proceed();
++        System.out.println("around end!");
++        return result;
++        }
++
++//    before() : greeting() { 
++//      Signature signature = thisJoinPoint.getSignature();
++//        System.out.println("before " + signature.getName()); 
++//    } 
++
++//    after() returning () : greeting() { 
++//      Signature signature = thisJoinPoint.getSignature();
++//        System.out.println("after " + signature.getName()); 
++//    } 
++
++} 
+@@ -0,0 +1,10 @@
++import org.aspectj.lang.annotation.Aspect;
++import org.aspectj.lang.annotation.Pointcut;
++
++@Aspect
++public abstract class WorldAt {
++
++	@Pointcut("execution(* Hello.sayWorld(..))")
++    void greeting() {}
++
++}
+@@ -0,0 +1,43 @@
++<!-- ajc-ant script, not to be used from Ant commant line - see AntSpec -->
++<project name="pr120473">
++
++    <!-- using this we can debug the forked VM -->
++    <property
++        name="jdwp"
++        value="-Xdebug -Xnoagent -Djava.compiler=NONE -Xrunjdwp:transport=dt_socket,server=y,suspend=y,address=5005"/>
++
++    <target name="compile:javac">
++        <!-- compile only javac compilable stuff, exclude the one that needs other dependencies -->
++        <javac destdir="${aj.sandbox}" classpathref="aj.path"
++            srcdir="${basedir}"
++            includes="ataspectj/*"
++            excludes="ataspectj/UnweavableTest.java"
++            debug="true">
++        </javac>
++    </target>
++
++    <target name="ltw">
++        <java fork="yes" classname="ataspectj.AllLTWTests" failonerror="yes">
++            <classpath refid="aj.path"/>
++            <!-- use META-INF/aop.xml style -->
++            <classpath path="ataspectj/pathentry"/>
++            <jvmarg value="-javaagent:${aj.root}/lib/test/loadtime5.jar"/>
++<!--            <jvmarg line="${jdwp}"/>-->
++        </java>
++    </target>
++
++    <target name="ConcreteAsepectTest">
++    	<copy file="aop.xml" todir="${aj.sandbox}/META-INF">
++    	</copy>
++        <java fork="yes" classname="Hello" failonerror="yes">
++            <classpath refid="aj.path"/>
++            <jvmarg value="-javaagent:${aj.root}/lib/test/loadtime5.jar"/>
++<!--        	
++            <jvmarg value="-Daj5.def=aop.xml"/>
++            <jvmarg value="-Daj.weaving.verbose=true"/>
++-->            
++<!--            <jvmarg line="${jdwp}"/>            -->
++        </java>
++    </target>
++
++</project>
+@@ -0,0 +1,19 @@
++<?xml version="1.0" encoding="UTF-8"?>
++<aspectj>
++	<aspects>
++        <concrete-aspect name="World1" extends="World">
++        	<pointcut name="greeting" expression="execution(* Hello.sayWorld(..)) || execution(* Hello.sayHello(..))"/>
++        </concrete-aspect>
++	</aspects>
++<!--
++	<aspects>
++    	<aspect name="World"/>
++    	<aspect name="ConcreteWorld"/>
++	</aspects>
++-->
++
++	<weaver options="-Xreweavable -verbose -XlazyTjp -showWeaveInfo">
++    	<include within="Hello"/>
++	</weaver>
++</aspectj>
++
+@@ -41,7 +41,7 @@ public class Ajc150Tests extends org.aspectj.testing.XMLBasedAjcTestCase {
+   protected File getSpecFile() {
+     return new File("../tests/src/org/aspectj/systemtest/ajc150/ajc150.xml");
+   }
+-
++  public void testMixingCodeStyles_pr121385()  { runTest("mixing aspect styles");}
+   public void testTypeVars_pr121575()  { runTest("different numbers of type vars");}
+   public void testTypeVars_pr121575_2()  { runTest("different numbers of type vars - 2");}
+   public void testTypeVars_pr121575_3()  { runTest("different numbers of type vars - 3");}
+@@ -869,6 +869,11 @@ public class Ajc150Tests extends org.aspectj.testing.XMLBasedAjcTestCase {
+ 	  runTest("abstract perthis in @AspectJ");
+   }
+ 
++  public void testNPEInBcelAdviceWithConcreteAspect_pr121385() {
++	  runTest("override protected pointcut in aop.xml concrete aspect");
++  }
++  
++  
+   // helper methods.....
+ 
+   public SyntheticRepository createRepos(File cpentry) {
+@@ -11,6 +11,12 @@
+         <compile files="pr121575.aj" options="-1.5"/>
+         <run class="pr121575"/>
+     </ajc-test>
++
++    
++    <ajc-test dir="bugs150/pr121385" title="mixing aspect styles">
++        <compile files="A.java" options="-1.5"/>
++        <run class="A"/>
++    </ajc-test>
+ 
+     <ajc-test dir="java5/generics/tvars" title="different numbers of type vars - 2">
+         <compile files="Case1.aj" options="-1.5 -showWeaveInfo">
+@@ -6207,5 +6213,23 @@
+        </stdout>
+      </run>
+    </ajc-test>
++   
++   <ajc-test dir="bugs150/pr121385" title="override protected pointcut in aop.xml concrete aspect">
++     <compile files="Hello.java"/>
++     <compile files="World.aj, ConcreteWorld.aj"/>
++     <run class="Hello" ltw="aop.xml">
++       <stdout>
++           <line text="around start!"/>
++           <line text="Hello"/>
++           <line text="around start!"/>
++           <line text="World"/>
++           <line text="around end!"/>
++           <line text="around end!"/>
++       </stdout>
++     </run>
++<!--     
++     <ant file="ant.xml" target="ConcreteAsepectTest" verbose="true"/>
++-->
++   </ajc-test>
+ 
+ </suite>
+\ No newline at end of file
+@@ -400,7 +400,9 @@ public class BcelAdvice extends Advice {
+ 		if (exposedState.getAspectInstance() != null) {
+ 			il.append(BcelRenderer.renderExpr(fact, world, exposedState.getAspectInstance()));
+ 		}
+-        final boolean isAnnotationStyleAspect = getConcreteAspect()!=null && getConcreteAspect().isAnnotationStyleAspect();
++		// pr121385
++		boolean x = this.getDeclaringAspect().resolve(world).isAnnotationStyleAspect();
++        final boolean isAnnotationStyleAspect = getConcreteAspect()!=null && getConcreteAspect().isAnnotationStyleAspect() && x;
+         boolean previousIsClosure = false;
+         for (int i = 0, len = exposedState.size(); i < len; i++) {
+         	if (exposedState.isErroneousVar(i)) continue; // Erroneous vars have already had error msgs reported!
+@@ -454,13 +456,10 @@ public class BcelAdvice extends Advice {
+ 	                    }
+ 	                } else if (hasExtraParameter()) {
+                         previousIsClosure = false;
+-                        //extra var can be null here (@Aj aspect extends abstract code style, advice in code style)
+-                        if (extraVar != null) {
+                             extraVar.appendLoadAndConvert(
+                                 il,
+                                 fact,
+                                 getExtraParameterType().resolve(world));
+-                        }
+                     } else {
+                         previousIsClosure = false;
+                         getConcreteAspect().getWorld().getMessageHandler().handleMessage(
+@@ -2221,7 +2221,7 @@ public class BcelShadow extends Shadow {
+ 				munger.getAdviceArgSetup(
+ 					this,
+ 					null,
+-                    (munger.getConcreteAspect().isAnnotationStyleAspect())?
++                    (munger.getConcreteAspect().isAnnotationStyleAspect() && munger.getDeclaringAspect()!=null && munger.getDeclaringAspect().resolve(world).isAnnotationStyleAspect())?
+                         this.loadThisJoinPoint():
+ 					    new InstructionList(InstructionConstants.ACONST_NULL)));
+ 		    // adviceMethodInvocation =
+@@ -2667,7 +2667,8 @@ public class BcelShadow extends Shadow {
+ 		}
+ 
+         // ATAJ for @AJ aspect we need to link the closure with the joinpoint instance
+-        if (munger.getConcreteAspect()!=null && munger.getConcreteAspect().isAnnotationStyleAspect()) {
++        if (munger.getConcreteAspect()!=null && munger.getConcreteAspect().isAnnotationStyleAspect() 
++           && munger.getDeclaringAspect()!=null && munger.getDeclaringAspect().resolve(world).isAnnotationStyleAspect()) {
+             closureInstantiation.append(Utility.createInvoke(
+                     getFactory(),
+                     getWorld(),

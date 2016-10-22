@@ -1,0 +1,54 @@
+@@ -10,9 +10,9 @@
+ 	<classpathentry kind="src" path="/bridge"/>
+ 	<classpathentry kind="src" path="/ajde"/>
+ 	<classpathentry kind="src" path="/asm"/>
+-	<classpathentry kind="var" path="JAVA_HOME/lib/tools.jar"/>
+ 	<classpathentry sourcepath="/lib/bcel/bcel-src.zip" kind="lib" path="/lib/bcel/bcel.jar"/>
+ 	<classpathentry kind="lib" path="/lib/ant/lib/ant-launcher.jar"/>
+ 	<classpathentry kind="src" path="testsrc"/>
++	<classpathentry kind="var" path="JAVA_HOME/lib/tools.jar"/>
+ 	<classpathentry kind="output" path="bin"/>
+ </classpath>
+@@ -0,0 +1,14 @@
++class Outer {
++  public class Inner {}
++}
++
++
++public class pr104024 {
++  public void varargs(Object... varargs) {}
++
++  public void test() {
++    Outer.Inner inner = new Outer().new Inner();
++    varargs(inner); // works
++    varargs(new Outer().new Inner()); // crashes
++  }
++}
+\ No newline at end of file
+@@ -326,6 +326,10 @@ public class Ajc150Tests extends org.aspectj.testing.XMLBasedAjcTestCase {
+ 	  runTest("declare parents introducing override with covariance");
+   }
+ 
++  public void testInnerClassPassedToVarargs() {
++	  runTest("inner class passed as argument to varargs method");
++  }
++  
+   // helper methods.....
+ 
+   public SyntheticRepository createRepos(File cpentry) {
+@@ -385,6 +385,11 @@
+     <ajc-test dir="bugs150" pr="105479" title="declare parents introducing override with covariance">
+         <compile files="pr105479.aj" options="-1.5"/>
+     </ajc-test>                   
++
++    <ajc-test dir="bugs150" pr="104024" title="inner class passed as argument to varargs method">
++        <compile files="pr104024.aj" options="-1.5"/>
++    </ajc-test>  
++    
+     <!-- ============================================================================ -->
+     <!-- ============================================================================ -->
+ 
+@@ -0,0 +1 @@
++ajcTestSuite.dtd
+@@ -0,0 +1 @@
++ajcTestSuite.dtd

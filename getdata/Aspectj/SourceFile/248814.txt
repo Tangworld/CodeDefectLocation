@@ -1,0 +1,135 @@
+@@ -735,7 +735,7 @@ public class ClassLoaderWeavingAdaptor extends WeavingAdaptor {
+ 	protected String getDumpDir() {
+ 		if (dumpDirPerClassloader) {
+ 			StringBuffer dir = new StringBuffer();
+-			dir.append("_ajdump").append(File.separator).append(weavingContext.getClassLoaderName());
++			dir.append("_ajdump").append(File.separator).append(weavingContext.getId());
+ 			return dir.toString();
+ 		} else {
+ 			return super.getDumpDir();
+@@ -84,7 +84,9 @@ public class DefaultWeavingContext implements IWeavingContext {
+ 		if (shortName == null) {
+ 			shortName = getClassLoaderName().replace('$','.');
+ 			int index = shortName.lastIndexOf(".");
+-			shortName = shortName.substring(index + 1);
++			if (index!=-1) {
++				shortName = shortName.substring(index + 1);
++			}
+ 		}
+ 		return shortName;
+ 	}
+@@ -62,6 +62,7 @@ public class ClassLoaderWeavingAdaptor extends WeavingAdaptor {
+ 
+ 	private List m_dumpTypePattern = new ArrayList();
+ 	private boolean m_dumpBefore = false;
++	private boolean dumpDirPerClassloader = false;
+ 	private List m_includeTypePattern = new ArrayList();
+ 	private List m_excludeTypePattern = new ArrayList();
+ 	private List m_includeStartsWith = new ArrayList();
+@@ -593,6 +594,9 @@ public class ClassLoaderWeavingAdaptor extends WeavingAdaptor {
+ 			if (definition.shouldDumpBefore()) {
+ 				m_dumpBefore = true;
+ 			}
++			if (definition.createDumpDirPerClassloader()) {
++				dumpDirPerClassloader = true;
++			}
+ 		}
+ 	}
+ 
+@@ -728,10 +732,21 @@ public class ClassLoaderWeavingAdaptor extends WeavingAdaptor {
+ 		return false;
+ 	}
+ 
++	protected String getDumpDir() {
++		if (dumpDirPerClassloader) {
++			StringBuffer dir = new StringBuffer();
++			dir.append("_ajdump").append(File.separator).append(weavingContext.getClassLoaderName());
++			return dir.toString();
++		} else {
++			return super.getDumpDir();
++		}
++	}
++	
+ 	/*
+ 	 * shared classes methods
+ 	 */
+ 
++
+ 	/**
+ 	 * @return Returns the key.
+ 	 */
+@@ -26,6 +26,8 @@ public class Definition {
+ 	private final List m_dumpPatterns;
+ 
+ 	private boolean m_dumpBefore;
++	
++	private boolean perClassloaderDumpDir;
+ 
+ 	private final List m_includePatterns;
+ 
+@@ -42,6 +44,7 @@ public class Definition {
+ 	public Definition() {
+ 		m_weaverOptions = new StringBuffer();
+ 		m_dumpBefore = false;
++		perClassloaderDumpDir = false;
+ 		m_dumpPatterns = new ArrayList(0);
+ 		m_includePatterns = new ArrayList(0);
+ 		m_excludePatterns = new ArrayList(0);
+@@ -67,6 +70,14 @@ public class Definition {
+ 		return m_dumpBefore;
+ 	}
+ 
++	public void setCreateDumpDirPerClassloader(boolean b) {
++		perClassloaderDumpDir = b;
++	}
++
++	public boolean createDumpDirPerClassloader() {
++		return perClassloaderDumpDir;
++	}
++
+ 	public List getIncludePatterns() {
+ 		return m_includePatterns;
+ 	}
+@@ -52,6 +52,7 @@ public class DocumentParser extends DefaultHandler {
+ 	private final static String WEAVER_ELEMENT = "weaver";
+ 	private final static String DUMP_ELEMENT = "dump";
+ 	private final static String DUMP_BEFOREANDAFTER_ATTRIBUTE = "beforeandafter";
++	private final static String DUMP_PERCLASSLOADERDIR_ATTRIBUTE = "perclassloaderdumpdir";
+ 	private final static String INCLUDE_ELEMENT = "include";
+ 	private final static String EXCLUDE_ELEMENT = "exclude";
+ 	private final static String OPTIONS_ATTRIBUTE = "options";
+@@ -205,6 +206,10 @@ public class DocumentParser extends DefaultHandler {
+ 			if (isTrue(beforeAndAfter)) {
+ 				m_definition.setDumpBefore(true);
+ 			}
++			String perWeaverDumpDir = attributes.getValue(DUMP_PERCLASSLOADERDIR_ATTRIBUTE);
++			if (isTrue(perWeaverDumpDir)) {
++				m_definition.setCreateDumpDirPerClassloader(true);
++			}
+ 		} else if (EXCLUDE_ELEMENT.equals(qName) && m_inAspects) {
+ 			String typePattern = getWithinAttribute(attributes);
+ 			if (!isNull(typePattern)) {
+@@ -492,7 +492,8 @@ public class WeavingAdaptor implements IMessageContext {
+ 	 * @throws Throwable
+ 	 */
+ 	protected void dump(String name, byte[] b, boolean before) {
+-		String dirName = "_ajdump";
++		String dirName = getDumpDir();
++		
+ 		if (before) dirName = dirName + File.separator + "_before";
+ 
+ 	    String className = name.replace('.', '/');
+@@ -514,6 +515,13 @@ public class WeavingAdaptor implements IMessageContext {
+ 	    	warn("unable to dump class " + name + " in directory " + dirName,ex);
+ 	    }
+ 	}
++	
++	/**
++	 * @return the directory in which to dump - default is _ajdump but it 
++	 */
++	protected String getDumpDir() {
++		return "_ajdump";
++	}
+ 
+ 	/**
+ 	 * Processes messages arising from weaver operations. 

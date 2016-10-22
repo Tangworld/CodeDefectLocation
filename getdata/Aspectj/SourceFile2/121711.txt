@@ -1,0 +1,1942 @@
+@@ -15,6 +15,7 @@
+ package org.aspectj.tools.ajdoc;
+ 
+ import java.io.BufferedReader;
++import java.io.DataInputStream;
+ import java.io.File;
+ import java.io.FileOutputStream;
+ import java.io.FileReader;
+@@ -29,6 +30,7 @@ import java.util.StringTokenizer;
+ import org.aspectj.asm.AsmManager;
+ import org.aspectj.asm.IProgramElement;
+ import org.aspectj.asm.IRelationship;
++import org.aspectj.util.TypeSafeEnum;
+ 
+ /**
+  * @author Mik Kersten
+@@ -226,7 +228,7 @@ class HtmlDecorator {
+                 int secondClassStartIndex = fileContents.toString().indexOf("class <B>");
+                 if (secondClassStartIndex != -1) {
+                 	String name = decl.toSignatureString();
+-					int classEndIndex = fileContents.indexOf(name + "</B><DT>");
++ 					int classEndIndex = fileContents.indexOf(name + "</B><DT>");
+ 					if (secondClassStartIndex != -1 && classEndIndex != -1) {
+ 						StringBuffer sb = new StringBuffer(fileContents.toString().
+ 								substring(secondClassStartIndex,classEndIndex));
+@@ -283,6 +285,21 @@ class HtmlDecorator {
+     		insertDeclarationsSummary(fileBuffer, advice, ADVICE_SUMMARY, index);
+     		insertDeclarationsDetails(fileBuffer, advice, ADVICE_DETAIL, index);
+     	}
++    	// add the 'aspect declarations' information against the type
++    	List parentsDeclaredOn = StructureUtil.getDeclareInterTypeTargets(node, IProgramElement.Kind.DECLARE_PARENTS);
++    	if (parentsDeclaredOn != null && parentsDeclaredOn.size() > 0) {
++			decorateDocWithRel(node,fileBuffer,index,parentsDeclaredOn,HtmlRelationshipKind.ASPECT_DECLARATIONS);
++		}
++    	// add the 'annotated by' information against the type
++    	List annotatedBy = StructureUtil.getTargets(node,IRelationship.Kind.DECLARE_INTER_TYPE,"annotated by");
++    	if (annotatedBy != null && annotatedBy.size() > 0) {
++			decorateDocWithRel(node,fileBuffer,index,annotatedBy,HtmlRelationshipKind.ANNOTATED_BY);
++		}
++    	// add the 'advised by' information against the type
++    	List advisedBy = StructureUtil.getTargets(node, IRelationship.Kind.ADVICE);
++    	if (advisedBy != null && advisedBy.size() > 0) {
++			decorateDocWithRel(node,fileBuffer,index,advisedBy,HtmlRelationshipKind.ADVISED_BY);
++		} 	
+     }
+ 
+ //    static void addIntroductionDocumentation(IProgramElement decl,
+@@ -335,7 +352,7 @@ class HtmlDecorator {
+                         entry += comment + "<P>";
+                     }
+                     entry +=
+-                            generateAffects(decl, false) + "</TD>" +
++                            generateAffects(decl) + "</TD>" +
+                             "</TR><TD>\n";
+                 }
+                 else if ( kind.equals( POINTCUT_SUMMARY ) ) {
+@@ -362,7 +379,7 @@ class HtmlDecorator {
+                             "<TD>" +
+                             "<A HREF=\"#" + generateHREFName(decl) + "\">" +
+                             "<TT>" + decl.toLabelString() + "</TT></A><P>" +
+-                            generateAffects(decl, true);
++                            generateAffects(decl);
+                 }
+                 else if ( kind.equals( ITD_FIELD_SUMMARY ) 
+                 			|| kind.equals( ITD_METHOD_SUMMARY)) {
+@@ -456,7 +473,7 @@ class HtmlDecorator {
+                             "<TT>" +
+                             generateSignatures(decl) + "</TT>\n" + "<P>" +
+                             generateDetailsComment(decl) + "<P>" +
+-                            generateAffects(decl, false);
++                            generateAffects(decl);
+                 }
+                 else if (kind.equals(POINTCUT_DETAIL)) {
+                     entry +=
+@@ -477,7 +494,7 @@ class HtmlDecorator {
+                 	if (!decl.getKind().isDeclare()) {
+ 						entry += generateSignatures(decl) + "<P>";
+ 					}
+-                    entry += generateAffects(decl, true) +
++                    entry += generateAffects(decl) +
+                             generateDetailsComment(decl);
+                 }
+ 
+@@ -530,15 +547,18 @@ class HtmlDecorator {
+             return index;
+         }
+     }
+-
+-    static void decorateMemberDocumentation(IProgramElement node,
+-                                             StringBuffer fileContentsBuffer,
+-                                              int index ) {
+-    	List targets = StructureUtil.getTargets(node, IRelationship.Kind.ADVICE);
++    
++    static void decorateDocWithRel(
++    		IProgramElement node,
++    		StringBuffer fileContentsBuffer,
++    		int index,
++    		List targets,
++    		HtmlRelationshipKind relKind) {
+         if (targets != null && !targets.isEmpty()) {            
+-            String adviceDoc
+-            = "<TABLE WIDTH=\"100%\" BGCOLOR=#FFFFFF><TR>" +
+-              "<TD width=\"15%\" bgcolor=\"#FFD8B0\"><B><FONT COLOR=000000>&nbsp;Advised&nbsp;by:</font></b></td><td>";
++            String adviceDoc = "<TABLE WIDTH=\"100%\" BGCOLOR=#FFFFFF><TR>" +
++              "<TD width=\"15%\" bgcolor=\"#FFD8B0\"><B><FONT COLOR=000000>" +
++              relKind.toString() +
++              "</font></b></td><td>";
+ 
+ 			String relativePackagePath =
+ 				getRelativePathFromHere(
+@@ -546,8 +566,16 @@ class HtmlDecorator {
+ 
+             List addedNames = new ArrayList();
+             for (Iterator it = targets.iterator(); it.hasNext(); ) {
+-            	String currHandle = (String)it.next();
+-            	IProgramElement currDecl = AsmManager.getDefault().getHierarchy().findElementForHandle(currHandle);
++            	Object o = it.next();
++            	IProgramElement currDecl = null;
++            	if (o instanceof String) {
++                	String currHandle = (String)o;
++                	currDecl = AsmManager.getDefault().getHierarchy().findElementForHandle(currHandle);					
++				} else if (o instanceof IProgramElement){
++					currDecl = (IProgramElement)o;
++				} else {
++					return;
++				}
+ 
+         		String packagePath = "";
+         		if (currDecl.getPackageName() != null && !currDecl.getPackageName().equals("")) {
+@@ -565,12 +593,16 @@ class HtmlDecorator {
+                    hrefName = currDecl.getPackageName().replace('.', '/');
+ //                   hrefLink = "";//+ currDecl.getPackageName() + Config.DIR_SEP_CHAR;
+                 } 
++                // use the currDecl.toLabelString rather than currDecl.getName()
++                // because two distinct advice blocks can have the same 
++                // currDecl.getName() and wouldn't both appear in the ajdoc
+                 hrefName += Config.DIR_SEP_CHAR +
+-                              currDecl.getParent().toLinkLabelString()
+-							  + "." + currDecl.getName();
++                				currDecl.getParent().toLinkLabelString()
++                				+ "." + currDecl.toLabelString();                
+ 
++                // need to replace " with quot; otherwise the links wont work
+                 hrefLink += currDecl.getParent().toLinkLabelString() + ".html"
+-					  + "#" + currDecl.toLabelString(); 
++				  + "#" + currDecl.toLabelString().replaceAll("\"","quot;"); 
+ 
+                 if (!addedNames.contains(hrefName)) {
+ 	                adviceDoc = adviceDoc +
+@@ -585,6 +617,22 @@ class HtmlDecorator {
+             fileContentsBuffer.insert( index, adviceDoc );
+         }
+     }
++    
++    static void decorateMemberDocumentation(IProgramElement node,
++                                             StringBuffer fileContentsBuffer,
++                                              int index ) {
++       	List targets = StructureUtil.getTargets(node, IRelationship.Kind.ADVICE);
++       	decorateDocWithRel(node,fileContentsBuffer,index,targets,HtmlRelationshipKind.ADVISED_BY);
++
++       	List warnings = StructureUtil.getTargets(node,IRelationship.Kind.DECLARE,"matches declare");
++       	decorateDocWithRel(node,fileContentsBuffer,index,warnings,HtmlRelationshipKind.MATCHES_DECLARE);
++
++       	List softenedBy = StructureUtil.getTargets(node,IRelationship.Kind.DECLARE,"softened by");
++       	decorateDocWithRel(node,fileContentsBuffer,index,softenedBy,HtmlRelationshipKind.SOFTENED_BY);
++
++       	List annotatedBy = StructureUtil.getTargets(node,IRelationship.Kind.DECLARE_INTER_TYPE,"annotated by");
++       	decorateDocWithRel(node,fileContentsBuffer,index,annotatedBy,HtmlRelationshipKind.ANNOTATED_BY);
++    }
+ 
+     /**
+      * pr119453 - adding "declared by" relationship
+@@ -626,20 +674,39 @@ class HtmlDecorator {
+     /**
+      * TODO: probably want to make this the same for intros and advice.
+      */
+-    static String generateAffects(IProgramElement decl, boolean isIntroduction) {
++    static String generateAffects(IProgramElement decl) {
+     	List targets = null;
+-    	if (isIntroduction) {
+-    		targets = StructureUtil.getDeclareTargets(decl);
+-    	} else {
+-    		targets = StructureUtil.getTargets(decl, IRelationship.Kind.ADVICE);
+-    	}
++    	if (decl.getKind().isDeclare() || decl.getKind().isInterTypeMember()) {
++			targets = StructureUtil.getDeclareTargets(decl);
++		} else {
++			targets = StructureUtil.getTargets(decl, IRelationship.Kind.ADVICE);
++		}
+     	if (targets == null) return "";
+         String entry = "<TABLE WIDTH=\"100%\" BGCOLOR=#FFFFFF><TR>";
+-        if (!isIntroduction) {
+-        	entry += "<TD width=\"10%\" bgcolor=\"#FFD8B0\"><B><FONT COLOR=000000>&nbsp;Advises:</b></font></td><td>";
+-        } else {
+-        	entry += "<TD width=\"10%\" bgcolor=\"#FFD8B0\"><B><FONT COLOR=000000>&nbsp;Declared&nbsp;on:</b></font></td><td>";
+-        }
++        
++        IProgramElement.Kind kind = decl.getKind();
++        if (kind.equals(IProgramElement.Kind.ADVICE)) {
++        	entry += "<TD width=\"10%\" bgcolor=\"#FFD8B0\"><B><FONT COLOR=000000>" +
++					HtmlRelationshipKind.ADVISES.toString() +
++					"</b></font></td><td>";
++		} else if (kind.equals(IProgramElement.Kind.DECLARE_WARNING) 
++				|| kind.equals(IProgramElement.Kind.DECLARE_ERROR)) {
++        	entry += "<TD width=\"10%\" bgcolor=\"#FFD8B0\"><B><FONT COLOR=000000>" +
++					HtmlRelationshipKind.MATCHED_BY.toString() +
++					"</b></font></td><td>";			
++		} else if (kind.isDeclareAnnotation()) {
++        	entry += "<TD width=\"10%\" bgcolor=\"#FFD8B0\"><B><FONT COLOR=000000>" +
++					HtmlRelationshipKind.ANNOTATES.toString() +
++					"</b></font></td><td>";			
++		} else if (kind.equals(IProgramElement.Kind.DECLARE_SOFT)) {
++        	entry += "<TD width=\"10%\" bgcolor=\"#FFD8B0\"><B><FONT COLOR=000000>" +
++					HtmlRelationshipKind.SOFTENS.toString() +
++					"</b></font></td><td>";			
++		} else {
++        	entry += "<TD width=\"10%\" bgcolor=\"#FFD8B0\"><B><FONT COLOR=000000>" +
++					HtmlRelationshipKind.DECLARED_ON.toString() +
++					"</b></font></td><td>";			
++		}
+ 
+ 		String relativePackagePath =
+ 			getRelativePathFromHere(
+@@ -867,4 +934,48 @@ class HtmlDecorator {
+         }
+         return formattedComment;
+     }
++    
++    /**
++     * TypeSafeEnum for the entries which need to be put in the html doc 
++     */
++    public static class HtmlRelationshipKind extends TypeSafeEnum {
++
++		public HtmlRelationshipKind(String name, int key) {
++			super(name, key);
++			
++		}
++		
++		public static HtmlRelationshipKind read(DataInputStream s) throws IOException {
++			int key = s.readByte();
++			switch(key) {
++				case 1: return ADVISES;
++		        case 2: return ADVISED_BY;
++		        case 3: return MATCHED_BY;
++		        case 4: return MATCHES_DECLARE;
++		        case 5: return DECLARED_ON;
++		        case 6: return ASPECT_DECLARATIONS;
++		        case 7: return SOFTENS;
++		        case 8: return SOFTENED_BY;
++		        case 9: return ANNOTATES;
++		        case 10: return ANNOTATED_BY;
++		        case 11: return USES_POINTCUT;
++		        case 12: return POINTCUT_USED_BY;
++			}
++			throw new Error("weird relationship kind " + key);
++		}
++
++		public static final HtmlRelationshipKind ADVISES = new HtmlRelationshipKind("&nbsp;Advises:", 1);
++		public static final HtmlRelationshipKind ADVISED_BY = new HtmlRelationshipKind("&nbsp;Advised&nbsp;by:", 2);
++		public static final HtmlRelationshipKind MATCHED_BY = new HtmlRelationshipKind("&nbsp;Matched&nbsp;by:", 3);
++		public static final HtmlRelationshipKind MATCHES_DECLARE = new HtmlRelationshipKind("&nbsp;Matches&nbsp;declare:", 4);
++		public static final HtmlRelationshipKind DECLARED_ON = new HtmlRelationshipKind("&nbsp;Declared&nbsp;on:", 5);
++		public static final HtmlRelationshipKind ASPECT_DECLARATIONS = new HtmlRelationshipKind("&nbsp;Aspect&nbsp;declarations:", 6);
++		public static final HtmlRelationshipKind SOFTENS = new HtmlRelationshipKind("&nbsp;Softens:", 7);
++		public static final HtmlRelationshipKind SOFTENED_BY = new HtmlRelationshipKind("&nbsp;Softened&nbsp;by:", 8);
++		public static final HtmlRelationshipKind ANNOTATES = new HtmlRelationshipKind("&nbsp;Annotates:", 9);
++		public static final HtmlRelationshipKind ANNOTATED_BY = new HtmlRelationshipKind("&nbsp;Annotated&nbsp;by:", 10);
++		public static final HtmlRelationshipKind USES_POINTCUT = new HtmlRelationshipKind("&nbsp;Uses&nbsp;pointcut:", 11);
++		public static final HtmlRelationshipKind POINTCUT_USED_BY = new HtmlRelationshipKind("&nbsp;Pointcut&nbsp;used&nbsp;by:", 12);
++		
++    }
+ }
+@@ -25,21 +25,58 @@ import org.aspectj.asm.IRelationship;
+  */
+ public class StructureUtil {
+ 
+-	
+ 	/**
++	 * Calculate the targets for a given IProgramElement (and it's 
++	 * immediate children if its not a type or if the child is
++	 * CODE) and relationship kind
++	 * 
+ 	 * @return	null if a relationship of that kind is not found
+ 	 */
+ 	public static List /*String*/ getTargets(IProgramElement node, IRelationship.Kind kind) {
+-	    List relations = AsmManager.getDefault().getRelationshipMap().get(node);
++		return getTargets(node,kind,null);
++	}
++	
++	/**
++	 * Calculate the targets for a given IProgramElement (and it's immediate
++	 * children if its not a type or if the child is CODE) and relationship 
++	 * kind with the specified relationship name.
++	 * 
++	 * @return null if a relationship of that kind is not found
++	 */
++	public static List /*String*/ getTargets(IProgramElement node, IRelationship.Kind kind, String relName) {
++		List relations = AsmManager.getDefault().getRelationshipMap().get(node);
++	    for (Iterator iter = node.getChildren().iterator(); iter.hasNext();) {
++			IProgramElement child = (IProgramElement) iter.next();
++			// if we're not a type, or if we are and the child is code, then
++			// we want to get the relationships for this child - this means that the
++			// correct relationships appear against the type in the ajdoc
++			if (!node.getKind().isType() 
++					|| child.getKind().equals(IProgramElement.Kind.CODE) ) {
++				List childRelations = AsmManager.getDefault().getRelationshipMap().get(child);
++				if (childRelations != null) {
++					if (relations == null) {
++						relations = childRelations;
++					} else {
++						relations.addAll(childRelations);
++					}
++				}					
++			}
++		}			
+ 		List targets = null; 
+-	    if (relations == null) return null;
++	    if (relations == null || relations.isEmpty()) return null;
+ 		for (Iterator it = relations.iterator(); it.hasNext(); ) {
+ 	      	IRelationship rtn = (IRelationship)it.next();
+-	      	if (rtn.getKind().equals(kind)) {
+-	      		targets = rtn.getTargets();
++	      	if (rtn.getKind().equals(kind)
++	      			&& ((relName != null  && relName.equals(rtn.getName()))
++	      					|| relName == null)){
++	      		if (targets == null) {
++	      			targets = rtn.getTargets();
++				} else {
++					targets.addAll(rtn.getTargets());
++				}
+ 	      	}
+ 	     }
+-		return targets;
++		return targets;		
+ 	}
+ 
+ 	static List /*IProgramElement */ getDeclareInterTypeTargets(IProgramElement node, IProgramElement.Kind kind) {
+@@ -6,6 +6,10 @@ import java.util.List;
+ 
+ interface I { } 
+ 
++/**
++ * doc about the Point class........
++ *
++ */
+ class Point { 
+ 	int x;
+ 	static int sx;
+@@ -28,7 +32,8 @@ class Point {
+ 	}
+ 
+ 	public int changeX(int x) { 
+-		this.x = x;
++		//this.x = x;
++		setX(x);
+ 		return x;
+ 	}
+ 
+@@ -0,0 +1,5 @@
++package pkg;
++
++public aspect A {
++		
++}
+@@ -0,0 +1,20 @@
++package pkg;
++
++public aspect A2 {
++		
++	pointcut p() : execution(* C2.amethod(..));
++	pointcut p2() : execution(* C2.amethod(..));
++	
++	before() : p() {
++	}
++	
++	before() : p2() {
++	}
++	
++}
++
++class C2 {
++	
++	public void amethod() {
++	}
++}
+@@ -0,0 +1,5 @@
++package pkg;
++
++public class C {
++	
++}
+@@ -0,0 +1,19 @@
++package foo;
++
++public aspect A {
++	
++	pointcut p() : execution(* C.amethod(..));
++	
++	declare warning : p() : "warning";
++	
++	before() : p() {
++	}
++	
++}
++
++class C {
++	
++	public void amethod() {
++	}
++	
++}
+@@ -0,0 +1,17 @@
++package foo;
++
++@interface MyAnnotation {	
++}
++
++public aspect DeclareAtConstructor {
++
++	declare @constructor : C.new(..) : @MyAnnotation;
++	
++}
++
++class C {
++	
++	public C(String s) {		
++	}
++	
++}
+@@ -0,0 +1,16 @@
++package foo;
++
++@interface MyAnnotation {	
++}
++
++public aspect DeclareAtField {
++
++	declare @field : int C.* : @MyAnnotation;
++	
++}
++
++class C {
++	
++	int x = 1;
++	
++}
+@@ -0,0 +1,17 @@
++package foo;
++
++@interface MyAnnotation {	
++}
++
++public aspect DeclareAtMethod {
++
++	declare @method : public * C.*(..) : @MyAnnotation;
++	
++}
++
++class C {
++	
++	public void amethod() {
++	}
++	
++}
+@@ -3,7 +3,7 @@ package foo;
+ @interface MyAnnotation {	
+ }
+ 
+-public aspect AnnotationTest {
++public aspect DeclareAtType {
+ 
+ 	declare @type : C : @MyAnnotation;
+ 
+@@ -2,20 +2,23 @@ package foo;
+ 
+ public aspect DeclareCoverage2 {
+ 
+-    pointcut illegalNewFigElt(): call(Point.new(..)) && !withincode(* *.doIt(..));
++    pointcut illegalNewFigElt(): call(Point2.new(..)) && !withincode(* *.doIt(..));
+ 
+     declare error: illegalNewFigElt(): "Illegal constructor call.";
+-    declare warning: call(* Point.setX(..)): "Illegal call.";
++    declare warning: call(* Point2.setX(..)): "Illegal call.";
++    declare warning : execution(* Point2.setX(..)) : "blah";
+ 
+-    declare parents: Point extends java.io.Serializable;
+-	declare parents: Line implements java.util.Observable;
+-    declare soft: SizeException : call(* Point.getX());
+-	declare precedence: DeclareCoverage2, InterTypeDecCoverage, *;
++    declare parents: Point2 implements java.io.Serializable;
++    declare soft: SizeException2 : call(* Point2.getX());
++	declare precedence: DeclareCoverage2, InterTypeDecCoverage2, *;
+ }
+ 
+-aspect InterTypeDecCoverage {}
++aspect InterTypeDecCoverage2 {}
+ 
+-class Point { 
++/**
++ * comment about class Point2
++ */
++class Point2 { 
+ 
+ 	int x = 2;
+ 	public void setX(int x) {
+@@ -27,18 +30,18 @@ class Point {
+ 	}
+ }
+ 
+-class Line {
++class Line2 {
+ }
+ 
+-class SizeException extends Throwable { }
++class SizeException2 extends Throwable { }
+ 
+-class Main {
++class Main2 {
+ 
+ 	public static void main(String[] args) {
+ 	}
+ 
+ 	public void doIt() {
+-		Point p = new Point();
++		Point2 p = new Point2();
+ 		p.setX(3);
+ 		p.getX();
+ 	}
+@@ -0,0 +1,12 @@
++package foo;
++
++public aspect DeclareParents {
++	declare parents: Class1 implements java.io.Serializable;
++    declare parents: Class2 extends java.util.Observable;
++}
++
++class Class1 {	
++}
++
++class Class2 {
++}
+@@ -18,4 +18,7 @@ public aspect A {
+ 	before() : p() {
+ 	}
+ 
++	pointcut p1() : execution(public String C.method1(..));
++	after() returning : p1() {
++	}
+ }
+@@ -130,31 +130,104 @@ public class AjdocOutputChecker {
+ 		}
+ 		return missingStrings;
+ 	}
++
++	/**
++	 * Returns whether the class data section has the expected 
++	 * relationship and target i.e. have the relationships been 
++	 * applied to the type.
++	 * 
++	 * @param the ajdoc html file
++	 * @param the detail sectionHeader, for example "DECLARE DETAIL SUMMARY"
++	 * @param the source of the relationship, for example "Point()"
++	 * @param the relationship, for example HtmlDecorator.HtmlRelationshipKind.MATCHED_BY
++	 * @param the expected target, for example "HREF=\"../foo/Main.html#doIt()\""
++	 * @return true if the section contains the expected source/relationship/target,
++	 * false otherwise
++	 */
++	public static boolean classDataSectionContainsRel(File htmlFile,
++			HtmlDecorator.HtmlRelationshipKind relationship, 
++			String target) throws Exception {
++		if (((htmlFile == null) || !htmlFile.getAbsolutePath().endsWith("html"))) {
++			return false;
++		}
++		BufferedReader reader = new BufferedReader(new FileReader(htmlFile));
++		String line = reader.readLine();
++		while (line != null) {
++			if (line.indexOf("START OF CLASS DATA") != -1) {
++				// found the required class data section
++				String subLine = reader.readLine();
++				while(subLine != null 
++						&& (subLine.indexOf("========") == -1)){
++					int relIndex = subLine.indexOf(relationship.toString());
++					int targetIndex = subLine.indexOf(target);
++					if ((relIndex != -1) && (targetIndex != -1)) {
++						reader.close();
++						if (relIndex < targetIndex) {
++							return true;
++						}
++						return false;
++					}
++					subLine = reader.readLine();
++				}
++				reader.close();
++				return false;
++			}
++			line = reader.readLine();
++		}
++		reader.close();
++		return false;
++	}
+ 
+ 	/**
+-	 * Checks whether the given strings appear one after the other in the
+-	 * ajdoc html file
++	 * Returns whether the supplied source has the expected 
++	 * relationship and target within the given detail section
+ 	 * 
+-	 * @param htmlFile
+-	 * @param firstString
+-	 * @param secondString expected to follow the firstString
+-	 * @return true if secondString appears after firstString, false otherwise
+-	 * @throws Exception
++	 * @param the ajdoc html file
++	 * @param the detail sectionHeader, for example "DECLARE DETAIL SUMMARY"
++	 * @param the source of the relationship, for example "Point()"
++	 * @param the relationship, for example HtmlDecorator.HtmlRelationshipKind.MATCHED_BY
++	 * @param the expected target, for example "HREF=\"../foo/Main.html#doIt()\""
++	 * @return true if the section contains the expected source/relationship/target,
++	 * false otherwise
+ 	 */
+-	public static boolean fileContainsConsecutiveStrings(File htmlFile, 
+-			String firstString, String secondString ) throws Exception {
+-		if ((htmlFile == null) || !htmlFile.getAbsolutePath().endsWith("html")) {
++	public static boolean detailSectionContainsRel(File htmlFile, 
++			String sectionHeader, String source, 
++			HtmlDecorator.HtmlRelationshipKind relationship, 
++			String target) throws Exception {
++		if (((htmlFile == null) || !htmlFile.getAbsolutePath().endsWith("html"))) {
++			return false;
++		}
++		if (sectionHeader.indexOf("DETAIL") == -1) {
+ 			return false;
+ 		}
+ 		BufferedReader reader = new BufferedReader(new FileReader(htmlFile));
+ 		String line = reader.readLine();
+ 		while (line != null) {
+-			if (line.indexOf(firstString) != -1) {
+-				if ( (line.indexOf(secondString) != -1 
+-						&& line.indexOf(secondString) > line.indexOf(firstString)) 
+-						|| reader.readLine().indexOf(secondString) != -1) {
+-					reader.close();
+-					return true;
++			if (line.indexOf(sectionHeader) != -1) {
++				// found the required main section
++				String nextLine = reader.readLine();
++				while (nextLine != null && (nextLine.indexOf("========") == -1)) {
++					if (nextLine.indexOf("NAME=\""+source+"\"") != -1) {
++						// found the required subsection
++						String subLine = reader.readLine();
++						while(subLine != null 
++								&& (subLine.indexOf("========") == -1)
++								&& (subLine.indexOf("NAME") == -1)) {
++							int relIndex = subLine.indexOf(relationship.toString());
++							int targetIndex = subLine.indexOf(target);
++							if ((relIndex != -1) && (targetIndex != -1)) {
++								reader.close();
++								if (relIndex < targetIndex) {
++									return true;
++								}
++								return false;
++							}
++							subLine = reader.readLine();
++						}
++						reader.close();
++						return false;
++					}
++					nextLine = reader.readLine();
+ 				}
+ 				reader.close();
+ 				return false;
+@@ -164,36 +237,57 @@ public class AjdocOutputChecker {
+ 		reader.close();
+ 		return false;
+ 	}
+-
++	
+ 	/**
+-	 * Checks whether the given strings appear one after the other in the
+-	 * given section of the ajdoc html file
++	 * Returns whether the supplied source has the expected 
++	 * relationship and target within the given summary section
+ 	 * 
+-	 * @param htmlFile
+-	 * @param firstString
+-	 * @param secondString expected to follow the firstString
+-	 * @param sectionHeader
+-	 * @return true if secondString appears after firstString, false otherwise
+-	 * @throws Exception
++	 * @param the ajdoc html file
++	 * @param the detail sectionHeader, for example "DECLARE SUMMARY"
++	 * @param the source of the relationship, for example "Point()"
++	 * @param the relationship, for example HtmlDecorator.HtmlRelationshipKind.MATCHED_BY
++	 * @param the expected target, for example "HREF=\"../foo/Main.html#doIt()\""
++	 * @return true if the section contains the expected source/relationship/target,
++	 * false otherwise
+ 	 */
+-	public static boolean sectionContainsConsecutiveStrings(File htmlFile, 
+-			String firstString, String secondString, String sectionHeader) throws Exception  {
++	public static boolean summarySectionContainsRel(
++			File htmlFile, 
++			String sectionHeader, 
++			String source, 
++			HtmlDecorator.HtmlRelationshipKind relationship, 
++			String target) throws Exception {
+ 		if (((htmlFile == null) || !htmlFile.getAbsolutePath().endsWith("html"))) {
+ 			return false;
+ 		}
++		if (sectionHeader.indexOf("SUMMARY") == -1) {
++			return false;
++		}
+ 		BufferedReader reader = new BufferedReader(new FileReader(htmlFile));
+ 		String line = reader.readLine();
+ 		while (line != null) {
+ 			if (line.indexOf(sectionHeader) != -1) {
++				// found the required main section
+ 				String nextLine = reader.readLine();
+ 				while (nextLine != null && (nextLine.indexOf("========") == -1)) {
+-					if (nextLine.indexOf(firstString) != -1) {
+-						if ( (nextLine.indexOf(secondString) != -1 
+-								&& nextLine.indexOf(secondString) > nextLine.indexOf(firstString)) 
+-								|| reader.readLine().indexOf(secondString) != -1) {
+-							reader.close();
+-							return true;
++					if (nextLine.indexOf(source) != -1) {
++						// found the required subsection
++						String subLine = nextLine;
++						while(subLine != null 
++								&& (subLine.indexOf("========") == -1)
++								&& (subLine.indexOf("<TR BGCOLOR=\"white\" CLASS=\"TableRowColor\">") == -1)) {
++							int relIndex = subLine.indexOf(relationship.toString());
++							int targetIndex = subLine.indexOf(target);
++							if ((relIndex != -1) && (targetIndex != -1)) {
++								reader.close();
++								if (relIndex < targetIndex) {
++									return true;
++								}
++								return false;
++							}
++							subLine = reader.readLine();
+ 						}
++						reader.close();
++						return false;
+ 					}
+ 					nextLine = reader.readLine();
+ 				}
+@@ -205,4 +299,5 @@ public class AjdocOutputChecker {
+ 		reader.close();
+ 		return false;
+ 	}
++	
+ }
+@@ -82,6 +82,35 @@ public class CoverageTestCase extends AjdocTestCase {
+     }
+ 
+     /**
++     * Test that the ajdoc for an aspect has the title "Aspect"
++     */
++	public void testAJdocHasAspectTitle() throws Exception {
++		File[] files = {new File(getAbsoluteProjectDir() + "/pkg/A.aj")};
++		runAjdoc("private","1.4",files);
++        File htmlFile = new File(getAbsolutePathOutdir() + "/pkg/A.html");
++		if (htmlFile == null || !htmlFile.exists()) {
++			fail("couldn't find " + htmlFile.getAbsolutePath()+ " - were there compilation errors?");
++		}	
++		assertTrue(htmlFile.getAbsolutePath() + " should have Aspect A as it's title",
++				AjdocOutputChecker.containsString(htmlFile,"Aspect A"));
++	}
++	
++	/**
++	 * Test that the ajdoc for a class has the title "Class" 
++	 */
++	public void testAJdocHasClassTitle() throws Exception {
++		File[] files = {new File(getAbsoluteProjectDir() + "/pkg/C.java")};
++		runAjdoc("private","1.4",files);
++        File htmlFile = new File(getAbsolutePathOutdir() + "/pkg/C.html");
++		if (htmlFile == null || !htmlFile.exists()) {
++			fail("couldn't find " + htmlFile.getAbsolutePath()+ " - were there compilation errors?");
++		}	
++		assertTrue(htmlFile.getAbsolutePath() + " should have Class C as it's title",
++				AjdocOutputChecker.containsString(htmlFile,"Class C"));
++		
++	}
++    
++    /**
+      * Test that the ajdoc for an inner aspect is entitled "Aspect" rather
+      * than "Class", but that the enclosing class is still "Class" 
+      */
+@@ -171,44 +200,50 @@ public class CoverageTestCase extends AjdocTestCase {
+ 		}
+ 
+ 		String[] strings = {
+-				"<B>before(): methodExecutionP..</B>",
+-				"Advises:</b></font></td><td><A HREF=\"../foo/Point.html#setX(int)\"",
+-				"<B>before(): constructorExecutionP..</B>",
+-				"Advises:</b></font></td><td><A HREF=\"../foo/Point.html#Point()\"",
+-				"<B>before(): callConstructorP..</B>",
+-				"Advises:</b></font></td><td><A HREF=\"../foo/Point.html#doIt()\"",
+-				"<B>before(): getP..</B>",
+-				"Advises:</b></font></td><td><A HREF=\"../foo/Point.html#getX()\"",
+-				"<B>before(): setP..</B>",
+-				"Advises:</b></font></td><td><A HREF=\"../foo/Point.html\"><tt>foo.Point</tt></A>, <A HREF=\"../foo/Point.html#Point()\"><tt>foo.Point.Point()</tt></A>, <A HREF=\"../foo/Point.html#setX(int)\"><tt>foo.Point.setX</tt></A>, <A HREF=\"../foo/Point.html#changeX(int)\"",
+-				"<B>before(): initializationP..</B>",
+-				"Advises:</b></font></td><td><A HREF=\"../foo/Point.html#Point()\"",
+-				"<B>before(): staticinitializationP..</B>",
+-				"Advises:</b></font></td><td><A HREF=\"../foo/Point.html\"",
+-				"<B>before(): handlerP..</B>",
+-				"Advises:</b></font></td><td><A HREF=\"../foo/Point.html#doIt()\""};
++				"before(): methodExecutionP..",
++				"HREF=\"../foo/Point.html#setX(int)\"",
++				"before(): constructorExecutionP..",
++				"HREF=\"../foo/Point.html#Point()\"",
++				"before(): callMethodP..",
++				"HREF=\"../foo/Point.html#changeX(int)\"",
++				"before(): callConstructorP..",
++				"HREF=\"../foo/Point.html#doIt()\"",
++				"before(): getP..",
++				"HREF=\"../foo/Point.html#getX()\"",
++				"before(): setP..",
++				"HREF=\"../foo/Point.html\"><tt>foo.Point</tt></A>, <A HREF=\"../foo/Point.html#Point()\"><tt>foo.Point.Point()</tt></A>, <A HREF=\"../foo/Point.html#setX(int)\"",
++				"before(): initializationP..",
++				"HREF=\"../foo/Point.html#Point()\"",
++				"before(): staticinitializationP..",
++				"HREF=\"../foo/Point.html\"",
++				"before(): handlerP..",
++				"HREF=\"../foo/Point.html#doIt()\""
++		};
+ 
+ 		for (int i = 0; i < strings.length - 1; i = i+2) {
+-			boolean b = AjdocOutputChecker.sectionContainsConsecutiveStrings(htmlFile,strings[i],
+-					strings[i+1],"ADVICE DETAIL SUMMARY");
+-			assertTrue(strings[i] + " should have relationship " + strings[i+1] + 
++			boolean b = AjdocOutputChecker.detailSectionContainsRel(
++					htmlFile,"ADVICE DETAIL SUMMARY",strings[i],
++					HtmlDecorator.HtmlRelationshipKind.ADVISES,
++					strings[i+1]);
++			assertTrue(strings[i] + " should advise " + strings[i+1] + 
+ 					" in the Advice Detail section", b);
+ 		}
+ 
+ 		for (int i = 0; i < strings.length - 1; i = i+2) {
+-			boolean b = AjdocOutputChecker.sectionContainsConsecutiveStrings(htmlFile,strings[i],
+-					strings[i+1],"ADVICE SUMMARY");
+-			assertTrue(strings[i] + " should have relationship " + strings[i+1] + 
++			boolean b = AjdocOutputChecker.summarySectionContainsRel(
++					htmlFile,"ADVICE SUMMARY",strings[i],
++					HtmlDecorator.HtmlRelationshipKind.ADVISES,
++					strings[i+1]);
++			assertTrue(strings[i] + " should advise " + strings[i+1] + 
+ 					" in the Advice Summary section", b);
+ 		}
+     }
+ 
+     /**
+-     * Test that all the advised by relationships appear in the 
+-     * various detail and summary sections in the ajdoc for the
+-     * affected class and that the links are correct 
++     * Test that the advised by relationship appears in the ajdoc when the 
++     * advice is associated with a method execution pointcut 
+      */
+-    public void testAdvisedByRelationshipCoverage() throws Exception {
++    public void testAdvisedByMethodExecution() throws Exception {
+     	File[] files = {file4};
+     	runAjdoc("private","1.4",files);
+ 
+@@ -217,33 +252,344 @@ public class CoverageTestCase extends AjdocTestCase {
+ 			fail("couldn't find " + htmlFile.getAbsolutePath() + " - were there compilation errors?");
+ 		}
+ 
+-		String[] constructorStrings = {
+-				"Advised&nbsp;by:",
+-				"HREF=\"../foo/AdvisesRelationshipCoverage.html#before(): constructorExecutionP..\""};
+-		String[] methodStrings = {
+-				"Advised&nbsp;by:",
++		String[] strings = {
++				"setX(int)",
+ 				"HREF=\"../foo/AdvisesRelationshipCoverage.html#before(): methodExecutionP..\""};
++		boolean b = AjdocOutputChecker.detailSectionContainsRel(
++				htmlFile,"=== METHOD DETAIL",
++				strings[0],
++				HtmlDecorator.HtmlRelationshipKind.ADVISED_BY,
++				strings[1]);
++		assertTrue("the Method Detail should have " + strings[0]+" advised by " + strings[1],b);
++		
++		b = AjdocOutputChecker.summarySectionContainsRel(
++				htmlFile,"=== METHOD SUMMARY",
++				strings[0],
++				HtmlDecorator.HtmlRelationshipKind.ADVISED_BY,
++				strings[1]);
++		assertTrue("the Method Summary should have " + strings[0]+" advised by " + strings[1],b);
++    }
++    
++    /**
++     * Test that the advised by relationship appears in the ajdoc when the 
++     * advice is associated with a constructor execution pointcut 
++     */
++    public void testAdvisedByConstructorExecution() throws Exception {
++    	File[] files = {file4};
++    	runAjdoc("private","1.4",files);
++    	
++        File htmlFile = new File(getAbsolutePathOutdir() + "/foo/Point.html");
++		if (htmlFile == null || !htmlFile.exists()) {
++			fail("couldn't find " + htmlFile.getAbsolutePath() + " - were there compilation errors?");
++		}
++        
++		String[] strings = {
++				"Point()",
++				"HREF=\"../foo/AdvisesRelationshipCoverage.html#before(): constructorExecutionP..\""};
++		boolean b = AjdocOutputChecker.detailSectionContainsRel(
++				htmlFile,"=== CONSTRUCTOR DETAIL",
++				strings[0],
++				HtmlDecorator.HtmlRelationshipKind.ADVISED_BY,
++				strings[1]);
++		assertTrue("the Constructor Detail should have " + strings[0]+" advised by " + strings[1],b);
++		
++		b = AjdocOutputChecker.summarySectionContainsRel(
++				htmlFile,"=== CONSTRUCTOR SUMMARY",
++				strings[0],
++				HtmlDecorator.HtmlRelationshipKind.ADVISED_BY,
++				strings[1]);
++		assertTrue("the Constructor Summary should have " + strings[0]+" advised by " + strings[1],b);
++    }
++    
++    /**
++     * Test that the advised by relationship appears in the ajdoc when the 
++     * advice is associated with a method call pointcut 
++     */
++    public void testAdvisedByMethodCall() throws Exception {
++    	File[] files = {file4};
++    	runAjdoc("private","1.4",files);
++    	
++        File htmlFile = new File(getAbsolutePathOutdir() + "/foo/Point.html");
++		if (htmlFile == null || !htmlFile.exists()) {
++			fail("couldn't find " + htmlFile.getAbsolutePath() + " - were there compilation errors?");
++		}
++        
++		String[] strings = {
++				"changeX(int)",
++				"HREF=\"../foo/AdvisesRelationshipCoverage.html#before(): callMethodP..\""};
++		boolean b = AjdocOutputChecker.detailSectionContainsRel(
++				htmlFile,"=== METHOD DETAIL",
++				strings[0],
++				HtmlDecorator.HtmlRelationshipKind.ADVISED_BY,
++				strings[1]);
++		assertTrue("the Method Detail should have " + strings[0]+" advised by " + strings[1],b);
++		
++		b = AjdocOutputChecker.summarySectionContainsRel(
++				htmlFile,"=== METHOD SUMMARY",
++				strings[0],
++				HtmlDecorator.HtmlRelationshipKind.ADVISED_BY,
++				strings[1]);
++		assertTrue("the Method Summary should have " + strings[0]+" advised by " + strings[1],b);
++   }
++
++    /**
++     * Test that the advised by relationship appears in the ajdoc when the 
++     * advice is associated with a constructor call pointcut 
++     */
++    public void testAdvisedByConstructorCall() throws Exception {
++    	File[] files = {file4};
++    	runAjdoc("private","1.4",files);
++    	
++        File htmlFile = new File(getAbsolutePathOutdir() + "/foo/Point.html");
++		if (htmlFile == null || !htmlFile.exists()) {
++			fail("couldn't find " + htmlFile.getAbsolutePath() + " - were there compilation errors?");
++		}
++        
++		String[] strings = {
++				"doIt()",
++				"HREF=\"../foo/AdvisesRelationshipCoverage.html#before(): callConstructorP..\""};
++		boolean b = AjdocOutputChecker.detailSectionContainsRel(
++				htmlFile,"=== METHOD DETAIL",
++				strings[0],
++				HtmlDecorator.HtmlRelationshipKind.ADVISED_BY,
++				strings[1]);
++		assertTrue("the Method Detail should have " + strings[0]+" advised by " + strings[1],b);
++		
++		b = AjdocOutputChecker.summarySectionContainsRel(
++				htmlFile,"=== METHOD SUMMARY",
++				strings[0],
++				HtmlDecorator.HtmlRelationshipKind.ADVISED_BY,
++				strings[1]);
++		assertTrue("the Method Summary should have " + strings[0]+" advised by " + strings[1],b);
++    }
++
++    /**
++     * Test that the advised by relationship appears in the ajdoc when the 
++     * advice is associated with a get pointcut 
++     */
++    public void testAdvisedByGet() throws Exception {
++    	File[] files = {file4};
++    	runAjdoc("private","1.4",files);
++    	
++        File htmlFile = new File(getAbsolutePathOutdir() + "/foo/Point.html");
++		if (htmlFile == null || !htmlFile.exists()) {
++			fail("couldn't find " + htmlFile.getAbsolutePath() + " - were there compilation errors?");
++		}
++        
++		String[] strings = {
++				"getX()",
++				"HREF=\"../foo/AdvisesRelationshipCoverage.html#before(): getP..\""};
++		boolean b = AjdocOutputChecker.detailSectionContainsRel(
++				htmlFile,"=== METHOD DETAIL",
++				strings[0],
++				HtmlDecorator.HtmlRelationshipKind.ADVISED_BY,
++				strings[1]);
++		assertTrue("the Method Detail should have " + strings[0]+" advised by " + strings[1],b);
++		
++		b = AjdocOutputChecker.summarySectionContainsRel(
++				htmlFile,"=== METHOD SUMMARY",
++				strings[0],
++				HtmlDecorator.HtmlRelationshipKind.ADVISED_BY,
++				strings[1]);
++		assertTrue("the Method Summary should have " + strings[0]+" advised by " + strings[1],b);
++   }
++
++    /**
++     * Test that the advised by relationship appears in the ajdoc when the 
++     * advice is associated with a set pointcut 
++     */
++    public void testAdvisedBySet() throws Exception {
++    	File[] files = {file4};
++    	runAjdoc("private","1.4",files);
++    	
++        File htmlFile = new File(getAbsolutePathOutdir() + "/foo/Point.html");
++		if (htmlFile == null || !htmlFile.exists()) {
++			fail("couldn't find " + htmlFile.getAbsolutePath() + " - were there compilation errors?");
++		}
++        
++		String href = "HREF=\"../foo/AdvisesRelationshipCoverage.html#before(): setP..\"";
++		boolean b = AjdocOutputChecker.detailSectionContainsRel(
++				htmlFile,"=== METHOD DETAIL",
++				"setX(int)",
++				HtmlDecorator.HtmlRelationshipKind.ADVISED_BY,
++				href);
++		assertTrue("the Method Detail should have setX(int) advised by " + href,b);
+ 
+-		boolean b = AjdocOutputChecker.sectionContainsConsecutiveStrings(
+-				htmlFile,constructorStrings[0],
+-				constructorStrings[1],"CONSTRUCTOR SUMMARY");
+-		assertTrue("the Constructor Summary should have the advised by relationship",b);
+-		b = AjdocOutputChecker.sectionContainsConsecutiveStrings(
+-				htmlFile,constructorStrings[0],
+-				constructorStrings[1],"CONSTRUCTOR DETAIL");
+-		assertTrue("the Constructor Detail should have the advised by relationship",b);		
++		b = AjdocOutputChecker.summarySectionContainsRel(
++				htmlFile,"=== METHOD SUMMARY",
++				"setX(int)",
++				HtmlDecorator.HtmlRelationshipKind.ADVISED_BY,
++				href);
++		assertTrue("the Method Summary should have setX(int) advised by " + href,b);
++
++		b = AjdocOutputChecker.detailSectionContainsRel(
++				htmlFile,"=== CONSTRUCTOR DETAIL",
++				"Point()",
++				HtmlDecorator.HtmlRelationshipKind.ADVISED_BY,
++				href);
++		assertTrue("the Constructor Detail should have advised by " + href,b);
++		
++		b = AjdocOutputChecker.summarySectionContainsRel(
++				htmlFile,"=== CONSTRUCTOR SUMMARY",
++				"Point()",
++				HtmlDecorator.HtmlRelationshipKind.ADVISED_BY,
++				href);
++		assertTrue("the Constructor Summary should have advised by " + href,b);
++
++		b = AjdocOutputChecker.classDataSectionContainsRel(
++				htmlFile,
++				HtmlDecorator.HtmlRelationshipKind.ADVISED_BY,
++				href);
++		assertTrue("The class data section should have 'advised by " + href + "'",b);
++    }
++
++    /**
++     * Test that the advised by relationship appears in the ajdoc when the 
++     * advice is associated with an initialization pointcut 
++     */
++    public void testAdvisedByInitialization() throws Exception {
++    	File[] files = {file4};
++    	runAjdoc("private","1.4",files);
++    	
++        File htmlFile = new File(getAbsolutePathOutdir() + "/foo/Point.html");
++		if (htmlFile == null || !htmlFile.exists()) {
++			fail("couldn't find " + htmlFile.getAbsolutePath() + " - were there compilation errors?");
++		}
++        
++		String[] strings = {
++				"Point()",
++				"HREF=\"../foo/AdvisesRelationshipCoverage.html#before(): initializationP..\""};
++		boolean b = AjdocOutputChecker.detailSectionContainsRel(
++				htmlFile,"=== CONSTRUCTOR DETAIL",strings[0],
++				HtmlDecorator.HtmlRelationshipKind.ADVISED_BY,
++				strings[1]);
++		assertTrue("the Method Detail should have 'setX(int) advised by ... before()'",b);
++		b = AjdocOutputChecker.summarySectionContainsRel(
++				htmlFile,"=== CONSTRUCTOR SUMMARY",strings[0],
++				HtmlDecorator.HtmlRelationshipKind.ADVISED_BY,
++				strings[1]);
++		assertTrue("the Method Summary should have 'setX(int) advised by ... before()'",b);
++   }
++
++    /**
++     * Test that the advised by relationship appears in the ajdoc when the 
++     * advice is associated with a staticinitialization pointcut 
++     */
++    public void testAdvisedByStaticInitialization() throws Exception {
++    	File[] files = {file4};
++    	runAjdoc("private","1.4",files);
++    	
++        File htmlFile = new File(getAbsolutePathOutdir() + "/foo/Point.html");
++		if (htmlFile == null || !htmlFile.exists()) {
++			fail("couldn't find " + htmlFile.getAbsolutePath() + " - were there compilation errors?");
++		}
++        
++		String href = "HREF=\"../foo/AdvisesRelationshipCoverage.html#before(): staticinitializationP..\"";
++		boolean b = AjdocOutputChecker.classDataSectionContainsRel(
++				htmlFile,
++				HtmlDecorator.HtmlRelationshipKind.ADVISED_BY,
++				href);
++		assertTrue("The class data section should have 'advised by " + href + "'",b);
++    }
+ 
+-		b = AjdocOutputChecker.sectionContainsConsecutiveStrings(
+-				htmlFile,methodStrings[0],
+-				methodStrings[1],"=== METHOD SUMMARY");
+-		assertTrue("the Method Summary should have the advised by relationship",b);
++    /**
++     * Test that the advised by relationship appears in the ajdoc when the 
++     * advice is associated with a handler pointcut 
++     */
++    public void testAdvisedByHandler() throws Exception {
++    	File[] files = {file4};
++    	runAjdoc("private","1.4",files);
++    	
++        File htmlFile = new File(getAbsolutePathOutdir() + "/foo/Point.html");
++		if (htmlFile == null || !htmlFile.exists()) {
++			fail("couldn't find " + htmlFile.getAbsolutePath() + " - were there compilation errors?");
++		}
++        
++		String[] strings = {
++				"doIt()",
++				"HREF=\"../foo/AdvisesRelationshipCoverage.html#before(): handlerP..\""};
++		boolean b = AjdocOutputChecker.detailSectionContainsRel(
++				htmlFile,"=== METHOD DETAIL",
++				strings[0],
++				HtmlDecorator.HtmlRelationshipKind.ADVISED_BY,
++				strings[1]);
++		assertTrue("the Method Detail should have " + strings[0]+" advised by " + strings[1],b);
++		
++		b = AjdocOutputChecker.summarySectionContainsRel(
++				htmlFile,"=== METHOD SUMMARY",
++				strings[0],
++				HtmlDecorator.HtmlRelationshipKind.ADVISED_BY,
++				strings[1]);
++		assertTrue("the Method Summary should have " + strings[0]+" advised by " + strings[1],b);
++    }
+ 
+-		b = AjdocOutputChecker.sectionContainsConsecutiveStrings(
+-				htmlFile,methodStrings[0],
+-				methodStrings[1],"=== METHOD DETAIL");
+-		assertTrue("the Method Detail should have the advised by relationship",b);
++    /**
++     * Test that if have two before advice blocks from the same
++     * aspect affect the same method, then both appear in the ajdoc 
++     */
++    public void testTwoBeforeAdvice() throws Exception {
++    	File[] files = {new File(getAbsoluteProjectDir() + "/pkg/A2.aj")};
++    	runAjdoc("private","1.4",files);
++    	
++        File htmlFile = new File(getAbsolutePathOutdir() + "/pkg/C2.html");
++		if (htmlFile == null || !htmlFile.exists()) {
++			fail("couldn't find " + htmlFile.getAbsolutePath() + " - were there compilation errors?");
++		}
++        
++		String[] strings = {
++				"amethod()",
++				"HREF=\"../pkg/A2.html#before(): p..\"",
++				"HREF=\"../pkg/A2.html#before(): p2..\""};
++		boolean b = AjdocOutputChecker.detailSectionContainsRel(
++				htmlFile,"=== METHOD DETAIL",
++				strings[0],
++				HtmlDecorator.HtmlRelationshipKind.ADVISED_BY,
++				strings[1]);
++		assertTrue("the Method Detail should have " + strings[0]+" advised by " + strings[1],b);
++		
++		b = AjdocOutputChecker.summarySectionContainsRel(
++				htmlFile,"=== METHOD SUMMARY",
++				strings[0],
++				HtmlDecorator.HtmlRelationshipKind.ADVISED_BY,
++				strings[1]);
++		assertTrue("the Method Summary should have " + strings[0]+" advised by " + strings[1],b);
++		
++		b = AjdocOutputChecker.detailSectionContainsRel(
++				htmlFile,"=== METHOD DETAIL",
++				strings[0],
++				HtmlDecorator.HtmlRelationshipKind.ADVISED_BY,
++				strings[2]);
++		assertTrue("the Method Detail should have " + strings[0]+" advised by " + strings[2],b);
++		
++		b = AjdocOutputChecker.summarySectionContainsRel(
++				htmlFile,"=== METHOD SUMMARY",
++				strings[0],
++				HtmlDecorator.HtmlRelationshipKind.ADVISED_BY,
++				strings[2]);
++		assertTrue("the Method Summary should have " + strings[0]+" advised by " + strings[2],b);
+     }
+ 
++    /**
++     * Test that there are no spurious "advised by" entries
++     * against the aspect in the ajdoc
++     */
++    public void testNoSpuriousAdvisedByRels() throws Exception {
++       	File[] files = {file4};
++    	runAjdoc("private","1.4",files);
++    	
++        File htmlFile = new File(getAbsolutePathOutdir() + "/foo/AdvisesRelationshipCoverage.html");
++		if (htmlFile == null || !htmlFile.exists()) {
++			fail("couldn't find " + htmlFile.getAbsolutePath() + " - were there compilation errors?");
++		}
++		
++		String href = "foo.Point.setX(int)";
++		boolean b = AjdocOutputChecker.classDataSectionContainsRel(
++				htmlFile,
++				HtmlDecorator.HtmlRelationshipKind.ADVISED_BY,
++				href);
++		assertFalse("The class data section should not have 'advised by " + href + "'",b);
++
++    }
+ 
+ 	public void testCoverage() {
+ 		File[] files = {aspect1,file0,file1,file2,file3,file4,file5,file6,
+@@ -20,32 +20,47 @@ import java.util.List;
+  */
+ public class DeclareFormsTest extends AjdocTestCase {
+ 
++	private String declareError = "declare error: quot;Illegal construct..quot";
++	private String declareWarningQuotes = "declare warning: quot;Illegal call.quot;";
++	private String declareWarning = "declare warning: \"Illegal call.\"";
++	private String declareParentsImpl = "declare parents: implements Serializable";
++	private String declareSoft = "declare soft: foo.SizeException2";
++	private String declarePrecedence = "declare precedence: foo.DeclareCoverage2, foo.InterTypeDecCoverage2";
++	
++	private String doItHref = "HREF=\"../foo/Main2.html#doIt()\"";
++	private String pointHref = "HREF=\"../foo/Point2.html\"";
++	private String cHref = "HREF=\"../foo/C.html\"";
++	
++	private String doIt = "doIt()";
++
++	
+ 	public void testCoverage() {
+ 		initialiseProject("declareForms");
+ 		File[] files = {new File(getAbsoluteProjectDir() + File.separatorChar + "DeclareCoverage.java")};
+ 		runAjdoc("private","1.4",files);
+ 	}
+ 
++	/**
++	 * Test that the declare statements appear in the Declare Detail
++	 * and Declare Summary sections of the ajdoc
++	 */
+ 	public void testDeclareStatments() throws Exception {
+ 		initialiseProject("declareForms");
+ 		File[] files = {new File(getAbsoluteProjectDir() + File.separatorChar + "DeclareCoverage2.aj")};
+ 		runAjdoc("private","1.4",files);
+ 
+-		// Aspect DeclareCoverage2 should contain within it's declare
+-	    // detail and summary the 6 different declare statements.
+-		// Check for this....
+         File htmlFile = new File(getAbsolutePathOutdir() + "/foo/DeclareCoverage2.html");
+ 		if (htmlFile == null || !htmlFile.exists()) {
+ 			fail("couldn't find " + htmlFile.getAbsolutePath()
+ 					+ " - were there compilation errors?");
+ 		}
+ 		// check the contents of the declare detail summary
+-		String[] strings = { "declare error: quot;Illegal construct..quot",
+-				"declare warning: quot;Illegal call.quot;",
+-				"declare parents: implements Serializable",
+-				"declare parents: extends Observable",
+-				"declare soft: foo.SizeException",
+-				"declare precedence: foo.DeclareCoverage2, foo.InterTypeDecCoverage"};
++		String[] strings = { 
++				declareError,
++				declareWarning,
++				declareParentsImpl,
++				declareSoft,
++				declarePrecedence};
+ 
+ 		List missing = AjdocOutputChecker.getMissingStringsInSection(
+ 				htmlFile,strings,"DECLARE DETAIL SUMMARY");
+@@ -60,36 +75,483 @@ public class DeclareFormsTest extends AjdocTestCase {
+ 				"the Declare Summary section",missing.isEmpty());
+ 	}
+ 
++	/**
++	 * Declare warning's should have the 'matched by' relationship
++	 * in the ajdoc for the declaring aspect
++	 */
++	public void testDeclareWarning() throws Exception {
++		initialiseProject("declareForms");
++		File[] files = {new File(getAbsoluteProjectDir() + File.separatorChar + "DeclareCoverage2.aj")};
++		runAjdoc("private","1.4",files);
++		
++        File htmlFile = new File(getAbsolutePathOutdir() + "/foo/DeclareCoverage2.html");
++		if (htmlFile == null || !htmlFile.exists()) {
++			fail("couldn't find " + htmlFile.getAbsolutePath()
++					+ " - were there compilation errors?");
++		}
++		
++		boolean b = AjdocOutputChecker.detailSectionContainsRel(
++				htmlFile,"DECLARE DETAIL SUMMARY",
++				declareWarningQuotes,
++				HtmlDecorator.HtmlRelationshipKind.MATCHED_BY,
++				doItHref);
++		assertTrue("Should have '" + declareWarningQuotes + " matched by " + doItHref + 
++				"' in the Declare Detail section", b);
++        b = AjdocOutputChecker.summarySectionContainsRel(
++					htmlFile,"DECLARE SUMMARY",
++					declareWarning,
++					HtmlDecorator.HtmlRelationshipKind.MATCHED_BY,
++					doItHref);
++		assertTrue("Should have '" + declareWarning + " matched by " + doItHref + 
++				"' in the Declare Summary section", b);
++	}
++	
++	/**
++	 * The target of a declare warning should have the 'matches 
++	 * declare' relationship in the ajdoc - test the case when
++	 * the declare warning matches a call join point
++	 */
++	public void testMatchesDeclareCall() throws Exception {
++		initialiseProject("declareForms");
++		File[] files = {new File(getAbsoluteProjectDir() + File.separatorChar + "DeclareCoverage2.aj")};
++		runAjdoc("private","1.4",files);
++		
++        File htmlFile = new File(getAbsolutePathOutdir() + "/foo/Main2.html");
++		if (htmlFile == null || !htmlFile.exists()) {
++			fail("couldn't find " + htmlFile.getAbsolutePath()
++					+ " - were there compilation errors?");
++		}
++		
++		boolean b = AjdocOutputChecker.detailSectionContainsRel(
++				htmlFile,"=== METHOD DETAIL",
++				doIt,
++				HtmlDecorator.HtmlRelationshipKind.MATCHES_DECLARE,
++				declareWarningQuotes);
++		assertTrue("Should have '" + doIt + " matches declare " + 
++				declareWarningQuotes + "' in the Declare Detail section", b);
++        b = AjdocOutputChecker.summarySectionContainsRel(
++					htmlFile,"=== METHOD SUMMARY",
++					doIt,
++					HtmlDecorator.HtmlRelationshipKind.MATCHES_DECLARE,
++					declareWarningQuotes);
++		assertTrue("Should have '" + doIt + " matches declare " + 
++				declareWarningQuotes + "' in the Declare Summary section", b);
++	}
++	
++	/**
++	 * The target of a declare warning should have the 'matches 
++	 * declare' relationship in the ajdoc - test the case when
++	 * the declare warning matches an execution join point
++	 */
++	public void testMatchesDeclareExecution() throws Exception {
++		initialiseProject("declareForms");
++		File[] files = {new File(getAbsoluteProjectDir() + File.separatorChar + "DeclareCoverage2.aj")};
++		runAjdoc("private","1.4",files);
++		
++        File htmlFile = new File(getAbsolutePathOutdir() + "/foo/Point2.html");
++		if (htmlFile == null || !htmlFile.exists()) {
++			fail("couldn't find " + htmlFile.getAbsolutePath()
++					+ " - were there compilation errors?");
++		}
++		
++		boolean b = AjdocOutputChecker.detailSectionContainsRel(
++				htmlFile,"=== METHOD DETAIL",
++				"setX(int)",
++				HtmlDecorator.HtmlRelationshipKind.MATCHES_DECLARE,
++				"declare warning: quot;blahquot;");
++		assertTrue("Should have 'setX(int) matches declare declare warning: quot;blahquot;" + 
++				"' in the Method Detail section", b);
++        b = AjdocOutputChecker.summarySectionContainsRel(
++					htmlFile,"=== METHOD SUMMARY",
++					"setX(int)",
++					HtmlDecorator.HtmlRelationshipKind.MATCHES_DECLARE,
++					"declare warning: quot;blahquot;");
++		assertTrue("Should have 'setX(int) matches declare declare warning: quot;blahquot;" + 
++				"' in the Method Summary section", b);
++	}
++	
++	/**
++	 * Declare parents's should have the 'declared on' relationship
++	 * in the ajdoc for the declaring aspect
++	 */
++	public void testDeclareParents() throws Exception {
++		initialiseProject("declareForms");
++		File[] files = {new File(getAbsoluteProjectDir() + File.separatorChar + "DeclareCoverage2.aj")};
++		runAjdoc("private","1.4",files);
++		
++        File htmlFile = new File(getAbsolutePathOutdir() + "/foo/DeclareCoverage2.html");
++		if (htmlFile == null || !htmlFile.exists()) {
++			fail("couldn't find " + htmlFile.getAbsolutePath()
++					+ " - were there compilation errors?");
++		}
++		
++		boolean b = AjdocOutputChecker.detailSectionContainsRel(
++				htmlFile,"DECLARE DETAIL SUMMARY",
++				declareParentsImpl,
++				HtmlDecorator.HtmlRelationshipKind.DECLARED_ON,
++				pointHref);
++		assertTrue("Should have ' " + declareParentsImpl + " declared on " + 
++				pointHref + "' in the Declare Detail section", b);
++		b = AjdocOutputChecker.summarySectionContainsRel(
++				htmlFile,"DECLARE SUMMARY",
++				declareParentsImpl,
++				HtmlDecorator.HtmlRelationshipKind.DECLARED_ON,
++				pointHref);
++		assertTrue("Should have ' " + declareParentsImpl + " declared on " + 
++				pointHref + "' in the Declare Summary section", b);
++	}
++	
++	/**
++	 * The target of a declare parent should have the 'aspect 
++	 * declarations' relationship in the ajdoc
++	 */
++	public void testAspectDeclarations() throws Exception {
++		initialiseProject("declareForms");
++		File[] files = {new File(getAbsoluteProjectDir() + File.separatorChar + "DeclareCoverage2.aj")};
++		runAjdoc("private","1.4",files);
++		
++        File htmlFile = new File(getAbsolutePathOutdir() + "/foo/Point2.html");
++		if (htmlFile == null || !htmlFile.exists()) {
++			fail("couldn't find " + htmlFile.getAbsolutePath()
++					+ " - were there compilation errors?");
++		}
++		boolean b = AjdocOutputChecker.classDataSectionContainsRel(
++				htmlFile,
++				HtmlDecorator.HtmlRelationshipKind.ASPECT_DECLARATIONS,
++				"declare parents: implements Serializable");
++		assertTrue("The class data section should have 'aspect declarations" +
++				" declare parents: implements Serializable'",b);
++
++	}
++	
++	/**
++	 * Declare soft's should have the 'softens' relationship
++	 * in the ajdoc for the declaring aspect
++	 */
++	public void testDeclareSoft() throws Exception {
++		initialiseProject("declareForms");
++		File[] files = {new File(getAbsoluteProjectDir() + File.separatorChar + "DeclareCoverage2.aj")};
++		runAjdoc("private","1.4",files);
++		
++        File htmlFile = new File(getAbsolutePathOutdir() + "/foo/DeclareCoverage2.html");
++		if (htmlFile == null || !htmlFile.exists()) {
++			fail("couldn't find " + htmlFile.getAbsolutePath()
++					+ " - were there compilation errors?");
++		}
++		
++		boolean b = AjdocOutputChecker.detailSectionContainsRel(
++				htmlFile,"DECLARE DETAIL SUMMARY",
++				declareSoft,
++				HtmlDecorator.HtmlRelationshipKind.SOFTENS,
++				doItHref);
++		assertTrue("Should have '" + declareSoft + " softens " + doItHref + 
++				"' in the Declare Detail section", b);
++        b = AjdocOutputChecker.summarySectionContainsRel(
++					htmlFile,"DECLARE SUMMARY",
++					declareSoft,
++					HtmlDecorator.HtmlRelationshipKind.SOFTENS,
++					doItHref);
++		assertTrue("Should have '" + declareSoft + " softens " + doItHref + 
++				"' in the Declare Summary section", b);
++	}
++	
++	/**
++	 * The target of a declare soft should have the 'softened 
++	 * by' relationship in the ajdoc
++	 */
++	public void testSoftenedBy() throws Exception {
++		initialiseProject("declareForms");
++		File[] files = {new File(getAbsoluteProjectDir() + File.separatorChar + "DeclareCoverage2.aj")};
++		runAjdoc("private","1.4",files);
++		
++        File htmlFile = new File(getAbsolutePathOutdir() + "/foo/Main2.html");
++		if (htmlFile == null || !htmlFile.exists()) {
++			fail("couldn't find " + htmlFile.getAbsolutePath()
++					+ " - were there compilation errors?");
++		}
++		
++		boolean b = AjdocOutputChecker.detailSectionContainsRel(
++				htmlFile,"=== METHOD DETAIL",
++				doIt,
++				HtmlDecorator.HtmlRelationshipKind.SOFTENED_BY,
++				declareSoft);
++		assertTrue("Should have '" + doIt + " softened by " + declareSoft + 
++				"' in the Method Detail section", b);
++        b = AjdocOutputChecker.summarySectionContainsRel(
++					htmlFile,"=== METHOD SUMMARY",
++					doIt,
++					HtmlDecorator.HtmlRelationshipKind.SOFTENED_BY,
++					declareSoft);
++		assertTrue("Should have '" + doIt + " softened by " + declareSoft + 
++				"' in the Method Summary section", b);
++	}
++	
++	/**
++	 * Declare annotation should have the 'annotates' relationship
++	 * in the ajdoc for the declaring aspect
++	 */
+ 	public void testDeclareAnnotation() throws Exception {
+ 		initialiseProject("declareForms");
+-		File[] files = {new File(getAbsoluteProjectDir() + File.separatorChar + "AnnotationTest.aj")};
++		File[] files = {new File(getAbsoluteProjectDir() + File.separatorChar + "DeclareAtType.aj")};
+ 		runAjdoc("private","1.5",files);
+ 
+ 		// Aspect AnnotationTest should contain within it's declare
+ 	    // detail and summary the declare annotation statement.
+ 		// Check for this....
+-        File htmlFile = new File(getAbsolutePathOutdir() + "/foo/AnnotationTest.html");
++        File htmlFile = new File(getAbsolutePathOutdir() + "/foo/DeclareAtType.html");
+ 		if (htmlFile == null || !htmlFile.exists()) {
+ 			fail("couldn't find " + htmlFile.getAbsolutePath()
+ 					+ " - were there compilation errors?");
+ 		}
+-		// check the contents of the declare detail summary
+-		String[] strings = { "declare @type: foo.C : @MyAnnotation",
+-				"declare declare @type: foo.C : @MyAnnotation"};
++
++		// check there's no return type for the declare annotation
++		// statement in the declare summary section
++		String[] returnType = {"[]"};
+ 		List missing = AjdocOutputChecker.getMissingStringsInSection(
+-				htmlFile,strings,"DECLARE DETAIL SUMMARY");
+-		assertEquals("there should be one missing string ",1,missing.size());
+-		assertEquals("The declare statement shouldn't contain two 'declare's ", 
+-				"declare declare @type: foo.C : @MyAnnotation",missing.get(0));
++				htmlFile,returnType,"DECLARE SUMMARY");
++		assertEquals("there should be no return type for declare annotation" +
++				" in the ajdoc",1,missing.size());
++		assertEquals("there shouldn't be the '[]' return type for declare annotation" +
++				" in the ajdoc","[]",missing.get(0));
++
++		// check that the 'annotates' relationship is there
++		boolean b = AjdocOutputChecker.detailSectionContainsRel(
++				htmlFile,"DECLARE DETAIL SUMMARY",
++				"declare @type: foo.C : @MyAnnotation",
++				HtmlDecorator.HtmlRelationshipKind.ANNOTATES,
++				cHref);
++		assertTrue("Should have 'declare @type: foo.C : @MyAnnotation annotates " 
++				+ cHref + "' in the Declare Detail section", b);
++        b = AjdocOutputChecker.summarySectionContainsRel(
++					htmlFile,"DECLARE SUMMARY",
++					"declare @type: foo.C : @MyAnnotation",
++					HtmlDecorator.HtmlRelationshipKind.ANNOTATES,
++					cHref);
++		assertTrue("Should have 'declare @type: foo.C : @MyAnnotation annotates " 
++				+ cHref + "' in the Declare Summary section", b);
++	}
++	
++	/**
++	 * The target of a declare method annotation should have the  
++	 * 'annotated by' relationship in the ajdoc within the method
++	 * information
++	 */
++	public void testMethodAnnotatedBy() throws Exception {
++		initialiseProject("declareForms");
++		File[] files = {new File(getAbsoluteProjectDir() + File.separatorChar + "DeclareAtMethod.aj")};
++		runAjdoc("private","1.5",files);
++		
++        File htmlFile = new File(getAbsolutePathOutdir() + "/foo/C.html");
++		if (htmlFile == null || !htmlFile.exists()) {
++			fail("couldn't find " + htmlFile.getAbsolutePath() + " - were there compilation errors?");
++		}
++		
++		boolean b = AjdocOutputChecker.detailSectionContainsRel(
++				htmlFile,"=== METHOD DETAIL",
++				"amethod()",
++				HtmlDecorator.HtmlRelationshipKind.ANNOTATED_BY,
++				"declare @method: public * foo.C.*(..) : @MyAnnotation");
++		assertTrue("Should have 'amethod() annotated by " +
++				"declare @method: public * foo.C.*(..) : @MyAnnotation" + 
++				"' in the Method Detail section", b);
++        b = AjdocOutputChecker.summarySectionContainsRel(
++				htmlFile,"=== METHOD SUMMARY",
++				"amethod()",
++				HtmlDecorator.HtmlRelationshipKind.ANNOTATED_BY,
++				"declare @method: public * foo.C.*(..) : @MyAnnotation");
++		assertTrue("Should have 'amethod() annotated by " +
++				"declare @method: public * foo.C.*(..) : @MyAnnotation" + 
++				"' in the Method Summary section", b);
++	}
++	
++	/**
++	 * The target of a declare method annotation should have the  
++	 * 'annotated by' relationship in the ajdoc within the method
++	 * information
++	 */
++	public void testConstructorAnnotatedBy() throws Exception {
++		initialiseProject("declareForms");
++		File[] files = {new File(getAbsoluteProjectDir() + File.separatorChar + "DeclareAtConstructor.aj")};
++		runAjdoc("private","1.5",files);
++		
++        File htmlFile = new File(getAbsolutePathOutdir() + "/foo/C.html");
++		if (htmlFile == null || !htmlFile.exists()) {
++			fail("couldn't find " + htmlFile.getAbsolutePath()
++					+ " - were there compilation errors?");
++		}
++		
++		boolean b = AjdocOutputChecker.detailSectionContainsRel(
++				htmlFile,"=== CONSTRUCTOR DETAIL",
++				"C(java.lang.String)",
++				HtmlDecorator.HtmlRelationshipKind.ANNOTATED_BY,
++				"declare @constructor: foo.C.new(..) : @MyAnnotation");
++		assertTrue("Should have '" + doIt + " annotated by " + 
++				"declare @constructor: foo.C.new(..) : @MyAnnotation" + 
++				"' in the Method Detail section", b);
++        b = AjdocOutputChecker.summarySectionContainsRel(
++				htmlFile,"=== CONSTRUCTOR SUMMARY",
++				"C(java.lang.String)",
++				HtmlDecorator.HtmlRelationshipKind.ANNOTATED_BY,
++				"declare @constructor: foo.C.new(..) : @MyAnnotation");
++		assertTrue("Should have '" + doIt + " annotated by " + 
++				"declare @constructor: foo.C.new(..) : @MyAnnotation" + 
++				"' in the Method Summary section", b);
++	}
++	
++	/**
++	 * The target of a declare method annotation should have the  
++	 * 'annotated by' relationship in the ajdoc within the method
++	 * information
++	 */
++	public void testFieldAnnotatedBy() throws Exception {
++		initialiseProject("declareForms");
++		File[] files = {new File(getAbsoluteProjectDir() + File.separatorChar + "DeclareAtField.aj")};
++		runAjdoc("private","1.5",files);
++		
++        File htmlFile = new File(getAbsolutePathOutdir() + "/foo/C.html");
++		if (htmlFile == null || !htmlFile.exists()) {
++			fail("couldn't find " + htmlFile.getAbsolutePath()
++					+ " - were there compilation errors?");
++		}
++		
++		boolean b = AjdocOutputChecker.detailSectionContainsRel(
++				htmlFile,"=== FIELD DETAIL",
++				"x",
++				HtmlDecorator.HtmlRelationshipKind.ANNOTATED_BY,
++				"declare @field: int foo.C.* : @MyAnnotation");
++		assertTrue("Should have '" + doIt + " annotated by " + 
++				"declare @field: int foo.C.* : @MyAnnotation" + 
++				"' in the Field Detail section", b);
++        b = AjdocOutputChecker.summarySectionContainsRel(
++				htmlFile,"=== FIELD SUMMARY",
++				"x",
++				HtmlDecorator.HtmlRelationshipKind.ANNOTATED_BY,
++				"declare @field: int foo.C.* : @MyAnnotation");
++		assertTrue("Should have '" + doIt + " annotated by " + 
++				"declare @field: int foo.C.* : @MyAnnotation" + 
++				"' in the Field Summary section", b);
++	}
++	
++	/**
++	 * The target of a declare method annotation should have the  
++	 * 'annotated by' relationship in the ajdoc within the method
++	 * information
++	 */
++	public void testTypeAnnotatedBy() throws Exception {
++		initialiseProject("declareForms");
++		File[] files = {new File(getAbsoluteProjectDir() + File.separatorChar + "DeclareAtType.aj")};
++		runAjdoc("private","1.5",files);
++
++        File htmlFile = new File(getAbsolutePathOutdir() + "/foo/C.html");
++		if (htmlFile == null || !htmlFile.exists()) {
++			fail("couldn't find " + htmlFile.getAbsolutePath()
++					+ " - were there compilation errors?");
++		}
++		boolean b = AjdocOutputChecker.classDataSectionContainsRel(
++				htmlFile,
++				HtmlDecorator.HtmlRelationshipKind.ANNOTATED_BY,
++				"declare @type: foo.C : @MyAnnotation");
++		assertTrue("The class data section should have 'annotated by" +
++				" declare @type: foo.C : @MyAnnotation'",b);
++	}
++	
++	/**
++	 * Test that info for both "matches declare" and "advised by"
++	 * appear in the ajdoc for a method when the method is affected
++	 * by both.
++	 */
++	public void testMatchesDeclareAndAdvisedBy() throws Exception {
++		initialiseProject("declareForms");
++		File[] files = {new File(getAbsoluteProjectDir() + File.separatorChar + "A.aj")};
++		runAjdoc("private","1.4",files);
++		
++        File htmlFile = new File(getAbsolutePathOutdir() + "/foo/C.html");
++		if (htmlFile == null || !htmlFile.exists()) {
++			fail("couldn't find " + htmlFile.getAbsolutePath()
++					+ " - were there compilation errors?");
++		}
++		
++		boolean b = AjdocOutputChecker.detailSectionContainsRel(
++				htmlFile,"=== METHOD DETAIL",
++				"amethod()",
++				HtmlDecorator.HtmlRelationshipKind.MATCHES_DECLARE,
++				"declare warning: quot;warningquot;");
++		assertTrue("Should have 'amethod() matches declare declare warning: " +
++				"quot;warningquot;' in the Method Detail section", b);
++        b = AjdocOutputChecker.summarySectionContainsRel(
++					htmlFile,"=== METHOD SUMMARY",
++					"amethod()",
++					HtmlDecorator.HtmlRelationshipKind.MATCHES_DECLARE,
++					"declare warning: quot;warningquot;");
++		assertTrue("Should have 'amethod() matches declare declare warning: " +
++				"quot;warningquot;' in the Method Summary section", b);
++		
++		b = AjdocOutputChecker.detailSectionContainsRel(
++				htmlFile,"=== METHOD DETAIL",
++				"amethod()",
++				HtmlDecorator.HtmlRelationshipKind.ADVISED_BY,
++				"before(): p..");
++		assertTrue("the Method Detail should have amethod() advised by before(): p..",b);
++		
++		b = AjdocOutputChecker.summarySectionContainsRel(
++				htmlFile,"=== METHOD SUMMARY",
++				"amethod()",
++				HtmlDecorator.HtmlRelationshipKind.ADVISED_BY,
++				"before(): p..");
++		assertTrue("the Method Summary should have amethod() advised by before(): p..",b);	
++	}
++	
++	/**
++	 * Test that if there are two declare parents statements within 
++	 * an aspect, one which extends and one which implements, that the
++	 * ajdoc shows the correct information
++	 */
++	public void testTwoDeclareParents() throws Exception {
++		initialiseProject("declareForms");
++		File[] files = {new File(getAbsoluteProjectDir() + File.separatorChar + "DeclareParents.aj")};
++		runAjdoc("private","1.4",files);
++		
++        File htmlFile = new File(getAbsolutePathOutdir() + "/foo/DeclareParents.html");
++		if (htmlFile == null || !htmlFile.exists()) {
++			fail("couldn't find " + htmlFile.getAbsolutePath()
++					+ " - were there compilation errors?");
++		}
++		
++		String[] strings = {
++				"declare parents: implements Serializable",
++				"HREF=\"../foo/Class1.html\"",
++				"declare parents: extends Observable",
++				"HREF=\"../foo/Class2.html\""};
++		
++		// check that the correct declare statements are there
++		for (int i = 0; i < strings.length - 1; i = i+2) {
++			boolean b = AjdocOutputChecker.detailSectionContainsRel(
++					htmlFile,"DECLARE DETAIL SUMMARY",strings[i],
++					HtmlDecorator.HtmlRelationshipKind.DECLARED_ON,
++					strings[i+1]);
++			assertTrue("Should have ' " + strings[i] + " declared on " + strings[i+1] + 
++					"' in the Declare Detail section", b);
++		}
++		
++		for (int i = 0; i < strings.length - 1; i = i+2) {
++			boolean b = AjdocOutputChecker.summarySectionContainsRel(
++					htmlFile,"DECLARE SUMMARY",
++					strings[i],
++					HtmlDecorator.HtmlRelationshipKind.DECLARED_ON,
++					strings[i+1]);
++			assertTrue("Should have ' " + strings[i] + " declared on " + strings[i+1] + 
++					"' in the Declare Summary section", b);
++		}
++		
++		// check that we don't have declare statements for those that don't 
++		// exist in the code
++		boolean b = AjdocOutputChecker.detailSectionContainsRel(
++				htmlFile,"DECLARE DETAIL SUMMARY",strings[0],
++				HtmlDecorator.HtmlRelationshipKind.DECLARED_ON,
++				strings[3]);
++		assertFalse("Should not have ' " + strings[0] + " declared on " + strings[3] + 
++				"' in the Declare Detail section", b);
+ 
+-		// check the contents of the declare summary - should contain
+-		// the declare @type statement without a return type
+-		String[] summaryStrings = { "declare @type: foo.C : @MyAnnotation","[]"};
+-		missing = AjdocOutputChecker.getMissingStringsInSection(
+-				htmlFile,summaryStrings,"DECLARE SUMMARY");
+-		assertEquals("there should be one missing string ",1,missing.size());
+-		assertEquals("The declare statement shouldn't have '[]' as it's return type",
+-				"[]",missing.get(0));
+ 	}
+ 
+ }
+@@ -14,11 +14,62 @@ import java.io.File;
+ import java.util.List;
+ 
+ public class ITDTest extends AjdocTestCase {
++	
++	/**
++	 * Test for pr119453
++	 */
++	public void testITDDeclaredOn() throws Exception {
++		initialiseProject("pr119453");
++		File[] files = {
++				new File(getAbsoluteProjectDir() + "/src/pack/C.java"),
++				new File(getAbsoluteProjectDir() + "/src/pack/A.aj")
++		};
++		runAjdoc("private",files);
++		File htmlA = new File(getAbsolutePathOutdir() + "/pack/A.html");
++		if (htmlA == null || !htmlA.exists()) {
++			fail("couldn't find " + getAbsolutePathOutdir() + "/pack/A.html - were there compilation errors?");
++		}
++
++		// check field itd appears
++		boolean b = AjdocOutputChecker.detailSectionContainsRel(
++				htmlA,"DECLARE DETAIL SUMMARY",
++				"C.y",
++				HtmlDecorator.HtmlRelationshipKind.DECLARED_ON,
++				"HREF=\"../pack/C.html\"");
++		assertTrue("Should have 'C.y declared on HREF=\"../pack/C.html\"" + 
++				"' in the Declare Detail section", b);
++        b = AjdocOutputChecker.summarySectionContainsRel(
++					htmlA,"DECLARE SUMMARY",
++					"C.y",
++					HtmlDecorator.HtmlRelationshipKind.DECLARED_ON,
++					"HREF=\"../pack/C.html\"");
++		assertTrue("Should have 'C.y declared on HREF=\"../pack/C.html\"" + 
++				"' in the Declare Summary section", b);
++		
++		// check the modifiers are correct in the declare detail summary
++		String[] stringsA = { "private&nbsp;int",
++				"public&nbsp;java.lang.String", 
++				"<H3>C.y</H3>",
++				"public&nbsp;</TT><B>C.C",
++				"package&nbsp;void"};
++		List missing = AjdocOutputChecker.getMissingStringsInSection(htmlA,stringsA,"DECLARE DETAIL SUMMARY");
++		assertEquals("There should be one missing string ",1,missing.size());
++		assertEquals("the 'package' and 'void' modifiers shouldn't appear in the 'Declare Detail' section of the ajdoc",
++				"package&nbsp;void", missing.get(0));
++		
++		// check the modifiers are correct in the declare summary
++		String[] stringsA2 = {"private", "int", "public", "String", "package&nbsp;void"};
++		missing = AjdocOutputChecker.getMissingStringsInSection(htmlA,stringsA2,"DECLARE SUMMARY");
++		assertEquals("There should be two missing strings ",2,missing.size());
++		assertTrue("the public modifier shouldn't appear in the 'Declare Summary' section of the ajdoc", missing.contains("public"));
++		assertTrue("the 'package' and 'void' modifiers shouldn't appear in the 'Declare Summary' section of the ajdoc", missing.contains("package&nbsp;void"));
++		
++	}
+ 
+ 	/**
+ 	 * Test for pr119453
+ 	 */
+-	public void testITDShownInDoc() throws Exception {
++	public void testITDMatchesDeclare() throws Exception {
+ 		initialiseProject("pr119453");
+ 		File[] files = {
+ 				new File(getAbsoluteProjectDir() + "/src/pack/C.java"),
+@@ -32,9 +83,7 @@ public class ITDTest extends AjdocTestCase {
+ 			fail("couldn't find " + getAbsolutePathOutdir()
+ 					+ "/pack/C.html - were there compilation errors?");
+ 		}
+-		// check that C is a class
+-		assertTrue(htmlC.getAbsolutePath() + " should have Class C as it's title",
+-				AjdocOutputChecker.containsString(htmlC,"Class C"));
++
+ 		// check that the required sections exist
+ 		assertTrue(htmlC.getAbsolutePath() + " should contain an "
+ 				+ "'INTER-TYPE METHOD SUMMARY' section", 
+@@ -46,7 +95,7 @@ public class ITDTest extends AjdocTestCase {
+ 				+ "'INTER-TYPE CONSTRUCTOR SUMMARY' section",
+ 				AjdocOutputChecker.containsString(htmlC,"INTER-TYPE CONSTRUCTOR SUMMARY"));
+ 
+-		// check the contents of the sections is correct
++		// check the modifier information in the sections is correct
+ 		String[] stringsC = { "public", "String", "pack.A" };
+ 		List missing = AjdocOutputChecker.getMissingStringsInSection(htmlC,stringsC,"INTER-TYPE METHOD SUMMARY");
+ 		assertEquals("There should be one missing string",1,missing.size());
+@@ -56,33 +105,33 @@ public class ITDTest extends AjdocTestCase {
+ 		String[] stringsC2 = { "private" };
+ 		missing = AjdocOutputChecker.getMissingStringsInSection(htmlC,stringsC2,"INTER-TYPE FIELD SUMMARY");
+ 		assertTrue("the private modifier for itd methods should appear in the ajdoc ",missing.size() == 0);
+-		
+-		// check the contents of A.html
+-		File htmlA = new File(getAbsolutePathOutdir() + "/pack/A.html");
+-		if (htmlA == null || !htmlA.exists()) {
+-			fail("couldn't find " + getAbsolutePathOutdir() + "/pack/A.html - were there compilation errors?");
++	
++	}
++	
++	/**
++	 * Test that the ITD's do not appear in as 'aspect declarations' in the
++	 * class data information. 
++	 */
++	public void testNoAspectDeclarations() throws Exception {
++		initialiseProject("pr119453");
++		File[] files = {
++				new File(getAbsoluteProjectDir() + "/src/pack/C.java"),
++				new File(getAbsoluteProjectDir() + "/src/pack/A.aj")
++		};
++		runAjdoc("private",files);
++
++		File htmlC = new File(getAbsolutePathOutdir() + "/pack/C.html");
++		if (htmlC == null || !htmlC.exists()) {
++			fail("couldn't find " + getAbsolutePathOutdir()
++					+ "/pack/C.html - were there compilation errors?");
+ 		}
+-		// check that A is an Aspect
+-		assertTrue(htmlA.getAbsolutePath() + " should have Aspect A as it's title",
+-				AjdocOutputChecker.containsString(htmlA,"Aspect A"));
+ 
+-		// check the contents of the declare detail summary
+-		String[] stringsA = { "private&nbsp;int",
+-				"public&nbsp;java.lang.String", 
+-				"<H3>C.y</H3>",
+-				"public&nbsp;</TT><B>C.C",
+-				"package&nbsp;void"};
+-		missing = AjdocOutputChecker.getMissingStringsInSection(htmlA,stringsA,"DECLARE DETAIL SUMMARY");
+-		assertEquals("There should be one missing string ",1,missing.size());
+-		assertEquals("the 'package' and 'void' modifiers shouldn't appear in the 'Declare Detail' section of the ajdoc",
+-				"package&nbsp;void", missing.get(0));
+-		
+-		// check the contents of the declare summary
+-		String[] stringsA2 = {"private", "int", "public", "String", "package&nbsp;void"};
+-		missing = AjdocOutputChecker.getMissingStringsInSection(htmlA,stringsA2,"DECLARE SUMMARY");
+-		assertEquals("There should be two missing strings ",2,missing.size());
+-		assertTrue("the public modifier shouldn't appear in the 'Declare Summary' section of the ajdoc", missing.contains("public"));
+-		assertTrue("the 'package' and 'void' modifiers shouldn't appear in the 'Declare Summary' section of the ajdoc", missing.contains("package&nbsp;void"));
++		boolean b = AjdocOutputChecker.classDataSectionContainsRel(
++				htmlC,
++				HtmlDecorator.HtmlRelationshipKind.ASPECT_DECLARATIONS,
++				"pack.A.C.y");
++		assertFalse("The class data section should not have 'aspect declarations" +
++				" pack.A.C.y' since this is an ITD",b);
+ 	}
+ 
+ }
+@@ -351,6 +351,10 @@ public interface IProgramElement extends Serializable {
+ 			return name.startsWith("declare");	
+ 		} 
+ 
++		public boolean isDeclareAnnotation() {
++			return name.startsWith("declare @");	
++		}
++		
+ 		// The 4 declarations below are necessary for serialization
+ 		private static int nextOrdinal = 0;
+ 		private final int ordinal = nextOrdinal++;

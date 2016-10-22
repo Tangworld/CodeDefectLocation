@@ -1,0 +1,1781 @@
+@@ -247,6 +247,8 @@ public class AjBuildManager implements IOutputClassFileNameProvider,IBinarySourc
+                 state.clearBinarySourceFiles(); // we don't want these hanging around...
+                 if (handler.hasErrors()) {
+                    	CompilationAndWeavingContext.leavingPhase(ct);
++                   	if (AsmManager.isReporting())
++    				    AsmManager.getDefault().reportModelInfo("After a failed batch build");
+                     return false;
+                 }
+ 
+@@ -0,0 +1,7 @@
++class C {
++	
++	public void stringMethod(String s) {}
++	public static void main(String[] args) {}
++	public void multiMethod(String[][] s) {}
++
++}
+@@ -0,0 +1,11 @@
++import java.util.List;
++class C {
++	
++	public void genericMethod(List<String> l) {}
++	public void genericMethod2(MyGenericClass<String,MyClass> m) {}
++
++}
++
++class MyClass {}
++
++class MyGenericClass<X,Y> {}
+@@ -1,14 +1,11 @@
+-import java.util.List;
+-
+ aspect A {
+-
+-	pointcut p() : execution(* *.*(..));
+ 
+-	before() : p() {}
++	pointcut p() : execution(* *.*(..)) || execution(*.new(..));
+ 
+-	public void MyClass.method() {}
++	before() : p() {
++		
++	}
+ 
+-	public MyClass.new() {super();}
+ }
+ 
+ class C {
+@@ -23,12 +20,8 @@ class C {
+ 
+ 	public void myClassMethod(MyClass s) {}
+ 
+-	public void genericMethod(List<String> l) {}
+-	
+ 	public void twoArgsMethod(int i, String s) {}
+ 
+-	public void genericMethod2(MyGenericClass<String,MyClass> m) {}
+-	
+ 	public static void main(String[] args) {}
+ 
+ 	public void multiMethod(String[][] s) {}
+@@ -37,10 +30,4 @@ class C {
+ 
+ }
+ 
+-class MyClass {
+-	
+-	public MyClass(String s) {}
+-	
+-}
+-
+-class MyGenericClass<X,Y> {}
++class MyClass {}
+@@ -0,0 +1,24 @@
++=== MODEL STATUS REPORT ========= After a batch build
++<root>  [java source file] 
++  pr115607.java  [java source file] TEST_SANDBOX\pr115607.java:1:
++    import declarations  [import reference] 
++    I  [annotation] TEST_SANDBOX\pr115607.java:1:
++    Simple  [class] TEST_SANDBOX\pr115607.java:3:
++    pr115607  [aspect] TEST_SANDBOX\pr115607.java:5:
++      declare @type: Simple : @I  [declare @type] TEST_SANDBOX\pr115607.java:6:
++=== END OF MODEL REPORT =========
++=== RELATIONSHIPS REPORT ========= After a batch build
++(targets=1) {pr115607.java}pr115607`declare @type (annotates) {pr115607.java[Simple
++(targets=1) {pr115607.java[Simple (annotated by) {pr115607.java}pr115607`declare @type
++(targets=1) {pr115607.java (annotates) {pr115607.java
++(targets=1) {pr115607.java (annotated by) {pr115607.java
++=== END OF RELATIONSHIPS REPORT ==
++=== Properties of the model and relationships map =====
++annotation=1
++FileMapSize=1
++aspect=1
++RelationshipMapSize=3
++java source file=2
++declare @type=1
++import reference=1
++class=1
+@@ -0,0 +1,31 @@
++=== MODEL STATUS REPORT ========= After a failed batch build
++<root>  [java source file] 
++  A.java  [java source file] TEST_SANDBOX\A.java:1:
++    import declarations  [import reference] 
++      org.aspectj.lang.annotation.DeclareError  [import reference] TEST_SANDBOX\A.java:4:
++      org.aspectj.lang.annotation.DeclareWarning  [import reference] TEST_SANDBOX\A.java:3:
++      org.aspectj.lang.annotation.Aspect  [import reference] TEST_SANDBOX\A.java:2:
++    A  [aspect] TEST_SANDBOX\A.java:7:
++      warning  [field] TEST_SANDBOX\A.java:10:
++      error  [field] TEST_SANDBOX\A.java:13:
++  C.java  [java source file] TEST_SANDBOX\C.java:1:
++    import declarations  [import reference] 
++    C  [class] TEST_SANDBOX\C.java:3:
++      warningMethod()  [method] TEST_SANDBOX\C.java:5:
++      badMethod()  [method] TEST_SANDBOX\C.java:8:
++=== END OF MODEL REPORT =========
++=== RELATIONSHIPS REPORT ========= After a failed batch build
++(targets=1) {A.java}A^warning (matched by) {C.java[C~warningMethod
++(targets=1) {C.java[C~badMethod (matches declare) {A.java}A^error
++(targets=1) {C.java[C~warningMethod (matches declare) {A.java}A^warning
++(targets=1) {A.java}A^error (matched by) {C.java[C~badMethod
++=== END OF RELATIONSHIPS REPORT ==
++=== Properties of the model and relationships map =====
++FileMapSize=2
++aspect=1
++RelationshipMapSize=4
++java source file=3
++import reference=5
++class=1
++field=2
++method=2
+@@ -0,0 +1,32 @@
++=== MODEL STATUS REPORT ========= After a batch build
++<root>  [java source file] 
++  pr131932.aj  [java source file] TEST_SANDBOX\pr131932.aj:1:
++    import declarations  [import reference] 
++      java.util.List  [import reference] TEST_SANDBOX\pr131932.aj:1:
++    Slide74  [aspect] TEST_SANDBOX\pr131932.aj:3:
++      Bar  [class] TEST_SANDBOX\pr131932.aj:13:
++        lts  [field] TEST_SANDBOX\pr131932.aj:14:
++      Bar.getFirst()  [inter-type method] TEST_SANDBOX\pr131932.aj:5:
++      Foo.Foo(java.util.List<T>)  [inter-type constructor] TEST_SANDBOX\pr131932.aj:9:
++      Bar.children  [inter-type field] TEST_SANDBOX\pr131932.aj:11:
++    Foo  [class] TEST_SANDBOX\pr131932.aj:19:
++=== END OF MODEL REPORT =========
++=== RELATIONSHIPS REPORT ========= After a batch build
++(targets=1) *pr131932.aj}Slide74)Foo.Foo)QList\<TT;>; (declared on) *pr131932.aj[Foo
++(targets=2) *pr131932.aj}Slide74[Bar (aspect declarations) *pr131932.aj}Slide74)Bar.getFirst
++(targets=2) *pr131932.aj}Slide74[Bar (aspect declarations) *pr131932.aj}Slide74)Bar.children
++(targets=1) *pr131932.aj}Slide74)Bar.children (declared on) *pr131932.aj}Slide74[Bar
++(targets=1) *pr131932.aj[Foo (aspect declarations) *pr131932.aj}Slide74)Foo.Foo)QList\<TT;>;
++(targets=1) *pr131932.aj}Slide74)Bar.getFirst (declared on) *pr131932.aj}Slide74[Bar
++=== END OF RELATIONSHIPS REPORT ==
++=== Properties of the model and relationships map =====
++import reference=2
++aspect=1
++inter-type field=1
++class=2
++inter-type constructor=1
++RelationshipMapSize=5
++FileMapSize=1
++field=1
++inter-type method=1
++java source file=2
+@@ -0,0 +1,30 @@
++=== MODEL STATUS REPORT ========= After a batch build
++<root>  [java source file] 
++  pr132130.aj  [java source file] TEST_SANDBOX\pr132130.aj:1:
++    import declarations  [import reference] 
++    basic  [aspect] TEST_SANDBOX\pr132130.aj:1:
++      declare @method: * debit(..) : @Secured(role = "supervisor")  [declare @method] TEST_SANDBOX\pr132130.aj:3:
++      declare @constructor: BankAccount+.new(..) : @Secured(role = "supervisor")  [declare @constructor] TEST_SANDBOX\pr132130.aj:4:
++    BankAccount  [class] TEST_SANDBOX\pr132130.aj:7:
++      BankAccount(java.lang.String,int)  [constructor] TEST_SANDBOX\pr132130.aj:9:
++      debit(long,long)  [method] TEST_SANDBOX\pr132130.aj:11:
++    Secured  [annotation] TEST_SANDBOX\pr132130.aj:15:
++=== END OF MODEL REPORT =========
++=== RELATIONSHIPS REPORT ========= After a batch build
++(targets=1) *pr132130.aj[BankAccount~BankAccount~QString;~I (annotated by) *pr132130.aj}basic`declare @constructor!2
++(targets=1) *pr132130.aj}basic`declare @constructor!2 (annotates) *pr132130.aj[BankAccount~BankAccount~QString;~I
++(targets=1) *pr132130.aj[BankAccount~debit~J~J (annotated by) *pr132130.aj}basic`declare @method
++(targets=1) *pr132130.aj}basic`declare @method (annotates) *pr132130.aj[BankAccount~debit~J~J
++=== END OF RELATIONSHIPS REPORT ==
++=== Properties of the model and relationships map =====
++method=1
++import reference=1
++aspect=1
++declare @method=1
++constructor=1
++declare @constructor=1
++class=1
++annotation=1
++RelationshipMapSize=4
++FileMapSize=1
++java source file=2
+@@ -0,0 +1,54 @@
++=== MODEL STATUS REPORT ========= After a batch build
++<root>  [java source file] 
++  pr141730.aj  [java source file] TEST_SANDBOX\pr141730.aj:1:
++    import declarations  [import reference] 
++    A  [aspect] TEST_SANDBOX\pr141730.aj:1:
++      p()  [pointcut] TEST_SANDBOX\pr141730.aj:3:
++      before(): p..  [advice] TEST_SANDBOX\pr141730.aj:5:
++    C  [class] TEST_SANDBOX\pr141730.aj:11:
++      C()  [constructor] TEST_SANDBOX\pr141730.aj:13:
++      method()  [method] TEST_SANDBOX\pr141730.aj:15:
++      intMethod(int)  [method] TEST_SANDBOX\pr141730.aj:17:
++      stringMethod(java.lang.String)  [method] TEST_SANDBOX\pr141730.aj:19:
++      myClassMethod(MyClass)  [method] TEST_SANDBOX\pr141730.aj:21:
++      twoArgsMethod(int,java.lang.String)  [method] TEST_SANDBOX\pr141730.aj:23:
++      main(java.lang.String[])  [method] TEST_SANDBOX\pr141730.aj:25:
++      multiMethod(java.lang.String[][])  [method] TEST_SANDBOX\pr141730.aj:27:
++      intArray(int[])  [method] TEST_SANDBOX\pr141730.aj:29:
++    MyClass  [class] TEST_SANDBOX\pr141730.aj:33:
++=== END OF MODEL REPORT =========
++=== RELATIONSHIPS REPORT ========= After a batch build
++(targets=1) *pr141730.aj[C~intMethod~I (advised by) *pr141730.aj}A&before
++(targets=1) *pr141730.aj[C~main~\[QString; (advised by) *pr141730.aj}A&before
++(targets=1) *pr141730.aj[C~intArray~\[I (advised by) *pr141730.aj}A&before
++(targets=1) *pr141730.aj[C~twoArgsMethod~I~QString; (advised by) *pr141730.aj}A&before
++(targets=1) *pr141730.aj[C~stringMethod~QString; (advised by) *pr141730.aj}A&before
++(targets=1) *pr141730.aj[C~myClassMethod~LMyClass; (advised by) *pr141730.aj}A&before
++(targets=1) *pr141730.aj}A (advised by) *pr141730.aj}A&before
++(targets=1) *pr141730.aj[C~C (advised by) *pr141730.aj}A&before
++(targets=1) *pr141730.aj[C~multiMethod~\[[String; (advised by) *pr141730.aj}A&before
++(targets=1) *pr141730.aj[MyClass (advised by) *pr141730.aj}A&before
++(targets=11) *pr141730.aj}A&before (advises) *pr141730.aj}A
++(targets=11) *pr141730.aj}A&before (advises) *pr141730.aj[MyClass
++(targets=11) *pr141730.aj}A&before (advises) *pr141730.aj[C~C
++(targets=11) *pr141730.aj}A&before (advises) *pr141730.aj[C~method
++(targets=11) *pr141730.aj}A&before (advises) *pr141730.aj[C~intMethod~I
++(targets=11) *pr141730.aj}A&before (advises) *pr141730.aj[C~stringMethod~QString;
++(targets=11) *pr141730.aj}A&before (advises) *pr141730.aj[C~myClassMethod~LMyClass;
++(targets=11) *pr141730.aj}A&before (advises) *pr141730.aj[C~twoArgsMethod~I~QString;
++(targets=11) *pr141730.aj}A&before (advises) *pr141730.aj[C~main~\[QString;
++(targets=11) *pr141730.aj}A&before (advises) *pr141730.aj[C~multiMethod~\[[String;
++(targets=11) *pr141730.aj}A&before (advises) *pr141730.aj[C~intArray~\[I
++(targets=1) *pr141730.aj[C~method (advised by) *pr141730.aj}A&before
++=== END OF RELATIONSHIPS REPORT ==
++=== Properties of the model and relationships map =====
++method=8
++import reference=1
++aspect=1
++constructor=1
++class=2
++advice=1
++pointcut=1
++RelationshipMapSize=12
++FileMapSize=1
++java source file=2
+@@ -0,0 +1,38 @@
++=== MODEL STATUS REPORT ========= After a batch build
++<root>  [java source file] 
++  pr141730.aj  [java source file] TEST_SANDBOX\pr141730.aj:1:
++    import declarations  [import reference] 
++      java.util.List  [import reference] TEST_SANDBOX\pr141730.aj:1:
++    A  [aspect] TEST_SANDBOX\pr141730.aj:3:
++      p()  [pointcut] TEST_SANDBOX\pr141730.aj:5:
++      before(): p..  [advice] TEST_SANDBOX\pr141730.aj:7:
++    C  [class] TEST_SANDBOX\pr141730.aj:13:
++      genericMethod(java.util.List<java.lang.String>)  [method] TEST_SANDBOX\pr141730.aj:15:
++      genericMethod2(MyGenericClass<java.lang.String,MyClass>)  [method] TEST_SANDBOX\pr141730.aj:16:
++    MyClass  [class] TEST_SANDBOX\pr141730.aj:20:
++    MyGenericClass  [class] TEST_SANDBOX\pr141730.aj:22:
++=== END OF MODEL REPORT =========
++=== RELATIONSHIPS REPORT ========= After a batch build
++(targets=1) *pr141730.aj[MyGenericClass (advised by) *pr141730.aj}A&before
++(targets=1) *pr141730.aj[MyClass (advised by) *pr141730.aj}A&before
++(targets=1) *pr141730.aj[C~genericMethod2~PMyGenericClass\<QString;LMyClass;>; (advised by) *pr141730.aj}A&before
++(targets=1) *pr141730.aj[C~genericMethod~QList\<QString;>; (advised by) *pr141730.aj}A&before
++(targets=1) *pr141730.aj}A (advised by) *pr141730.aj}A&before
++(targets=6) *pr141730.aj}A&before (advises) *pr141730.aj}A
++(targets=6) *pr141730.aj}A&before (advises) *pr141730.aj[MyClass
++(targets=6) *pr141730.aj}A&before (advises) *pr141730.aj[MyGenericClass
++(targets=6) *pr141730.aj}A&before (advises) *pr141730.aj[C
++(targets=6) *pr141730.aj}A&before (advises) *pr141730.aj[C~genericMethod~QList\<QString;>;
++(targets=6) *pr141730.aj}A&before (advises) *pr141730.aj[C~genericMethod2~PMyGenericClass\<QString;LMyClass;>;
++(targets=1) *pr141730.aj[C (advised by) *pr141730.aj}A&before
++=== END OF RELATIONSHIPS REPORT ==
++=== Properties of the model and relationships map =====
++method=2
++import reference=2
++aspect=1
++class=3
++advice=1
++pointcut=1
++RelationshipMapSize=7
++FileMapSize=1
++java source file=2
+@@ -0,0 +1,23 @@
++=== MODEL STATUS REPORT ========= After a batch build
++<root>  [java source file] 
++  foo  [package] 
++    MyFoo.java  [java source file] TEST_SANDBOX\MyFoo.java:1:
++      import declarations  [import reference] 
++      MyFoo  [class] TEST_SANDBOX\MyFoo.java:3:
++        callMain()  [method] TEST_SANDBOX\MyFoo.java:5:
++          method-call(void foo.MyFoo.main())  [code] TEST_SANDBOX\MyFoo.java:6:
++        main()  [method] TEST_SANDBOX\MyFoo.java:9:
++=== END OF MODEL REPORT =========
++=== RELATIONSHIPS REPORT ========= After a batch build
++(targets=1) <foo{MyFoo.java[MyFoo~callMain?method-call(void foo.MyFoo.main()) (advised by) {MyBar.class
++(targets=1) {MyBar.class (advises) <foo{MyFoo.java[MyFoo~callMain?method-call(void foo.MyFoo.main())
++=== END OF RELATIONSHIPS REPORT ==
++=== Properties of the model and relationships map =====
++package=1
++FileMapSize=1
++RelationshipMapSize=2
++java source file=2
++import reference=1
++code=1
++class=1
++method=2
+@@ -0,0 +1,43 @@
++=== MODEL STATUS REPORT ========= After a batch build
++<root>  [java source file] 
++  bar  [package] 
++    MyBar.aj  [java source file] TEST_SANDBOX\MyBar.aj:1:
++      import declarations  [import reference] 
++        foo.*  [import reference] TEST_SANDBOX\MyBar.aj:3:
++      MyBar  [aspect] TEST_SANDBOX\MyBar.aj:5:
++        before(): <anonymous pointcut>  [advice] TEST_SANDBOX\MyBar.aj:7:
++        declare warning: "System.out should.."  [declare warning] TEST_SANDBOX\MyBar.aj:9:
++        declare parents: extends NewClass  [declare parents] TEST_SANDBOX\MyBar.aj:11:
++        declare @type: *Foo* : @MyAnnotation  [declare @type] TEST_SANDBOX\MyBar.aj:13:
++        declare @method: public * *Foo.anotMethod(..) : @MyAnnotation  [declare @method] TEST_SANDBOX\MyBar.aj:14:
++        declare @constructor: *Foo.new(java.lang.String) : @MyAnnotation  [declare @constructor] TEST_SANDBOX\MyBar.aj:15:
++        declare @field: int *Foo.* : @MyAnnotation  [declare @field] TEST_SANDBOX\MyBar.aj:16:
++    MyAnnotation.java  [java source file] TEST_SANDBOX\MyAnnotation.java:1:
++      import declarations  [import reference] 
++      MyAnnotation  [annotation] TEST_SANDBOX\MyAnnotation.java:3:
++    NewClass.java  [java source file] TEST_SANDBOX\NewClass.java:1:
++      import declarations  [import reference] 
++      NewClass  [class] TEST_SANDBOX\NewClass.java:3:
++=== END OF MODEL REPORT =========
++=== RELATIONSHIPS REPORT ========= After a batch build
++(targets=1) <bar*MyBar.aj}MyBar`declare parents!2 (declared on) {MyFoo.java
++(targets=1) {MyFoo.java (annotated by) <bar*MyBar.aj}MyBar`declare @type!3
++(targets=1) {MyFoo.java (aspect declarations) <bar*MyBar.aj}MyBar`declare parents!2
++(targets=1) <bar*MyBar.aj}MyBar`declare @type!3 (annotates) {MyFoo.java
++=== END OF RELATIONSHIPS REPORT ==
++=== Properties of the model and relationships map =====
++import reference=4
++aspect=1
++declare @method=1
++declare warning=1
++declare parents=1
++declare @type=1
++declare @constructor=1
++advice=1
++annotation=1
++class=1
++RelationshipMapSize=3
++FileMapSize=3
++package=1
++declare @field=1
++java source file=4
+@@ -0,0 +1,24 @@
++=== MODEL STATUS REPORT ========= After a batch build
++<root>  [java source file] 
++  pr143924.aj  [java source file] TEST_SANDBOX\pr143924.aj:1:
++    import declarations  [import reference] 
++    DeclareAnnotation  [aspect] TEST_SANDBOX\pr143924.aj:1:
++      declare @method: * debit(..) : @Secured(role = "supervisor")  [declare @method] TEST_SANDBOX\pr143924.aj:2:
++    BankAccount  [class] TEST_SANDBOX\pr143924.aj:5:
++      debit(java.lang.String,long)  [method] TEST_SANDBOX\pr143924.aj:7:
++    Secured  [annotation] TEST_SANDBOX\pr143924.aj:11:
++=== END OF MODEL REPORT =========
++=== RELATIONSHIPS REPORT ========= After a batch build
++(targets=1) *pr143924.aj}DeclareAnnotation`declare @method (annotates) *pr143924.aj[BankAccount~debit~QString;~J
++(targets=1) *pr143924.aj[BankAccount~debit~QString;~J (annotated by) *pr143924.aj}DeclareAnnotation`declare @method
++=== END OF RELATIONSHIPS REPORT ==
++=== Properties of the model and relationships map =====
++method=1
++import reference=1
++aspect=1
++declare @method=1
++class=1
++annotation=1
++RelationshipMapSize=2
++FileMapSize=1
++java source file=2
+@@ -0,0 +1,37 @@
++=== MODEL STATUS REPORT ========= After a batch build
++<root>  [java source file] 
++  pkg  [package] 
++    A.aj  [java source file] TEST_SANDBOX\A.aj:1:
++      import declarations  [import reference] 
++      A  [aspect] TEST_SANDBOX\A.aj:3:
++        before(): pointcutInClass..  [advice] TEST_SANDBOX\A.aj:5:
++        pointcutInAspect()  [pointcut] TEST_SANDBOX\A.aj:8:
++        before(): pointcutInAspect..  [advice] TEST_SANDBOX\A.aj:10:
++        aMethod()  [method] TEST_SANDBOX\A.aj:13:
++    C.aj  [java source file] TEST_SANDBOX\C.aj:1:
++      import declarations  [import reference] 
++      C  [class] TEST_SANDBOX\C.aj:3:
++        pointcutInClass()  [pointcut] TEST_SANDBOX\C.aj:5:
++        cMethod()  [method] TEST_SANDBOX\C.aj:7:
++=== END OF MODEL REPORT =========
++=== RELATIONSHIPS REPORT ========= After a batch build
++(targets=1) <pkg*A.aj}A+pointcutInAspect (pointcut used by) <pkg*A.aj}A&before!2
++(targets=1) <pkg*A.aj}A&before!2 (uses pointcut) <pkg*A.aj}A+pointcutInAspect
++(targets=1) <pkg*A.aj}A&before!2 (advises) <pkg*A.aj}A~aMethod
++(targets=1) <pkg*C.aj[C~cMethod (advised by) <pkg*A.aj}A&before
++(targets=1) *C.aj (pointcut used by) <pkg*A.aj}A&before
++(targets=1) <pkg*A.aj}A~aMethod (advised by) <pkg*A.aj}A&before!2
++(targets=1) <pkg*A.aj}A&before (uses pointcut) *C.aj
++(targets=1) <pkg*A.aj}A&before (advises) <pkg*C.aj[C~cMethod
++=== END OF RELATIONSHIPS REPORT ==
++=== Properties of the model and relationships map =====
++method=2
++import reference=2
++aspect=1
++class=1
++advice=2
++pointcut=2
++RelationshipMapSize=6
++FileMapSize=2
++package=1
++java source file=3
+@@ -0,0 +1,30 @@
++=== MODEL STATUS REPORT ========= After a batch build
++<root>  [java source file] 
++  pack  [package] 
++    pr77269.aj  [java source file] TEST_SANDBOX\pack\pr77269.aj:1:
++      import declarations  [import reference] 
++      Test  [class] TEST_SANDBOX\pack\pr77269.aj:2:
++        testMethod()  [method] TEST_SANDBOX\pack\pr77269.aj:4:
++          new Runnable() {..}  [class] TEST_SANDBOX\pack\pr77269.aj:5:
++            run()  [method] TEST_SANDBOX\pack\pr77269.aj:6:
++          1$C  [class] TEST_SANDBOX\pack\pr77269.aj:9:
++            m()  [method] TEST_SANDBOX\pack\pr77269.aj:10:
++      A  [aspect] TEST_SANDBOX\pack\pr77269.aj:17:
++        p()  [pointcut] TEST_SANDBOX\pack\pr77269.aj:19:
++        before(): p..  [advice] TEST_SANDBOX\pack\pr77269.aj:21:
++=== END OF MODEL REPORT =========
++=== RELATIONSHIPS REPORT ========= After a batch build
++(targets=1) <pack*pr77269.aj}A&before (advises) <pack*pr77269.aj[Test~testMethod[new Runnable() {..}~run
++(targets=1) <pack*pr77269.aj[Test~testMethod[new Runnable() {..}~run (advised by) <pack*pr77269.aj}A&before
++=== END OF RELATIONSHIPS REPORT ==
++=== Properties of the model and relationships map =====
++method=3
++import reference=1
++aspect=1
++class=3
++advice=1
++pointcut=1
++RelationshipMapSize=2
++FileMapSize=1
++package=1
++java source file=2
+@@ -0,0 +1,28 @@
++=== MODEL STATUS REPORT ========= After a batch build
++<root>  [java source file] 
++  pr77269b.aj  [java source file] TEST_SANDBOX\pr77269b.aj:1:
++    import declarations  [import reference] 
++    Test  [class] TEST_SANDBOX\pr77269b.aj:1:
++      testMethod()  [method] TEST_SANDBOX\pr77269b.aj:3:
++        new Runnable() {..}  [class] TEST_SANDBOX\pr77269b.aj:4:
++          run()  [method] TEST_SANDBOX\pr77269b.aj:5:
++        1$C  [class] TEST_SANDBOX\pr77269b.aj:8:
++          m()  [method] TEST_SANDBOX\pr77269b.aj:9:
++    A  [aspect] TEST_SANDBOX\pr77269b.aj:16:
++      p()  [pointcut] TEST_SANDBOX\pr77269b.aj:18:
++      before(): p..  [advice] TEST_SANDBOX\pr77269b.aj:20:
++=== END OF MODEL REPORT =========
++=== RELATIONSHIPS REPORT ========= After a batch build
++(targets=1) *pr77269b.aj[Test~testMethod[1$C~m (advised by) *pr77269b.aj}A&before
++(targets=1) *pr77269b.aj}A&before (advises) *pr77269b.aj[Test~testMethod[1$C~m
++=== END OF RELATIONSHIPS REPORT ==
++=== Properties of the model and relationships map =====
++method=3
++import reference=1
++aspect=1
++class=3
++advice=1
++pointcut=1
++RelationshipMapSize=2
++FileMapSize=1
++java source file=2
+@@ -0,0 +1,29 @@
++=== MODEL STATUS REPORT ========= After a batch build
++<root>  [java source file] 
++  pack  [package] 
++    pr77269c.aj  [java source file] TEST_SANDBOX\pack\pr77269c.aj:1:
++      import declarations  [import reference] 
++      Test  [class] TEST_SANDBOX\pack\pr77269c.aj:3:
++        testMethod()  [method] TEST_SANDBOX\pack\pr77269c.aj:5:
++          new Runnable() {..}  [class] TEST_SANDBOX\pack\pr77269c.aj:6:
++            run()  [method] TEST_SANDBOX\pack\pr77269c.aj:7:
++              method-call(void pack.Test.someMethod())  [code] TEST_SANDBOX\pack\pr77269c.aj:8:
++        someMethod()  [method] TEST_SANDBOX\pack\pr77269c.aj:13:
++      A  [aspect] TEST_SANDBOX\pack\pr77269c.aj:17:
++        declare warning: "blah blah blah"  [declare warning] TEST_SANDBOX\pack\pr77269c.aj:18:
++=== END OF MODEL REPORT =========
++=== RELATIONSHIPS REPORT ========= After a batch build
++(targets=1) <pack*pr77269c.aj}A`declare warning (matched by) <pack*pr77269c.aj[Test~testMethod[new Runnable() {..}~run?method-call(void pack.Test.someMethod())
++(targets=1) <pack*pr77269c.aj[Test~testMethod[new Runnable() {..}~run?method-call(void pack.Test.someMethod()) (matches declare) <pack*pr77269c.aj}A`declare warning
++=== END OF RELATIONSHIPS REPORT ==
++=== Properties of the model and relationships map =====
++method=3
++import reference=1
++aspect=1
++code=1
++declare warning=1
++class=2
++RelationshipMapSize=2
++FileMapSize=1
++package=1
++java source file=2
+@@ -0,0 +1,7 @@
++@interface I {}
++
++class Simple {}
++
++public aspect pr115607 {
++  declare @type: Simple : @I;
++}
+@@ -0,0 +1,15 @@
++
++import org.aspectj.lang.annotation.Aspect;
++import org.aspectj.lang.annotation.DeclareWarning;
++import org.aspectj.lang.annotation.DeclareError;
++
++@Aspect
++public class A {
++
++	@DeclareWarning("execution(* C.warningMethod())")
++    static final String warning = "warning";
++
++    @DeclareError("execution(* C.badMethod())")
++    static final String error = "error";
++	
++}
+@@ -0,0 +1,11 @@
++
++
++public class C {
++
++	public void warningMethod() {
++	}
++	
++	public void badMethod() {
++	}
++	
++}
+@@ -0,0 +1,21 @@
++import java.util.List;
++
++aspect Slide74 {
++	
++	public X Bar<X>.getFirst() {
++		return lts.get(0);
++    }
++
++	<T> Foo<T>.new(List<T> elements) { this(); }
++	
++	private List<C> Bar<C>.children;// = new ArrayList<C>();
++	
++    static class Bar<T> {
++        List<T> lts;
++    }   
++    
++}
++
++class Foo<T> {
++	
++}
+@@ -0,0 +1,17 @@
++ aspect basic {
++
++    declare @method : * debit(..) : @Secured(role="supervisor");
++    declare @constructor : BankAccount+.new(..) : @Secured(role="supervisor");
++}
++
++class BankAccount {
++	
++	public BankAccount(String s, int i) {
++	}
++    public void debit(long accId,long amount) {
++    }
++}
++
++@interface Secured {
++    String role();
++}
+@@ -0,0 +1,22 @@
++import java.util.List;
++
++aspect A {
++	
++	pointcut p() : execution(* *.*(..)) || execution(*.new(..));
++	
++	before() : p() {
++		
++	}
++	
++}
++
++class C {
++	
++	public void genericMethod(List<String> l) {}
++	public void genericMethod2(MyGenericClass<String,MyClass> m) {}
++
++}
++
++class MyClass {}
++
++class MyGenericClass<X,Y> {}
+@@ -0,0 +1,9 @@
++package bar;
++
++public aspect MyBar {
++
++	before() : call(* main(..)) {
++		System.out.println("about to call a main method");
++	}
++	
++}
+@@ -0,0 +1,11 @@
++package foo;
++
++public class MyFoo {
++
++	public void callMain() {
++		new MyFoo().main();
++	}
++	
++	public void main() {
++	}
++}
+@@ -0,0 +1,3 @@
++To recreate the jar files:
++
++ajc MyBar.aj -outjar aspectpath.jar
+Binary files differ
+@@ -0,0 +1,5 @@
++package bar;
++
++public @interface MyAnnotation {
++
++}
+@@ -0,0 +1,18 @@
++package bar;
++
++import foo.*;
++
++public aspect MyBar {
++
++	before() : call(* main(..)) {}
++
++	declare warning: get( * System.out ) : "System.out should not be called";
++	
++	declare parents : *Foo extends NewClass;
++	
++	declare @type : *Foo* : @MyAnnotation;
++	declare @method : public * *Foo.anotMethod(..) : @MyAnnotation;
++	declare @constructor : *Foo.new(String) : @MyAnnotation;
++	declare @field : int *Foo.* : @MyAnnotation ;
++	
++}
+@@ -0,0 +1,25 @@
++package foo;
++
++public class MyFoo {
++
++	public int i;
++	
++	public MyFoo() {
++		super();
++	}
++	
++	public MyFoo(String s) {
++		super();
++	}
++	
++	public void callMain() {
++		new MyFoo().main();
++	}
++	
++	public void main() {
++		System.out.println("blah");
++	}
++	
++	public void anotMethod() {	
++	}
++}
+@@ -0,0 +1,5 @@
++package bar;
++
++public class NewClass {
++
++}
+@@ -0,0 +1,3 @@
++To recreate the jar files:
++
++ajc MyFoo.java -outjar inpath.jar
+Binary files differ
+@@ -0,0 +1,13 @@
++aspect DeclareAnnotation {
++    declare @method : * debit(..) : @Secured(role="supervisor");
++}
++
++class BankAccount {
++
++    public void debit(String accId,long amount) {
++    }
++}
++
++@interface Secured {
++    String role();
++}
+@@ -0,0 +1,15 @@
++package pkg;
++
++public aspect A {
++
++	before() : C.pointcutInClass() {	
++	}
++	
++	pointcut pointcutInAspect() : execution(void aMethod());
++	
++	before() : pointcutInAspect() {
++	}
++	
++	public void aMethod() {
++	}
++}
+@@ -0,0 +1,10 @@
++package pkg;
++
++public class C {
++
++	pointcut pointcutInClass() : execution(void cMethod());
++	
++	public void cMethod() {
++		
++	}
++}
+@@ -0,0 +1,24 @@
++package pack;
++class Test {
++	
++	public void testMethod() {
++		new Runnable() {
++			public void run() {
++			}
++		};
++		class C {
++			public void m(){			
++			}
++		}
++	}
++	
++}
++
++aspect A {
++	
++	pointcut p() : execution(* run(..));
++	
++	before() : p() {
++	}
++
++}
+@@ -0,0 +1,23 @@
++class Test {
++	
++	public void testMethod() {
++		new Runnable() {
++			public void run() {
++			}
++		};
++		class C {
++			public void m(){			
++			}
++		}
++	}
++	
++}
++
++aspect A {
++	
++	pointcut p() : execution(* m(..));
++	
++	before() : p() {
++	}
++
++}
+@@ -0,0 +1,19 @@
++package pack;
++
++class Test {
++	
++	public void testMethod() {
++		new Runnable() {
++			public void run() {
++				someMethod();
++			}
++		};
++	}
++	
++	public void someMethod() {		
++	}
++}
++
++aspect A {
++	declare warning : call(void someMethod(..)) : "blah blah blah";
++}
+@@ -14,8 +14,6 @@ import java.io.ByteArrayOutputStream;
+ import java.io.File;
+ import java.io.IOException;
+ import java.io.PrintWriter;
+-import java.util.Iterator;
+-import java.util.List;
+ 
+ import junit.framework.Test;
+ 
+@@ -25,10 +23,6 @@ import org.aspectj.apache.bcel.classfile.Signature;
+ import org.aspectj.apache.bcel.util.ClassPath;
+ import org.aspectj.apache.bcel.util.SyntheticRepository;
+ import org.aspectj.asm.AsmManager;
+-import org.aspectj.asm.IHierarchy;
+-import org.aspectj.asm.IProgramElement;
+-import org.aspectj.asm.IRelationship;
+-import org.aspectj.asm.internal.Relationship;
+ import org.aspectj.testing.XMLBasedAjcTestCase;
+ import org.aspectj.util.LangUtil;
+ 
+@@ -589,104 +583,6 @@ public class Ajc150Tests extends org.aspectj.testing.XMLBasedAjcTestCase {
+ 	  runTest("ClassCastException with generic wildcard");
+   }
+ 
+-  public void testAdviceInStructureModelWithAnonymousInnerClass_pr77269() {
+-	  //AsmManager.setReporting("c:/debug.txt",true,true,true,true);
+-	  runTest("advice in structure model with anonymous inner class");  
+-  	  IHierarchy top = AsmManager.getDefault().getHierarchy();
+-  	    	  
+-  	  // checking that the run() method inside anonymous inner class is in 
+-  	  // the structure model
+-  	  IProgramElement anonRunMethodIPE = top.findElementForLabel(top.getRoot(),
+-  			  IProgramElement.Kind.METHOD,"run()");  	 
+-  	 
+-  	  assertNotNull("Couldn't find 'run()' element in the tree",anonRunMethodIPE);
+-  	  List l = AsmManager.getDefault().getRelationshipMap().get(anonRunMethodIPE);	
+-  	  assertNotNull("Should have some relationships but does not",l);
+-  	  assertTrue("Should have one relationship but has " + l.size(),l.size()==1);
+-  	  Relationship rel = (Relationship)l.get(0);
+-  	  List targets = rel.getTargets();
+-  	  assertTrue("Should have one target but has" + targets.size(),
+-  			  targets.size()==1);
+-  	  IProgramElement target = AsmManager.getDefault().getHierarchy().findElementForHandle((String)targets.get(0));
+-  	  assertEquals("target of relationship should be 'before(): p..' but is "
+-  			  + target.toLabelString(),"before(): p..",target.toLabelString());
+-  	  
+-
+-  	  IProgramElement adviceIPE = top.findElementForLabel(top.getRoot(),
+-  			  IProgramElement.Kind.ADVICE,"before(): p..");  	  
+-  	  assertNotNull("Couldn't find 'before(): p..' element in the tree",adviceIPE);
+-  	  l = AsmManager.getDefault().getRelationshipMap().get(adviceIPE);
+-  	  assertNotNull("Should have some relationships but does not",l);
+-  	  assertTrue("Should have a relationship but does not ",l.size()>0);
+-  	  for (Iterator iter = l.iterator(); iter.hasNext();) {
+-		IRelationship element = (IRelationship) iter.next();
+-		if (element.getName().equals("advises")) {
+-			rel = (Relationship) element;
+-			break;
+-		}
+-	  }
+-  	  targets = rel.getTargets();
+-  	  assertTrue("Should have one target but has" + targets.size(),
+-  			  targets.size()==1);
+-  	  target = AsmManager.getDefault().getHierarchy().findElementForHandle((String)targets.get(0));
+-  	  assertEquals("target of relationship should be 'run()' but is "
+-  			  + target.toLabelString(),"run()",target.toLabelString());
+-  	  
+-  }
+- 
+-  public void testAdviceInStructureModelWithNamedInnerClass_pr77269() {
+-	  //AsmManager.setReporting("c:/debug.txt",true,true,true,true);
+-	  runTest("advice in structure model with named inner class");  
+-  	  IHierarchy top = AsmManager.getDefault().getHierarchy();
+-  	    	  
+-  	  // checking that the m() method inside named inner class is in 
+-  	  // the structure model
+-  	  IProgramElement namedMethodIPE = top.findElementForLabel(top.getRoot(),
+-  			  IProgramElement.Kind.METHOD,"m()");  	  
+-  	  assertNotNull("Couldn't find 'm()' element in the tree",namedMethodIPE);
+-  	  List l = AsmManager.getDefault().getRelationshipMap().get(namedMethodIPE);	
+-  	  assertNotNull("Should have some relationships but does not",l);
+-  	  assertTrue("Should have one relationship but has " + l.size(),l.size()==1);
+-  	  Relationship rel = (Relationship)l.get(0);
+-  	  List targets = rel.getTargets();
+-  	  assertTrue("Should have one target but has" + targets.size(),
+-  			  targets.size()==1);
+-  	  IProgramElement target = AsmManager.getDefault().getHierarchy().findElementForHandle((String)targets.get(0));
+-  	  assertEquals("target of relationship should be 'before(): p..' but is "
+-  			  + target.toLabelString(),"before(): p..",target.toLabelString());
+-  	  
+-
+-  	  IProgramElement adviceIPE = top.findElementForLabel(top.getRoot(),
+-  			  IProgramElement.Kind.ADVICE,"before(): p..");  	  
+-  	  assertNotNull("Couldn't find 'before(): p..' element in the tree",adviceIPE);
+-  	  l = AsmManager.getDefault().getRelationshipMap().get(adviceIPE);
+-  	  assertNotNull("Should have some relationships but does not",l);
+-  	  assertTrue("Should have a relationship but does not ",l.size()>0);
+-  	  for (Iterator iter = l.iterator(); iter.hasNext();) {
+-		IRelationship element = (IRelationship) iter.next();
+-		if (element.getName().equals("advises")) {
+-			rel = (Relationship) element;
+-			break;
+-		}
+-	  }
+-  	  targets = rel.getTargets();
+-  	  assertTrue("Should have one target but has" + targets.size(),
+-  			  targets.size()==1);
+-  	  target = AsmManager.getDefault().getHierarchy().findElementForHandle((String)targets.get(0));
+-  	  assertEquals("target of relationship should be 'm()' but is "
+-  			  + target.toLabelString(),"m()",target.toLabelString());
+-  	  
+-  }
+-  
+-  public void testDWInStructureModelWithAnonymousInnerClass_pr77269() {
+-      // AsmManager.setReporting("c:/debug.txt",true,true,true,true);
+-	  runTest("declare warning in structure model with anonymous inner class");  
+-  	  IHierarchy top = AsmManager.getDefault().getHierarchy();
+-  	  IProgramElement pe = top.findElementForLabel(top.getRoot(),
+-  			  IProgramElement.Kind.CODE,"method-call(void pack.Test.someMethod())");  	 	 
+-  	  assertNotNull("Couldn't find 'method-call(void pack.Test.someMethod())' element in the tree",pe);
+-  }
+-  
+   public void testVarArgsIITDInConstructor() {
+ 	  runTest("ITD varargs in constructor");
+   }
+@@ -802,16 +698,6 @@ public class Ajc150Tests extends org.aspectj.testing.XMLBasedAjcTestCase {
+   public void testXlintMessageForImproperAnnotationType_pr115252_Throws() {runTest("xlint message for improper annotated throws pattern");}  
+   public void testXlintMessageForImproperAnnotationType_pr115252_MoreThanOne() {runTest("xlint message for more than one improper annotated parameter type");}  
+ 
+-  public void testDeclareAtTypeInStructureModel_pr115607() {
+-	  runTest("declare at type appears correctly in structure model");  
+-  	  IHierarchy top = AsmManager.getDefault().getHierarchy();
+-  	  IProgramElement pe = top.findElementForLabel(top.getRoot(),
+-  			  IProgramElement.Kind.DECLARE_ANNOTATION_AT_TYPE,"declare @type: Simple : @I");  	 	 
+-  	  assertNotNull("Couldn't find 'declare @type: Simple : @I' element in the tree",pe);
+-  	  List l = AsmManager.getDefault().getRelationshipMap().get(pe);	
+-	  assertNotNull("Should have some relationships but does not",l);
+-  }
+-  
+   public void testNoNPEWhenInaccessibleMethodIsCalledWithinITD_pr119019() {
+ 	  runTest("no NPE when inaccessible method is called within itd");
+   }
+@@ -1380,22 +1380,6 @@
+         <run class="pr100195"/>
+     </ajc-test> 
+ 
+-    <ajc-test dir="bugs150/pr77269" title="advice in structure model with anonymous inner class">
+-        <compile files="pack/pr77269.aj" options="-emacssym">
+-        </compile>
+-    </ajc-test> 
+-
+-    <ajc-test dir="bugs150" title="advice in structure model with named inner class">
+-        <compile files="pr77269b.aj" options="-emacssym">
+-        </compile>
+-    </ajc-test> 
+-
+-    <ajc-test dir="bugs150/pr77269" title="declare warning in structure model with anonymous inner class">
+-        <compile files="pack/pr77269c.aj" options="-emacssym">
+-        	<message kind="warning" line="8" text="blah blah blah"/>
+-        </compile>
+-    </ajc-test> 
+-
+     <ajc-test dir="bugs150" title="weaveinfo message for declare at method on an ITDd method">
+         <compile files="pr113073.java" options="-1.5 -showWeaveInfo">
+ 			<message kind="weave" text="Type 'C' (pr113073.java) has intertyped method from 'D' (pr113073.java:'void C.anotherMethod()')"/>
+@@ -1529,11 +1513,6 @@
+         </compile>
+     </ajc-test>
+ 
+-	<ajc-test dir="bugs150" title="declare at type appears correctly in structure model">
+-        <compile files="pr115607.java" options="-1.5,-emacssym">
+-        </compile>
+-    </ajc-test>
+-
+ 	<ajc-test dir="bugs150/pr119019" title="no NPE when inaccessible method is called within itd">
+         <compile files="bar/TargetITDClass.java,foo/ITDWithACall.aj"/>
+         <run class="foo.ITDWithACall"/>
+@@ -11,15 +11,12 @@
+ package org.aspectj.systemtest.ajc151;
+ 
+ import java.io.File;
+-import java.util.Iterator;
+-import java.util.List;
+ 
+ import junit.framework.Test;
+ 
+ import org.aspectj.asm.AsmManager;
+ import org.aspectj.asm.IHierarchy;
+ import org.aspectj.asm.IProgramElement;
+-import org.aspectj.asm.internal.Relationship;
+ import org.aspectj.systemtest.ajc150.GenericsTests;
+ import org.aspectj.testing.XMLBasedAjcTestCase;
+ 
+@@ -136,149 +133,6 @@ public class Ajc151Tests extends org.aspectj.testing.XMLBasedAjcTestCase {
+ 	  runTest("no ClassCastException with generic aspect and unknown type");
+   }
+ 
+-  public void testStructureModelForGenericITD_pr131932() {
+- 	  //AsmManager.setReporting("c:/debug.txt",true,true,true,true);
+-	  runTest("structure model for generic itd");
+-	  IHierarchy top = AsmManager.getDefault().getHierarchy();
+- 	   
+-  	  // get the IProgramElements corresponding to the ITDs and classes
+-  	  IProgramElement foo = top.findElementForLabel(top.getRoot(),
+-  			  IProgramElement.Kind.CLASS,"Foo");
+-  	  assertNotNull("Couldn't find Foo element in the tree",foo);
+-  	  IProgramElement bar = top.findElementForLabel(top.getRoot(),
+-  			  IProgramElement.Kind.CLASS,"Bar");
+-  	  assertNotNull("Couldn't find Bar element in the tree",bar);
+-
+-  	  IProgramElement method = top.findElementForLabel(top.getRoot(),
+-  			  IProgramElement.Kind.INTER_TYPE_METHOD,"Bar.getFirst()");  	   	 
+-  	  assertNotNull("Couldn't find 'Bar.getFirst()' element in the tree",method);
+-  	  IProgramElement field = top.findElementForLabel(top.getRoot(),
+-  			  IProgramElement.Kind.INTER_TYPE_FIELD,"Bar.children");  	   	 
+-  	  assertNotNull("Couldn't find 'Bar.children' element in the tree",field);
+-  	  IProgramElement constructor = top.findElementForLabel(top.getRoot(),
+-  			  IProgramElement.Kind.INTER_TYPE_CONSTRUCTOR,"Foo.Foo(java.util.List<T>)");  	   	 
+-  	  assertNotNull("Couldn't find 'Foo.Foo(java.util.List<T>)' element in the tree",constructor);
+-  	  
+-  	  // check that the relationship map has 'itd method declared on bar'
+-  	  List matches = AsmManager.getDefault().getRelationshipMap().get(method);
+-  	  assertNotNull("itd Bar.getFirst() should have some relationships but does not",matches);
+-  	  assertTrue("method itd should have one relationship but has " + matches.size(), matches.size() == 1);
+-  	  List matchesTargets = ((Relationship)matches.get(0)).getTargets();
+-  	  assertTrue("itd Bar.getFirst() should have one target but has " + matchesTargets.size(),matchesTargets.size() == 1);
+-  	  IProgramElement target = AsmManager.getDefault().getHierarchy().findElementForHandle((String)matchesTargets.get(0));
+-  	  assertEquals("target of relationship should be the Bar class but is IPE with label "
+-  			  + target.toLabelString(),bar,target);
+-
+-  	  // check that the relationship map has 'itd field declared on bar'
+-  	  matches = AsmManager.getDefault().getRelationshipMap().get(field);
+-  	  assertNotNull("itd Bar.children should have some relationships but does not",matches);
+-  	  assertTrue("field itd should have one relationship but has " + matches.size(), matches.size() == 1);
+-  	  matchesTargets = ((Relationship)matches.get(0)).getTargets();
+-  	  assertTrue("itd Bar.children should have one target but has " + matchesTargets.size(),matchesTargets.size() == 1);
+-  	  target = AsmManager.getDefault().getHierarchy().findElementForHandle((String)matchesTargets.get(0));
+-  	  assertEquals("target of relationship should be the Bar class but is IPE with label "
+-  			  + target.toLabelString(),bar,target);
+-
+-  	  // check that the relationship map has 'itd constructor declared on foo'
+-  	  matches = AsmManager.getDefault().getRelationshipMap().get(constructor);
+-  	  assertNotNull("itd Foo.Foo(List<T>) should have some relationships but does not",matches);
+-  	  assertTrue("constructor itd should have one relationship but has " + matches.size(), matches.size() == 1);
+-  	  matchesTargets = ((Relationship)matches.get(0)).getTargets();
+-  	  assertTrue("itd Foo.Foo(List<T>) should have one target but has " + matchesTargets.size(),matchesTargets.size() == 1);
+-  	  target = AsmManager.getDefault().getHierarchy().findElementForHandle((String)matchesTargets.get(0));
+-  	  assertEquals("target of relationship should be the Foo class but is IPE with label "
+-  			  + target.toLabelString(),foo,target);
+-  	  
+-  	  // check that the relationship map has 'bar aspect declarations method and field itd'
+-  	  matches = AsmManager.getDefault().getRelationshipMap().get(bar);
+-  	  assertNotNull("Bar should have some relationships but does not",matches);
+-  	  assertTrue("Bar should have one relationship but has " + matches.size(), matches.size() == 1);
+-  	  matchesTargets = ((Relationship)matches.get(0)).getTargets();
+-  	  assertTrue("Bar should have two targets but has " + matchesTargets.size(),matchesTargets.size() == 2);
+-  	  for (Iterator iter = matchesTargets.iterator(); iter.hasNext();) {
+-		  String element = (String) iter.next();
+-		  target = AsmManager.getDefault().getHierarchy().findElementForHandle(element);
+-		  if (!target.equals(method) && !target.equals(field)) {
+-			  fail("Expected rel target to be " + method.toLabelString() + " or " + field.toLabelString() 
+-					+ ", found " + target.toLabelString());
+-		  }
+-	  }
+-
+-  	  // check that the relationship map has 'foo aspect declarations constructor itd'
+- 	  matches = AsmManager.getDefault().getRelationshipMap().get(foo);
+-  	  assertNotNull("Foo should have some relationships but does not",matches);
+-  	  assertTrue("Foo should have one relationship but has " + matches.size(), matches.size() == 1);
+-  	  matchesTargets = ((Relationship)matches.get(0)).getTargets();
+-  	  assertTrue("Foo should have one target but has " + matchesTargets.size(),matchesTargets.size() == 1);
+- 	  target = AsmManager.getDefault().getHierarchy().findElementForHandle((String)matchesTargets.get(0));
+-  	  assertEquals("target of relationship should be the Foo.Foo(List<T>) itd but is IPE with label "
+-  			  + target.toLabelString(),constructor,target);
+-  }
+-  
+-  
+-  public void testDeclareAnnotationAppearsInStructureModel_pr132130() {
+-	  //AsmManager.setReporting("c:/debug.txt",true,true,true,true);
+-	  runTest("declare annotation appears in structure model when in same file");
+-	  IHierarchy top = AsmManager.getDefault().getHierarchy();
+-	  
+-  	  // get the IProgramElements corresponding to the different code entries
+-  	  IProgramElement decam = top.findElementForLabel(top.getRoot(),
+-  			  IProgramElement.Kind.DECLARE_ANNOTATION_AT_METHOD,"declare @method: * debit(..) : @Secured(role = \"supervisor\")");  	   	 
+-  	  assertNotNull("Couldn't find 'declare @method' element in the tree",decam);
+-  	  IProgramElement method = top.findElementForLabel(top.getRoot(),
+-  			  IProgramElement.Kind.METHOD,"debit(long,long)");
+-  	  assertNotNull("Couldn't find the 'debit(long,long)' method element in the tree",method);
+-  	  IProgramElement decac = top.findElementForLabel(top.getRoot(),
+-  			  IProgramElement.Kind.DECLARE_ANNOTATION_AT_CONSTRUCTOR,"declare @constructor: BankAccount+.new(..) : @Secured(role = \"supervisor\")");  	   	 
+-  	  assertNotNull("Couldn't find 'declare @constructor' element in the tree",decac);
+-  	  IProgramElement ctr = top.findElementForLabel(top.getRoot(),
+-  			  IProgramElement.Kind.CONSTRUCTOR,"BankAccount(java.lang.String,int)");
+-  	  assertNotNull("Couldn't find the 'BankAccount(String,int)' constructor element in the tree",ctr);
+-
+-  	  
+-  	  // check that decam has a annotates relationship with the debit method
+-  	  List matches = AsmManager.getDefault().getRelationshipMap().get(decam);	
+-  	  assertNotNull("'declare @method' should have some relationships but does not",matches);
+-  	  assertTrue("'declare @method' should have one relationships but has " + matches.size(),matches.size()==1);
+-  	  List matchesTargets = ((Relationship)matches.get(0)).getTargets();
+-  	  assertTrue("'declare @method' should have one targets but has" + matchesTargets.size(),matchesTargets.size()==1);
+-  	  IProgramElement target = AsmManager.getDefault().getHierarchy().findElementForHandle((String)matchesTargets.get(0));
+-  	  assertEquals("target of relationship should be the 'debit(long,long)' method but is IPE with label "
+-  			  + target.toLabelString(),method,target);
+-  	  
+-  	  // check that the debit method has an annotated by relationship with the declare @method
+-  	  matches = AsmManager.getDefault().getRelationshipMap().get(method);	
+-  	  assertNotNull("'debit(long,long)' should have some relationships but does not",matches);
+-  	  assertTrue("'debit(long,long)' should have one relationships but has " + matches.size(),matches.size()==1);
+-  	  matchesTargets = ((Relationship)matches.get(0)).getTargets();
+-  	  assertTrue("'debit(long,long)' should have one targets but has" + matchesTargets.size(),matchesTargets.size()==1);
+-  	  target = AsmManager.getDefault().getHierarchy().findElementForHandle((String)matchesTargets.get(0));
+-  	  assertEquals("target of relationship should be the 'declare @method' ipe but is IPE with label "
+-  			  + target.toLabelString(),decam,target);
+-
+-  	  // check that decac has a annotates relationship with the constructor
+-  	  matches = AsmManager.getDefault().getRelationshipMap().get(decac);	
+-  	  assertNotNull("'declare @method' should have some relationships but does not",matches);
+-  	  assertTrue("'declare @method' should have one relationships but has " + matches.size(),matches.size()==1);
+-  	  matchesTargets = ((Relationship)matches.get(0)).getTargets();
+-  	  assertTrue("'declare @method' should have one targets but has" + matchesTargets.size(),matchesTargets.size()==1);
+-  	  target = AsmManager.getDefault().getHierarchy().findElementForHandle((String)matchesTargets.get(0));
+-  	  assertEquals("target of relationship should be the 'debit(long, long)' method but is IPE with label "
+-  			  + target.toLabelString(),ctr,target);
+-  	  
+-  	  // check that the constructor has an annotated by relationship with the declare @constructor
+-  	  matches = AsmManager.getDefault().getRelationshipMap().get(ctr);	
+-  	  assertNotNull("'debit(long, long)' should have some relationships but does not",matches);
+-  	  assertTrue("'debit(long, long)' should have one relationships but has " + matches.size(),matches.size()==1);
+-  	  matchesTargets = ((Relationship)matches.get(0)).getTargets();
+-  	  assertTrue("'debit(long, long)' should have one targets but has" + matchesTargets.size(),matchesTargets.size()==1);
+-  	  target = AsmManager.getDefault().getHierarchy().findElementForHandle((String)matchesTargets.get(0));
+-  	  assertEquals("target of relationship should be the 'declare @method' ipe but is IPE with label "
+-  			  + target.toLabelString(),decac,target);
+-
+-
+-  }
+-  
+   /*
+    * @AspectJ bugs and enhancements
+    */
+@@ -289,64 +143,7 @@ public class Ajc151Tests extends org.aspectj.testing.XMLBasedAjcTestCase {
+   public void testAtAspectInheritsAbstractPointcut_pr125810 () {
+ 	  runTest("warning when inherited pointcut not made concrete"); 
+   }
+-  
+-  public void testAtAspectDEOWInStructureModel_pr120356() {
+-	  //AsmManager.setReporting("c:/debug.txt",true,true,true,true);
+-	  runTest("@AJ deow appear correctly when structure model is generated");  
+-  	  IHierarchy top = AsmManager.getDefault().getHierarchy();
+-  	   
+-  	  // get the IProgramElements corresponding to the @DeclareWarning statement
+-  	  // and the method it matches.
+-  	  IProgramElement warningMethodIPE = top.findElementForLabel(top.getRoot(),
+-  			  IProgramElement.Kind.METHOD,"warningMethod()");  	   	 
+-  	  assertNotNull("Couldn't find 'warningMethod()' element in the tree",warningMethodIPE);
+-  	  IProgramElement atDeclareWarningIPE = top.findElementForLabel(top.getRoot(),
+-  			  IProgramElement.Kind.FIELD,"warning");
+-  	  assertNotNull("Couldn't find @DeclareWarning element in the tree",atDeclareWarningIPE);
+-
+-  	  // check that the method has a matches declare relationship with @DeclareWarning
+-  	  List matches = AsmManager.getDefault().getRelationshipMap().get(warningMethodIPE);	
+-  	  assertNotNull("warningMethod should have some relationships but does not",matches);
+-  	  assertTrue("warningMethod should have one relationships but has " + matches.size(),matches.size()==1);
+-  	  List matchesTargets = ((Relationship)matches.get(0)).getTargets();
+-  	  assertTrue("warningMethod should have one targets but has" + matchesTargets.size(),matchesTargets.size()==1);
+-  	  IProgramElement target = AsmManager.getDefault().getHierarchy().findElementForHandle((String)matchesTargets.get(0));
+-  	  assertEquals("target of relationship should be the @DeclareWarning 'warning' but is IPE with label "
+-  			  + target.toLabelString(),atDeclareWarningIPE,target);
+-  	  
+-  	  // check that the @DeclareWarning has a matches relationship with the warningMethod
+-  	  List matchedBy = AsmManager.getDefault().getRelationshipMap().get(atDeclareWarningIPE);
+-  	  assertNotNull("@DeclareWarning should have some relationships but does not",matchedBy);
+-  	  assertTrue("@DeclareWarning should have one relationship but has " + matchedBy.size(), matchedBy.size() == 1);
+-  	  List matchedByTargets = ((Relationship)matchedBy.get(0)).getTargets();
+-  	  assertTrue("@DeclareWarning 'matched by' relationship should have one target " +
+-  	  		"but has " + matchedByTargets.size(), matchedByTargets.size() == 1);
+-  	  IProgramElement matchedByTarget = AsmManager.getDefault().getHierarchy().findElementForHandle((String)matchedByTargets.get(0));
+-  	  assertEquals("target of relationship should be the warningMethod but is IPE with label "
+-  			  + matchedByTarget.toLabelString(),warningMethodIPE,matchedByTarget);
+-  	  
+-  	  // get the IProgramElements corresponding to the @DeclareError statement
+-  	  // and the method it matches.
+-  	  IProgramElement errorMethodIPE = top.findElementForLabel(top.getRoot(),
+-  			  IProgramElement.Kind.METHOD,"badMethod()");  	   	 
+-  	  assertNotNull("Couldn't find 'badMethod()' element in the tree",errorMethodIPE);
+-  	  IProgramElement atDeclarErrorIPE = top.findElementForLabel(top.getRoot(),
+-  			  IProgramElement.Kind.FIELD,"error");
+-  	  assertNotNull("Couldn't find @DeclareError element in the tree",atDeclarErrorIPE);
+-
+-  	  // check that the @DeclareError has a matches relationship with the badMethod
+-  	  List matchedByE = AsmManager.getDefault().getRelationshipMap().get(atDeclarErrorIPE);
+-  	  assertNotNull("@DeclareError should have some relationships but does not",matchedByE);
+-  	  assertTrue("@DeclareError should have one relationship but has " + matchedByE.size(), matchedByE.size() == 1);
+-  	  List matchedByTargetsE = ((Relationship)matchedByE.get(0)).getTargets();
+-  	  assertTrue("@DeclareError 'matched by' relationship should have one target " +
+-  	  		"but has " + matchedByTargetsE.size(), matchedByTargetsE.size() == 1);
+-  	  IProgramElement matchedByTargetE = AsmManager.getDefault().getHierarchy().findElementForHandle((String)matchedByTargetsE.get(0));
+-  	  assertEquals("target of relationship should be the badMethod but is IPE with label "
+-  			  + matchedByTargetE.toLabelString(),errorMethodIPE,matchedByTargetE);
+-
+-  }
+-  
++    
+   public void testAtAspectNoNPEWithDEOWWithoutStructureModel_pr120356() {
+ 	  runTest("@AJ no NPE with deow when structure model isn't generated"); 
+   }
+@@ -341,13 +341,6 @@
+ 
+     <ajc-test dir="bugs151" title="E extends Enum(E) again">
+         <compile files="Pr126316.aj" options="-1.5"/>
+-    </ajc-test>
+-    
+-    <ajc-test dir="bugs151/pr120356" title="@AJ deow appear correctly when structure model is generated">
+-        <compile files="C.java, A.java" options="-1.5, -emacssym">
+-         <message kind="error" line="8" text="error"/>
+-          <message kind="warning" line="5" text="warning"/>
+-        </compile>
+     </ajc-test> 
+ 
+     <ajc-test dir="bugs151/pr120356" title="@AJ no NPE with deow when structure model isn't generated">
+@@ -402,14 +395,6 @@
+         </compile>
+     </ajc-test> 
+ 
+-    <ajc-test dir="bugs151" title="structure model for generic itd">
+-        <compile files="pr131932.aj" options="-1.5 -emacssym"/>
+-    </ajc-test>
+-
+-    <ajc-test dir="bugs151" title="declare annotation appears in structure model when in same file">
+-        <compile files="pr132130.aj" options="-1.5 -emacssym"/>
+-    </ajc-test>
+-
+     <!-- New features down here... when they arent big enough to have their own test file -->
+ 
+     <ajc-test dir="features151/ptw" title="exposing withintype">
+@@ -11,21 +11,15 @@
+ package org.aspectj.systemtest.ajc152;
+ 
+ import java.io.File;
+-import java.util.ArrayList;
+-import java.util.Iterator;
+ import java.util.List;
+ 
+ import junit.framework.Test;
+ 
+-import org.aspectj.ajdt.internal.core.builder.AsmHierarchyBuilder;
+ import org.aspectj.asm.AsmManager;
+ import org.aspectj.asm.IHierarchy;
+ import org.aspectj.asm.IProgramElement;
+-import org.aspectj.asm.IRelationshipMap;
+-import org.aspectj.asm.internal.Relationship;
+ import org.aspectj.testing.XMLBasedAjcTestCase;
+ import org.aspectj.util.CharOperation;
+-import org.aspectj.weaver.World;
+ 
+ public class Ajc152Tests extends org.aspectj.testing.XMLBasedAjcTestCase {
+ 
+@@ -114,41 +108,6 @@ public class Ajc152Tests extends org.aspectj.testing.XMLBasedAjcTestCase {
+   public void testJRockitBooleanReturn2_pr148007() { runTest("jrockit boolean fun (no aspects)");}
+   public void testSyntheticAjcMembers_pr147711() { runTest("synthetic ajc$ members"); }
+ 
+-  public void testDeclareAtMethodRelationship_pr143924() {
+-	  //AsmManager.setReporting("c:/debug.txt",true,true,true,true);
+-	  runTest("declare @method relationship");
+-	  IHierarchy top = AsmManager.getDefault().getHierarchy();
+-	  
+-  	  // get the IProgramElements corresponding to the different code entries
+-  	  IProgramElement decam = top.findElementForLabel(top.getRoot(),
+-  			  IProgramElement.Kind.DECLARE_ANNOTATION_AT_METHOD,
+-  			  "declare @method: * debit(..) : @Secured(role = \"supervisor\")");  	   	 
+-  	  assertNotNull("Couldn't find 'declare @method' element in the tree",decam);
+-  	  IProgramElement method = top.findElementForLabel(top.getRoot(),
+-  			  IProgramElement.Kind.METHOD,"debit(java.lang.String,long)");
+-  	  assertNotNull("Couldn't find the 'debit(String,long)' method element in the tree",method);
+-
+-  	  List matches = AsmManager.getDefault().getRelationshipMap().get(decam);	
+-  	  assertNotNull("'declare @method' should have some relationships but does not",matches);
+-  	  assertTrue("'declare @method' should have one relationships but has " + matches.size(),matches.size()==1);
+-  	  List matchesTargets = ((Relationship)matches.get(0)).getTargets();
+-  	  assertTrue("'declare @method' should have one targets but has" + matchesTargets.size(),matchesTargets.size()==1);
+-  	  IProgramElement target = AsmManager.getDefault().getHierarchy().findElementForHandle((String)matchesTargets.get(0));
+-  	  assertEquals("target of relationship should be the 'debit(java.lang.String,long)' method but is IPE with label "
+-  			  + target.toLabelString(),method,target);
+-  	  
+-  	  // check that the debit method has an annotated by relationship with the declare @method
+-  	  matches = AsmManager.getDefault().getRelationshipMap().get(method);	
+-  	  assertNotNull("'debit(java.lang.String,long)' should have some relationships but does not",matches);
+-  	  assertTrue("'debit(java.lang.String,long)' should have one relationships but has " + matches.size(),matches.size()==1);
+-  	  matchesTargets = ((Relationship)matches.get(0)).getTargets();
+-  	  assertTrue("'debit(java.lang.String,long)' should have one targets but has" + matchesTargets.size(),matchesTargets.size()==1);
+-  	  target = AsmManager.getDefault().getHierarchy().findElementForHandle((String)matchesTargets.get(0));
+-  	  assertEquals("target of relationship should be the 'declare @method' ipe but is IPE with label "
+-  			  + target.toLabelString(),decam,target);
+-  	  
+-  }
+-  
+ // this next one reported as a bug by Rob Harrop, but I can't reproduce the failure yet...
+ //public void testAtAspectWithReferencePCPerClause_pr138220() { runTest("@Aspect with reference pointcut in perclause");}  
+ 
+@@ -156,178 +115,19 @@ public class Ajc152Tests extends org.aspectj.testing.XMLBasedAjcTestCase {
+   public void testJarChecking_pr137235_2() { runTest("directory with .jar extension"); }
+   public void testMakePreMethodNPE_pr136393() { runTest("NPE in makePreMethod");}
+ 
+-  public void testGetParameterHandles_pr141730() {
+-	  runTest("new IProgramElement handle methods");  
+-	  
+-	  checkParametersForIPE("intMethod(int)",IProgramElement.Kind.METHOD,"I",true);
+-	  checkParametersForIPE("stringMethod(java.lang.String)",IProgramElement.Kind.METHOD,"Ljava/lang/String;",true);
+-	  checkParametersForIPE("myClassMethod(MyClass)",IProgramElement.Kind.METHOD,"LMyClass;",true);
+-	  checkParametersForIPE("genericMethod(java.util.List<java.lang.String>)",IProgramElement.Kind.METHOD,"Pjava/util/List<Ljava/lang/String;>;",true);
+-	  checkParametersForIPE("genericMethod2(MyGenericClass<java.lang.String,MyClass>)",IProgramElement.Kind.METHOD,"PMyGenericClass<Ljava/lang/String;LMyClass;>;",true);
+-	  checkParametersForIPE("main(java.lang.String[])",IProgramElement.Kind.METHOD,"[Ljava/lang/String;",true);
+-	  checkParametersForIPE("multiMethod(java.lang.String[][])",IProgramElement.Kind.METHOD,"[[Ljava/lang/String;",true);
+-	  checkParametersForIPE("intArray(int[])",IProgramElement.Kind.METHOD,"[I",true);
++  public void testGetParameterSignatures_pr141730() {
++	  runTest("new iprogramelement method getParameterSignatures");  
+ 
+-  	  IHierarchy top = AsmManager.getDefault().getHierarchy();      
+-  	  IProgramElement twoArgsMethod = top.findElementForLabel(
+-  			  top.getRoot(),IProgramElement.Kind.METHOD,"twoArgsMethod(int,java.lang.String)");
+-      assertNotNull("Couldn't find 'twoArgsMethod(int,java.lang.String)' element in the tree",twoArgsMethod);
+-      List l = twoArgsMethod.getParameterSignatures();
+-      assertEquals("",((char[])l.get(0))[0],'I');
+-      boolean eq = CharOperation.equals(((char[])l.get(1)),"Ljava/lang/String;".toCharArray());
+-      assertTrue("expected parameter to be 'Ljava/lang/String;' but found '" +
+-        		new String(((char[])l.get(1))) + "'",eq);
++	  checkGetParamSigOfMethod("stringMethod(java.lang.String)","Ljava/lang/String;");
++	  checkGetParamSigOfMethod("main(java.lang.String[])","[Ljava/lang/String;");
++	  checkGetParamSigOfMethod("multiMethod(java.lang.String[][])","[[Ljava/lang/String;");
+   }
+ 
+-  public void testGetParameterTypes_pr141730() {
+-	  runTest("new IProgramElement handle methods"); 
++  public void testGetParameterSignaturesWithGenerics_pr141730() {
++	  runTest("new iprogramelement method getParameterSignatures with generics");  
+ 
+-	  checkParametersForIPE("intMethod(int)",IProgramElement.Kind.METHOD,"int",false);
+-	  checkParametersForIPE("stringMethod(java.lang.String)",IProgramElement.Kind.METHOD,"java.lang.String",false);
+-	  checkParametersForIPE("myClassMethod(MyClass)",IProgramElement.Kind.METHOD,"MyClass",false);
+-	  checkParametersForIPE("genericMethod(java.util.List<java.lang.String>)",IProgramElement.Kind.METHOD,"java.util.List<java.lang.String>",false);
+-	  checkParametersForIPE("genericMethod2(MyGenericClass<java.lang.String,MyClass>)",IProgramElement.Kind.METHOD,"MyGenericClass<java.lang.String,MyClass>",false);
+-	  checkParametersForIPE("main(java.lang.String[])",IProgramElement.Kind.METHOD,"java.lang.String[]",false);
+-	  checkParametersForIPE("multiMethod(java.lang.String[][])",IProgramElement.Kind.METHOD,"java.lang.String[][]",false);
+-	  checkParametersForIPE("intArray(int[])",IProgramElement.Kind.METHOD,"int[]",false);
+-  }
+-  
+-  public void testToSignatureString_pr141730() {
+-	  runTest("new IProgramElement handle methods"); 
+-	  
+-	  checkSignatureOfIPE("main(java.lang.String[])",IProgramElement.Kind.METHOD);
+-	  checkSignatureOfIPE("C",IProgramElement.Kind.CLASS);
+-	  checkSignatureOfIPE("C()",IProgramElement.Kind.CONSTRUCTOR);
+-	  checkSignatureOfIPE("method()",IProgramElement.Kind.METHOD);
+-	  checkSignatureOfIPE("p()",IProgramElement.Kind.POINTCUT);
+-	  checkSignatureOfIPE("before(): p..",IProgramElement.Kind.ADVICE,"before()");
+-	  checkSignatureOfIPE("MyClass.method()",IProgramElement.Kind.INTER_TYPE_METHOD);
+-	  checkSignatureOfIPE("multiMethod(java.lang.String[][])",IProgramElement.Kind.METHOD);
+-	  checkSignatureOfIPE("intArray(int[])",IProgramElement.Kind.METHOD);
+-	  checkSignatureOfIPE("MyClass.MyClass()",IProgramElement.Kind.INTER_TYPE_CONSTRUCTOR);
+-  }
+-
+-  // if not filling in the model for aspects contained in jar files then
+-  // want to ensure that the relationship map is correct and has nodes
+-  // which can be used in AJDT - ensure no NPE occurs for the end of
+-  // the relationship with aspectpath
+-  public void testAspectPathRelWhenNotFillingInModel_pr141730() {
+-	  World.createInjarHierarchy = false;
+-	  try {
+-		  runTest("ensure aspectpath injar relationships are correct when not filling in model");
+-		  
+-		  // expecting:
+-		  // 	sourceOfRelationship main in MyFoo.java
+-          //		relationship advised by
+-          //			target MyBar.class
+-		  // 
+-		  // and
+-		  //
+-		  // 	sourceOfRelationship MyBar.class
+-          //		relationship advises
+-          //			target main in MyFoo.java
+-
+-		  
+-		  IHierarchy top = AsmManager.getDefault().getHierarchy();
+-		  IRelationshipMap asmRelMap = AsmManager.getDefault().getRelationshipMap();
+-		  assertEquals("expected two sources of relationships but only found " 
+-				  + asmRelMap.getEntries().size(),2,asmRelMap.getEntries().size());
+-		  for (Iterator iter = asmRelMap.getEntries().iterator(); iter.hasNext();) {
+-			  String sourceOfRelationship = (String) iter.next();
+-			  IProgramElement ipe = top.findElementForHandle(sourceOfRelationship);
+-			  List relationships = asmRelMap.get(ipe);
+-			  if (ipe.getName().equals("MyBar.class")) {
+-				  assertEquals("expected MyBar.class to have one relationships but found "
+-						  + relationships.size(),1,relationships.size());	
+-				  Relationship rel = (Relationship)relationships.get(0);
+-				  assertEquals("expected relationship to be 'advises' but was " 
+-						  + rel.getName(), "advises", rel.getName());
+-				  List targets = rel.getTargets();
+-				  assertEquals("expected one target but found " + targets.size(),1,targets.size());
+-				  IProgramElement link = top.findElementForHandle((String)targets.get(0));
+-				  assertEquals("expected target 'method-call(void foo.MyFoo.main())' but target " + link.getName(),
+-						  "method-call(void foo.MyFoo.main())",link.getName());
+-				  String fileName = link.getSourceLocation().getSourceFile().toString();
+-				  assertTrue("expected 'main' to be in class MyFoo.java but found it " +
+-				  		"in " + fileName,fileName.indexOf("MyFoo.java") != -1);
+-			  } else if (ipe.getName().equals("method-call(void foo.MyFoo.main())")) {
+-				  String fileName = ipe.getSourceLocation().getSourceFile().toString();
+-				  assertTrue("expected 'method-call(void foo.MyFoo.main())' to be in " +
+-				  		"class MyFoo.java but found it in"
+-				  		+ fileName,fileName.indexOf("MyFoo.java") != -1);
+-				  assertEquals("expected 'method-call(void foo.MyFoo.main())' " +
+-				  		"to have one relationships but found "
+-						  + relationships.size(),1,relationships.size());	
+-				  Relationship rel = (Relationship)relationships.get(0);
+-				  assertEquals("expected relationship to be 'advised by' but was " 
+-						  + rel.getName(), "advised by", rel.getName());
+-				  List targets = rel.getTargets();
+-				  assertEquals("expected one target but found " + targets.size(),1,targets.size());
+-				  IProgramElement link = top.findElementForHandle((String)targets.get(0));
+-				  assertEquals("expected target 'MyBar.class' but target " + link.getName(),
+-						  "MyBar.class",link.getName());
+-				  
+-			  } else {
+-				  fail("unexpected element " + ipe.getName() + " in the relationship map");
+-			  }
+-		  }
+-	  } finally {
+-		  World.createInjarHierarchy = true;
+-	  }
+-  }
+-
+-  // if not filling in the model for classes contained in jar files then
+-  // want to ensure that the relationship map is correct and has nodes
+-  // which can be used in AJDT - ensure no NPE occurs for the end of
+-  // the relationship with inpath
+-  public void testNoNPEWithInpathWhenNotFillingInModel_pr141730() {
+-	  World.createInjarHierarchy = false;
+-	  try {
+-		  runTest("ensure inpath injar relationships are correct when not filling in model");
+-		  // the aspect used for this test has advice, declare parents, deow,
+-		  // and declare @type, @constructor, @field and @method. We only expect
+-		  // there to be relationships in the map for declare parents and declare @type
+-		  // (provided the model isn't being filled in) because the logic in the other
+-		  // addXXXRelationship methods use AspectJElementHierarchy.findElementForType().
+-		  // This method which returns null because there is no such ipe. The relationship is
+-		  // therefore not added to the model. Adding declare @type and declare parents
+-		  // uses AspectJElementHierarchy.findElementForHandle() which returns the file
+-		  // node ipe if it can't find one for the given handle. Therefore the relationships
+-		  // are added against the file node. Before change to using ipe's to create handles
+-		  // we also had the deow relationship, however, now we don't because this also
+-		  // uses findElementForType to find the targetNode which in the inpath case is null.
+-		  
+-		  // just check that the number of entries is what we expect:
+-		  // We expect 3 (the declare @type and declare parents statements plus the filenode)
+-		  IRelationshipMap relMap = AsmManager.getDefault().getRelationshipMap();
+-		  assertEquals("expected 3 entries in the relationship map but found " 
+-				  + relMap.getEntries().size(), 3, relMap.getEntries().size());
+-	  } finally {
+-		  World.createInjarHierarchy = true;
+-	  }
+-  }
+-  
+-  public void testPCDInClassAppearsInModel_pr148027() {
+-	  // only want to test that its there if we're creating the uses pointcut
+-	  // relationship. This should be addressed by pr148027
+-	  if (!AsmHierarchyBuilder.shouldAddUsesPointcut) return;
+-	  World.createInjarHierarchy = false;
+-	  try {
+-		  runTest("ensure pcd declare in class appears in model");
+-		  IHierarchy top = AsmManager.getDefault().getHierarchy();
+-		  IProgramElement pcd = top.findElementForLabel(top.getRoot(),IProgramElement.Kind.POINTCUT,"pointcutInClass()");
+-		  IRelationshipMap relMap = AsmManager.getDefault().getRelationshipMap();
+-		  List relationships = relMap.get(pcd);
+-		  assertNotNull("expected relationships for pointcut " + pcd.toLinkLabelString()
+-				  + " but didn't", relationships);
+-		  
+-		  pcd = top.findElementForLabel(top.getRoot(),IProgramElement.Kind.POINTCUT,"pointcutInAspect()");
+-		  relationships = relMap.get(pcd);
+-		  assertNotNull("expected relationships for pointcut " + pcd.toLinkLabelString()
+-				  + " but didn't", relationships);
+-	  } finally {
+-		  World.createInjarHierarchy = true;
+-	  }
++	  checkGetParamSigOfMethod("genericMethod(java.util.List<java.lang.String>)","Pjava/util/List<Ljava/lang/String;>;");
++	  checkGetParamSigOfMethod("genericMethod2(MyGenericClass<java.lang.String,MyClass>)","PMyGenericClass<Ljava/lang/String;LMyClass;>;");
+   }
+ 
+ //  public void testFunkyGenericErrorWithITDs_pr126355_2() { 
+@@ -352,34 +152,15 @@ public class Ajc152Tests extends org.aspectj.testing.XMLBasedAjcTestCase {
+ 
+   // ---------------- helper methods ---------------
+ 
+-	private void checkParametersForIPE(String ipeLabel, IProgramElement.Kind kind, String expectedParm, boolean getHandles) {
++	private void checkGetParamSigOfMethod(String ipeLabel, String expectedParm) {
+ 		IHierarchy top = AsmManager.getDefault().getHierarchy();
+-		IProgramElement ipe = top.findElementForLabel(top.getRoot(),kind,ipeLabel);
++		IProgramElement ipe = top.findElementForLabel(top.getRoot(),IProgramElement.Kind.METHOD,ipeLabel);
+ 	    assertNotNull("Couldn't find '" + ipeLabel + "' element in the tree",ipe);
+-	    List l = new ArrayList();
+-	    if (getHandles) {
+-	    	l = ipe.getParameterSignatures();
+-	    } else {
+-	    	l = ipe.getParameterTypes();
+-	    }
++	    List l = ipe.getParameterSignatures();
+ 	    boolean eq = CharOperation.equals(((char[])l.get(0)),expectedParm.toCharArray());
+ 	    assertTrue("expected parameter to be '" + expectedParm + "' but found '" +
+ 	      		new String(((char[])l.get(0))) + "'",eq);
+ 	}
+-  
+-	private void checkSignatureOfIPE(String ipeLabel, IProgramElement.Kind kind) {
+-		checkSignatureOfIPE(ipeLabel,kind,ipeLabel);
+-	}
+-	
+-	private void checkSignatureOfIPE(String ipeLabel, IProgramElement.Kind kind, String expectedSig) {
+-		IHierarchy top = AsmManager.getDefault().getHierarchy();
+-		IProgramElement ipe = top.findElementForLabel(
+-				  top.getRoot(),kind,ipeLabel);
+-	    assertNotNull("Couldn't find '" + ipeLabel + "' element in the tree",ipe);
+-      	assertEquals("expected signature to be '"+ expectedSig + "' but was " +
+-				  ipe.toSignatureString(true),expectedSig,ipe.toSignatureString(true));
+-		
+-	}
+ 
+   /////////////////////////////////////////
+   public static Test suite() {
+@@ -643,10 +643,6 @@
+       <compile files="Covariance.java" options="-1.5"/>
+     </ajc-test>
+ 
+-    <ajc-test dir="bugs152" title="new IProgramElement handle methods">
+-      <compile files="pr141730.aj" options="-emacssym -1.5"/>
+-    </ajc-test>
+-    
+     <ajc-test dir="bugs152/pr147701" title="package for exception ignored">
+       <compile files="TestBean.java" options="-1.5"/>
+       <run class="a.b.c.TestBean"/>
+@@ -663,12 +659,6 @@
+       </compile>
+     </ajc-test>
+ 
+-    <ajc-test dir="bugs152" title="declare @method relationship">
+-     <compile files="pr143924.aj" options="-1.5 -showWeaveInfo -emacssym">
+-        <message kind="weave" text="'public void BankAccount.debit(String,long)' (pr143924.aj:7) is annotated with @Secured"/>
+-     </compile>
+-    </ajc-test>
+-
+     <!-- wont work whilst the compiler BuildArgParser.setDebugOptions is always switching debug on -->
+     <ajc-test dir="bugs152/pr129408" title="long winded ataj messages">
+       <compile files="AtAj.java" options="-XterminateAfterCompilation -g:none -1.5"/>
+@@ -699,16 +689,6 @@
+             </stderr>
+         </run>
+     </ajc-test>
+-
+-	<ajc-test dir="bugs152/pr141730/aspectpath" title="ensure aspectpath injar relationships are correct when not filling in model">
+-      <compile files="MyFoo.java" aspectpath="aspectpath.jar" options="-emacssym"/>
+-    </ajc-test>
+-
+-	<ajc-test dir="bugs152/pr141730/inpath" title="ensure inpath injar relationships are correct when not filling in model">
+-      <compile files="MyBar.aj, MyAnnotation.java, NewClass.java" inpath="inpath.jar" options="-1.5 -emacssym">
+-			<message kind="warning" line="20" text="System.out should not be called"/>
+-	  </compile>
+-    </ajc-test>
+ 
+    <ajc-test dir="ltw" title="weaveinfo messages with include and exclude">
+       <compile files="EmptyTest1.java, EmptyTest2.java"/>
+@@ -746,10 +726,6 @@
+       </run>
+     </ajc-test>
+ 
+-	<ajc-test dir="bugs152/pr148027" title="ensure pcd declare in class appears in model">
+-      <compile files="A.aj, C.aj" options="-emacssym"/>
+-    </ajc-test>
+-
+ 	<ajc-test dir="bugs152/pr148007" title="jrockit boolean fun">
+ 		<compile files="test/BooleanUnitTest.java, test/LoggingAspect.aj"/>
+ 		<run class="test.BooleanUnitTest"/>
+@@ -794,4 +770,13 @@
+           </stdout>
+         </run>
+     </ajc-test>
++
++
++   <ajc-test dir="bugs152" title="new iprogramelement method getParameterSignatures">
++      <compile files="pr141730a.java" options="-emacssym"/>
++    </ajc-test>
++
++   <ajc-test dir="bugs152" title="new iprogramelement method getParameterSignatures with generics">
++      <compile files="pr141730b.java" options="-1.5 -emacssym"/>
++    </ajc-test>
+ </suite>
+\ No newline at end of file
+@@ -15,6 +15,7 @@ import java.io.File;
+ import junit.framework.Test;
+ 
+ import org.aspectj.testing.XMLBasedAjcTestCase;
++import org.aspectj.weaver.World;
+ 
+ /**
+  * Tests the model when there is a requirement on Java5 features.
+@@ -30,6 +31,38 @@ public class Model5Tests extends ModelTestCase {
+ 		debugTest = false;
+ 	}
+ 
++	public void testDeclareAtTypeInStructureModel_pr115607() {runModelTest("declare at type appears correctly in structure model","pr115607");}
++	public void testStructureModelForGenericITD_pr131932() {runModelTest("structure model for generic itd","pr131932");}
++	public void testDeclareAnnotationAppearsInStructureModel_pr132130() {runModelTest("declare annotation appears in structure model when in same file","pr132130");}
++	public void testAtAspectDEOWInStructureModel_pr120356() {runModelTest("@AJ deow appear correctly when structure model is generated","pr120356");}
++	public void testDeclareAtMethodRelationship_pr143924() {runModelTest("declare @method relationship","pr143924");}
++	public void testNewIProgramElementMethodsForGenerics_pr141730() {runModelTest("new iprogramelement methods for generics","pr141730_2");}
++
++	// if not filling in the model for classes contained in jar files then
++	// want to ensure that the relationship map is correct and has nodes
++	// which can be used in AJDT - ensure no NPE occurs for the end of
++	// the relationship with inpath
++	public void testAspectPathRelWhenNotFillingInModel_pr141730() {
++		World.createInjarHierarchy = false;
++		try {
++			// the aspect used for this test has advice, declare parents, deow,
++			// and declare @type, @constructor, @field and @method. We only expect
++			// there to be relationships in the map for declare parents and declare @type
++			// (provided the model isn't being filled in) because the logic in the other
++			// addXXXRelationship methods use AspectJElementHierarchy.findElementForType().
++			// This method which returns null because there is no such ipe. The relationship is
++			// therefore not added to the model. Adding declare @type and declare parents
++			// uses AspectJElementHierarchy.findElementForHandle() which returns the file
++			// node ipe if it can't find one for the given handle. Therefore the relationships
++			// are added against the file node. Before change to using ipe's to create handles
++			// we also had the deow relationship, however, now we don't because this also
++			// uses findElementForType to find the targetNode which in the inpath case is null.
++			runModelTest("ensure inpath injar relationships are correct when not filling in model","pr141730_4");
++		} finally {
++			World.createInjarHierarchy = true;
++		}
++	}
++	
+ 	// ///////////////////////////////////////
+ 	public static Test suite() {
+ 		return XMLBasedAjcTestCase.loadSuite(Model5Tests.class);
+@@ -14,7 +14,9 @@ import java.io.File;
+ 
+ import junit.framework.Test;
+ 
++import org.aspectj.ajdt.internal.core.builder.AsmHierarchyBuilder;
+ import org.aspectj.testing.XMLBasedAjcTestCase;
++import org.aspectj.weaver.World;
+ 
+ /**
+  * Tests the model when there is no requirement on Java5 features.
+@@ -29,11 +31,42 @@ public class ModelTests extends ModelTestCase {
+ 		// Switch this to true if you want to debug the comparison
+ 		debugTest = false;
+ 	}
++
++	public void testAdviceInStructureModelWithAnonymousInnerClass_pr77269() {runModelTest("advice in structure model with anonymous inner class","pr77269_1");}
++	public void testAdviceInStructureModelWithNamedInnerClass_pr77269() {runModelTest("advice in structure model with named inner class","pr77269_2");}
++	public void testDWInStructureModelWithAnonymousInnerClass_pr77269() {runModelTest("declare warning in structure model with anonymous inner class","pr77269_3");}
++	public void testNewIProgramElementMethods_pr141730() {runModelTest("new iprogramelement methods","pr141730_1");}
++
++	// if not filling in the model for aspects contained in jar files then
++	// want to ensure that the relationship map is correct and has nodes
++	// which can be used in AJDT - ensure no NPE occurs for the end of
++	// the relationship with aspectpath
++	public void testAspectPathRelWhenNotFillingInModel_pr141730() {
++		World.createInjarHierarchy = false;
++		try {
++			runModelTest("ensure aspectpath injar relationships are correct when not filling in model","pr141730_3");
++		} finally {
++			World.createInjarHierarchy = true;
++		}
++	}
++	
++	public void testPCDInClassAppearsInModel_pr148027() {
++		boolean b = AsmHierarchyBuilder.shouldAddUsesPointcut;
++		AsmHierarchyBuilder.shouldAddUsesPointcut = true;
++		World.createInjarHierarchy = false;
++		try {
++			runModelTest("ensure pcd declare in class appears in model", "pr148027");
++		} finally {
++			World.createInjarHierarchy = true;
++			AsmHierarchyBuilder.shouldAddUsesPointcut = b;
++		}
++	}
+ 
+ 	public void testSourceLocationAndJarFile_pr145963() {runModelTest("sourcelocation and jar file","pr145963_1");}
+ 	public void testSourceLocationAndClassFile_pr145963() {runModelTest("sourcelocation and class file","pr145963_2");}
+ 	public void testAspectInDefaultPackage_pr145963() {runModelTest("aspect in default package", "pr145963_3");}
+ 	public void testAspectInJavaFile_pr145963() {runModelTest("aspect in java file", "pr145963_4");}
++
+ 
+ 	/////////////////////////////////////////
+ 	public static Test suite() {
+@@ -2,6 +2,21 @@
+ 
+ <!-- Model and Hierarchy Tests -->
+ <suite>
++<!-- non-AspectJ 5 specific tests -->
++
++    <ajc-test dir="model/pr77269_1" title="advice in structure model with anonymous inner class">
++        <compile files="pack/pr77269.aj" options="-emacssym"/>
++    </ajc-test> 
++
++    <ajc-test dir="model/pr77269_2" title="advice in structure model with named inner class">
++        <compile files="pr77269b.aj" options="-emacssym"/>
++    </ajc-test> 
++
++    <ajc-test dir="model/pr77269_3" title="declare warning in structure model with anonymous inner class">
++        <compile files="pack/pr77269c.aj" options="-emacssym">
++        	<message kind="warning" line="8" text="blah blah blah"/>
++        </compile>
++    </ajc-test> 
+ 
+     <ajc-test dir="model/pr145963_1" title="sourcelocation and jar file">
+       <compile files="C.java, SourceAspect.aj" aspectpath="simple.jar" options="-emacssym">
+@@ -26,6 +41,56 @@
+ 		<message kind="warning" line="6" text="There should be no printlns"/>
+ 	</compile>
+     </ajc-test>
++    
++    <ajc-test dir="model/pr141730_1" title="new iprogramelement methods">
++      <compile files="pr141730.aj" options="-emacssym"/>
++    </ajc-test>
++
++	<ajc-test dir="model/pr141730_3" title="ensure aspectpath injar relationships are correct when not filling in model">
++      <compile files="MyFoo.java" aspectpath="aspectpath.jar" options="-emacssym"/>
++    </ajc-test>
++
++	<ajc-test dir="model/pr148027" title="ensure pcd declare in class appears in model">
++      <compile files="A.aj, C.aj" options="-emacssym"/>
++    </ajc-test>
++
++
++<!-- AspectJ 5 specific tests -->
++
++	<ajc-test dir="model/pr115607" title="declare at type appears correctly in structure model">
++        <compile files="pr115607.java" options="-1.5,-emacssym"/>
++    </ajc-test>
++
++    <ajc-test dir="model/pr131932" title="structure model for generic itd">
++        <compile files="pr131932.aj" options="-1.5 -emacssym"/>
++    </ajc-test>
++
++    <ajc-test dir="model/pr132130" title="declare annotation appears in structure model when in same file">
++        <compile files="pr132130.aj" options="-1.5 -emacssym"/>
++    </ajc-test>
++    
++    <ajc-test dir="model/pr120356" title="@AJ deow appear correctly when structure model is generated">
++        <compile files="C.java, A.java" options="-1.5, -emacssym">
++         <message kind="error" line="8" text="error"/>
++         <message kind="warning" line="5" text="warning"/>
++        </compile>
++    </ajc-test>
++
++    <ajc-test dir="model/pr143924" title="declare @method relationship">
++     <compile files="pr143924.aj" options="-1.5 -showWeaveInfo -emacssym">
++        <message kind="weave" text="'public void BankAccount.debit(String,long)' (pr143924.aj:7) is annotated with @Secured"/>
++     </compile>
++    </ajc-test>
++    
++    <ajc-test dir="model/pr141730_2" title="new iprogramelement methods for generics">
++      <compile files="pr141730.aj" options="-1.5 -emacssym"/>
++    </ajc-test>
++
++	<ajc-test dir="model/pr141730_4" title="ensure inpath injar relationships are correct when not filling in model">
++      <compile files="MyBar.aj, MyAnnotation.java, NewClass.java" inpath="inpath.jar" options="-1.5 -emacssym">
++			<message kind="warning" line="20" text="System.out should not be called"/>
++	  </compile>
++    </ajc-test>
+ 
+ 
+ </suite>

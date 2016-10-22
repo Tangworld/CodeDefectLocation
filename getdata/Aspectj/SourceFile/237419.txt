@@ -1,0 +1,168 @@
+@@ -391,4 +391,12 @@ public class JoinPointSignature implements ResolvedMember {
+ 	public String getAnnotationDefaultValue() {
+ 		return realMember.getAnnotationDefaultValue();
+ 	}
++
++	public String getParameterSignatureErased() {
++		return realMember.getParameterSignatureErased();
++	}
++
++	public String getSignatureErased() {
++		return realMember.getSignatureErased();
++	}
+ }
+@@ -66,6 +66,8 @@ public interface ResolvedMember extends Member, AnnotatedElement, TypeVariableDe
+ 	public AnnotationX[][] getParameterAnnotations();
+ 	public ResolvedType[][] getParameterAnnotationTypes();
+ 	public String getAnnotationDefaultValue();
++	public String getParameterSignatureErased();
++	public String getSignatureErased();
+ 
+ 	public String[] getParameterNames(World world);
+ 
+@@ -885,8 +885,8 @@ public class ResolvedMemberImpl extends MemberImpl implements IHasPosition, Anno
+ 			return true;
+ 		} else {
+ 			// try erasure
+-			myParameterSignature = getParameterSigErasure();
+-			candidateParameterSignature = candidateMatchImpl.getParameterSigErasure();
++			myParameterSignature = getParameterSignatureErased();
++			candidateParameterSignature = candidateMatchImpl.getParameterSignatureErased();
+ 			return myParameterSignature.equals(candidateParameterSignature);
+ 		}
+ 	}
+@@ -913,7 +913,11 @@ public class ResolvedMemberImpl extends MemberImpl implements IHasPosition, Anno
+ 		return myParameterSignatureWithBoundsRemoved;
+ 	}
+ 
+-	private String getParameterSigErasure() {
++	/**
++	 * Return the erased form of the signature with bounds collapsed for type variables, etc.
++     * Does not include the return type, @see getParam
++	 */
++	public String getParameterSignatureErased() {
+ 		if (myParameterSignatureErasure != null) return myParameterSignatureErasure;
+ 		StringBuffer sig = new StringBuffer();
+ 		UnresolvedType[] myParameterTypes = getParameterTypes();
+@@ -923,13 +927,22 @@ public class ResolvedMemberImpl extends MemberImpl implements IHasPosition, Anno
+                 TypeVariableReferenceType typeVariableRT = (TypeVariableReferenceType) thisParameter;
+                 sig.append(typeVariableRT.getUpperBound().getSignature());
+ 			} else {
+-				sig.append(thisParameter.getSignature());
++				sig.append(thisParameter.getErasureSignature()); 
+ 			}
+ 		}
+ 		myParameterSignatureErasure = sig.toString();
+ 		return myParameterSignatureErasure;		
+ 	}
+ 
++	public String getSignatureErased() {
++		StringBuffer sb = new StringBuffer();
++		sb.append("(");
++		sb.append(getParameterSignatureErased());
++		sb.append(")");
++		sb.append(getReturnType().getErasureSignature());
++		return sb.toString();
++	}
++	
+ 	// does NOT produce a meaningful java signature, but does give a unique string suitable for
+ 	// comparison.
+ 	public static void appendSigWithTypeVarBoundsRemoved(UnresolvedType aType, StringBuffer toBuffer, Set alreadyUsedTypeVars) {
+@@ -714,9 +714,9 @@ class BcelClassWeaver implements IClassWeaver {
+ 			UnresolvedType[] bm = BcelWorld.fromBcel(bridgeToCandidate.getArgumentTypes());
+ 			ResolvedMember overriddenMethod = checkForOverride(theSuperclass,name,psig,rsig,bridgeToCandidate.getAccessFlags(),pkgName,bm);
+ 			if (overriddenMethod!=null) { 
+-				String key = new StringBuffer().append(overriddenMethod.getName()).append(overriddenMethod.getSignature()).toString();
++				String key = new StringBuffer().append(overriddenMethod.getName()).append(overriddenMethod.getSignatureErased()).toString(); // pr 237419
+ 				boolean alreadyHaveABridgeMethod = methodsSet.contains(key);
+-				if (!alreadyHaveABridgeMethod) {
++				if (!alreadyHaveABridgeMethod) { 
+ 					if (world.forDEBUG_bridgingCode) System.err.println("Bridging:bridging to '"+overriddenMethod+"'");
+ 					createBridgeMethod(world, bridgeToCandidate, clazz, overriddenMethod);
+ 					methodsSet.add(key);
+@@ -732,7 +732,7 @@ class BcelClassWeaver implements IClassWeaver {
+ 				ResolvedType interfaceType = world.resolve(interfaces[j]);
+ 				overriddenMethod = checkForOverride(interfaceType,name,psig,rsig,bridgeToCandidate.getAccessFlags(),clazz.getPackageName(),bm);
+ 				if (overriddenMethod!=null) { 
+-					String key = new StringBuffer().append(overriddenMethod.getName()).append(overriddenMethod.getSignature()).toString();
++					String key = new StringBuffer().append(overriddenMethod.getName()).append(overriddenMethod.getSignatureErased()).toString(); // pr 237419
+ 					boolean alreadyHaveABridgeMethod = methodsSet.contains(key);
+ 					if (!alreadyHaveABridgeMethod) {
+ 						createBridgeMethod(world, bridgeToCandidate, clazz, overriddenMethod);
+@@ -137,10 +137,12 @@ public class BcelPerClauseAspectAdder extends BcelTypeMunger {
+     }
+ 
+     public boolean matches(ResolvedType onType) {
+-        //we cannot return onType.equals(aspectType)
+-        //since we need to eagerly create the nested ajcMighHaveAspect interface on LTW
+-        return true;
+-        //return aspectType.equals(onType);
++    	// cannot always do the right thing because may need to eagerly generate ajcMightHaveAspect interface for LTW (says Alex)
++    	if (hasGeneratedInner) { // pr237419 - not always going to generate the marker interface
++    		return aspectType.equals(onType);
++    	} else {
++    		return true;
++    	}
+     }
+ 
+     private boolean hasPerClauseMembersAlready(LazyClassGen classGen) {
+@@ -23,6 +23,7 @@ import org.aspectj.testing.XMLBasedAjcTestCase;
+ public class Ajc161Tests extends org.aspectj.testing.XMLBasedAjcTestCase {
+ 
+ 	// AspectJ1.6.1	
++	public void testGenericAtAround_pr237419() { runTest("generics ataround");}
+ 	public void testGenericMarkerMatch_pr203367() { runTest("generic marker match");}
+ //	public void testSuperItds_pr134425() { runTest("super itds"); }
+ 	public void testSuperItds_pr198196_1() { runTest("super itds - 2"); }
+@@ -3,6 +3,11 @@
+ <!-- AspectJ v1.6.1 Tests -->
+ <suite>
+ 
++	<ajc-test dir="bugs161/pr237419" title="generics ataround">
++    	<compile files="problem/aspect/AnyAspect.java problem/SpecificService.java problem/Specific.java problem/GenericService.java problem/Generic.java" options="-1.5"/>
++    	<run class="problem.SpecificService"/>
++    </ajc-test>
++    
+ 	<ajc-test dir="bugs161/pr203367" title="generic marker match">
+     	<compile files="CantMatchOnInterfaceIntroducedToGenericClass.java" options="-1.5"/>
+     	<run class="bug.CantMatchOnInterfaceIntroducedToGenericClass"/>
+@@ -0,0 +1,5 @@
++package problem;
++
++public class Generic<T> {
++
++}
+@@ -0,0 +1,5 @@
++package problem;
++
++public abstract class GenericService<T extends Generic<?>> {
++  protected abstract T update(T current);
++}
+@@ -0,0 +1,5 @@
++package problem;
++
++public class Specific extends Generic<String> {
++
++}
+@@ -0,0 +1,12 @@
++package problem;
++
++public class SpecificService extends GenericService<Specific> {
++  @Override
++  protected Specific update(Specific current) {
++    return null;
++  }
++
++  public static void main(String[] args) {
++    new SpecificService();
++  }
++}
+@@ -0,0 +1,8 @@
++package problem.aspect;
++
++import org.aspectj.lang.annotation.Aspect;
++
++//@Aspect public class AnyAspect {
++@Aspect
++public class AnyAspect {
++}

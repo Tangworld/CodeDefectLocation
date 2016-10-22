@@ -1,0 +1,106 @@
+@@ -2158,6 +2158,7 @@ public class BcelShadow extends Shadow {
+ 			proceedVarList.add(new BcelVar(targetVar.getType(), extraParamOffset));
+ 			extraParamOffset += targetVar.getType().getSize();
+ 		}
++		int idx = 0;
+ 		for (int i = 0, len = getArgCount(); i < len; i++) {
+ 			argsToCallLocalAdviceMethodWith.add(argVars[i]);
+ 			proceedVarList.add(new BcelVar(argVars[i].getType(), extraParamOffset));
+@@ -2533,6 +2534,7 @@ public class BcelShadow extends Shadow {
+ 			int localJp = localAdviceMethod.allocateLocal(proceedingJpType);
+ 			ret.append(InstructionFactory.createStore(proceedingJpType, localJp));
+ 
++			int idx = 0;
+ 			for (int i = 0, len = callbackMethod.getArgumentTypes().length; i < len; i++) {
+ 				Type stateType = callbackMethod.getArgumentTypes()[i];
+ 				/* ResolvedType stateTypeX = */
+@@ -2547,8 +2549,10 @@ public class BcelShadow extends Shadow {
+ 					// // ));
+ 					// // cast ?
+ 					//
++					idx++;
+ 				} else {
+-					ret.append(InstructionFactory.createLoad(stateType, i));
++					ret.append(InstructionFactory.createLoad(stateType, idx));
++					idx += stateType.getSize();
+ 				}
+ 			}
+ 		}
+@@ -0,0 +1,25 @@
++package business;
++
++import org.aspectj.lang.ProceedingJoinPoint;
++import org.aspectj.lang.annotation.Around;
++import org.aspectj.lang.annotation.Aspect;
++
++public class AA {
++
++        public void foo(long docId, String userid) {
++        }
++
++        public static void main(String[] args) {
++                new AA().foo(12, "hello");
++        }
++}
++
++@Aspect
++class Asp {
++
++        @Around("execution(* foo(..))")
++        public Object around(ProceedingJoinPoint pjp) {
++                return pjp.proceed();
++        }
++}
++
+@@ -0,0 +1,19 @@
++package business;
++
++public class CC {
++
++        public void foo(long docId, String userid) {
++        }
++
++        public static void main(String[] args) {
++                new CC().foo(12, "hello");
++        }
++}
++
++aspect Asp {
++
++        Object around(): execution(* foo(..)) {
++                return proceed();
++        }
++}
++
+@@ -34,6 +34,14 @@ import org.aspectj.testing.XMLBasedAjcTestCase;
+ 
+ public class Ajc164Tests extends org.aspectj.testing.XMLBasedAjcTestCase {
+ 
++	public void testAnnoStyleLong_pr266564() {
++		runTest("annotation style long");
++	}
++
++	public void testAnnoStyleLong_pr266564_2() {
++		runTest("annotation style long - 2");
++	}
++
+ 	public void testUnusedPrivateWarning_pr266420() {
+ 		runTest("unused private warning");
+ 	}
+@@ -2,6 +2,16 @@
+ 
+ <suite>
+ 
++   <ajc-test dir="bugs164/pr266564" title="annotation style long">
++     <compile files="AA.java" options="-1.5"/>
++     <run class="business.AA"/>
++   </ajc-test>
++   
++   <ajc-test dir="bugs164/pr266564" title="annotation style long - 2">
++     <compile files="CC.java" options="-1.5"/>
++     <run class="business.CC"/>
++   </ajc-test>
++   
+    <ajc-test dir="bugs164/pr266420" title="unused private warning">
+      <compile files="A.java" options="-1.5 -warn:unusedPrivate"/>
+    </ajc-test>

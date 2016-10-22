@@ -1,0 +1,237 @@
+@@ -103,6 +103,10 @@ public class AjBuildManager implements IOutputClassFileNameProvider,IBinarySourc
+     // If runtime version check fails, warn or fail? (unset?)
+     static final boolean FAIL_IF_RUNTIME_NOT_FOUND = false;
+ 
++    // support for producing .class files containing errors and maintaining 'state' even when the
++    // project is broken (meaning all builds after the first are incremental)
++    public static boolean continueWhenErrors = true;
++    
+     private static final FileFilter binarySourceFilter = 
+ 		new FileFilter() {
+ 			public boolean accept(File f) {
+@@ -186,7 +190,6 @@ public class AjBuildManager implements IOutputClassFileNameProvider,IBinarySourc
+         throws IOException, AbortException {
+         return doBuild(buildConfig, baseHandler, false);
+     }
+-    
+ 
+     /** @throws AbortException if check for runtime fails */
+     protected boolean doBuild(
+@@ -265,10 +268,10 @@ public class AjBuildManager implements IOutputClassFileNameProvider,IBinarySourc
+                 binarySourcesForTheNextCompile = state.getBinaryFilesToCompile(true);
+                 performCompilation(buildConfig.getFiles());
+                 state.clearBinarySourceFiles(); // we don't want these hanging around...
+-                if (handler.hasErrors()) {
++                if (!continueWhenErrors && handler.hasErrors()) {
+                    	CompilationAndWeavingContext.leavingPhase(ct);
+-                   	if (AsmManager.isReporting())
+-    				    AsmManager.getDefault().reportModelInfo("After a failed batch build");
++                  	if (AsmManager.isReporting())
++    				    AsmManager.getDefault().reportModelInfo("After a batch build");
+                     return false;
+                 }
+ 
+@@ -293,7 +296,7 @@ public class AjBuildManager implements IOutputClassFileNameProvider,IBinarySourc
+                     // System.err.println("XXXX inc: " + files);
+ 
+                     performCompilation(files);
+-                    if (handler.hasErrors() || (progressListener!=null && progressListener.isCancelledRequested())) {
++                    if ((!continueWhenErrors && handler.hasErrors()) || (progressListener!=null && progressListener.isCancelledRequested())) {
+                         CompilationAndWeavingContext.leavingPhase(ct);
+                         return false;
+                     } 
+@@ -1027,7 +1030,7 @@ public class AjBuildManager implements IOutputClassFileNameProvider,IBinarySourc
+ 			public void acceptResult(CompilationResult unitResult) {
+ 				// end of compile, must now write the results to the output destination
+ 				// this is either a jar file or a file in a directory
+-				if (!(unitResult.hasErrors() && !proceedOnError())) {			
++				if (!((unitResult.hasErrors() && !continueWhenErrors) && !proceedOnError())) {			
+ 					Collection classFiles = unitResult.compiledTypes.values();
+ 					boolean shouldAddAspectName = (buildConfig.getOutxmlName() != null);
+ 					for (Iterator iter = classFiles.iterator(); iter.hasNext();) {
+@@ -16,6 +16,8 @@ import java.io.File;
+ import java.io.IOException;
+ import java.util.Date;
+ 
++import org.aspectj.ajdt.internal.core.builder.AjBuildManager;
++
+ 
+ public class ProceedOnErrorTestCase extends CommandTestCase {
+ 
+@@ -29,17 +31,22 @@ public class ProceedOnErrorTestCase extends CommandTestCase {
+ 	 * C2.java.
+ 	 */
+ 	public void testNoProceedOnError() throws IOException {
+-		checkCompile("src1/C1.java", NO_ERRORS);
+-	    File f =new File(getSandboxName(),"C.class");
+-	    long oldmodtime = f.lastModified();
+-	    pause(2);
+-		checkCompile("src1/C2.java", new int[]{1});
+-	    f =new File(getSandboxName(),"C.class");
+-	    long newmodtime = f.lastModified();
+-        // Without -proceedOnError supplied, we should *not* change the time stamp on the .class file
+-	    assertTrue("The .class file should not have been modified as '-proceedOnError' was not supplied (old="+
+-	    		   new Date(oldmodtime).toString()+")(new="+new Date(newmodtime).toString()+")",
+-	    		   oldmodtime==newmodtime);
++		try {
++			AjBuildManager.continueWhenErrors=false;
++			checkCompile("src1/C1.java", NO_ERRORS);
++		    File f =new File(getSandboxName(),"C.class");
++		    long oldmodtime = f.lastModified();
++		    pause(2);
++			checkCompile("src1/C2.java", new int[]{1});
++		    f =new File(getSandboxName(),"C.class");
++		    long newmodtime = f.lastModified();
++	        // Without -proceedOnError supplied, we should *not* change the time stamp on the .class file
++		    assertTrue("The .class file should not have been modified as '-proceedOnError' was not supplied (old="+
++		    		   new Date(oldmodtime).toString()+")(new="+new Date(newmodtime).toString()+")",
++		    		   oldmodtime==newmodtime);
++		} finally {
++			AjBuildManager.continueWhenErrors=true;
++		}
+ 	}
+ 
+ 	public void testProceedOnError() throws IOException {
+@@ -1,4 +1,4 @@
+-=== MODEL STATUS REPORT ========= After a failed batch build
++=== MODEL STATUS REPORT ========= After a batch build
+ <root>  [java source file] 
+   A.java  [java source file] TEST_SANDBOX\A.java:1:
+     import declarations  [import reference] 
+@@ -14,7 +14,7 @@
+       warningMethod()  [method] TEST_SANDBOX\C.java:5:
+       badMethod()  [method] TEST_SANDBOX\C.java:8:
+ === END OF MODEL REPORT =========
+-=== RELATIONSHIPS REPORT ========= After a failed batch build
++=== RELATIONSHIPS REPORT ========= After a batch build
+ (targets=1) {A.java}A^warning (matched by) {C.java[C~warningMethod
+ (targets=1) {C.java[C~badMethod (matches declare) {A.java}A^error
+ (targets=1) {C.java[C~warningMethod (matches declare) {A.java}A^warning
+@@ -23,6 +23,8 @@ import org.aspectj.testing.XMLBasedAjcTestCase;
+ public class Ajc161Tests extends org.aspectj.testing.XMLBasedAjcTestCase {
+ 
+ 	// AspectJ1.6.1	
++	public void testRunningBrokenCode_pr102733_2() { runTest("running broken code - 2"); }
++	public void testRunningBrokenCode_pr102733() { runTest("running broken code"); }
+ 	public void testErrorOnNonabstractGenericAtAspectJAspect_pr168982() { runTest("error on non-abstract generic ataspectj aspect");}
+ 	public void testIgnoringTypeLevelSuppression_pr234933() { runTest("ignoring type level suppress");}
+ 	public void testDuplicateMethodSignature_pr223226_2() { runTest("duplicate method signature - 2"); }
+@@ -3,6 +3,20 @@
+ <!-- AspectJ v1.6.1 Tests -->
+ <suite>
+ 
++	<ajc-test dir="bugs161/pr102733" title="running broken code">
++    	<compile files="Invoker.java C.java" options="">
++    	  <message kind="error" line="2" text="Syntax error"/>
++    	</compile>
++    	<run class="Invoker"/>
++    </ajc-test>
++    
++	<ajc-test dir="bugs161/pr102733" title="running broken code - 2">
++    	<compile files="Invoker2.java C2.java" options="">
++    	  <message kind="error" line="5"/>
++    	</compile>
++    	<run class="Invoker2"/>
++    </ajc-test>
++    
+ 	<ajc-test dir="bugs161/pr168982" title="error on non-abstract generic ataspectj aspect">
+     	<compile files="TracingAspect2.java" options="-1.5">
+     	  <message kind="error" line="9"/>
+@@ -252,6 +252,30 @@ public class MultiProjectIncrementalTests extends AbstractMultiProjectIncrementa
+ 		checkWasntFullBuild();
+ 	}
+ 
++	public void testBrokenCodeCompilation() {
++		initialiseProject("pr102733_1");
++		build("pr102733_1");
++		checkWasFullBuild();
++		checkCompileWeaveCount("pr102733_1",1,0);
++		assertTrue("There should be an error:\n"
++				+getErrorMessages("pr102733_1"),!getErrorMessages("pr102733_1").isEmpty());	
++		build("pr102733_1"); // incremental
++		checkCompileWeaveCount("pr102733_1",0,0);
++		checkWasntFullBuild();		
++		alter("pr102733_1","inc1"); // fix the error
++		build("pr102733_1");
++		checkWasntFullBuild();		
++		checkCompileWeaveCount("pr102733_1",1,1);
++		assertTrue("There should be no errors:\n"
++				+getErrorMessages("pr102733_1"),getErrorMessages("pr102733_1").isEmpty());	
++		alter("pr102733_1","inc2"); // break it again
++		build("pr102733_1");
++		checkWasntFullBuild();		
++		checkCompileWeaveCount("pr102733_1",1,0);
++		assertTrue("There should be an error:\n"
++				+getErrorMessages("pr102733_1"),!getErrorMessages("pr102733_1").isEmpty());	
++	}
++	
+ //	public void testDeclareAtType_pr149293() {
+ //		configureBuildStructureModel(true);
+ //		initialiseProject("PR149293_1");
+@@ -0,0 +1,2 @@
++
++blahblahpackage pack;public class C { public static void main(String[]argv) {}}
+@@ -0,0 +1,11 @@
++
++public class C2 { 
++	
++	public void foo() {
++		i cant be bothered to fill this in!
++	}
++	
++	public static void main(String[]argv) {
++		
++	}
++}
+@@ -0,0 +1,14 @@
++import java.lang.reflect.Method;
++
++public class Invoker {
++	public static void main(String[] args) throws Throwable {
++		try {
++			C.main(null);
++		} catch (Throwable t) {
++			boolean failedCorrectly = t.toString().indexOf("Unresolved compilation")!=-1;
++			if (failedCorrectly) return;
++			throw t;
++		}
++		throw new RuntimeException("Call to main should have failed!");
++	}
++}
+\ No newline at end of file
+@@ -0,0 +1,7 @@
++import java.lang.reflect.Method;
++
++public class Invoker2 {
++	public static void main(String[] args) throws Throwable {
++		C2.main(null); // C2.main() isnt broken but C2.foo() is
++	}
++}
+\ No newline at end of file
+@@ -0,0 +1,8 @@
++public class C {
++  public static void main(String[] argv) {
++  }
++
++  public void foo() {
++    I is busted
++  }
++}
+@@ -0,0 +1,8 @@
++public class C {
++  public static void main(String[] argv) {
++  }
++
++  public void foo() {
++//    I is busted
++  }
++}
+@@ -0,0 +1,8 @@
++public class C {
++  public static void main(String[] argv) {
++  }
++
++  public void foo() {
++    I is busted
++  }
++}

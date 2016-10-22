@@ -1,7 +1,6 @@
-#!/home/tsj/PycharmProjects/CodeDefectLocation/getdata/Aspectj
+#!/usr/local/python
 # -*- coding: utf-8 -*-
 # encoding=utf-8
-
 import urllib
 import re
 import MySQLdb
@@ -27,42 +26,44 @@ def getAllLinks():
     count = 0
     print type(urls)
     print urls.__len__()
-    db = MySQLdb.connect("localhost", "root", "root", "CodeDefectLocation")
-    cursor = db.cursor()
+
+    flag = False
     for url in urls:
-        print "count:"+count
         if count!=0:
             #进入具体页面
             try:
                 print "enter"
                 url = prefix+url["href"].encode("utf-8")
                 BUGID = url[url.index('=')+1:].strip()
-                print url
-                page = urllib.urlopen(url).read()
-                soup2 = BeautifulSoup(page, 'html.parser')
-                STATUS = soup2.find(name='span', attrs={"id": re.compile(r'^static_bug_status')})
-                if STATUS is not None:
-                    STATUS = STATUS.string.encode("utf-8").strip()
-                ORIGINAL = soup2.find(name='span', attrs={"class": re.compile(r'^fn')})
-                if ORIGINAL is not None:
-                    ORIGINAL = ORIGINAL.string.encode("utf-8").strip()
-                DESCRIPTION = soup2.find(name='span', attrs={"id": re.compile(r'^short_desc_nonedit_display')}).string
-                if DESCRIPTION is not None:
-                    DESCRIPTION = DESCRIPTION.strip()
-                print type(DESCRIPTION)
-                ASSIGNEES = []
-                ASSIGNEES = getHistory(BUGID)
-                STATUS = STATUS.replace("\n", "")
-                print BUGID + "   " + STATUS + "    " + ORIGINAL + "      " + DESCRIPTION
-                save(BUGID, STATUS, ORIGINAL, ASSIGNEES, None, DESCRIPTION, cursor, db)
+                if BUGID == "350855":
+                    flag = True
+                if flag == True:
+                    print url
+                    page = urllib.urlopen(url).read()
+                    soup2 = BeautifulSoup(page, 'html.parser')
+                    STATUS = soup2.find(name='span', attrs={"id": re.compile(r'^static_bug_status')})
+                    if STATUS is not None:
+                        STATUS = STATUS.string.encode("utf-8").strip()
+                    ORIGINAL = soup2.find(name='span', attrs={"class": re.compile(r'^fn')})
+                    if ORIGINAL is not None:
+                        ORIGINAL = ORIGINAL.string.encode("utf-8").strip()
+                    DESCRIPTION = soup2.find(name='span', attrs={"id": re.compile(r'^short_desc_nonedit_display')}).string
+                    if DESCRIPTION is not None:
+                        DESCRIPTION = DESCRIPTION.strip()
+                    print type(DESCRIPTION)
+                    ASSIGNEES = []
+                    ASSIGNEES = getHistory(BUGID)
+                    STATUS = STATUS.replace("\n", "")
+                    print BUGID + "   " + STATUS + "    " + ORIGINAL + "      " + DESCRIPTION
+                    save(BUGID, STATUS, ORIGINAL, ASSIGNEES, None, DESCRIPTION)
             except Exception, ex:
                 continue
         count += 1
-        if count == 15:
-            cursor.close()
-            db.close()
-            db = MySQLdb.connect("localhost", "root", "root", "CodeDefectLocation")
-            cursor = db.cursor()
+        # if count == 15:
+        #     cursor.close()
+        #     db.close()
+        #     db = MySQLdb.connect("localhost", "root", "root", "CodeDefectLocation")
+        #     cursor = db.cursor()
 
     print count
 
@@ -90,8 +91,7 @@ def getHistory(bugid):
                 assignees.append(tdd.string.strip())
     return assignees
 
-def save(bugid,status,original,current,path,description, cursor, db):
-    # print bugid+"   "+status+"    "+original+"   "+current+"   "+description
+def save(bugid,status,original,current,path,description):
     """
     爬取到所需的信息后则调用该函数将数据插入到数据库中
     :param bugid: bug编号
@@ -103,7 +103,8 @@ def save(bugid,status,original,current,path,description, cursor, db):
     """
     # 链接数据库
 
-
+    db = MySQLdb.connect("localhost", "root", "root", "CodeDefectLocation")
+    cursor = db.cursor()
     # 插入数据
     if current.__len__() > 0:
         cursor.execute("INSERT INTO aspectj(bugid,original,current1,status,description) VALUES ('%s', '%s', '%s', '%s', '%s')" % (bugid, original, "yes", status, description))
@@ -115,8 +116,8 @@ def save(bugid,status,original,current,path,description, cursor, db):
 
     # 关闭数据库
     db.commit()  # Commit the transaction
-    # cursor.close()
-    # db.close()
+    cursor.close()
+    db.close()
 
 if __name__ == '__main__':
     getAllLinks()

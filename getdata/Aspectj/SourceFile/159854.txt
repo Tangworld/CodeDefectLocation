@@ -1,0 +1,1465 @@
+@@ -55,6 +55,17 @@
+                             	e.g. <literal>error</literal>. 
+                             </entry>
+                         </row>
++                        <row>
++                            <entry>
++                                <literal>org.aspectj.dump.directory</literal>
++                            </entry>
++                            <entry>
++                                <literal>none</literal>
++                            </entry>
++                            <entry>
++                            	The directory used for ajcore files. 
++                            </entry>
++                        </row>
+                     </tbody>
+                 </tgroup>
+             </informaltable>
+@@ -5,16 +5,18 @@
+         <title>Introduction</title>
+ 
+         <para> 
+-            Very rarely, problems present not at build-time but at run-time,
+-            with <literal>java.lang.VerifyError</literal> or incorrect behavior.
+-            In these situations, it's most helpful to include the offending class 
+-            in the bug report.  But with load-time weaving, the woven classes are 
+-            in memory only; to save classes woven at load-time, configure
++        	Very rarely problems may be encountered with classes that have been 
++        	load-time woven.
++        	Symptoms will include incorrect program function or a Java exception such as 
++        	<literal>java.lang.VerifyError</literal>.
++            In these situations it's most helpful to include the offending class 
++            in the bug report. When using load-time weaving the woven classes are 
++            in memory only so to save them to disk configure
+             <literal>META-INF/aop.xml</literal> to dump the classes (by default 
+             to an <literal>_ajdump</literal> subdirectory of the current working 
+-            directory).  Also, if the input class file is not available (e.g., if
+-            the AspectJ weaver is after another bytecode weaver), you can
+-            also configure the weaver to dump the input classes.
++            directory).  Also if the input class file is not available 
++            (e.g. it is a generated proxy or has already been instrumented by another agent)
++            you can configure the weaver to dump the input classes as well.
+         </para>
+         <sect2 id="ltw-examples" xreflabel="ltwdump-configuration">
+             <title>Configuring bytecode dumping in load-time weaving</title>
+@@ -6,10 +6,10 @@
+         <para>
+             Messages point out potential problems in the input program; some
+             are clearly problems (errors), but many more may depend on what
+-            the programmer intends.  To keep the noise down, the latter are treated
+-            as warnings that can be ignored by the programmer or information
+-            hidden from the programmer.  However, when investigating
+-            unexpected behavior, it's helpful to show them.  This describes how
++            the programmer intends.  To keep the noise down the latter are treated
++            as warnings which can be ignored by the programmer or information
++            which are hidden. However, when investigating
++            unexpected behavior it's helpful to show them.  This section describes how
+             to configure messages, presents some problem scenarios when
+             compiling or doing load-time weaving, and summarizes some of the 
+             more relevant messages.
+@@ -43,13 +43,16 @@
+                 at build time is to emit both compiler and weaver messages.
+             </para>
+ 
+-            <para> The table below lists some options used to control AspectJ messages. The method
+-            of configuration depends on your environment so refer to the relevant 
++            <para> The tables below list some options, System Properties (for LTW only) and Java 5 annotations 
++            used to control AspectJ messages. The method
++            of configuration depends on your environment so please refer to the relevant 
+             documentation for 
+             <ulink url="../devguide/ajc-ref.html">ajc</ulink>, 
+-            <ulink url="../devguide/.html#antTasks-iajc-options">Ant</ulink> or 
++            <ulink url="../devguide/antTasks.html">Ant</ulink> or 
+             <ulink url="../devguide/ltw-configuration.html#weaver-options">LTW</ulink>. 
+             </para>
++            
++            <para>
+             <informaltable>
+                 <tgroup cols="2">
+                     <thead>
+@@ -97,34 +100,87 @@
+                         </row>
+                         <row>
+                             <entry>
+-                                <literal>messageHolderClass</literal>
++                                <literal>messageHolderClass</literal>/
++                                <literal>-XmessageHolderClass:</literal>
+                             </entry>
+                             <entry>
+-                            	In Ant tasks, specify the class to receive all messages.
++                            	In Ant tasks and LTW respectively specify the class to receive all messages.
+                                 See 
+                                 <ulink url="../devguide/antTasks-iajc.html#antTasks-iajc-options">
+-                                iajc task options</ulink>.
++                                iajc task options</ulink> or
++                                <ulink url="../devguide/ltw-configuration.html#weaver-options">
++                                Weaver Options</ulink>.
+                             </entry>
+                         </row>
++                        
++<!-- We need full javadoc for this API                       
+                         <row>
+                             <entry>
+-                                <literal>rg.aspectj.tools.Main.setMessageHolder(..)</literal>
++                                <literal>org.aspectj.tools.Main.setMessageHolder(..)</literal>
+                             </entry>
+                             <entry>
+                             	Programmatic access for setting the message holder
+                                 outside of Ant.
+                             </entry>
+                         </row>
++-->                        
++                    </tbody>
++                </tgroup>
++            </informaltable>
++			</para>
++
++			<para>
++            <informaltable>
++                <tgroup cols="2">
++                    <thead>
++                        <row>
++                            <entry>System Property</entry>
++                            <entry>Description</entry>
++                        </row>
++                    </thead>
++                    <tbody>
++                        <row>
++                            <entry>
++                                <literal>aj.weaving.verbose</literal>
++                            </entry>
++                            <entry>
++                            	 Show informational messages including AspectJ version and build date 
++                            	 (same as <literal>-verbose</literal> option).
++                            </entry>
++                        </row>
++                        <row>
++                            <entry>
++                                <literal>org.aspectj.weaver.showWeaveInfo</literal>
++                            </entry>
++                            <entry>
++                            	Show weaving messages
++                            	(same as <literal>-showWeaveInfo</literal> option).
++                            </entry>
++                        </row>
+                         <row>
+                             <entry>
+                                 <literal>org.aspectj.weaving.messages</literal>
+                             </entry>
+                             <entry>
+-                            	Set this system property to redirect compiler/weaver
+-                                messages to logging facilities, as described in
+-                                <xref linkend="trace-configuration"/>.
++                            	Set this system property to enable tracing of all compiler 
++                            	messages. See <xref linkend="trace-configuration"/>.
+                             </entry>
+                         </row>
++                    </tbody>
++                </tgroup>
++            </informaltable>
++            </para>
++            
++            <para>
++            <informaltable>
++                <tgroup cols="2">
++                    <thead>
++                        <row>
++                            <entry>Annotation</entry>
++                            <entry>Description</entry>
++                        </row>
++                    </thead>
++                    <tbody>
+                         <row>
+                             <entry>
+                                 <literal>@SuppressAjWarnings</literal>
+@@ -137,6 +193,8 @@
+                     </tbody>
+                 </tgroup>
+             </informaltable>
++            </para>
++            
+         </sect2>        
+     </sect1>        
+     <sect1 id="messages-scenarios">
+@@ -209,7 +267,7 @@
+ 	weaveinfo Join point 'method-execution(void HelloWorld.main(java.lang.String[]))' ...
+ 		]]></programlisting>
+ 
+-        <para>If advice should be woven at this join point, you should get a 
++        <para>If advice is woven at this join point you should get the 
+             corresponding message.</para>
+             </sect3>
+         </sect2>
+@@ -29,14 +29,14 @@
+ 
+     <abstract>
+       <para>
+-          This describes how to configure the AspectJ compiler/weaver to provide
+-          information for diagnosing problems in the input programs or in the 
+-          compiler/weaver itself.
++          This guide describes how to configure the AspectJ compiler/weaver to provide
++          information for diagnosing problems in the input programs, the 
++          compiler/weaver or its configuration.
+       </para>
+       <para>
+           The AspectJ compiler and weaver can provide lots of information for diagnosing
+           problems in building AspectJ programs.  For problems in the input program,
+-          there are a number of default warning and error messages and many 
++          there are a number of default warning and error messages, as well as many 
+           configurable "lint" messages, all of which can be emitted normally, 
+           logged using standard facilities, or intercepted programmatically. 
+           These are discussed in <xref linkend="messages"/>.  Since most errors
+@@ -44,7 +44,7 @@
+           <xref linkend="pointcuts"/>.
+       </para>
+       <para>
+-          For problems with the compiler/weaver itself, there are three facilities
++          For problems with the compiler/weaver itself there are three facilities
+           that enable the AspectJ developers to resolve bugs even when it is
+           too hard to deliver a reproducible test case: 
+         <orderedlist>
+@@ -118,7 +118,7 @@
+          (printable <a href="pdguide/printable.html">html</a>)
+      </td>
+      <td>This has a guide to  
+-     the various features available such as message and trace to help you both solve problems
++     the various features available such as messages and trace to help you both solve problems
+      with you own programs and report bugs to the AspectJ team.
+      </td>
+      </tr>
+@@ -20,7 +20,7 @@
+             <para> By default AspectJ will only create an <literal>ajcore</literal> file 
+             when an unexpected exception is thrown by the weaver or an 
+             <literal>abort</literal> message is
+-            issued. However it is possible to disble this feature or enable files to
++            issued. However it is possible to disable this feature or enable files to
+             be produced under different circumstances. The table below lists the System 
+             properties that can be used to configure <literal>ajcore</literal> files. </para>
+             <informaltable>
+@@ -29,7 +29,7 @@
+         ]]></programlisting>
+ 
+ 		<para> However this does not mean that advice has actually been woven into
+-		your class merely that the class has been passed to the weaver. So thirdly to determine
++		your class merely that the class has been passed to the weaver. To determine
+ 		whether your pointcuts match you can use the <literal>-showWeaveInfo</literal>
+ 		option which will cause a message to be issued each time a piece of advice is woven: </para>
+ 
+@@ -29,7 +29,7 @@
+     <abstract>
+       <para>
+         This guide describes how to gather and interpret information from the AspectJ compiler
+-        to when diagnsoing problems in AspectJ programs, configuring the load-time weaving
++        to diagnosing problems in AspectJ programs, configuring the load-time weaving
+         framework or reporting bugs on Bugzilla. Some information e.g. messages is intended to
+         help you solve coding or configuration problems. Other information is intended to be
+         be used by the AspectJ team when trying to fix bugs.
+@@ -10,15 +10,12 @@
+     <target name="JDK14 LTW with XML">
+         <java fork="yes" classname="HelloWorld" failonerror="yes">
+             <classpath refid="aj.path"/>
+-<!--        	
+-            <classpath>
+-                <pathelement path="${aj.sandbox}/hello.jar"/>
+-            </classpath>
+--->            
+             <jvmarg value="-Djava.system.class.loader=org.aspectj.weaver.loadtime.WeavingURLClassLoader"/>
+         	<sysproperty key="aj.class.path" path="${aj.sandbox}/hello.jar:${aj.sandbox}/handler.jar"/>
++<!--        	
+             <jvmarg value="-Daj.weaving.verbose=true"/>
+             <jvmarg value="-Dorg.aspectj.weaver.showWeaveInfo=true"/>
++-->            
+             <jvmarg value="-Dorg.aspectj.tracing.debug=true"/>
+             <!-- use META-INF/aop.xml style -->
+ <!--            <jvmarg value="-javaagent:${aj.root}/lib/test/loadtime5.jar"/>-->
+@@ -29,16 +26,13 @@
+     <target name="JDK14 LTW with ASPECTPATH">
+         <java fork="yes" classname="HelloWorld" failonerror="yes">
+             <classpath refid="aj.path"/>
+-        	<!--        	
+-            <classpath>
+-                <pathelement path="${aj.sandbox}/hello.jar"/>
+-            </classpath>
+--->            
+             <jvmarg value="-Djava.system.class.loader=org.aspectj.weaver.loadtime.WeavingURLClassLoader"/>
+         	<sysproperty key="aj.class.path" path="${aj.sandbox}/hello.jar:${aj.sandbox}/handler.jar"/>
+         	<sysproperty key="aj.aspect.path" path="${aj.sandbox}/handler.jar"/>
++<!--        	
+             <jvmarg value="-Daj.weaving.verbose=true"/>
+             <jvmarg value="-Dorg.aspectj.weaver.showWeaveInfo=true"/>
++-->            
+             <jvmarg value="-Dorg.aspectj.tracing.debug=true"/>
+             <!-- use META-INF/aop.xml style -->
+ <!--            <jvmarg value="-javaagent:${aj.root}/lib/test/loadtime5.jar"/>-->
+@@ -100,4 +94,15 @@
+         </java>
+     </target>
+ 
++    <target name="simple LTW">
++        <copy file="${aj.root}/tests/ltw/aop-simple.xml"
++              tofile="${aj.sandbox}/META-INF/aop.xml"/>
++        <java fork="yes" classname="HelloWorld" failonerror="yes">
++            <classpath refid="aj.path"/>
++            <!-- use META-INF/aop.xml style -->
++            <jvmarg value="-javaagent:${aj.root}/lib/test/loadtime5.jar"/>
++<!--            <jvmarg line="${jdwp}"/>-->
++        </java>
++    </target>
++
+ </project>
+@@ -0,0 +1,4 @@
++<aspectj>
++	<weaver options="-verbose">
++	</weaver>
++</aspectj>
+@@ -152,6 +152,11 @@ public class LTWTests extends org.aspectj.testing.XMLBasedAjcTestCase {
+   		runTest("override default path using -Dorg.aspectj.weaver.loadtime.configuration");
+ 
+   	}
++  	
++  	public void testSimpleLTW_pr159854 () {
++  		runTest("simple LTW");
++  		  		
++  	}
+ 
+   	/*
+   	 * Allow system properties to be set and restored
+@@ -540,9 +540,11 @@
+         <compile files="ExceptionHandler.aj" options="-outxml -outjar handler.jar"/>
+ 		<ant file="ant.xml" target="JDK14 LTW with XML" verbose="true">
+         	<stdout>
+-            	<line text="TraceFactory.instance="/>
+             	<line text="Hello World!"/>
+         	</stdout>
++        	<stderr>
++            	<line text="TraceFactory.instance="/>
++        	</stderr>
+         </ant>
+     </ajc-test>
+ 
+@@ -551,9 +553,11 @@
+         <compile files="ExceptionHandler.aj" options="-outjar handler.jar"/>
+         <ant file="ant.xml" target="JDK14 LTW with ASPECTPATH" verbose="true">
+         	<stdout>
+-            	<line text="TraceFactory.instance="/>
+             	<line text="Hello World!"/>
+         	</stdout>
++        	<stderr>
++            	<line text="TraceFactory.instance="/>
++        	</stderr>
+         </ant>
+     </ajc-test>
+ 
+@@ -639,5 +643,15 @@
+             </stderr>
+         </run>
+     </ajc-test>       
++
++	<ajc-test dir="ltw" title="simple LTW" keywords="ltw">
++        <compile files="HelloWorld.java"/>
++        <compile files="ExceptionHandler.aj" options="-outxml"/>
++		<ant file="ant.xml" target="simple LTW" verbose="true">
++        	<stdout>
++            	<line text="Hello World!"/>
++        	</stdout>
++        </ant>
++    </ajc-test>
+ 
+     
+\ No newline at end of file
+@@ -41,5 +41,9 @@ public class TracingTests extends org.aspectj.testing.XMLBasedAjcTestCase {
+ 	public void testTraceEverything () {
+   		runTest("Trace everything");
+ 	}
++	
++	public void testJDK14Tracing_pr159854 () {
++  		runTest("JDK 1.4 tracing");
++	}
+ 
+ }
+@@ -72,4 +72,16 @@
+             </stdout>
+         </ant>
+     </ajc-test>
++
++	<ajc-test dir="tracing" title="JDK 1.4 tracing" keywords="tracing">
++        <compile
++        	files="HelloWorld.java"
++        />
++        <compile files="Aspect.aj" options="-outxml"/>
++		<ant file="ant.xml" target="JDK 1.4 tracing" verbose="true">
++        	<stdout>
++                <line text="Hello World!"/>
++            </stdout>
++        </ant>
++    </ajc-test>
+ </suite>
+@@ -50,4 +50,17 @@
+         </java>
+     </target>
+ 
++    <target name="JDK 1.4 tracing">
++        <copy file="${aj.root}/tests/tracing//logging.properties"
++              tofile="${aj.sandbox}/META-INF/logging.properties"/>
++        <java fork="yes" classname="HelloWorld" failonerror="yes">
++            <classpath refid="aj.path"/>
++            <jvmarg value="-Dorg.aspectj.tracing.debug=true"/>
++            <jvmarg value="-Djava.util.logging.config.file=logging.properties"/>
++            <!-- use META-INF/aop.xml style -->
++            <jvmarg value="-javaagent:${aj.root}/lib/test/loadtime5.jar"/>
++<!--            <jvmarg line="${jdwp}"/>-->
++        </java>
++    </target>
++
+ </project>
+@@ -1 +1,58 @@
+- 
+\ No newline at end of file
++############################################################
++#  	Default Logging Configuration File
++#
++# You can use a different file by specifying a filename
++# with the java.util.logging.config.file system property.  
++# For example java -Djava.util.logging.config.file=myfile
++############################################################
++
++############################################################
++#  	Global properties
++############################################################
++
++# "handlers" specifies a comma separated list of log Handler 
++# classes.  These handlers will be installed during VM startup.
++# Note that these classes must be on the system classpath.
++# By default we only configure a ConsoleHandler, which will only
++# show messages at the INFO and above levels.
++#handlers= java.util.logging.ConsoleHandler
++
++# To also add the FileHandler, use the following line instead.
++#handlers= java.util.logging.FileHandler, java.util.logging.ConsoleHandler
++handlers= java.util.logging.FileHandler
++
++# Default global logging level.
++# This specifies which kinds of events are logged across
++# all loggers.  For any given facility this global level
++# can be overriden by a facility specific level
++# Note that the ConsoleHandler also has a separate level
++# setting to limit messages printed to the console.
++.level= INFO
++
++############################################################
++# Handler specific properties.
++# Describes specific configuration info for Handlers.
++############################################################
++
++# default file output is in user's home directory.
++java.util.logging.FileHandler.pattern = %h/java%u.log
++#java.util.logging.FileHandler.limit = 50000
++java.util.logging.FileHandler.count = 1
++#java.util.logging.FileHandler.formatter = java.util.logging.XMLFormatter
++java.util.logging.FileHandler.formatter = java.util.logging.SimpleFormatter
++java.util.logging.FileHandler.level = FINER
++
++# Limit the message that are printed on the console to INFO and above.
++java.util.logging.ConsoleHandler.level = FINER
++java.util.logging.ConsoleHandler.formatter = java.util.logging.SimpleFormatter
++
++
++############################################################
++# Facility specific properties.
++# Provides extra control for each logger.
++############################################################
++
++# For example, set the com.xyz.foo logger to only log SEVERE
++# messages:
++#com.xyz.foo.level = SEVERE
++org.aspectj.weaver.loadtime.level = FINER
+@@ -77,7 +77,7 @@ public abstract class TraceFactory {
+     	    instance = new DefaultTraceFactory();
+     	}
+ 
+-    	if (debug) System.out.println("TraceFactory.instance=" + instance);
++    	if (debug) System.err.println("TraceFactory.instance=" + instance);
+     }
+ 
+ }
+@@ -457,6 +457,29 @@
+                                    immediately you can use the option <literal>-Daj.weaving.verbose=true</literal> on the JVM startup command line.
+                             </entry>
+                         </row>
++                        <row>
++                            <entry>
++                                <literal>-debug</literal>
++                            </entry>
++                            <entry>
++                            	Issue a messages for each class passed to the weaver 
++                            	indicating whether it was woven, excluded or ignored. 
++                            	Also issue messages for classes
++                            	defined during the weaving process such as around advice
++                            	closures and concrete aspects defined in 
++                            	<literal>META-INF/aop.xml</literal>.
++                            </entry>
++                        </row>
++                        <row>
++                            <entry>
++                                <literal>-showWeaveInfo</literal>
++                            </entry>
++                            <entry>
++                            	Issue informational messages whenever the weaver touches a class file.
++                            	This option may also be enabled using the System property
++                            	<literal>-Dorg.aspectj.weaver.showWeaveInfo=true</literal>.
++                            </entry>
++                        </row>
+         				<!-- TODO option parsed but not used -->
+         				<!--
+                         <row>
+@@ -509,12 +532,6 @@
+                         </row>
+                         <row>
+                             <entry>
+-                                <literal>-showWeaveInfo</literal>
+-                            </entry>
+-                            <entry>Issue informational messages whenever the weaver touches a class file</entry>
+-                        </row>
+-                        <row>
+-                            <entry>
+                                 <literal>-XmessageHandlerClass:...</literal>
+                             </entry>
+                             <entry>Provide alternative output destination to stdout/stderr for all weaver messages.
+@@ -103,7 +103,7 @@
+ 
+          (printable <a href="devguide/printable.html">html</a>)
+      </td>
+-     <td>This has a guide to  
++     <td>This is a guide to  
+      <a href="devguide/ajc-ref.html">ajc</a>, the command-line compiler;
+      <a href="devguide/ajbrowser.html">ajbrowser</a>, the stand-alone
+      GUI for compiling and viewing crosscutting structure; 
+@@ -6,10 +6,183 @@
+ 
+         <para> When the compiler terminates abnormally, either because a particular kind of message was
+         issued or an exception was thrown, an AspectJ core file will be produced. You will
+-        find it the working directory of the compiler and will have a name that contains
++        find it the working directory of the compiler and it will have a name that contains
+         the date and time that the file was produced 
+-        e.g. <literal>ajcore.20060810.173655.626.txt</literal>. </para>
++        e.g. <literal>ajcore.20060810.173655.626.txt</literal>. The file contains details
++        of the problem such as the exception thrown as well as information about the
++        environement such as operating system and Java version. </para>
+ 
+         <para> </para>
++    
++        <sect2 id="configuration" xreflabel="configuration">
++            <title>Configuration</title>
++            
++            <para> By default AspectJ will only create an <literal>ajcore</literal> file 
++            when an unexpected exception is thrown by the weaver or an 
++            <literal>abort</literal> message is
++            issued. However it is possible to disble this feature or enable files to
++            be produced under different circumstances. The table below lists the System 
++            properties that can be used to configure <literal>ajcore</literal> files. </para>
++            <informaltable>
++                <tgroup cols="3">
++                    <thead>
++                        <row>
++                            <entry>Property</entry>
++                            <entry>Default</entry>
++                            <entry>Description</entry>
++                        </row>
++                    </thead>
++                    <tbody>
++                        <row>
++                            <entry>
++                                <literal>org.aspectj.weaver.Dump.exception</literal>
++                            </entry>
++                            <entry>
++                                <literal>true</literal>
++                            </entry>
++                            <entry>
++                            	Generate an <literal>ajcore</literal> files when an exception thrown.
++                            </entry>
++                        </row>
++                        <row>
++                            <entry>
++                                <literal>org.aspectj.weaver.Dump.condition</literal>
++                            </entry>
++                            <entry>
++                                <literal>abort</literal>
++                            </entry>
++                            <entry>
++                            	Message kind for which to generate <literal>ajcore</literal>
++                            	e.g. <literal>error</literal>. 
++                            </entry>
++                        </row>
++                    </tbody>
++                </tgroup>
++            </informaltable>
++  		</sect2>
++
++        <sect2 id="examples" xreflabel="examples">
++            <title>Examples</title>
++        
++            <para> Below is an extract from an <literal>ajcore</literal> file. You will see
++            details of the dump configuration as well as the exception (with stack trace) that
++            is the source of the problem and any messages issued by the compiler. Most importantly
++            the exact version of AspectJ is included. </para>
++	        <programlisting><![CDATA[
++---- AspectJ Properties ---
++AspectJ Compiler DEVELOPMENT built on Tuesday Jul 25, 2006 at 13:00:09 GMT
++---- Dump Properties ---
++Dump file: ajcore.20060810.173655.626.txt
++Dump reason: java.lang.NoClassDefFoundError
++Dump on exception: true
++Dump at exit condition: abort
++---- Exception Information ---
++java.lang.NoClassDefFoundError: org/apache/commons/logging/LogFactory
++	at org.aspectj.weaver.tools.CommonsTraceFactory.<init>(CommonsTraceFactory.java:17)
++	at java.lang.Class.newInstance0(Native Method)
++	at java.lang.Class.newInstance(Class.java:232)
++	at org.aspectj.weaver.tools.TraceFactory.<clinit>(TraceFactory.java:35)
++	at org.aspectj.weaver.World.<clinit>(World.java:114)
++	at org.aspectj.ajdt.internal.core.builder.AjBuildManager.initBcelWorld(AjBuildManager.java:679)
++	at org.aspectj.ajdt.internal.core.builder.AjBuildManager.doBuild(AjBuildManager.java:224)
++	at org.aspectj.ajdt.internal.core.builder.AjBuildManager.batchBuild(AjBuildManager.java:164)
++	at org.aspectj.ajdt.ajc.AjdtCommand.doCommand(AjdtCommand.java:112)
++	at org.aspectj.ajdt.ajc.AjdtCommand.runCommand(AjdtCommand.java:60)
++	at org.aspectj.tools.ajc.Main.run(Main.java:367)
++	at org.aspectj.tools.ajc.Main.runMain(Main.java:246)
++	at org.aspectj.tools.ajc.Main.main(Main.java:86)
++---- System Properties ---
++java.runtime.name=Java(TM) 2 Runtime Environment, Standard Edition
++sun.boot.library.path=C:\jdk1.3.1_16\jre\bin
++java.vm.version=1.3.1_16-b06
++java.vm.vendor=Sun Microsystems Inc.
++java.vendor.url=http://java.sun.com/
++path.separator=;
++java.vm.name=Java HotSpot(TM) Client VM
++file.encoding.pkg=sun.io
++java.vm.specification.name=Java Virtual Machine Specification
++user.dir=C:\workspaces\org.aspectj\org.aspectj.ant.tests
++java.runtime.version=1.3.1_16-b06
++java.awt.graphicsenv=sun.awt.Win32GraphicsEnvironment
++os.arch=x86
++java.io.tmpdir=C:\DOCUME~1\IBM_user\LOCALS~1\Temp\
++line.separator=
++
++java.vm.specification.vendor=Sun Microsystems Inc.
++java.awt.fonts=
++os.name=Windows XP
++java.library.path=C:\jdk1.3.1_16\jre\bin;...
++java.specification.name=Java Platform API Specification
++java.class.version=47.0
++os.version=5.1
++user.home=C:\Documents and Settings\IBM_user
++user.timezone=Europe/London
++java.awt.printerjob=sun.awt.windows.WPrinterJob
++file.encoding=Cp1252
++java.specification.version=1.3
++java.class.path=C:\workspaces\org.aspectj\aj-build\dist\tools\lib\aspectjtools.jar
++user.name=IBM_user
++java.vm.specification.version=1.0
++java.home=C:\jdk1.3.1_16\jre
++user.language=en
++java.specification.vendor=Sun Microsystems Inc.
++awt.toolkit=sun.awt.windows.WToolkit
++java.vm.info=mixed mode
++java.version=1.3.1_16
++java.ext.dirs=C:\jdk1.3.1_16\jre\lib\ext
++sun.boot.class.path=C:\jdk1.3.1_16\jre\lib\rt.jar;...
++java.vendor=Sun Microsystems Inc.
++file.separator=\
++java.vendor.url.bug=http://java.sun.com/cgi-bin/bugreport.cgi
++sun.io.unicode.encoding=UnicodeLittle
++sun.cpu.endian=little
++user.region=GB
++sun.cpu.isalist=pentium i486 i386
++---- Command Line ---
++-d
++C:\workspaces\org.aspectj\org.aspectj.ant.tests\IncrementalAjcTaskTest-temp
++-g:none
++-deprecation
++-noExit
++-warn:-unusedImport
++-nowarn
++-XterminateAfterCompilation
++-preserveAllLocals
++-proceedOnError
++-referenceInfo
++-source
++1.3
++-target
++1.1
++-time
++-verbose
++-classpath
++C:\workspaces\org.aspectj\org.aspectj.ant.tests\..\lib\test\aspectjrt.jar
++-argfile
++C:\workspaces\org.aspectj\taskdefs\testdata\default.lst
++-messageHolder
++org.aspectj.bridge.MessageHandler
++---- Full Classpath ---
++Empty
++---- Compiler Messages ---
++abort ABORT -- (NoClassDefFoundError) org/apache/commons/logging/LogFactory
++org/apache/commons/logging/LogFactory
++java.lang.NoClassDefFoundError: org/apache/commons/logging/LogFactory
++	at org.aspectj.weaver.tools.CommonsTraceFactory.<init>(CommonsTraceFactory.java:17)
++	at java.lang.Class.newInstance0(Native Method)
++	at java.lang.Class.newInstance(Class.java:232)
++	at org.aspectj.weaver.tools.TraceFactory.<clinit>(TraceFactory.java:35)
++	at org.aspectj.weaver.World.<clinit>(World.java:114)
++	at org.aspectj.ajdt.internal.core.builder.AjBuildManager.initBcelWorld(AjBuildManager.java:679)
++	at org.aspectj.ajdt.internal.core.builder.AjBuildManager.doBuild(AjBuildManager.java:224)
++	at org.aspectj.ajdt.internal.core.builder.AjBuildManager.batchBuild(AjBuildManager.java:164)
++	at org.aspectj.ajdt.ajc.AjdtCommand.doCommand(AjdtCommand.java:112)
++	at org.aspectj.ajdt.ajc.AjdtCommand.runCommand(AjdtCommand.java:60)
++	at org.aspectj.tools.ajc.Main.run(Main.java:367)
++	at org.aspectj.tools.ajc.Main.runMain(Main.java:246)
++	at org.aspectj.tools.ajc.Main.main(Main.java:86)
++			]]></programlisting>
++            
++        </sect2>
+     </sect1>
+ </chapter>
+@@ -4,8 +4,71 @@
+     <sect1 id="ltwdump-introduction">
+         <title>Introduction</title>
+ 
+-        <para> Occasionally problems may be encountered with classes that have been load-time woven. Symptoms will
+-        include incorrect program function or a Java exception such as 
+-        <literal>java.lang.VerifyError</literal>.</para>
++        <para> Occasionally problems may be encountered with classes that have been load-time woven. 
++        Symptoms will include incorrect program function or a Java exception such as 
++        <literal>java.lang.VerifyError</literal>. Problems can be caused by the way 
++        an aspect or class is built, incompatibilities between AspectJ and 
++        generated byte-code 
++        e.g. <ulink url="https://bugs.eclipse.org/bugs/show_bug.cgi?id=117854">CGLIB</ulink>
++        or a bug in the weaver.
++        When these problems occur it may be necessary to attach the class files concerned
++        to a bug report. AspectJ can be configured to dump byte-code to disk using
++        <literal>META-INF/aop.xml</literal>. The <literal>_ajdump</literal> subdirectory the the current
++        working directory is used. </para>
++    
++        <sect2 id="configuration" xreflabel="configuration">
++            <title>Configuration</title>
++            
++            <para> See the 
++				<ulink url="../devguide/ltw-configuration.html#configuring-load-time-weaving-with-aopxml-files">
++				Development Environment Guide</ulink>
++  				for details of how to configure byte-code dumping. </para>
++  		</sect2>
++
++        <sect2 id="examples" xreflabel="examples">
++            <title>Examples</title>
++        
++            <para> By default AspectJ will dump byte-code only after it is woven. This 
++            is because usually the original class file is already available. However 
++            byte-code is sometimes generated by frameworks or downloaded over the network
++            in which case AsepctJ can dump the byte-code before it is woven too. </para>
++            
++            <para> The following <literal>META-INF/aop.xml</literal> will 
++            weave classes in the <literal>com.foo</literal> package (and subpackages) but not
++            CGLIB generated classes in the <literal>com.foo.bar</literal> package (and subpackages). 
++            It will also ensure all
++            woven byte-code is dumped both before and after weaving. </para>
++	        <programlisting><![CDATA[
++	<aspectj>
++		<aspects>
++			<aspect name="ataspectj.EmptyAspect"/>
++		</aspects>
++	    <weaver options="-verbose -debug">
++	        <dump within="com.foo.bar..*" beforeandafter="true"/> 
++    	    <include within="com.foo..*"/>
++        	<exclude within="com.foo.bar..*CGLIB*"/>
++		</weaver>
++	</aspectj>
++			]]></programlisting>
++            
++            <para> You should see messages similar to this: </para>
++
++	        <programlisting><![CDATA[
++[WeavingURLClassLoader] info AspectJ Weaver Version 1.5.3 built on Thursday Oct 26, 2006 at 17:22:31 GMT
++[WeavingURLClassLoader] info register classloader org.aspectj.weaver.loadtime.WeavingURLClassLoader
++[WeavingURLClassLoader] info using configuration /C:/tempMETA-INF/aop.xml
++[WeavingURLClassLoader] info register aspect ataspectj.EmptyAspect
++[WeavingURLClassLoader] debug not weaving 'com.foo.bar.Test$$EnhancerByCGLIB$$12345'
++[WeavingURLClassLoader] debug weaving 'com.foo.bar.Test'
++			]]></programlisting>
++            
++            <para> On disk you would find the following files: </para>
++
++	        <programlisting><![CDATA[
++	_ajdump/_before/com/foo/bar/Test.class
++	_ajdump/com/foo/bar/Test.class
++			]]></programlisting>
++            
++        </sect2>
+     </sect1>
+ </chapter>
+@@ -6,10 +6,124 @@
+ 
+         <para> By default only warning and error messages are issued by the compiler whether it is
+         being used for source code compilation, weaving, binary weaving or load-time weaving. Informational,
+-        debug and weaving messages can also be obtained using compiler options or System properties. </para>
++        debug and weaving messages can also be obtained using compiler options 
++        or System properties. Also as well as being able to soften or ignore 
++        certain error messages the various <literal>-Xlint</literal> 
++        <ulink url="../devguide/ajc-ref.html">options</ulink> can be used to 
++        notify you of conditions that would otherwise be ignored. </para>
++
++		<para> It is often difficult to determine, especially when using load-time weaving (LTW),
++		why advice has not been woven. Here is a quick guide to the messages to
++		look for. Firstly if you use the <literal>-verbose</literal> option you 
++		should see the following message when your aspect is registered: </para>
++
++        <programlisting><![CDATA[
++	info register aspect MyAspect
++        ]]></programlisting>
++
++		<para> Secondly if you use the <literal>-debug</literal> option you should 
++		see a message indicating that you class is being woven: </para>
++
++        <programlisting><![CDATA[
++	debug weaving 'HelloWorld'
++        ]]></programlisting>
++
++		<para> However this does not mean that advice has actually been woven into
++		your class merely that the class has been passed to the weaver. So thirdly to determine
++		whether your pointcuts match you can use the <literal>-showWeaveInfo</literal>
++		option which will cause a message to be issued each time a piece of advice is woven: </para>
++
++        <programlisting><![CDATA[
++	weaveinfo Join point 'method-execution(void HelloWorld.main(java.lang.String[]))' ...
++		]]></programlisting>
+ 
+         <sect2 id="configuration" xreflabel="configuration">
+             <title>Configuration</title>
++            
++            <para> The table below lists the options used to control AspectJ messages. The method
++            of configuration depends on your environment so refer to the relevant 
++            documentation for 
++            <ulink url="../devguide/ajc-ref.html">ajc</ulink>, 
++            <ulink url="../devguide/antTasks-iajc.html#antTasks-iajc-options">Ant</ulink> or 
++            <ulink url="../devguide/ltw-configuration.html#weaver-options">LTW</ulink>. </para>
++            <informaltable>
++                <tgroup cols="2">
++                    <thead>
++                        <row>
++                            <entry>Option</entry>
++                            <entry>Description</entry>
++                        </row>
++                    </thead>
++                    <tbody>
++                        <row>
++                            <entry>
++                                <literal>-verbose</literal>
++                            </entry>
++                            <entry>
++                            	Show informational messages including AspectJ version
++                            	and build date.
++                            </entry>
++                        </row>
++                        <row>
++                            <entry>
++                                <literal>-debug</literal>
++                            </entry>
++                            <entry>
++                            	(Load-time weaving only). Show debugging messages such as
++                            	which classes are being woven or those that are excluded.
++                            </entry>
++                        </row>
++                        <row>
++                            <entry>
++                                <literal>-showWeaveInfo</literal>
++                            </entry>
++                            <entry>
++                            	Show weaving messages.
++                            </entry>
++                        </row>
++                        <row>
++                            <entry>
++                                <literal>-Xlint</literal>
++                            </entry>
++                            <entry>
++                            	Control level of lint messages.
++                            </entry>
++                        </row>
++                    </tbody>
++                </tgroup>
++            </informaltable>
++            
++            <para> The table below lists some useful <literal>-Xlint</literal> messages. </para>
++            <informaltable>
++                <tgroup cols="3">
++                    <thead>
++                        <row>
++                            <entry>Message</entry>
++                            <entry>Default</entry>
++                            <entry>Description</entry>
++                        </row>
++                    </thead>
++                    <tbody>
++                        <row>
++                            <entry>
++                                <literal>aspectExcludedByConfiguration</literal>
++                            </entry>
++                            <entry>
++                                <literal>ignore</literal>
++                            </entry>
++                            <entry>
++                            	If an aspect is not being woven, despite being
++                            	registered, it could be that it has been excluded
++                            	by either an <literal>include</literal> or <literal>exclude</literal> 
++                            	element in the 
++                            	<literal>aspects</literal> section of <literal>META-INF/aop.xml</literal>.
++                            	Enable this message to determine whether an aspect has
++                            	been excluded.
++                            </entry>
++                        </row>
++                    </tbody>
++                </tgroup>
++            </informaltable>
+ 
+             <para>  </para>
+         </sect2>
+@@ -17,7 +131,32 @@
+         <sect2 id="examples" xreflabel="examples">
+             <title>Examples</title>
+ 
+-            <para>  </para>
++            <para> You can use <literal>META-INF/aop.xml</literal> to control which
++            messages are produced during LTW. The following example will produce
++            basic informational messages about the lifecyle of the weaver in
++            addition to any warning or error messages. </para>
++
++	        <programlisting><![CDATA[
++	<aspectj>
++		<weaver options="-verbose">
++		</weaver>
++	</aspectj>
++			]]></programlisting>
++        
++            <para> Notice that you are told exactly which <literal>META-INF/aop.xml</literal> 
++            configurations file(s) are being used. Each message is also preceeded by the 
++            name of the defining class loader associated with weaver. You can use this
++            information in a large system to distinguish between different applications each
++            of which will typically have its own class loader. </para>
++
++	        <programlisting><![CDATA[
++[AppClassLoader@92e78c] info AspectJ Weaver Version 1.5.3 built on Thursday Oct 26, 2006 at 17:22:31 GMT
++[AppClassLoader@92e78c] info register classloader sun.misc.Launcher$AppClassLoader@92e78c
++[AppClassLoader@92e78c] info using configuration /C:/temp/META-INF/aop.xml
++[AppClassLoader@92e78c] info using configuration /C:/temp/META-INF/aop-ajc.xml
++[AppClassLoader@92e78c] info register aspect ExceptionHandler
++[AppClassLoader@92e78c] info processing reweavable type ExceptionHandler: ExceptionHandler.aj
++			]]></programlisting>
+         </sect2>
+     </sect1>
+ </chapter>
+@@ -30,7 +30,9 @@
+       <para>
+         This guide describes how to gather and interpret information from the AspectJ compiler
+         to when diagnsoing problems in AspectJ programs, configuring the load-time weaving
+-        framework or reporting bugs on Bugzilla.
++        framework or reporting bugs on Bugzilla. Some information e.g. messages is intended to
++        help you solve coding or configuration problems. Other information is intended to be
++        be used by the AspectJ team when trying to fix bugs.
+       </para>
+     </abstract>
+   </bookinfo>
+@@ -7,9 +7,9 @@
+         <para> The usual approach to opening a report on Bugzilla is to describe the symptoms of the 
+         problem and attach a simple testcase. This allows the AspectJ team to try and reproduce the problem in
+         an attempt to fix it as well as improve the test suite. Unfortunately it may not be possible
+-        to produce such a testcase either because your program is too large or is comercially sensitive. Alternatively 
++        to produce such a testcase either because your program is too large or is commercially sensitive. Alternatively 
+         the problem may relate to your specific environment where AspectJ is being used and will not be
+-        reproducible by the AspectJ team. In one of these situations you may be asked to produce a
++        reproducible by the AspectJ team. In each of these situations you may be asked to produce a
+         trace of the compiler when the problem occurs instead. This can then be attached to the bug report. </para>
+ 
+         <sect2 id="configuration" xreflabel="configuration">
+@@ -21,7 +21,7 @@
+             that is configured using a logging.properties file. By default only error
+             and fatal events will be logged but less severe warnings as well as fine grained
+             method entry and exit events can be obtained using the appropriate configuration. All
+-            compiler messages can also be logged through the infrastructure by setting the
++            regular compiler messages can also be logged through the infrastructure by setting the
+             <literal>org.aspectj.weaving.messages</literal> System property. </para>
+ 
+             <para> If you are using a JDK 1.4 or earlier AspectJ will use a simple built-in trace
+@@ -89,7 +89,89 @@
+         <sect2 id="examples" xreflabel="examples">
+             <title>Examples</title>
+ 
+-            <para>  </para>
++            <para> Using <literal>-Dorg.aspectj.tracing.factory=default</literal>
++            	to force AspectJ to use its internal infrastructure,
++            	<literal>-Dorg.aspectj.tracing.enabled=true</literal> to turn it on and  
++            	<literal>-Dorg.aspectj.tracing.messages=true</literal> to include messages
++            	running a simple HelloWorld with LTW will generate tracing to stderr. Below
++            	is an extract from that trace with method arguments removed. 
++            	You will notice the millisecond time stamp,
++            	thread id and indication of entry/exit/event or message type for each line
++            	of trace.
++            </para>
++	        <programlisting><![CDATA[
++15:44:18.630 main > org.aspectj.weaver.loadtime.Aj.<init> 
++15:44:18.660 main < org.aspectj.weaver.loadtime.Aj.<init>
++15:44:18.660 main > org.aspectj.weaver.loadtime.Aj.preProcess
++15:44:18.660 main - org.aspectj.weaver.loadtime.Aj.preProcess
++15:44:18.730 main > org.aspectj.weaver.loadtime.ClassLoaderWeavingAdaptor.<init>
++15:44:18.730 main < org.aspectj.weaver.loadtime.ClassLoaderWeavingAdaptor.<init>
++15:44:18.730 main > org.aspectj.weaver.loadtime.ClassLoaderWeavingAdaptor.initialize 
++15:44:18.821 main I [AppClassLoader@92e78c] info AspectJ Weaver Version DEVELOPMENT ...
++15:44:18.821 main > org.aspectj.weaver.loadtime.ClassLoaderWeavingAdaptor.parseDefinitions
++15:44:18.821 main I [AppClassLoader@92e78c] info register classloader ...
++15:44:18.821 main - org.aspectj.weaver.loadtime.ClassLoaderWeavingAdaptor.parseDefinitions 
++15:44:18.841 main - org.aspectj.weaver.loadtime.ClassLoaderWeavingAdaptor.parseDefinitions 
++15:44:18.841 main I [AppClassLoader@92e78c] info using configuration ...
++15:44:18.891 main < org.aspectj.weaver.loadtime.ClassLoaderWeavingAdaptor.parseDefinitions 
++15:44:19.021 main > org.aspectj.weaver.World$TypeMap.<init>
++15:44:19.021 main < org.aspectj.weaver.World$TypeMap.<init>
++15:44:19.021 main > org.aspectj.weaver.CrosscuttingMembersSet.<init>
++15:44:19.021 main < org.aspectj.weaver.CrosscuttingMembersSet.<init>
++15:44:19.021 main > org.aspectj.weaver.Lint.<init>
++15:44:19.021 main < org.aspectj.weaver.Lint.<init>
++15:44:19.021 main > org.aspectj.weaver.World.<init> 
++15:44:19.111 main < org.aspectj.weaver.World.<init>
++15:44:19.201 main > org.aspectj.weaver.bcel.BcelWeaver.<init> 
++15:44:19.201 main < org.aspectj.weaver.bcel.BcelWeaver.<init>
++15:44:19.201 main > org.aspectj.weaver.loadtime.ClassLoaderWeavingAdaptor.registerDefinitions 
++15:44:19.211 main > org.aspectj.weaver.bcel.BcelWeaver.setReweavableMode 
++15:44:19.351 main < org.aspectj.weaver.bcel.BcelWeaver.setReweavableMode
++15:44:19.351 main > org.aspectj.weaver.loadtime.ClassLoaderWeavingAdaptor.registerAspects 
++15:44:19.351 main I [AppClassLoader@92e78c] info register aspect Aspect
++15:44:19.351 main > org.aspectj.weaver.bcel.BcelWeaver.addLibraryAspect 
++15:44:19.501 main - org.aspectj.weaver.bcel.BcelWorld.lookupJavaClass 
++15:44:19.632 main > org.aspectj.weaver.CrosscuttingMembersSet.addOrReplaceAspect 
++15:44:19.792 main < org.aspectj.weaver.CrosscuttingMembersSet.addOrReplaceAspect 
++15:44:19.792 main < org.aspectj.weaver.bcel.BcelWeaver.addLibraryAspect 
++15:44:19.792 main < org.aspectj.weaver.loadtime.ClassLoaderWeavingAdaptor.registerAspects 
++15:44:19.792 main < org.aspectj.weaver.loadtime.ClassLoaderWeavingAdaptor.registerDefinitions 
++15:44:19.792 main > org.aspectj.weaver.bcel.BcelWeaver.prepareForWeave 
++15:44:19.822 main < org.aspectj.weaver.bcel.BcelWeaver.prepareForWeave
++15:44:19.822 main > org.aspectj.weaver.loadtime.ClassLoaderWeavingAdaptor.weaveAndDefineConcete...
++15:44:19.822 main < org.aspectj.weaver.loadtime.ClassLoaderWeavingAdaptor.weaveAndDefineConcete...
++15:44:19.822 main < org.aspectj.weaver.loadtime.ClassLoaderWeavingAdaptor.initialize 
++15:44:19.822 main > org.aspectj.weaver.tools.WeavingAdaptor.weaveClass 
++...            
++			]]></programlisting>
++        
++            <para> Alternatively when running under Java 5 the <literal>logging.properties</literal>
++            	file below could be used to configure Java Logging. The resulting
++            	file, just containing trace for the 
++            	<literal>org.aspectj.weaver.loadtime</literal> package, will be
++            	written to <literal>java0.log</literal> in your <literal>user.home</literal> directory. 
++            </para>
++
++	        <programlisting><![CDATA[
++handlers= java.util.logging.FileHandler
++
++.level= INFO
++
++java.util.logging.FileHandler.pattern = %h/java%u.log
++java.util.logging.FileHandler.count = 1
++java.util.logging.FileHandler.formatter = java.util.logging.SimpleFormatter
++java.util.logging.FileHandler.level = FINER
++
++org.aspectj.weaver.loadtime.level = FINER
++			]]></programlisting>
++        
++            <para> 
++            	By setting the System property <literal>-Dorg.aspectj.tracing.debug=true</literal>
++            	you should see a message confirming which trace infrastructure is being used.
++            </para>
++	        <programlisting><![CDATA[
++	TraceFactory.instance=org.aspectj.weaver.tools.Jdk14TraceFactory@12dacd1	        
++			]]></programlisting>
+         </sect2>
+     </sect1>
+ </chapter>
+@@ -4,8 +4,8 @@
+     <sect1 id="ajcore-introduction">
+         <title>Introduction</title>
+ 
+-        <para> When the compiler terminates abnormally, either because an abort message was
+-        issued or an exception was thrown, a AspectJ core file will be produced. You will
++        <para> When the compiler terminates abnormally, either because a particular kind of message was
++        issued or an exception was thrown, an AspectJ core file will be produced. You will
+         find it the working directory of the compiler and will have a name that contains
+         the date and time that the file was produced 
+         e.g. <literal>ajcore.20060810.173655.626.txt</literal>. </para>
+@@ -0,0 +1,89 @@
++body { 
++  font-family: "Lucida Grande", "Trebuchet MS", sans-serif;
++  line-height: 1.1em;
++ }
++
++h1 {
++  margin-bottom: 3px;
++  padding-bottom: 0px;
++  line-height: 1.1em;
++}
++
++h2 { 
++     font-size: 130%; 
++     font-weight: bold ; 
++     line-height: 16px;
++     color: #FFFFFF;
++     background-color: #0080C0;
++     padding: 5px;
++}
++
++h3 { 
++     font-size: 110%; 
++     font-weight: bold ; 
++     line-height: 14px;
++     color: #FFFFFF;
++     background-color: orange;
++     padding: 5px;
++}
++
++tt { 
++  font-size: 120%;
++  color: #00AAF0;
++ }
++
++tt tt { 
++  font-size: 100%;
++ }
++
++.programlisting {
++  padding-top: 5px; 
++  border: 2px solid #ccc;
++  background: #eee;
++  font-size: 120%;
++  color: #111199;
++
++ }
++
++.term { 
++  color: #111199;
++ }
++
++.variablelist dd { 
++  margin-left: 18px;
++  padding-left: 20px;
++  background: url(dd_arrow.gif) no-repeat 0 2px;
++ }
++
++.toc dt { 
++  font-size: 110%;
++  padding-bottom: 0px;
++  margin-bottom: 5px;
++ }
++
++.toc dl dd dt { 
++  font-size: 100%;
++ }
++
++.toc dt { 
++  font-size: 100%
++  margin-bottom: 0;
++ }
++
++.informaltable table { 
++  margin-left: 5%;
++ }
++
++.informaltable th { 
++  background-color: orange;
++  padding: 1px;
++ }
++
++ul li { 
++  line-height: 1.2em; 
++ }
++
++.keyword { 
++  font-weight: bold;
++  color: purple;
++ }
+\ No newline at end of file
+@@ -5,6 +5,19 @@
+         <title>Introduction</title>
+ 
+         <para> By default only warning and error messages are issued by the compiler whether it is
+-        being used for source code compilation, weaving, binary weaving or load-time weaving. </para>
++        being used for source code compilation, weaving, binary weaving or load-time weaving. Informational,
++        debug and weaving messages can also be obtained using compiler options or System properties. </para>
++
++        <sect2 id="configuration" xreflabel="configuration">
++            <title>Configuration</title>
++        
++            <para>  </para>
++        </sect2>
++
++        <sect2 id="examples" xreflabel="examples">
++            <title>Examples</title>
++        
++            <para>  </para>
++        </sect2>
+     </sect1>
+ </chapter>
+@@ -1,5 +1,5 @@
+ <chapter id="trace" xreflabel="Trace">
+-    <title>Trace</title>
++    <title>Tracing</title>
+ 
+     <sect1 id="trace-introduction">
+         <title>Introduction</title>
+@@ -11,5 +11,85 @@
+         the problem may relate to your specific environment where AspectJ is being used and will not be
+         reproducible by the AspectJ team. In one of these situations you may be asked to produce a
+         trace of the compiler when the problem occurs instead. This can then be attached to the bug report. </para>
++
++        <sect2 id="configuration" xreflabel="configuration">
++            <title>Configuration</title>
++        
++            <para> When available (Java 5 or later) AspectJ will use the 
++            <literal>java.util.logging</literal>
++            <ulink url="http://java.sun.com/j2se/1.5.0/docs/guide/logging/index.html">infrastructure</ulink> 
++            that is configured using a logging.properties file. By default only error
++            and fatal events will be logged but less severe warnings as well as fine grained
++            method entry and exit events can be obtained using the appropriate configuration. All
++            compiler messages can also be logged through the infrastructure by setting the
++            <literal>org.aspectj.weaving.messages</literal> System property. </para>
++            
++            <para> If you are using a JDK 1.4 or earlier AspectJ will use a simple built-in trace
++            infrastructure that logs to stderr. This is enabled by setting the 
++            <literal>org.aspectj.weaving.tracing.enabled</literal> System property. You may also override
++            the default behaviour or provide your own trace implementation using the
++            <literal>org.aspectj.weaving.tracing.factory</literal> System property. </para>
++            
++            <para> The table below lists the System properties that can be used to configure tracing. </para>
++            <informaltable>
++                <tgroup cols="2">
++                    <thead>
++                        <row>
++                            <entry>Property</entry>
++                            <entry>Description</entry>
++                        </row>
++                    </thead>
++                    <tbody>
++                        <row>
++                            <entry>
++                                <literal>org.aspectj.tracing.debug</literal>
++                            </entry>
++                            <entry>
++                            	Enable simple debugging of the trace infrastructure itself.
++                            	<para> Default: <literal>false</literal>. </para>
++                            </entry>
++                        </row>
++                        <row>
++                            <entry>
++                                <literal>org.aspectj.tracing.enabled</literal>
++                            </entry>
++                            <entry>
++                            	Enable the built-in AspectJ trace infrastructure.
++                            	<para> Default: <literal>false</literal>. </para>
++                            </entry>
++                        </row>
++                        <row>
++                            <entry>
++                                <literal>org.aspectj.tracing.factory</literal>
++                            </entry>
++                            <entry>
++                            	Select trace infrastructure. Specify the fully qualified class name
++                            	of the <literal>org.aspectj.weaver.tools.TraceFactory</literal> 
++                            	interface to use a custom infrastructure. Specify a value of
++                            	<literal>default</literal> to force AspectJ to use it's
++                            	built-in infrastructure. 
++                            </entry>
++                        </row>
++                        <row>
++                            <entry>
++                                <literal>org.aspectj.tracing.messages</literal>
++                            </entry>
++                            <entry>
++                            	Enable tracing of compiler messages. The kind of messages logged
++                            	is determined by the selected trace infrastructure not the message
++                            	configuration.
++                            	<para> Default: <literal>false</literal>. </para>
++                            </entry>
++                        </row>
++                    </tbody>
++                </tgroup>
++            </informaltable>
++        </sect2>
++
++        <sect2 id="examples" xreflabel="examples">
++            <title>Examples</title>
++        
++            <para>  </para>
++        </sect2>
+     </sect1>
+ </chapter>
+@@ -203,7 +203,7 @@
+     </target>
+ 
+     <target name="do-local-dist"
+-            depends="init,init-filters,api,faq,devguide,progguide, adk15guide"
++            depends="init,init-filters,api,faq,devguide,progguide, adk15guide, pdguide"
+             description="finish products by copying dist files and library sources"
+     >
+ 
+@@ -321,6 +321,28 @@
+         </delete>
+     </target>
+ 
++    <target name="pdguide" depends="init">
++
++        <copy todir="${docs.src.dir}/pdGuideDB" filtering="off">
++            <fileset dir="${devguide.icons.dir}"
++                     includes="${include.pdguide.icons}"
++            />
++        </copy>
++
++        <antcall target="build-guide">
++            <param name="xml-html-copy"
++                   value="dd_arrow.gif,aspectj-docs.css,ajbrowser-building.gif,ajbrowser-options.gif,${include.pdguide.icons}"
++            />
++            <param name="guide.dir" value="pdGuideDB" />
++            <param name="guide.name" value="pdguide" />
++        </antcall>
++        <delete quiet="on">
++            <fileset dir="${docs.src.dir}/pdGuideDB"
++                     includes="${include.pdguide.icons}"
++            />
++        </delete>
++    </target>
++
+     <target name="build-guide"
+             depends="init"
+             description="build prog or dev guide, using guide.dir and guide.name"
+@@ -25,8 +25,9 @@
+        <a href="quick5.pdf">Quick Reference (AspectJ 5)</a>,
+        <a href="quick.pdf">Quick Reference (1.2.1)</a>, 
+        <a href="adk15notebook/index.html">AspectJ 5 Developer's Notebook</a>,
+-       <a href="progguide/index.html">programming</a> and 
+-       <a href="devguide/index.html">development</a> guides, 
++       <a href="progguide/index.html">programming</a>, 
++       <a href="devguide/index.html">development</a> and 
++       <a href="pdguide/index.html">problem diagnosis</a> guides, 
+        <a href="runtime-api/index.html">API</a> and
+        <a href="examples/">example code</a>.
+ 	   </td></tr>
+@@ -111,6 +112,17 @@
+      </td>
+      </tr>
+ 
++<tr> <td><a href="pdguide/index.html">Problem Diagnosis Guide</a>
++<br/>
++         
++         (printable <a href="pdguide/printable.html">html</a>)
++     </td>
++     <td>This has a guide to  
++     the various features available such as message and trace to help you both solve problems
++     with you own programs and report bugs to the AspectJ team.
++     </td>
++     </tr>
++
+ <tr> <td><a href="runtime-api/index.html">AspectJ API</a>
+      </td>
+      <td>API documentation for AspectJ runtime classes. <tt>JoinPoint</tt>
+@@ -0,0 +1,15 @@
++<chapter id="ajcore" xreflabel="AspectJ Core">
++    <title>AspectJ Core Files</title>
++    
++    <sect1 id="ajcore-introduction">
++        <title>Introduction</title>
++        
++        <para> When the compiler terminates abnormally, either because an abort message was
++        issued or an exception was thrown, a AspectJ core file will be produced. You will
++        find it the working directory of the compiler and will have a name that contains
++        the date and time that the file was produced 
++        e.g. <literal>ajcore.20060810.173655.626.txt</literal>. </para>
++        
++        <para> </para>
++    </sect1>
++</chapter>
+@@ -0,0 +1,11 @@
++<chapter id="ltwdump" xreflabel="LTW Dump">
++    <title>LTW Dump</title>
++    
++    <sect1 id="ltwdump-introduction">
++        <title>Introduction</title>
++        
++        <para> Occasionally problems may be encountered with classes that have been load-time woven. Symptoms will
++        include incorrect program function or a Java exception such as 
++        <literal>java.lang.VerifyError</literal>.</para>
++    </sect1>
++</chapter>
+@@ -0,0 +1,10 @@
++<chapter id="messages" xreflabel="Messages">
++    <title>Messages</title>
++    
++    <sect1 id="messages-introduction">
++        <title>Introduction</title>
++        
++        <para> By default only warning and error messages are issued by the compiler whether it is
++        being used for source code compilation, weaving, binary weaving or load-time weaving. </para>
++    </sect1>
++</chapter>
+@@ -0,0 +1,44 @@
++<?xml version="1.0" encoding="ISO-8859-1"?>
++
++<!DOCTYPE book PUBLIC "-//OASIS//DTD DocBook XML V4.1//EN"
++                      "../../lib/docbook/docbook-dtd/docbookx.dtd"
++[
++<!ENTITY messages               SYSTEM "messages.xml">
++<!ENTITY trace                  SYSTEM "trace.xml">
++<!ENTITY ajcore                 SYSTEM "ajcore.xml">
++<!ENTITY ltwdump                SYSTEM "ltwdump.xml">
++]>
++
++<book>
++  <bookinfo>
++    <title>The AspectJ<superscript>tm</superscript> Problem Diagnosis Guide</title>
++
++    <authorgroup>
++      <author>
++        <othername>the AspectJ Team</othername>
++      </author>
++    </authorgroup>
++
++      <legalnotice>
++        <para>Copyright (c) 2006 IBM Corporation and others.
++         2006 Contributors.  
++         All rights reserved.
++        </para>
++      </legalnotice>
++
++    <abstract>
++      <para>
++        This guide describes how to gather and interpret information from the AspectJ compiler
++        to when diagnsoing problems in AspectJ programs, configuring the load-time weaving
++        framework or reporting bugs on Bugzilla.
++      </para>
++    </abstract>
++  </bookinfo>
++  
++  &messages;
++  &ajcore;
++  &trace;
++  &ltwdump;
++
++</book>
++
+@@ -0,0 +1,15 @@
++<chapter id="trace" xreflabel="Trace">
++    <title>Trace</title>
++    
++    <sect1 id="trace-introduction">
++        <title>Introduction</title>
++        
++        <para> The usual approach to opening a report on Bugzilla is to describe the symptoms of the 
++        problem and attach a simple testcase. This allows the AspectJ team to try and reproduce the problem in
++        an attempt to fix it as well as improve the test suite. Unfortunately it may not be possible
++        to produce such a testcase either because your program is too large or is comercially sensitive. Alternatively 
++        the problem may relate to your specific environment where AspectJ is being used and will not be
++        reproducible by the AspectJ team. In one of these situations you may be asked to produce a
++        trace of the compiler when the problem occurs instead. This can then be attached to the bug report. </para>
++    </sect1>
++</chapter>

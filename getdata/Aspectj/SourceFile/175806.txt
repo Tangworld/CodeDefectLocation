@@ -1,0 +1,276 @@
+@@ -0,0 +1,12 @@
++public class A {
++
++  public static void main(String []argv) {
++    int i = 5;
++    try {
++      String s = "3";
++      System.out.println(s);
++    } catch (Exception e) {
++      System.out.println(i);
++    }
++  }
++}
+@@ -12,6 +12,14 @@ package org.aspectj.systemtest.ajc160;
+ 
+ import java.io.File;
+ 
++import org.aspectj.apache.bcel.classfile.ConstantPool;
++import org.aspectj.apache.bcel.classfile.JavaClass;
++import org.aspectj.apache.bcel.classfile.LineNumberTable;
++import org.aspectj.apache.bcel.classfile.Method;
++import org.aspectj.apache.bcel.generic.ConstantPoolGen;
++import org.aspectj.apache.bcel.generic.MethodGen;
++import org.aspectj.apache.bcel.util.ClassPath;
++import org.aspectj.apache.bcel.util.SyntheticRepository;
+ import org.aspectj.testing.XMLBasedAjcTestCase;
+ 
+ import junit.framework.Test;
+@@ -21,6 +29,96 @@ import junit.framework.Test;
+  */
+ public class Ajc160Tests extends org.aspectj.testing.XMLBasedAjcTestCase {
+ 
++	/** Complex test that attempts to damage a class like a badly behaved bytecode transformer would and checks if AspectJ can cope. */
++	 public void testCopingWithGarbage_pr175806_1() throws ClassNotFoundException { 
++		 
++		// Compile the program we are going to mess with
++	    runTest("coping with bad tables");
++	    
++	    // Load up the class and the method 'main' we are interested in
++	    JavaClass jc = getClassFrom(ajc.getSandboxDirectory(),"A");
++	    Method[] meths = jc.getMethods();
++	    Method oneWeWant = null;
++	    for (int i = 0; i < meths.length && oneWeWant==null; i++) {
++			Method method = meths[i];
++			if (method.getName().equals("main")) oneWeWant = meths[i];
++	    }
++	    
++	    /**
++	     * For the main method:
++		  Stack=2, Locals=3, Args_size=1
++		  0:   iconst_5
++		  1:   istore_1
++		  2:   ldc     #18; //String 3
++		  4:   astore_2
++		  5:   getstatic       #24; //Field java/lang/System.out:Ljava/io/PrintStream;
++		  8:   aload_2
++		  9:   invokevirtual   #30; //Method java/io/PrintStream.println:(Ljava/lang/String;)V
++		  12:  goto    23
++		  15:  pop
++		  16:  getstatic       #24; //Field java/lang/System.out:Ljava/io/PrintStream;
++		  19:  iload_1
++		  20:  invokevirtual   #33; //Method java/io/PrintStream.println:(I)V
++		  23:  return
++		 Exception table:
++		  from   to  target type
++		    2    15    15   Class java/lang/Exception
++		
++		 LineNumberTable:
++		  line 4: 0
++		  line 6: 2
++		  line 7: 5
++		  line 8: 15
++		  line 9: 16
++		  line 11: 23
++		 LocalVariableTable:
++		  Start  Length  Slot  Name   Signature
++		  0      24      0    argv       [Ljava/lang/String;
++		  2      22      1    i       I
++		  5      10      2    s       Ljava/lang/String;
++	     */
++	    
++	    ConstantPool cp = oneWeWant.getConstantPool();
++	    ConstantPoolGen cpg = new ConstantPoolGen(cp);
++	    
++	    // Damage the line number table, entry 2 (Line7:5) so it points to an invalid (not on an instruction boundary) position of 6
++	    oneWeWant.getLineNumberTable().getLineNumberTable()[2].setStartPC(6);
++
++	    // Should be 'rounded down' when transforming it into a MethodGen, new position will be '5'
++//	    System.out.println("BEFORE\n"+oneWeWant.getLineNumberTable().toString());
++	    MethodGen toTransform = new MethodGen(oneWeWant,"A",cpg,false);
++	    LineNumberTable lnt = toTransform.getMethod().getLineNumberTable();
++	    assertTrue("Should have been 'rounded down' to position 5 but is "+lnt.getLineNumberTable()[2].getStartPC(), lnt.getLineNumberTable()[2].getStartPC()==5);
++//	    System.out.println("AFTER\n"+lnt.toString());    
++	 }
++	 
++	 public void testCopingWithGarbage_pr175806_2() throws ClassNotFoundException { 
++	 
++		// Compile the program we are going to mess with
++	    runTest("coping with bad tables");
++	    
++	    // Load up the class and the method 'main' we are interested in
++	    JavaClass jc = getClassFrom(ajc.getSandboxDirectory(),"A");
++	    Method[] meths = jc.getMethods();
++	    Method oneWeWant = null;
++	    for (int i = 0; i < meths.length && oneWeWant==null; i++) {
++			Method method = meths[i];
++			if (method.getName().equals("main")) oneWeWant = meths[i];
++	    }
++	    // see previous test for dump of main method
++	    
++	    ConstantPool cp = oneWeWant.getConstantPool();
++	    ConstantPoolGen cpg = new ConstantPoolGen(cp);
++	    
++	    // Damage the local variable table, entry 2 (" 2      22      1    i       I") so it points to an invalid start pc of 3
++	    oneWeWant.getLocalVariableTable().getLocalVariable(1).setStartPC(3);
++
++	    // Should be 'rounded down' when transforming it into a MethodGen, new position will be '2'		    
++	    // This next line will go BANG with an NPE if we don't correctly round the start pc down to 2
++	    MethodGen toTransform = new MethodGen(oneWeWant,"A",cpg,true);
++	 }
++	  
++
+   public void testGenericAspectGenericPointcut_pr174449() { runTest("problem with generic aspect and generic pointcut");}
+   public void testGenericAspectGenericPointcut_noinline_pr174449() { runTest("problem with generic aspect and generic pointcut - noinline");}
+   public void testGenericMethodsAndOrdering_ok_pr171953_2() { runTest("problem with generic methods and ordering - ok");}
+@@ -37,7 +135,7 @@ public class Ajc160Tests extends org.aspectj.testing.XMLBasedAjcTestCase {
+   public void testIncorrectOptimizationOfIstore_pr166084() { runTest("incorrect optimization of istore"); }
+   public void testDualParameterizationsNotAllowed_pr165631() { runTest("dual parameterizations not allowed"); }
+ 
+-	public void testSuppressWarnings1_pr166238() {
++ 	public void testSuppressWarnings1_pr166238() {
+ 		runTest("Suppress warnings1");
+ 	}
+ 
+@@ -53,6 +151,16 @@ public class Ajc160Tests extends org.aspectj.testing.XMLBasedAjcTestCase {
+   protected File getSpecFile() {
+     return new File("../tests/src/org/aspectj/systemtest/ajc160/ajc160.xml");
+   }
++  
++  public SyntheticRepository createRepos(File cpentry) {
++	ClassPath cp = new ClassPath(cpentry+File.pathSeparator+System.getProperty("java.class.path"));
++	return SyntheticRepository.getInstance(cp);
++  }
++  
++  protected JavaClass getClassFrom(File where,String clazzname) throws ClassNotFoundException {
++	SyntheticRepository repos = createRepos(where);
++	return repos.loadClass(clazzname);
++  }
+ 
+ 
+ }
+\ No newline at end of file
+@@ -5,6 +5,10 @@
+ 
+  <!-- first section - dont need a 1.6 vm but fixed in the 1.6 branch of AspectJ -->
+ 
++   <ajc-test dir="bugs160/pr175806" title="coping with bad tables">
++     <compile options="-1.5" files="A.java"/>
++   </ajc-test>
++   
+    <ajc-test dir="bugs160/pr174449" title="problem with generic aspect and generic pointcut">
+      <compile options="-1.5" files="Foo.java"/>
+      <run class="Foo">
+@@ -64,7 +64,7 @@ import java.io.Serializable;
+  * the source that corresponds to a relative address in the byte code. This
+  * is used for debugging purposes.
+  *
+- * @version $Id: LineNumber.java,v 1.3 2004/11/19 16:45:18 aclement Exp $
++ * @version $Id: LineNumber.java,v 1.4 2007/02/28 13:10:32 aclement Exp $
+  * @author  <A HREF="mailto:markus.dahm@berlin.de">M. Dahm</A>
+  * @see     LineNumberTable
+  */
+@@ -150,7 +150,7 @@ public final class LineNumber implements Cloneable, Node, Serializable {
+    * @return String representation
+    */ 
+   public final String toString() {
+-    return "LineNumber(" + start_pc + ", " + line_number + ")";
++    return "LineNumber(pc=" + start_pc + ", line=" + line_number + ")";
+   }    
+ 
+   /**
+@@ -75,7 +75,7 @@ import java.util.ArrayList;
+  * A list is finally dumped to a byte code array with <a
+  * href="#getByteCode()">getByteCode</a>.
+  *
+- * @version $Id: InstructionList.java,v 1.4 2006/05/12 08:17:43 aclement Exp $
++ * @version $Id: InstructionList.java,v 1.5 2007/02/28 13:10:32 aclement Exp $
+  * @author  <A HREF="mailto:markus.dahm@berlin.de">M. Dahm</A>
+  * @see     Instruction
+  * @see     InstructionHandle
+@@ -122,6 +122,9 @@ public class InstructionList implements Serializable {
+    */
+   public boolean isEmpty() { return start == null; } // && end == null
+ 
++  public static InstructionHandle findHandle(InstructionHandle[] ihs,int[] pos,int count,int target) {
++	  return findHandle(ihs,pos,count,target,false);
++  }
+   /**
+    * Find the target instruction (handle) that corresponds to the given target
+    * position (byte code offset).
+@@ -133,7 +136,7 @@ public class InstructionList implements Serializable {
+    * @return target position's instruction handle if available
+    */
+   public static InstructionHandle findHandle(InstructionHandle[] ihs,
+-					     int[] pos, int count,int target) {
++					     int[] pos, int count,int target,boolean returnClosestIfNoExactMatch) {
+     int l=0, r = count - 1;
+ 
+     // Do a binary search since the pos array is ordered
+@@ -146,6 +149,10 @@ public class InstructionList implements Serializable {
+       else                  l=i+1; // target > j
+     } while(l <= r);
+ 
++    if (returnClosestIfNoExactMatch) {
++    	i = (l+r)/2; if (i<0) i=0;
++    	return ihs[i];
++    }
+     return null;
+   }
+ 
+@@ -165,10 +172,14 @@ public class InstructionList implements Serializable {
+   public InstructionHandle[] getInstructionsAsArray() {
+ 	  return getInstructionHandles();
+   }
+-  
++
+   public InstructionHandle findHandle(int pos,InstructionHandle[] instructionArray) {
+ 	  return findHandle(instructionArray,byte_positions,length,pos);
+   }
++  
++  public InstructionHandle findHandle(int pos,InstructionHandle[] instructionArray,boolean useClosestApproximationIfNoExactFound) {
++	  return findHandle(instructionArray,byte_positions,length,pos,useClosestApproximationIfNoExactFound);
++  }
+ 
+   /**
+    * Initialize instruction list from byte array.
+@@ -86,7 +86,7 @@ import org.aspectj.apache.bcel.generic.annotation.AnnotationGen;
+  * use the `removeNOPs' method to get rid off them.
+  * The resulting method object can be obtained via the `getMethod()' method.
+  *
+- * @version $Id: MethodGen.java,v 1.7 2006/02/21 10:49:15 aclement Exp $
++ * @version $Id: MethodGen.java,v 1.8 2007/02/28 13:10:32 aclement Exp $
+  * @author  <A HREF="mailto:markus.dahm@berlin.de">M. Dahm</A>
+  * @author  <A HREF="http://www.vmeng.com/beard">Patrick C. Beard</A> [setMaxStack()]
+  * @see     InstructionList
+@@ -275,17 +275,16 @@ public class MethodGen extends FieldGenOrMethodGen {
+ 							int lnum = l.getLineNumber();
+ 							if (lnum>highestLineNumber) highestLineNumber=lnum;
+ 							LineNumberTag lt = new LineNumberTag(lnum);
+-							il.findHandle(l.getStartPC(),arrayOfInstructions).addTargeter(lt);
++							il.findHandle(l.getStartPC(),arrayOfInstructions,true).addTargeter(lt);
+ 						}
+ 					} else {
+ 						for (int k = 0; k < ln.length; k++) {
+ 							LineNumber l = ln[k];
+-							addLineNumber(il.findHandle(l.getStartPC(),arrayOfInstructions),
++							addLineNumber(il.findHandle(l.getStartPC(),arrayOfInstructions,true),
+ 									l.getLineNumber());
+ 						}
+ 					}
+ 				} else if (a instanceof LocalVariableTable) {
+-					
+ 					// Lets have a go at creating Tags directly
+ 					if (useTags) {
+ 						LocalVariable[] lv = ((LocalVariableTable) a).getLocalVariableTable();
+@@ -294,7 +293,7 @@ public class MethodGen extends FieldGenOrMethodGen {
+ 							LocalVariable l = lv[k];
+ 							Type t = Type.getType(l.getSignature());
+ 							LocalVariableTag lvt = new LocalVariableTag(t,l.getSignature(),l.getName(),l.getIndex(),l.getStartPC());
+-							InstructionHandle start = il.findHandle(l.getStartPC(), arrayOfInstructions);
++							InstructionHandle start = il.findHandle(l.getStartPC(), arrayOfInstructions,true);
+ 							byte b = t.getType();
+ 							if (b!= Constants.T_ADDRESS) {
+ 								int increment = t.getSize();
+Binary files differ
+Binary files differ

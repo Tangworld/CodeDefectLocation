@@ -1,0 +1,1673 @@
+@@ -0,0 +1,5 @@
++package c;
++
++public class C {
++	
++}
+@@ -0,0 +1,10 @@
++package b;
++
++public class ClassContainingAspect {
++	
++	
++	static aspect InnerAspect {
++		
++	}
++	
++}
+@@ -0,0 +1,8 @@
++package c;
++
++public class C {
++	
++	static aspect AnAspect {
++		
++	}
++}
+@@ -0,0 +1,9 @@
++package pkg;
++
++public class C1 {
++	
++	public void foo() {
++		
++	}
++	
++}
+@@ -0,0 +1,9 @@
++package pkg;
++
++public class C2 {
++	
++	public void foo() {
++		
++	}
++	
++}
+@@ -0,0 +1,9 @@
++package pkg;
++
++public class C1 {
++	
++	public void foo() {
++		System.out.println("blah");
++	}
++	
++}
+@@ -8,4 +8,10 @@ To regenerate the class copied over as part of the test:
+ 
+ 	javac newInpathClass\InpathClass.java  
+ 
++To regenerate the jar file base\inpathJar.jar
+ 
++	javac origInpathClass\InpathClass.java
++	cd origInpathClass
++	jar cf inpathJar.jar InpathClass.class inpathResource.txt
++
++copy resultant jar file to ..\base
+@@ -0,0 +1 @@
++resource in directory on inpath
+\ No newline at end of file
+Binary files differ
+@@ -0,0 +1 @@
++resource on inpath...
+\ No newline at end of file
+@@ -11,8 +11,10 @@ import org.aspectj.systemtest.ajc150.ataspectj.AtAjAnnotationGenTests;
+ import org.aspectj.systemtest.ajc151.AllTestsAspectJ151;
+ import org.aspectj.systemtest.ajc152.AllTestsAspectJ152;
+ import org.aspectj.systemtest.ajc153.AllTestsAspectJ153;
+-import org.aspectj.systemtest.model.Model5Tests;
++import org.aspectj.systemtest.incremental.tools.IncrementalOutputLocationManagerTests;
++import org.aspectj.systemtest.incremental.tools.MoreOutputLocationManagerTests;
+ import org.aspectj.systemtest.incremental.tools.MultiProjectIncrementalTests;
++import org.aspectj.systemtest.model.Model5Tests;
+ import org.aspectj.systemtest.xlint.XLint5Tests;
+ 
+ public class AllTests15 {
+@@ -33,6 +35,8 @@ public class AllTests15 {
+ 		 * for the moment.
+ 		 */
+ 		suite.addTestSuite(MultiProjectIncrementalTests.class);
++		suite.addTestSuite(MoreOutputLocationManagerTests.class);
++		suite.addTestSuite(IncrementalOutputLocationManagerTests.class);
+ 		suite.addTest(XLint5Tests.suite());
+ 		//$JUnit-END$
+ 		return suite;
+@@ -1,8 +1,10 @@
+ package org.aspectj.systemtest.incremental.tools;
+ 
++import java.io.BufferedReader;
+ import java.io.DataOutputStream;
+ import java.io.File;
+ import java.io.FileOutputStream;
++import java.io.FileReader;
+ import java.io.IOException;
+ import java.util.ArrayList;
+ import java.util.Iterator;
+@@ -103,6 +105,17 @@ public class AbstractMultiProjectIncrementalAjdeInteractionTestbed extends
+ 		copy(projectSrc,destination);//,false);
+ 	}
+ 
++	/*
++	 * Applies an overlay onto the project being tested - copying
++	 * the contents of the specified overlay directory.
++	 */
++	public void alter(String projectName,String overlayDirectory) {
++		File projectSrc =new File(testdataSrcDir+File.separatorChar+projectName+
++				                  File.separatorChar+overlayDirectory);
++		File destination=new File(getWorkingDir(),projectName);
++		copy(projectSrc,destination);
++	}
++	
+ 	/**
+ 	 * Copy the contents of some directory to another location - the
+ 	 * copy is recursive.
+@@ -127,4 +140,40 @@ public class AbstractMultiProjectIncrementalAjdeInteractionTestbed extends
+ 		}
+ 	}
+ 
++	/**
++	 * Count the number of times a specified aspectName appears in the default
++	 * aop.xml file and compare with the expected number of occurrences. If just 
++	 * want to count the number of aspects mentioned within the file then 
++	 * pass "" for the aspectName, otherwise, specify the name of the 
++	 * aspect interested in.
++	 */
++	protected void checkXMLAspectCount(String projectName, String aspectName,
++			int expectedOccurrences, String outputDir) {
++				int aspectCount = 0;
++				File aopXML = new File(outputDir + File.separatorChar + "META-INF" + File.separatorChar + "aop-ajc.xml");
++			
++				if (!aopXML.exists()) {
++					fail("Expected file " + aopXML.getAbsolutePath() + " to exist but it doesn't");
++				}
++				try {
++					BufferedReader reader = new BufferedReader(new FileReader(aopXML));
++					String line = reader.readLine();
++					while (line != null) {
++						if (aspectName.equals("") && line.indexOf("aspect name=\"") != -1) {
++							aspectCount++;
++						} else if (line.indexOf("aspect name=\""+aspectName+"\"") != -1) {
++							aspectCount++;
++						}
++						line = reader.readLine();
++					}
++					reader.close();
++				} catch (IOException ie) {
++					ie.printStackTrace();
++				}
++				if (aspectCount != expectedOccurrences) {
++					fail("Expected aspect " + aspectName + " to appear " + expectedOccurrences + " times" +
++							" in the aop.xml file but found " + aspectCount + " occurrences");
++				}
++			}
++
+ }
+@@ -83,6 +83,10 @@ public class AjdeInteractionTestbed extends TestCase {
+ 		MyProjectPropertiesAdapter.setOutputLocationManager(mgr);
+ 	}
+ 
++	public static void configureOutputLocationManager(OutputLocationManager mgr, boolean hasOutputPath) {
++		MyProjectPropertiesAdapter.setOutputLocationManager(mgr,hasOutputPath);
++	}
++	
+ 	public static void configureResourceMap(Map resourcesMap) {
+ 		MyProjectPropertiesAdapter.setSourcePathResources(resourcesMap);
+ 	}
+@@ -101,11 +105,14 @@ public class AjdeInteractionTestbed extends TestCase {
+ 
+ 		// Create a sandbox in which to work
+ 		sandboxDir = Ajc.createEmptySandbox();
++		
++		IncrementalStateManager.debugIncrementalStates = true;
+ 	}
+ 
+ 	protected void tearDown() throws Exception {
+ 		super.tearDown();
+ 		AjState.stateListener=null;
++		IncrementalStateManager.clearIncrementalStates();
+ 	}
+ 
+ 	/** Drives a build */
+@@ -284,6 +291,26 @@ public class AjdeInteractionTestbed extends TestCase {
+ 		System.out.println("=============================================");
+ 	}
+ 
++	/**
++	 * Check we compiled/wove the right number of files, passing '-1' indicates you don't care about
++	 * that number.
++	 */
++	public void checkCompileWeaveCount(int expCompile,int expWoven) {
++		if (expCompile!=-1 && getCompiledFiles().size()!=expCompile)
++			fail("Expected compilation of "+expCompile+" files but compiled "+getCompiledFiles().size()+
++					"\n"+printCompiledAndWovenFiles());
++		if (expWoven!=-1 && getWovenClasses().size()!=expWoven)
++			fail("Expected weaving of "+expWoven+" files but wove "+getWovenClasses().size()+
++					"\n"+printCompiledAndWovenFiles());
++	}
++	
++	public void checkWasntFullBuild() {
++		assertTrue("Shouldn't have been a full (batch) build",!wasFullBuild());
++	}
++	
++	public void checkWasFullBuild() {
++		assertTrue("Should have been a full (batch) build",wasFullBuild());
++	}
+ 
+ 	public boolean wasFullBuild() {
+ 	// alternatives: statelistener is debug interface, progressmonitor is new proper interface (see pr145689)
+@@ -361,7 +388,6 @@ public class AjdeInteractionTestbed extends TestCase {
+ 		static MyProjectPropertiesAdapter _instance = new MyProjectPropertiesAdapter();
+ 		private MyProjectPropertiesAdapter() {}
+ 
+-
+ 		public static MyProjectPropertiesAdapter getInstance() { 
+ 			return _instance;
+ 		}
+@@ -371,14 +397,18 @@ public class AjdeInteractionTestbed extends TestCase {
+ 			_instance.inpath = null;
+ 			_instance.sourcePathResources=null;
+ 			_instance.outputLocationManager=null;
++			_instance.hasOutputPath = true;
++			_instance.outputPath = null;
+ 		}
+ 
+ 		private String projectName = null;
++		private String outputPath = null;
+ 		private String classPath = "";
+ 		private Set aspectPath = null;
+ 		private Set inpath = null;
+ 		private Map sourcePathResources = null;
+ 		private OutputLocationManager outputLocationManager = null;
++		private boolean hasOutputPath = true;
+ 
+ 		public static void setActiveProject(String n) {
+ 			_instance.projectName = n;
+@@ -409,10 +439,9 @@ public class AjdeInteractionTestbed extends TestCase {
+ 			_instance.aspectPath = path;
+ 		}
+ 
+-		public static void setInpath(Set inpath) {
+-			_instance.inpath = inpath;
++		public static void setInpath(Set path) {
++			_instance.inpath = path;
+ 		}
+-
+ 
+ 		// interface impl below
+ 
+@@ -457,7 +486,22 @@ public class AjdeInteractionTestbed extends TestCase {
+ 		// DOESSOMETHING
+ 		public String getClasspath() {
+ 			log("MyProjectProperties.getClasspath()");
++			// AJDT has all the output directories on it's classpath
++			StringBuffer sb = new StringBuffer();
++			String outputPath = getOutputPath();
++			sb.append(outputPath);
++			if (outputLocationManager != null) {
++				List allOutputPaths = outputLocationManager.getAllOutputLocations();
++				for (Iterator iterator = allOutputPaths.iterator(); iterator
++						.hasNext();) {
++					File dir = (File) iterator.next();
++					if (!dir.getAbsolutePath().equals(getOutputPath())) {
++						sb.append(File.pathSeparator + dir.getAbsolutePath());
++					}
++				}
++			}
+ 			String cp =  
++			  sb.toString() + File.pathSeparator + 
+ 			  new File(testdataSrcDir) + File.pathSeparator +
+     		  System.getProperty("sun.boot.class.path") + 
+     		  File.pathSeparator + "../runtime/bin" +
+@@ -482,9 +526,17 @@ public class AjdeInteractionTestbed extends TestCase {
+ 		}
+ 
+ 		public String getOutputPath() {
++			if (!hasOutputPath) return null; 
++				
+ 			String dir = getFile(projectName,"bin");
+ 			log("MyProjectProperties.getOutputPath() [returning "+dir+"]");
+ 			return dir;
++			//return null;
++		}
++		
++		public static void setOutputLocationManager(OutputLocationManager mgr,boolean hasOutputPath ) {
++			_instance.hasOutputPath = hasOutputPath;
++			_instance.outputLocationManager = mgr;
+ 		}
+ 
+ 		public static void setOutputLocationManager(OutputLocationManager mgr) {
+@@ -492,7 +544,11 @@ public class AjdeInteractionTestbed extends TestCase {
+ 		}
+ 
+ 	    public OutputLocationManager getOutputLocationManager() {
+-	    	return this.outputLocationManager;
++	    	return outputLocationManager;
++//	    	if (testHasSetOutputLocationManager) {
++//	    		return outputLocationManager;
++//			}
++//	    	return new MyOutputLocationManager(sandboxDir + File.separator + projectName);
+ 	    }
+ 
+ 		public String getBootClasspath() {
+@@ -521,7 +577,7 @@ public class AjdeInteractionTestbed extends TestCase {
+ 		}
+ 
+ 		public Set getInpath() {
+-			log("MyProjectProperties.getInPath(" + inpath +")");
++			log("MyProjectProperties.getInPath(" + inpath + ")");
+ 			return inpath;
+ 		}
+ 
+@@ -835,6 +891,44 @@ public class AjdeInteractionTestbed extends TestCase {
+ 			return false;
+ 		}
+ 	}
++
++	// ----
++
++	static class MyOutputLocationManager implements OutputLocationManager {
++
++		private File classOutputLoc;
++		private File resourceOutputLoc;
++		private String testProjectOutputPath;
++		private List allOutputLocations;
++		private File outputLoc;
++		
++		public MyOutputLocationManager(String testProjectPath) {
++			this.testProjectOutputPath = testProjectPath + File.separator + "bin";
++			outputLoc = new File(testProjectOutputPath);
++			
++			allOutputLocations = new ArrayList();
++			allOutputLocations.add(outputLoc);
++		}
++		
++		public File getOutputLocationForClass(File compilationUnit) {
++			return outputLoc;
++		}
++
++		public File getOutputLocationForResource(File resource) {
++			return outputLoc;
++		}
++
++		public List /*File*/ getAllOutputLocations() {
++			return allOutputLocations;
++		}
++
++		public File getDefaultOutputLocation() {
++			return outputLoc;
++		}
++		
++	}
++	
++	// ----
+ 
+ 	static class MyStateListener extends AbstractStateListener {
+ 
+@@ -0,0 +1,87 @@
++/********************************************************************
++ * Copyright (c) 2006 Contributors. All rights reserved. 
++ * This program and the accompanying materials are made available 
++ * under the terms of the Eclipse Public License v1.0 
++ * which accompanies this distribution and is available at 
++ * http://eclipse.org/legal/epl-v10.html 
++ *  
++ * Contributors: IBM Corporation - initial API and implementation 
++ * 				 Helen Hawkins   - initial version
++ *******************************************************************/
++package org.aspectj.systemtest.incremental.tools;
++
++import java.io.File;
++import java.util.ArrayList;
++import java.util.List;
++
++import org.aspectj.ajde.OutputLocationManager;
++
++
++/**
++ * OutputLocationManger tests which check whether the correct type of build has happened.
++ */
++public class IncrementalOutputLocationManagerTests extends AbstractMultiProjectIncrementalAjdeInteractionTestbed {
++
++	public void testPr166580() {
++		initialiseProject("PR166580");
++		configureOutputLocationManager(new MyOutputLocationManager("PR166580",2));
++		build("PR166580");
++		checkWasFullBuild();
++		alter("PR166580","inc1");
++		build("PR166580");
++		checkWasntFullBuild();
++	}
++	
++	
++	/**
++	 * Will send output from src dir 'srcX' to directory 'binX'
++	 */
++	private class MyOutputLocationManager implements OutputLocationManager {
++
++		private String projectDir;
++		private int numberOfSrcDirs;
++		private List allOutputDirs;
++		
++		public MyOutputLocationManager(String projectName, int numberOfSrcDirs) {
++			projectDir = getWorkingDir() + File.separator + projectName;
++			this.numberOfSrcDirs = numberOfSrcDirs;
++		}
++		
++		public File getOutputLocationForClass(File compilationUnit) {
++			String path = compilationUnit.getAbsolutePath();
++			int index = path.indexOf("src");
++			String number = path.substring(index +3,index + 4);
++			File ret =  new File(projectDir + File.separator + "bin" + number);
++			if (!ret.exists()) {
++				ret.mkdirs();
++			}
++			return ret;
++		}
++
++		public File getOutputLocationForResource(File resource) {
++			return getOutputLocationForClass(resource);
++		}
++
++		public List getAllOutputLocations() {
++			if (allOutputDirs == null) {
++				allOutputDirs = new ArrayList();
++				for (int i = 0; i < numberOfSrcDirs + 1; i++) {
++					File f = null;
++					if (i == 0) {
++						f = new File(projectDir + File.separator + "bin");
++					} else {
++						f = new File(projectDir + File.separator + "bin" + i);
++					}
++					allOutputDirs.add(f);
++				}
++			}
++			return allOutputDirs;
++		}
++
++		public File getDefaultOutputLocation() {
++			return new File(projectDir + File.separator + "bin");
++		}
++		
++	}
++	
++}
+@@ -0,0 +1,375 @@
++/********************************************************************
++ * Copyright (c) 2006 Contributors. All rights reserved. 
++ * This program and the accompanying materials are made available 
++ * under the terms of the Eclipse Public License v1.0 
++ * which accompanies this distribution and is available at 
++ * http://eclipse.org/legal/epl-v10.html 
++ *  
++ * Contributors: IBM Corporation - initial API and implementation 
++ * 				 Helen Hawkins   - initial version
++ *******************************************************************/
++package org.aspectj.systemtest.incremental.tools;
++
++import java.io.File;
++import java.util.ArrayList;
++import java.util.HashSet;
++import java.util.Iterator;
++import java.util.List;
++import java.util.Map;
++import java.util.Set;
++
++import org.aspectj.ajde.OutputLocationManager;
++import org.aspectj.ajdt.internal.core.builder.AjBuildConfig;
++import org.aspectj.ajdt.internal.core.builder.AjBuildManager;
++import org.aspectj.ajdt.internal.core.builder.AjState;
++import org.aspectj.ajdt.internal.core.builder.IncrementalStateManager;
++import org.aspectj.util.FileUtil;
++import org.aspectj.weaver.bcel.UnwovenClassFile;
++
++/**
++ * Similar to OutputLocationManagerTests, however, tests the different
++ * scenarios when no outputDir is set but instead there is an 
++ * OutputLocationManager which returns the same output location for all 
++ * files and resources.
++ * 
++ * There are eight places where AjBuildConfig.getOutputDir() is called
++ * that are tested here:
++ * 
++ * AjBuildManager.getOutputClassFileName(..) - testCorrectInfoWhenNoOutputPath
++ * AjBuildManager.initBcelWorld(..) - testPathResolutionWithInpathDirAndNoOutputPath
++ *                                    testPathResolutionWithInpathJarAndNoOutputPath
++ * AjBuildManager.writeManifest(..) - testCopyManifest
++ * AjBuildManager.writeOutxml(..) - testOutxml
++ *                                - testOutXmlForAspectsWithDifferentOutputDirs
++ * AjState.createUnwovenClassFile(..) - testPathResolutionAfterChangeInClassOnInpath
++ * AjState.deleteResources(..) - testAjStateDeleteResources
++ * AjState.maybeDeleteResources(..) - testAjStateDeleteResourcesInInputDir
++ * AjState.removeAllResultsOfLastBuild(..) - testAllResourcesAreDeletedCorrectlyOnPathChange
++ * IncrementalStateManager.findStateManagingOutputLocation(..) - testFindStateManagingOutputLocation
++ * 
++ * The other three places are not tested here because they were implemented
++ * when OutputLocationManager was introduced.
++ * 
++ */
++public class MoreOutputLocationManagerTests extends AbstractMultiProjectIncrementalAjdeInteractionTestbed {
++	
++	private String inpathTestingDir;
++	private String expectedOutputDir;
++	
++	protected void setUp() throws Exception {
++		super.setUp();
++		initialiseProject("inpathTesting");
++		inpathTestingDir = getWorkingDir() + File.separator + "inpathTesting";
++		expectedOutputDir = inpathTestingDir + File.separator + "bin";
++		configureOutputLocationManager(new MyOutputLocationManager(inpathTestingDir), false);
++	}
++	
++	/**
++	 * Tests that the UnwovenClassFiles have the correct path when there
++	 * is no outputDir but there is an OutputLocationManager. Is a simple
++	 * project that has no inpath setting
++	 */
++	public void testCorrectInfoWhenNoOutputPath() {
++		build("inpathTesting");
++		AjState state = getState();
++		
++		Map classNameToFileMap = state.getClassNameToFileMap();
++		assertFalse("expected there to be classes ",classNameToFileMap.isEmpty());
++		Set entrySet = classNameToFileMap.entrySet();
++		for (Iterator iterator = entrySet.iterator(); iterator.hasNext();) {
++			Map.Entry entry = (Map.Entry) iterator.next();
++			String className = (String) entry.getKey();
++			String fullClassName = expectedOutputDir + File.separator + className.replace('.',File.separatorChar) + ".class";
++			File file = (File) entry.getValue();
++			assertEquals("expected file to have path \n" + fullClassName + ", but" +
++					" found path \n" + file.getAbsolutePath(),fullClassName,
++					file.getAbsolutePath());
++		}
++	}
++	
++	/**
++	 * Tests that can retieve the state that manages a given output location
++	 * when there is no outputDir set
++	 */
++	public void testFindStateManagingOutputLocation() {
++		build("inpathTesting");
++		AjState state = IncrementalStateManager.findStateManagingOutputLocation(new File(expectedOutputDir));
++		assertNotNull("Expected to find a state that managed output location " +
++				expectedOutputDir + ", but did not", state);
++		
++	}
++	
++	/**
++	 * Tests that the UnwovenClassFiles corresponding to classes on the
++	 * inpath have the correct class name when there is no output directory 
++	 * (ultimately tests AjBuildManager.initBcelWorld() when there is a
++	 * jar on the inpath). Only does one build.
++	 */
++	public void testPathResolutionWithInpathDirAndNoOutputPath() {
++		String inpathDir  = inpathTestingDir + File.separator + "injarBin" + File.separator + "pkg";
++		addInpathEntry(inpathDir);
++		build("inpathTesting");
++
++		// expect to compile the aspect in 'inpathTesting' project and weave
++		// both the aspect and the class on the inpath.
++		checkCompileWeaveCount(1,2);
++		
++		// get hold of the state for this project - expect to find one
++		AjState state = getState();
++
++		// the classes onthe inpath are recorded against the AjBuildManager
++		// (they are deleted from the ajstate whilst cleaning up after a build)
++		Map binarySources = state.getAjBuildManager().getBinarySourcesForThisWeave();
++		assertFalse("expected there to be binary sources from the inpath setting but didn't find any",binarySources.isEmpty());
++
++		List unwovenClassFiles = (List) binarySources.get(inpathDir + File.separator + "InpathClass.class");
++		List fileNames = new ArrayList();
++		// the unwovenClassFiles should have filenames that point to the output dir
++		// (which in this case is the sandbox dir) and not where they came from.
++		for (Iterator iterator = unwovenClassFiles.iterator(); iterator.hasNext();) {
++			UnwovenClassFile ucf = (UnwovenClassFile) iterator.next();
++			if (ucf.getFilename().indexOf(expectedOutputDir) == -1) {
++				fileNames.add(ucf.getFilename());
++			}
++		}
++		assertTrue("expected to find UnwovenClassFile from directory\n" + expectedOutputDir +
++				", \n but found files " + fileNames, fileNames.isEmpty());		
++	}
++
++	/**
++	 * Tests that the UnwovenClassFiles corresponding to classes on the
++	 * inpath have the correct class name when there is no output directory 
++	 * (ultimately tests AjState.createUnwovenClassFile(BinarySourceFile)
++	 * and ensures the unwovenClassFile has the correct name. Makes a change to
++	 * a class file on the inpath to ensure we enter this method (there is a 
++	 * check that says are we the first build))
++	 */
++	public void testPathResolutionAfterChangeInClassOnInpath() throws Exception {
++		String inpathDir  = inpathTestingDir + File.separator + "injarBin" + File.separator + "pkg";
++		addInpathEntry(inpathDir);
++		build("inpathTesting");
++
++		// build again so that we enter 
++		// AjState.createUnwovenClassFile(BinarySourceFile)
++		File from = new File(testdataSrcDir+File.separatorChar+"inpathTesting"
++				+File.separatorChar+"newInpathClass" + File.separatorChar + "InpathClass.class");
++		File destination = new File(inpathDir + File.separatorChar + "InpathClass.class");
++		FileUtil.copyFile(from,destination);
++		
++		// get hold of the state for this project - expect to find one
++		AjState state = getState();
++		AjBuildConfig buildConfig = state.getBuildConfig();
++		state.prepareForNextBuild(buildConfig);
++
++		Map binarySources = state.getBinaryFilesToCompile(true);
++		assertFalse("expected there to be binary sources from the inpath setting but didn't find any",binarySources.isEmpty());
++
++		List unwovenClassFiles = (List) binarySources.get(inpathDir + File.separator + "InpathClass.class");
++		List fileNames = new ArrayList();
++		// the unwovenClassFiles should have filenames that point to the output dir
++		// (which in this case is the sandbox dir) and not where they came from.
++		for (Iterator iterator = unwovenClassFiles.iterator(); iterator.hasNext();) {
++			UnwovenClassFile ucf = (UnwovenClassFile) iterator.next();
++			if (ucf.getFilename().indexOf(expectedOutputDir) == -1) {
++				fileNames.add(ucf.getFilename());
++			}
++		}
++		assertTrue("expected to find UnwovenClassFile from directory\n" + expectedOutputDir +
++				", \n but found files " + fileNames, fileNames.isEmpty());		
++	}
++	
++	/**
++	 * Tests that the UnwovenClassFiles corresponding to jars on the
++	 * inpath have the correct class name when there is no output path 
++	 * (ultimately tests AjBuildManager.initBcelWorld() when there is a
++	 * jar on the inpath). Only does one build.
++	 */
++	public void testPathResolutionWithInpathJarAndNoOutputPath() {
++		String inpathDir  = inpathTestingDir + File.separator + "inpathJar.jar";
++		addInpathEntry(inpathDir);
++		build("inpathTesting");
++		// expect to compile the aspect in 'inpathTesting' project and weave
++		// both the aspect and the class in the jar on the inpath.
++		checkCompileWeaveCount(1,2);
++		
++		AjState state = getState();
++
++		// tests AjState.createUnwovenClassFile(BinarySourceFile)
++		Map binarySources = state.getAjBuildManager().getBinarySourcesForThisWeave();
++		assertFalse("expected there to be binary sources from the inpath setting but didn't find any",binarySources.isEmpty());
++
++		List unwovenClassFiles = (List) binarySources.get(inpathDir);
++		List fileNames = new ArrayList();
++		
++		for (Iterator iterator = unwovenClassFiles.iterator(); iterator.hasNext();) {
++			UnwovenClassFile ucf = (UnwovenClassFile) iterator.next();
++			if (ucf.getFilename().indexOf(expectedOutputDir) == -1) {
++				fileNames.add(ucf.getFilename());
++			}
++		}
++		assertTrue("expected to find UnwovenClassFile from directory\n" + expectedOutputDir +
++				", \n but found files " + fileNames, fileNames.isEmpty());		
++
++	}	
++	
++	/**
++	 * A manifest file is in the jar on the inpath - check that it's 
++	 * copied to the correct place
++	 */
++	public void testCopyManifest() {
++		String inpathDir  = inpathTestingDir + File.separator + "inpathJar.jar";
++		addInpathEntry(inpathDir);
++		
++		build("inpathTesting");
++		String resource = expectedOutputDir + File.separator + "META-INF" + File.separator + "MANIFEST.MF";
++		File f = new File(resource);
++		assertTrue("expected file " + resource + " to exist but it did not",f.exists());
++	}
++	
++	/**
++	 * "resources" are contained within inpath jars - check that
++	 * a text file contained within a jar is copied and then 
++	 * deleted correctly. Essentially tests AjState.deleteResources().
++	 */
++	public void testAjStateDeleteResources() {
++		String inpathDir  = inpathTestingDir + File.separator + "inpathJar.jar";
++		addInpathEntry(inpathDir);
++		
++		build("inpathTesting");
++		
++		AjState state = getState();
++		
++		String resource = expectedOutputDir + File.separator + "inpathResource.txt";
++		File f = new File(resource);
++		assertTrue("expected file " + resource + " to exist but it did not",f.exists());
++		// this call should delete the resources
++		state.getFilesToCompile(true);
++		assertFalse("did not expect the file " + resource + " to exist but it does",f.exists());
++	}
++	
++	/**
++	 * Can set to copy resources that are in inpath dirs - check that
++	 * a text file contained within such a dir is copied and then 
++	 * deleted correctly. Essentially tests AjState.maybeDeleteResources().
++	 */
++	public void testAjStateDeleteResourcesInInputDir() {
++		AjBuildManager.COPY_INPATH_DIR_RESOURCES = true;
++		try {
++			String inpathDir = inpathTestingDir + File.separator + "injarBin"
++					+ File.separator + "pkg";
++			addInpathEntry(inpathDir);
++			build("inpathTesting");
++			AjState state = getState();
++			String resource = "inDirResource.txt";
++			assertTrue("expected state to have resource " + resource + "but it did not", 
++					state.hasResource(resource));
++			// this call should delete the resources - tests AjState.deleteResources()
++			state.getFilesToCompile(true);
++			assertFalse("did not expect state to have resource " + resource +
++					" but found that it did", state.hasResource(resource));
++		} finally {
++			AjBuildManager.COPY_INPATH_DIR_RESOURCES = false;
++		}
++		
++	}
++	
++	/**
++	 * Changing inpath entry from a jar to a directory between builds means
++	 * that AjState should realise somethings changed. This causes all resources
++	 * (Manifest and txt files) to be deleted. Also should be a full build.
++	 * Essentially tests AjState.removeAllResultsFromLastBuild().
++	 */
++	public void testAllResourcesAreDeletedCorrectlyOnPathChange() {
++		String inpathJar  = inpathTestingDir + File.separator + "inpathJar.jar";
++
++		addInpathEntry(inpathJar);
++		build("inpathTesting");
++		
++		String resource = expectedOutputDir + File.separator + "inpathResource.txt";
++		File f = new File(resource);
++		assertTrue("expected file " + resource + " to exist but it did not",f.exists());
++
++		// this should force a change and the file is deleted
++		// tests AjState.removeAllResultsFromLastBuild()
++		addInpathEntry(null);
++		build("inpathTesting");
++		assertFalse("did not expect the file " + resource + " to exist but it does",f.exists());
++
++		checkWasFullBuild();
++	}	
++	
++	public void testOutxml() {
++		configureNonStandardCompileOptions("-outxml");
++		build("inpathTesting");
++		String resource = expectedOutputDir + File.separator + "META-INF" + File.separator + "aop-ajc.xml";
++		File f = new File(resource);
++		assertTrue("expected file " + resource + " to exist but it did not",f.exists());
++	}
++	
++	public void testAspectsRecordedOnlyOnceInState() {
++		configureNonStandardCompileOptions("-outxml");
++		build("inpathTesting");
++		AjState state = getState();
++		Map m = state.getAspectNamesToFileNameMap();
++		assertEquals("Expected only one aspect recored in the state but found " + m.size(),1,m.size());
++		build("inpathTesting");
++		m = state.getAspectNamesToFileNameMap();
++		assertEquals("Expected only one aspect recored in the state but found " + m.size(),1,m.size());
++	}
++	
++	private AjState getState() {
++		// get hold of the state for this project - expect to find one
++		AjState state = IncrementalStateManager.retrieveStateFor(inpathTestingDir + File.separator + "build.lst" );
++		assertNotNull("expected to find AjState for build config " + inpathTestingDir 
++				+ File.separator + "build.lst but didn't", state);
++		return state;
++	}
++	
++	private void addInpathEntry(String entry) {
++		if (entry == null) {
++			configureInPath(null);
++			return;
++		}
++		File f = new File(entry);
++		Set s = new HashSet();
++		s.add(f);
++		configureInPath(s);
++	}
++	
++	/**
++	 * Sends all output to the same directory
++	 */
++	private static class SingleDirOutputLocMgr implements OutputLocationManager {
++
++		private File classOutputLoc;
++		private File resourceOutputLoc;
++		private String testProjectOutputPath;
++		private List allOutputLocations;
++		private File outputLoc;
++		
++		public SingleDirOutputLocMgr(String testProjectPath) {
++			this.testProjectOutputPath = testProjectPath + File.separator + "bin";
++			outputLoc = new File(testProjectOutputPath);
++			
++			allOutputLocations = new ArrayList();
++			allOutputLocations.add(outputLoc);
++		}
++		
++		public File getOutputLocationForClass(File compilationUnit) {
++			return outputLoc;
++		}
++
++		public File getOutputLocationForResource(File resource) {
++			return outputLoc;
++		}
++
++		public List /*File*/ getAllOutputLocations() {
++			return allOutputLocations;
++		}
++
++		public File getDefaultOutputLocation() {
++			return outputLoc;
++		}
++	}
++	
++}
+@@ -11,9 +11,7 @@
+ * ******************************************************************/
+ package org.aspectj.systemtest.incremental.tools;
+ 
+-import java.io.BufferedReader;
+ import java.io.File;
+-import java.io.FileReader;
+ import java.io.IOException;
+ import java.util.ArrayList;
+ import java.util.HashSet;
+@@ -1013,46 +1011,48 @@ public class MultiProjectIncrementalTests extends AbstractMultiProjectIncrementa
+ 		initialiseProject("PR131505");
+ 		build("PR131505");
+ 		checkWasFullBuild();
++		String outputDir = getWorkingDir().getAbsolutePath() + File.separatorChar 
++			+ "PR131505" + File.separatorChar + "bin";
+ 		// aop.xml file shouldn't contain any aspects
+-		checkXMLAspectCount("PR131505","",0);
++		checkXMLAspectCount("PR131505","",0, outputDir);
+ 		// add a new aspect A which should be included in the aop.xml file
+ 		alter("PR131505","inc1");
+ 		build("PR131505");
+ 		checkWasFullBuild();
+-		checkXMLAspectCount("PR131505","",1);
+-		checkXMLAspectCount("PR131505","A",1);
++		checkXMLAspectCount("PR131505","",1, outputDir);
++		checkXMLAspectCount("PR131505","A",1, outputDir);
+ 		// make changes to the class file which shouldn't affect the contents
+ 		// of the aop.xml file
+ 		alter("PR131505","inc2");
+ 		build("PR131505");
+ 		checkWasntFullBuild();
+-		checkXMLAspectCount("PR131505","",1);
+-		checkXMLAspectCount("PR131505","A",1);		
++		checkXMLAspectCount("PR131505","",1, outputDir);
++		checkXMLAspectCount("PR131505","A",1, outputDir);		
+ 		// add another new aspect A1 which should also be included in the aop.xml file
+ 		// ...there should be no duplicate entries in the file
+ 		alter("PR131505","inc3");
+ 		build("PR131505");
+ 		checkWasFullBuild();
+-		checkXMLAspectCount("PR131505","",2);
+-		checkXMLAspectCount("PR131505","A1",1);
+-		checkXMLAspectCount("PR131505","A",1);
++		checkXMLAspectCount("PR131505","",2, outputDir);
++		checkXMLAspectCount("PR131505","A1",1, outputDir);
++		checkXMLAspectCount("PR131505","A",1, outputDir);
+ 		// delete aspect A1 which meanss that aop.xml file should only contain A
+ 		File a1 = new File(getWorkingDir().getAbsolutePath() 
+ 				+ File.separatorChar + "PR131505" + File.separatorChar + "A1.aj");
+ 		a1.delete();
+ 		build("PR131505");
+ 		checkWasFullBuild();
+-		checkXMLAspectCount("PR131505","",1);
+-		checkXMLAspectCount("PR131505","A1",0);
+-		checkXMLAspectCount("PR131505","A",1);	
++		checkXMLAspectCount("PR131505","",1, outputDir);
++		checkXMLAspectCount("PR131505","A1",0, outputDir);
++		checkXMLAspectCount("PR131505","A",1, outputDir);	
+ 		// add another aspect called A which is in a different package, both A
+ 		// and pkg.A should be included in the aop.xml file
+ 		alter("PR131505","inc4");
+ 		build("PR131505");
+ 		checkWasFullBuild();
+-		checkXMLAspectCount("PR131505","",2);
+-		checkXMLAspectCount("PR131505","A",1);
+-		checkXMLAspectCount("PR131505","pkg.A",1);
++		checkXMLAspectCount("PR131505","",2, outputDir);
++		checkXMLAspectCount("PR131505","A",1, outputDir);
++		checkXMLAspectCount("PR131505","pkg.A",1, outputDir);
+ 	}
+ 
+ 	public void testPr136585() {
+@@ -1673,7 +1673,7 @@ public class MultiProjectIncrementalTests extends AbstractMultiProjectIncrementa
+ 					" error but only found that one",errors.size() > 1);
+ 		}
+ 	}
+-		
++	
+ 	public void testPr168840() throws Exception {
+ 		initialiseProject("inpathTesting");
+ 
+@@ -1800,26 +1800,6 @@ public class MultiProjectIncrementalTests extends AbstractMultiProjectIncrementa
+ 
+ 	// ---------------------------------------------------------------------------------------------------
+ 
+-	/**
+-	 * Check we compiled/wove the right number of files, passing '-1' indicates you don't care about
+-	 * that number.
+-	 */
+-	private void checkCompileWeaveCount(int expCompile,int expWoven) {
+-		if (expCompile!=-1 && getCompiledFiles().size()!=expCompile)
+-			fail("Expected compilation of "+expCompile+" files but compiled "+getCompiledFiles().size()+
+-					"\n"+printCompiledAndWovenFiles());
+-		if (expWoven!=-1 && getWovenClasses().size()!=expWoven)
+-			fail("Expected weaving of "+expWoven+" files but wove "+getWovenClasses().size()+
+-					"\n"+printCompiledAndWovenFiles());
+-	}
+-	
+-	private void checkWasntFullBuild() {
+-		assertTrue("Shouldn't have been a full (batch) build",!wasFullBuild());
+-	}
+-	
+-	private void checkWasFullBuild() {
+-		assertTrue("Should have been a full (batch) build",wasFullBuild());
+-	}
+ 
+ 	private IProgramElement checkForNode(String packageName,String typeName,boolean shouldBeFound) {
+ 		IProgramElement ipe = AsmManager.getDefault().getHierarchy().findElementForType(packageName,typeName);
+@@ -1842,59 +1822,10 @@ public class MultiProjectIncrementalTests extends AbstractMultiProjectIncrementa
+ 		}
+ 	}
+ 
+-
+-	/*
+-	 * Applies an overlay onto the project being tested - copying
+-	 * the contents of the specified overlay directory.
+-	 */
+-	private void alter(String projectName,String overlayDirectory) {
+-		File projectSrc =new File(testdataSrcDir+File.separatorChar+projectName+
+-				                  File.separatorChar+overlayDirectory);
+-		File destination=new File(getWorkingDir(),projectName);
+-		copy(projectSrc,destination);
+-	}
+-	
+ 	private static void log(String msg) {
+ 		if (VERBOSE) System.out.println(msg);
+ 	}
+ 
+-	/**
+-	 * Count the number of times a specified aspectName appears in the default
+-	 * aop.xml file and compare with the expected number of occurrences. If just 
+-	 * want to count the number of aspects mentioned within the file then 
+-	 * pass "" for the aspectName, otherwise, specify the name of the 
+-	 * aspect interested in.
+-	 */
+-	private void checkXMLAspectCount(String projectName, String aspectName, int expectedOccurrences) {
+-		int aspectCount = 0;
+-		File aopXML = new File(getWorkingDir().getAbsolutePath() 
+-				+ File.separatorChar + projectName + File.separatorChar 
+-				+ "bin" + File.separatorChar + "META-INF" + File.separatorChar + "aop-ajc.xml");
+-
+-		if (!aopXML.exists()) {
+-			fail("Expected file " + aopXML.getAbsolutePath() + " to exist but it doesn't");
+-		}
+-		try {
+-			BufferedReader reader = new BufferedReader(new FileReader(aopXML));
+-			String line = reader.readLine();
+-			while (line != null) {
+-				if (aspectName.equals("") && line.indexOf("aspect name=\"") != -1) {
+-					aspectCount++;
+-				} else if (line.indexOf("aspect name=\""+aspectName+"\"") != -1) {
+-					aspectCount++;
+-				}
+-				line = reader.readLine();
+-			}
+-			reader.close();
+-		} catch (IOException ie) {
+-			ie.printStackTrace();
+-		}
+-		if (aspectCount != expectedOccurrences) {
+-			fail("Expected aspect " + aspectName + " to appear " + expectedOccurrences + " times" +
+-					" in the aop.xml file but found " + aspectCount + " occurrences");
+-		}
+-	}
+-
+ 	private File getProjectRelativePath(String p,String filename) {
+ 		File projDir = new File(getWorkingDir(),p);
+ 		return new File(projDir,filename);
+@@ -12,7 +12,9 @@
+ package org.aspectj.systemtest.incremental.tools;
+ 
+ import java.io.File;
++import java.util.ArrayList;
+ import java.util.HashMap;
++import java.util.List;
+ import java.util.Map;
+ 
+ import org.aspectj.ajde.OutputLocationManager;
+@@ -64,6 +66,27 @@ public class OutputLocationManagerTests extends AbstractMultiProjectIncrementalA
+ 		assertFileExists(PROJECT_NAME,"target/main/classes/a/A$AjcClosure1.class");		
+ 	}
+ 
++	/**
++	 * Tests the case when we have two aspects, each of which are
++	 * sent to a different output location. There should be an 
++	 * aop.xml file in each of the two output directories.
++	 */
++	public void testOutXmlForAspectsWithDifferentOutputDirs() {
++		configureNonStandardCompileOptions("-outxml");
++		build(PROJECT_NAME);
++		assertFileExists(PROJECT_NAME,"target/main/classes/META-INF/aop-ajc.xml");
++		assertFileExists(PROJECT_NAME,"target/test/classes/META-INF/aop-ajc.xml");
++		// aop.xml file should exist even if there aren't any aspects (mirrors
++		// what happens when there's one output dir)
++		checkXMLAspectCount(PROJECT_NAME,"",0,getFile(PROJECT_NAME,"target/anotherTest/classes"));
++		// add aspects to the srcRootThree src dir and they should appear in the 
++		// corresponding aop.xml file
++		alter(PROJECT_NAME,"inc1");
++		build(PROJECT_NAME);
++		checkXMLAspectCount(PROJECT_NAME,"c.C$AnAspect",1,getFile(PROJECT_NAME,"target/anotherTest/classes"));
++	}
++	
++	
+ 	protected void assertFileExists(String project, String relativePath) {
+ 		assertTrue("file " + relativePath + " should have been created as a result of building " + project,
+ 				    new File(getFile(project, relativePath)).exists());
+@@ -72,9 +95,11 @@ public class OutputLocationManagerTests extends AbstractMultiProjectIncrementalA
+ 	private static class MyOutputLocationManager implements OutputLocationManager {
+ 
+ 		private File projectHome;
++		private List allOutputDirs;
+ 
+ 		public MyOutputLocationManager(File projectHome) {
+ 			this.projectHome = projectHome;
++			
+ 		}
+ 
+ 		public File getOutputLocationForClass(File compilationUnit) {
+@@ -84,6 +109,8 @@ public class OutputLocationManagerTests extends AbstractMultiProjectIncrementalA
+ 				relativePath = "target/main/classes";
+ 			} else if (compilationUnitName.indexOf("srcRootTwo") != -1) {
+ 				relativePath = "target/test/classes";
++			} else if (compilationUnitName.indexOf("srcRootThree") != -1) {
++				relativePath = "target/anotherTest/classes";
+ 			}
+ 			File ret =  new File(projectHome,relativePath);
+ 			if (!ret.exists()) {
+@@ -95,6 +122,19 @@ public class OutputLocationManagerTests extends AbstractMultiProjectIncrementalA
+ 		public File getOutputLocationForResource(File resource) {
+ 			return getOutputLocationForClass(resource);
+ 		}
+-		
++
++		public List getAllOutputLocations() {
++			if (allOutputDirs == null) {
++				allOutputDirs = new ArrayList();
++				allOutputDirs.add(new File(projectHome,"target/main/classes"));
++				allOutputDirs.add(new File(projectHome,"target/test/classes"));
++				allOutputDirs.add(new File(projectHome,"target/anotherTest/classes"));
++			}
++			return allOutputDirs;
++		}
++
++		public File getDefaultOutputLocation() {
++			return new File(projectHome,"target/main/classes");
++		}
+ 	}
+ }
+@@ -12,6 +12,7 @@
+ package org.aspectj.ajdt.internal.compiler;
+ 
+ import java.io.File;
++import java.util.List;
+ 
+ /**
+  * acts as a bridge from ajde's OutputLocationManager interface to the compiler internals
+@@ -43,4 +44,15 @@ public interface CompilationResultDestinationManager {
+ 	 */
+ 	File getOutputLocationForResource(File resource);
+ 
++	/**
++	 * Return a list of all output locations handled by this OutputLocationManager
++	 */
++	List /*File*/ getAllOutputLocations();
++	
++	/**
++	 * Return the default output location (for example, <my_project>/bin). This is
++	 * where classes which are on the inpath will be placed.
++	 */
++	File getDefaultOutputLocation();
++	
+ }
+@@ -29,6 +29,7 @@ import java.util.Iterator;
+ import java.util.List;
+ import java.util.Locale;
+ import java.util.Map;
++import java.util.Set;
+ import java.util.jar.Attributes;
+ import java.util.jar.JarFile;
+ import java.util.jar.JarInputStream;
+@@ -95,8 +96,8 @@ public class AjBuildManager implements IOutputClassFileNameProvider,IBinarySourc
+ 	private static final String CROSSREFS_FILE_NAME = "build.lst";
+ 	private static final String CANT_WRITE_RESULT = "unable to write compilation result";
+ 	private static final String MANIFEST_NAME = "META-INF/MANIFEST.MF";
+-	static final boolean COPY_INPATH_DIR_RESOURCES = false;
+-    // AJDT doesn't want this check, so Main enables it.
++	public static boolean COPY_INPATH_DIR_RESOURCES = false;
++	// AJDT doesn't want this check, so Main enables it.
+     private static boolean DO_RUNTIME_VERSION_CHECK = false;
+     // If runtime version check fails, warn or fail? (unset?)
+     static final boolean FAIL_IF_RUNTIME_NOT_FOUND = false;
+@@ -554,9 +555,16 @@ public class AjBuildManager implements IOutputClassFileNameProvider,IBinarySourc
+ 	private void writeManifest () throws IOException {
+ 		Manifest manifest = getWeaver().getManifest(false);
+ 		if (manifest != null && zos == null) {
+-			OutputStream fos = 
+-				FileUtil.makeOutputStream(new File(buildConfig.getOutputDir(),MANIFEST_NAME));
+-			manifest.write(fos);	
++			File outputDir = buildConfig.getOutputDir();
++			if (buildConfig.getCompilationResultDestinationManager() != null) {
++				// Manifests are only written if we have a jar on the inpath. Therefore,
++				// we write the manifest to the defaultOutputLocation because this is
++				// where we sent the classes that were on the inpath
++				outputDir = buildConfig.getCompilationResultDestinationManager().getDefaultOutputLocation();
++			}
++			if (outputDir == null) return;
++			OutputStream fos = FileUtil.makeOutputStream(new File(outputDir,MANIFEST_NAME));
++			manifest.write(fos);
+ 			fos.close();
+ 		}
+ 	}
+@@ -583,36 +591,91 @@ public class AjBuildManager implements IOutputClassFileNameProvider,IBinarySourc
+ 		if (ignoreOutxml) return;
+ 
+ 		String filename = buildConfig.getOutxmlName();
+-//		System.err.println("? AjBuildManager.writeOutxmlFile() outxml=" + filename);
+-//		System.err.println("? AjBuildManager.writeOutxmlFile() outputDir=" + buildConfig.getOutputDir());
+-		
++		// System.err.println("? AjBuildManager.writeOutxmlFile() outxml=" + filename);
++
++		Map outputDirsAndAspects = findOutputDirsForAspects();
++		Set outputDirs = outputDirsAndAspects.entrySet();
++		for (Iterator iterator = outputDirs.iterator(); iterator.hasNext();) {
++			Map.Entry entry = (Map.Entry) iterator.next();
++			File outputDir = (File) entry.getKey();
++			List aspects = (List) entry.getValue();
++			ByteArrayOutputStream baos = getOutxmlContents(aspects);
++			if (zos != null) {
++				ZipEntry newEntry = new ZipEntry(filename);
++
++				zos.putNextEntry(newEntry);
++				zos.write(baos.toByteArray());
++				zos.closeEntry();
++			} else {
++				OutputStream fos = FileUtil.makeOutputStream(new File(outputDir, filename));
++				fos.write(baos.toByteArray());
++				fos.close();
++			}
++		}
++	}
++
++	private ByteArrayOutputStream getOutxmlContents(List aspectNames) {
+ 		ByteArrayOutputStream baos = new ByteArrayOutputStream();
+ 		PrintStream ps = new PrintStream(baos);
+ 		ps.println("<aspectj>");
+ 		ps.println("<aspects>");
+-		if (state.getAspectNames() != null) {
+-			for (Iterator i = state.getAspectNames().iterator(); i.hasNext();) {
+-				String name = (String)i.next();
++		if (aspectNames != null) {
++			for (Iterator i = aspectNames.iterator(); i.hasNext();) {
++				String name = (String) i.next();
+ 				ps.println("<aspect name=\"" + name + "\"/>");
+-			}			
++			}
+ 		}
+ 		ps.println("</aspects>");
+ 		ps.println("</aspectj>");
+ 		ps.println();
+ 		ps.close();
++		return baos;
++	}
+ 
+-		if (zos != null) {
+-			ZipEntry newEntry = new ZipEntry(filename);
+-			
+-			zos.putNextEntry(newEntry);
+-			zos.write(baos.toByteArray());
+-			zos.closeEntry();
++	/**
++	 * Returns a map where the keys are File objects corresponding to
++	 * all the output directories and the values are a list of aspects
++	 * which are sent to that ouptut directory
++	 */
++	private Map /* File --> List (String) */findOutputDirsForAspects() {
++		Map outputDirsToAspects = new HashMap();
++		Map aspectNamesToFileNames = state.getAspectNamesToFileNameMap();
++		if (buildConfig.getCompilationResultDestinationManager() == null
++				|| buildConfig.getCompilationResultDestinationManager().getAllOutputLocations().size() == 1) {
++			// we only have one output directory...which simplifies things
++			File outputDir = buildConfig.getOutputDir();
++			if (buildConfig.getCompilationResultDestinationManager() != null) {
++				outputDir = buildConfig.getCompilationResultDestinationManager().getDefaultOutputLocation();
++			}
++			List aspectNames = new ArrayList();
++			if (aspectNamesToFileNames != null) {
++				Set keys = aspectNamesToFileNames.keySet();
++				for (Iterator iterator = keys.iterator(); iterator.hasNext();) {
++					String name = (String) iterator.next();
++					aspectNames.add(name);
++				}				
++			}
++			outputDirsToAspects.put(outputDir, aspectNames);
+ 		} else {
+-			OutputStream fos = 
+-				FileUtil.makeOutputStream(new File(buildConfig.getOutputDir(),filename));
+-			fos.write(baos.toByteArray());
+-			fos.close();
++			List outputDirs = buildConfig.getCompilationResultDestinationManager().getAllOutputLocations();
++			for (Iterator iterator = outputDirs.iterator(); iterator.hasNext();) {
++				File outputDir = (File) iterator.next();
++				outputDirsToAspects.put(outputDir,new ArrayList());
++			}
++			Set entrySet = aspectNamesToFileNames.entrySet();
++			for (Iterator iterator = entrySet.iterator(); iterator.hasNext();) {
++				Map.Entry entry = (Map.Entry) iterator.next();
++				String aspectName = (String) entry.getKey();
++				char[] fileName = (char[]) entry.getValue();
++				File outputDir = buildConfig.getCompilationResultDestinationManager()
++						.getOutputLocationForClass(new File(new String(fileName)));
++				if(!outputDirsToAspects.containsKey(outputDir)) {
++					outputDirsToAspects.put(outputDir,new ArrayList());
++				}
++				((List)outputDirsToAspects.get(outputDir)).add(aspectName);
++			}
+ 		}
++		return outputDirsToAspects;
+ 	}
+ 
+ //	public static void dumprels() {
+@@ -725,15 +788,20 @@ public class AjBuildManager implements IOutputClassFileNameProvider,IBinarySourc
+ 				bcelWeaver.addLibraryJarFile(f);
+ 			}
+ 		}
+-		
+-//		String lintMode = buildConfig.getLintMode();
+-		
+-		
+-		
+-		//??? incremental issues
+-		for (Iterator i = buildConfig.getInJars().iterator(); i.hasNext(); ) {
+-			File inJar = (File)i.next();
+-			List unwovenClasses = bcelWeaver.addJarFile(inJar, buildConfig.getOutputDir(),false);
++
++		// String lintMode = buildConfig.getLintMode();
++
++		File outputDir = buildConfig.getOutputDir();
++		if (outputDir == null
++				&& buildConfig.getCompilationResultDestinationManager() != null) {
++			// send all output from injars and inpath to the default output location
++			// (will also later send the manifest there too)
++			outputDir = buildConfig.getCompilationResultDestinationManager().getDefaultOutputLocation();
++		}
++		// ??? incremental issues
++		for (Iterator i = buildConfig.getInJars().iterator(); i.hasNext();) {
++			File inJar = (File) i.next();
++			List unwovenClasses = bcelWeaver.addJarFile(inJar, outputDir, false);
+ 			state.recordBinarySource(inJar.getPath(), unwovenClasses);
+ 		}
+ 
+@@ -742,7 +810,7 @@ public class AjBuildManager implements IOutputClassFileNameProvider,IBinarySourc
+ 			if (!inPathElement.isDirectory()) {
+ 				// its a jar file on the inpath
+ 				// the weaver method can actually handle dirs, but we don't call it, see next block
+-				List unwovenClasses = bcelWeaver.addJarFile(inPathElement,buildConfig.getOutputDir(),true);
++				List unwovenClasses = bcelWeaver.addJarFile(inPathElement,outputDir,true);
+ 				state.recordBinarySource(inPathElement.getPath(),unwovenClasses);
+ 			} else {
+ 				// add each class file in an in-dir individually, this gives us the best error reporting
+@@ -750,8 +818,7 @@ public class AjBuildManager implements IOutputClassFileNameProvider,IBinarySourc
+ 				// class file changes in indirs.
+ 				File[] binSrcs = FileUtil.listFiles(inPathElement, binarySourceFilter);
+ 				for (int j = 0; j < binSrcs.length; j++) {
+-					UnwovenClassFile ucf = 
+-						bcelWeaver.addClassFile(binSrcs[j], inPathElement, buildConfig.getOutputDir());
++					UnwovenClassFile ucf = bcelWeaver.addClassFile(binSrcs[j], inPathElement, outputDir);
+ 					List ucfl = new ArrayList();
+ 					ucfl.add(ucf);
+ 					state.recordBinarySource(binSrcs[j].getPath(),ucfl);
+@@ -955,7 +1022,7 @@ public class AjBuildManager implements IOutputClassFileNameProvider,IBinarySourc
+ 							} else {
+ 								writeZipEntry(classFile,filename);
+ 							}
+-							if (shouldAddAspectName) addAspectName(classname);
++							if (shouldAddAspectName) addAspectName(classname, unitResult.getFileName());
+ 						} catch (IOException ex) {
+ 							IMessage message = EclipseAdapterUtils.makeErrorMessage(
+ 									new String(unitResult.fileName),
+@@ -1012,16 +1079,17 @@ public class AjBuildManager implements IOutputClassFileNameProvider,IBinarySourc
+ 				zos.closeEntry();
+ 			}
+ 
+-			private void addAspectName (String name) {
++			private void addAspectName (String name, char[] fileContainingAspect) {
+ 				BcelWorld world = getBcelWorld();
+ 				ResolvedType type = world.resolve(name);
+ //				System.err.println("? writeAspectName() type=" + type);
+ 				if (type.isAspect()) {
+-					if (state.getAspectNames() == null) {
+-						state.initializeAspectNamesList();
++					if (state.getAspectNamesToFileNameMap() == null) {
++						state.initializeAspectNamesToFileNameMap();
+ 					}
+-					if (!state.getAspectNames().contains(name)) {
+-						state.getAspectNames().add(name);
++					if (!state.getAspectNamesToFileNameMap().containsKey(name)) {
++						state.getAspectNamesToFileNameMap().put(name,
++								fileContainingAspect);
+ 					}
+ 				}
+ 			}
+@@ -1188,6 +1256,10 @@ public class AjBuildManager implements IOutputClassFileNameProvider,IBinarySourc
+ 		String filename = new String(eclipseClassFileName);
+ 		filename = filename.replace('/', File.separatorChar) + ".class";
+ 		File destinationPath = buildConfig.getOutputDir();
++		if (buildConfig.getCompilationResultDestinationManager() != null) {
++			File f = new File(new String(result.getFileName()));
++			destinationPath = buildConfig.getCompilationResultDestinationManager().getOutputLocationForClass(f);
++		}
+ 		String outFile;
+ 		if (destinationPath == null) {
+ 			outFile = new File(filename).getName();
+@@ -156,10 +156,17 @@ public class AjState {
+ 	 */
+ 	private Map/*<String, File>*/ classesFromName = new HashMap();
+ 
++	/**
++	 * Populated by AjBuildManager to record the aspects with the file name in which they're
++	 * contained. This is later used when writing the outxml file in AjBuildManager. Need
++	 * to record the file name because want to write an outxml file for each of the output
++	 * directories and in order to ask the OutputLocationManager for the output location
++	 * for a given aspect we need the file in which it is contained.
++	 */
++	private Map /*<String, char[]>*/ aspectsFromFileNames;
+ 
+ 	private List/*File*/ compiledSourceFiles = new ArrayList();
+ 	private List/*String*/ resources = new ArrayList();
+-	private List/*String*/ aspectNames;
+ 
+ 	// these are references created on a particular compile run - when looping round in 
+ 	// addAffectedSourceFiles(), if some have been created then we look at which source files
+@@ -193,7 +200,7 @@ public class AjState {
+ 	/**
+ 	 * Returns false if a batch build is needed.
+ 	 */
+-	boolean prepareForNextBuild(AjBuildConfig newBuildConfig) {
++	public boolean prepareForNextBuild(AjBuildConfig newBuildConfig) {
+ 		currentBuildTime = System.currentTimeMillis();
+ 
+ 		if (!maybeIncremental()) {
+@@ -384,30 +391,50 @@ public class AjState {
+ 
+ 	private boolean pathChange(AjBuildConfig oldConfig, AjBuildConfig newConfig) {
+ 		boolean changed = false;
++		
++		List oldOutputLocs = getOutputLocations(oldConfig);
++		
+ 		List oldClasspath = oldConfig.getClasspath();
+ 		List newClasspath = newConfig.getClasspath();
+ 		if (stateListener!=null) stateListener.aboutToCompareClasspaths(oldClasspath,newClasspath);
+-		if (changed(oldClasspath,newClasspath,true,oldConfig.getOutputDir())) return true;
++		if (changed(oldClasspath,newClasspath,true,oldOutputLocs)) return true;
+ 		List oldAspectpath = oldConfig.getAspectpath();
+ 		List newAspectpath = newConfig.getAspectpath();
+-		if (changed(oldAspectpath,newAspectpath,true,oldConfig.getOutputDir())) return true;
++		if (changed(oldAspectpath,newAspectpath,true,oldOutputLocs)) return true;
+ 		List oldInJars = oldConfig.getInJars();
+ 		List newInJars = newConfig.getInJars();
+-		if (changed(oldInJars,newInJars,false,oldConfig.getOutputDir())) return true;
++		if (changed(oldInJars,newInJars,false,oldOutputLocs)) return true;
+ 		List oldInPath = oldConfig.getInpath();
+ 		List newInPath = newConfig.getInpath();
+-		if (changed(oldInPath, newInPath,false,oldConfig.getOutputDir())) return true;
++		if (changed(oldInPath, newInPath,false,oldOutputLocs)) return true;
+ 		return changed;
+ 	}
+ 
+-	private boolean changed(List oldPath, List newPath, boolean checkClassFiles, File oldOutputLocation) {
++	private List /*File*/ getOutputLocations(AjBuildConfig config) {
++		List outputLocs = new ArrayList();
++		if (config.getOutputDir() != null) {
++			try {
++				outputLocs.add(config.getOutputDir().getCanonicalFile());
++			} catch (IOException e) {}
++		}
++		if (config.getCompilationResultDestinationManager() != null) {
++			List dirs = config.getCompilationResultDestinationManager().getAllOutputLocations();
++			for (Iterator iterator = dirs.iterator(); iterator.hasNext();) {
++				File f = (File) iterator.next();
++				try {
++					if (!outputLocs.contains(f.getCanonicalFile())) {
++						outputLocs.add(f.getCanonicalFile());
++					}
++					
++				} catch (IOException e) {}
++			}
++		}
++		return outputLocs;
++	}
++	
++	private boolean changed(List oldPath, List newPath, boolean checkClassFiles, List outputLocs) {	
+ 		if (oldPath == null) oldPath = new ArrayList();
+ 		if (newPath == null) newPath = new ArrayList();
+-		try {
+-			if (oldOutputLocation != null) {
+-				oldOutputLocation = oldOutputLocation.getCanonicalFile();
+-			}
+-		} catch(IOException ex) { /* we did our best...*/ }
+ 		if (oldPath.size() != newPath.size()) {
+ 			return true;
+ 		}
+@@ -425,10 +452,20 @@ public class AjState {
+ 			if (f.exists() && !f.isDirectory() && (f.lastModified() >= lastSuccessfulBuildTime)) {
+ 				return true;
+ 			}
+-			if (f.exists() && f.isDirectory() && checkClassFiles && !(f.equals(oldOutputLocation))) {
+-				boolean b= classFileChangedInDirSinceLastBuild(f);
+-				if (b && stateListener!=null) stateListener.detectedClassChangeInThisDir(f);
+-				if (b) return true;
++			if (f.exists() && f.isDirectory() && checkClassFiles) {
++				boolean foundMatch = false;
++				for (Iterator iterator = outputLocs.iterator(); iterator
++						.hasNext();) {
++					File dir = (File) iterator.next();
++					if (f.equals(dir)) {
++						foundMatch = true;
++					}
++				}
++				if (!foundMatch) {
++					boolean b= classFileChangedInDirSinceLastBuild(f);
++					if (b && stateListener!=null) stateListener.detectedClassChangeInThisDir(f);
++					if (b) return true;					
++				}
+ 			}
+ 		}
+ 		return false;
+@@ -447,7 +484,9 @@ public class AjState {
+ 	//			addDependentsOf(file);
+ 	//		}
+ 
+-			thisTime.addAll(addedFiles);	
++			if(addedFiles != null) {
++				thisTime.addAll(addedFiles);					
++			}
+ 
+ 			deleteClassFiles();
+ 			deleteResources();
+@@ -514,11 +553,19 @@ public class AjState {
+         }
+ 	    for (Iterator iter = resources.iterator(); iter.hasNext();) {
+             String resource = (String) iter.next();
+-            new File(buildConfig.getOutputDir(),resource).delete();            
++			List outputDirs = getOutputLocations(buildConfig);
++			for (Iterator iterator = outputDirs.iterator(); iterator.hasNext();) {
++				File dir = (File) iterator.next();
++				File f = new File(dir,resource);
++				if (f.exists()) {
++					f.delete();
++				}				
++			}
+         }
+ 	}
+ 
+ 	private void deleteClassFiles() {
++		if (deletedFiles == null) return;
+ 		for (Iterator i = deletedFiles.iterator(); i.hasNext(); ) {
+ 			File deletedFile = (File)i.next();
+ 			addDependentsOf(deletedFile);
+@@ -571,21 +618,29 @@ public class AjState {
+ 		// oldResources need to be deleted...
+ 		for (Iterator iter = oldResources.iterator(); iter.hasNext();) {
+ 			String victim = (String) iter.next();
+-			File f = new File(buildConfig.getOutputDir(),victim);
+-			if (f.exists()) {
+-				f.delete();
+-			}			
+-			resources.remove(victim);
++			List outputDirs = getOutputLocations(buildConfig);
++			for (Iterator iterator = outputDirs.iterator(); iterator.hasNext();) {
++				File dir = (File) iterator.next();
++				File f = new File(dir,victim);
++				if (f.exists()) {
++					f.delete();
++				}			
++				resources.remove(victim);				
++			}
+ 		}
+ 	}
+ 
+ 	private void maybeDeleteResource(String resName, List oldResources) {
+ 		if (resources.contains(resName)) {
+ 			oldResources.remove(resName);
+-			File source = new File(buildConfig.getOutputDir(),resName);
+-			if ((source != null) && (source.exists()) &&
+-			    (source.lastModified() >= lastSuccessfulBuildTime)) {
+-				resources.remove(resName); // will ensure it is re-copied
++			List outputDirs = getOutputLocations(buildConfig);
++			for (Iterator iterator = outputDirs.iterator(); iterator.hasNext();) {
++				File dir = (File) iterator.next();
++				File source = new File(dir,resName);
++				if ((source != null) && (source.exists()) &&
++						(source.lastModified() >= lastSuccessfulBuildTime)) {
++					resources.remove(resName); // will ensure it is re-copied
++				}
+ 			}
+ 		}		
+ 	}
+@@ -617,7 +672,14 @@ public class AjState {
+ 	private UnwovenClassFile createUnwovenClassFile(AjBuildConfig.BinarySourceFile bsf) {
+ 		UnwovenClassFile ucf = null;
+ 		try {
+-			ucf = weaver.addClassFile(bsf.binSrc, bsf.fromInPathDirectory, buildConfig.getOutputDir());
++			File outputDir = buildConfig.getOutputDir();
++			if (buildConfig.getCompilationResultDestinationManager() != null) {
++				// createUnwovenClassFile is called only for classes that are on the inpath,
++				// all inpath classes are put in the defaultOutputLocation, therefore,
++				// this is the output dir
++				outputDir = buildConfig.getCompilationResultDestinationManager().getDefaultOutputLocation();
++			}
++			ucf = weaver.addClassFile(bsf.binSrc, bsf.fromInPathDirectory, outputDir);
+ 		} catch(IOException ex) {
+ 			IMessage msg = new Message("can't read class file " + bsf.binSrc.getPath(),
+ 									   new SourceLocation(bsf.binSrc,0),false);
+@@ -1031,7 +1093,8 @@ public class AjState {
+     }
+ 
+ 	protected void addAffectedSourceFiles(List addTo, List lastTimeSources) {
+-		if (qualifiedStrings.isEmpty() && simpleStrings.isEmpty()) return;
++		if (qualifiedStrings == null || simpleStrings == null ||
++				(qualifiedStrings.isEmpty() && simpleStrings.isEmpty())) return;
+ 		if (listenerDefined()) getListener().recordDecision("Examining whether any other files now need compilation based just compiling: '"+stringifyList(lastTimeSources)+"'");
+ 		// the qualifiedStrings are of the form 'p1/p2' & the simpleStrings are just 'X'
+ 		char[][][] qualifiedNames = ReferenceCollection.internQualifiedNames(makeStringSet(qualifiedStrings));
+@@ -1247,12 +1310,12 @@ public class AjState {
+ 		buildManager.setStructureModel(null);
+ 	}
+ 
+-	public List getAspectNames() {
+-		return aspectNames;
++	public Map getAspectNamesToFileNameMap() {
++		return aspectsFromFileNames;
+ 	}
+-	
+-	public void initializeAspectNamesList() {
+-		this.aspectNames = new LinkedList();
++
++	public void initializeAspectNamesToFileNameMap() {
++		this.aspectsFromFileNames = new HashMap();
+ 	}
+ 
+ 	// Will allow us to record decisions made during incremental processing, hopefully aid in debugging
+@@ -1267,4 +1330,8 @@ public class AjState {
+ 	public IBinaryType checkPreviousBuild(String name) {
+ 		return (IBinaryType)resolvedTypeStructuresFromLastBuild.get(name);
+ 	}
++	
++	public AjBuildManager getAjBuildManager() {
++		return buildManager;
++	}
+ }
+@@ -15,8 +15,10 @@ import java.io.File;
+ import java.util.Collection;
+ import java.util.Hashtable;
+ import java.util.Iterator;
++import java.util.List;
+ import java.util.Set;
+ 
++import org.aspectj.ajdt.internal.compiler.CompilationResultDestinationManager;
+ import org.aspectj.asm.AsmManager;
+ 
+ 
+@@ -77,15 +79,28 @@ public class IncrementalStateManager {
+ 				continue;
+ 			}
+ 			File outputDir = ajbc.getOutputDir();
+-			if (outputDir == null) {
++			if (outputDir != null && outputDir.equals(location)) {
++				if (debugIncrementalStates) System.err.println("< findStateManagingOutputLocation("+location+") returning "+element);
++				return element;				
++			} 
++			CompilationResultDestinationManager outputManager = ajbc.getCompilationResultDestinationManager();
++			if (outputManager != null) {
++				List outputDirs = outputManager.getAllOutputLocations();
++				for (Iterator iterator = outputDirs.iterator(); iterator
++						.hasNext();) {
++					File dir = (File) iterator.next();
++					if (dir.equals(location)) {
++						if (debugIncrementalStates) System.err.println("< findStateManagingOutputLocation("+location+") returning "+element);
++						return element;				
++					}
++				}
++			}
++			if (outputDir == null && outputManager == null) {
+ 				// FIXME why can it ever be null? due to using outjar?
+-				if (debugIncrementalStates) System.err.println("  output directory for "+ajbc+" is null");
++				if (debugIncrementalStates) System.err.println("  output directory and output location manager for "+ajbc+" are null");
+ 				continue;
+ 			}
+-			if (outputDir.equals(location)) {
+-				if (debugIncrementalStates) System.err.println("< findStateManagingOutputLocation("+location+") returning "+element);
+-				return element;
+-			}
++
+ 		}
+ 		if (debugIncrementalStates) System.err.println("< findStateManagingOutputLocation("+location+") returning null");
+ 		return null;
+@@ -12,6 +12,7 @@
+ package org.aspectj.ajde;
+ 
+ import java.io.File;
++import java.util.List;
+ 
+ /**
+  * Interface to be implemented by clients that wish to control the output
+@@ -43,5 +44,16 @@ public interface OutputLocationManager {
+ 	 * should be copied
+ 	 */
+ 	File getOutputLocationForResource(File resource);
++
++	/**
++	 * Return a list of all output locations handled by this OutputLocationManager
++	 */
++	List /*File*/ getAllOutputLocations();
++	
++	/**
++	 * Return the default output location (for example, <my_project>/bin). This is
++	 * where classes which are on the inpath will be placed.
++	 */
++	File getDefaultOutputLocation();
+ 
+ }
+@@ -12,6 +12,7 @@
+ package org.aspectj.ajde.internal;
+ 
+ import java.io.File;
++import java.util.List;
+ 
+ import org.aspectj.ajde.OutputLocationManager;
+ import org.aspectj.ajdt.internal.compiler.CompilationResultDestinationManager;
+@@ -32,4 +33,12 @@ public class OutputLocationAdapter implements CompilationResultDestinationManage
+ 		return this.locationManager.getOutputLocationForResource(resource);
+ 	}
+ 
++	public List getAllOutputLocations() {
++		return this.locationManager.getAllOutputLocations();
++	}
++
++	public File getDefaultOutputLocation() {
++		return this.locationManager.getDefaultOutputLocation();
++	}
++
+ }

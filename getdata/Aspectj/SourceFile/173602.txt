@@ -1,0 +1,56 @@
+@@ -83,6 +83,8 @@ public class InterTypeMethodDeclaration extends InterTypeDeclaration {
+ 
+ 	public void resolve(ClassScope upperScope) {
+ 		if (munger == null) ignoreFurtherInvestigation = true;
++		if (binding == null)
++            ignoreFurtherInvestigation = true;
+ 		if (ignoreFurtherInvestigation) return;
+ 
+ 		if (!Modifier.isStatic(declaredModifiers)) {
+@@ -580,4 +580,14 @@ public class AjProblemReporter extends ProblemReporter {
+ 		public void setSupplementaryMessageInfo(String msg) { delegate.setSupplementaryMessageInfo(msg);}
+ 		public String getSupplementaryMessageInfo() { return delegate.getSupplementaryMessageInfo();}
+     }
++
++    public void duplicateMethodInType(SourceTypeBinding type, AbstractMethodDeclaration methodDecl) {
++        if (new String(methodDecl.selector).startsWith("ajc$interMethod")) {
++            // this is an ITD clash and will be reported in another way by AspectJ (173602)
++            return;
++        }
++        super.duplicateMethodInType(type, methodDecl);
++    }
++
++
+ }
+@@ -22,6 +22,9 @@ import org.aspectj.testing.XMLBasedAjcTestCase;
+ public class Ajc160Tests extends org.aspectj.testing.XMLBasedAjcTestCase {
+ 
+ 	// AspectJ1.6.0rc1
++    public void testDuplicateITDsNPE_pr173602() {
++        runTest("duplicate itd npe");
++    }
+     public void testLTWITDs_pr223094() {
+         runTest("ltw inherited itds");
+     }
+@@ -3,6 +3,14 @@
+ <!-- AspectJ v1.6.0 Tests -->
+ <suite>
+ 
++	<ajc-test dir="bugs160/pr173602" title="duplicate itd npe">
++		<compile files="X.java">
++		  <message kind="error" line="2" text="intertype declaration from "/>
++		  <message kind="error" line="3" text="intertype declaration from "/>
++		  <message kind="error" line="6" text="intertype declaration from "/>
++		</compile>
++	</ajc-test>
++	
+     <ajc-test dir="bugs160/pr223094" title="ltw inherited itds">
+       <compile files="B.java" outjar="foo.jar"/>
+       <compile files="A.java" classpath="$sandbox/foo.jar"/>
+@@ -0,0 +1,6 @@
++public aspect X {
++  public void Y.foo(String s) {}
++  public void Y.foo(String s) {}
++}
++
++class Y {}

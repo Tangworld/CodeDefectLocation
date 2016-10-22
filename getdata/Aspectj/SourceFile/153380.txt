@@ -1,0 +1,87 @@
+@@ -32,6 +32,7 @@ import org.aspectj.util.FuzzyBoolean;
+ import org.aspectj.weaver.AjAttribute;
+ import org.aspectj.weaver.AjcMemberMaker;
+ import org.aspectj.weaver.AnnotationTargetKind;
++import org.aspectj.weaver.ConcreteTypeMunger;
+ import org.aspectj.weaver.Constants;
+ import org.aspectj.weaver.ISourceContext;
+ import org.aspectj.weaver.JoinPointSignature;
+@@ -43,7 +44,6 @@ import org.aspectj.weaver.ResolvedType;
+ import org.aspectj.weaver.UnresolvedType;
+ import org.aspectj.weaver.VersionedDataInputStream;
+ import org.aspectj.weaver.World;
+-import org.aspectj.weaver.bcel.BcelTypeMunger;
+ 
+ 
+ public class SignaturePattern extends PatternNode {
+@@ -499,7 +499,7 @@ public class SignaturePattern extends PatternNode {
+ 	    ResolvedMember [] mems = member.getDeclaringType().resolve(world).getDeclaredFields(); // FIXME asc should include supers with getInterTypeMungersIncludingSupers?
+ 	    List mungers = member.getDeclaringType().resolve(world).getInterTypeMungers(); 
+ 		for (Iterator iter = mungers.iterator(); iter.hasNext();) {
+-	        BcelTypeMunger typeMunger = (BcelTypeMunger) iter.next();
++	        ConcreteTypeMunger typeMunger = (ConcreteTypeMunger) iter.next();
+ 			if (typeMunger.getMunger() instanceof NewFieldTypeMunger) {
+ 			  ResolvedMember fakerm = typeMunger.getSignature();
+ 			  ResolvedMember ajcMethod = AjcMemberMaker.interFieldInitializer(fakerm,typeMunger.getAspectType());
+@@ -570,6 +570,7 @@ public class AjPipeliningCompilerAdapter extends AbstractCompilerAdapter {
+ 			for (int index = 0; index < declaration.annotations.length; index++) {
+ 				TypeDeclaration.resolveAnnotations(declaration.staticInitializerScope, declaration.annotations, declaration.binding); // force annotation resolution
+ 				Annotation a = declaration.annotations[index];
++				if (a.resolvedType == null) continue; // another problem is being reported, so don't crash here
+ 				if (CharOperation.equals(a.resolvedType.signature(),aspectSig)) return true;
+ 			}
+ 		}
+@@ -0,0 +1,4 @@
++import java.lang.retention.*;
++
++@Retention(RetentionPolicy.RUNTIME)
++@interface Ann {}
+@@ -0,0 +1,2 @@
++@Ann
++public interface Base {}
+@@ -0,0 +1,2 @@
++@Ann
++public class BaseImpl implements Base {}
+@@ -0,0 +1 @@
++interface I1 {}
+@@ -0,0 +1,2 @@
++interface Mixin {public void m();}
++
+@@ -0,0 +1,9 @@
++public class Runner {
++  public static void main(String []argv) {
++    new BaseImpl().m();
++  }
++
++  static aspect A{
++    before(): call(* *(..)) {}
++  }
++}
+@@ -0,0 +1,5 @@
++public aspect X {
++  declare parents: @Ann * extends I1,Mixin;
++  int Mixin.i;
++  public void Mixin.m() {}
++}
+@@ -27,6 +27,7 @@ public class Ajc153Tests extends org.aspectj.testing.XMLBasedAjcTestCase {
+   // public void testArgnamesAndJavac_pr148381() { runTest("argNames and javac");}
+   // public void testCFlowXMLAspectLTW_pr149096() { runTest("cflow xml concrete aspect"); }
+   // public void testAmbiguousBinding_pr121805() { runTest("ambiguous binding");}
++  public void testPipeliningProblemWithAnnotationsDecp_pr153380_1() { runTest("pipelining decps");}
+   public void testUnwantedPointcutWarning_pr148219() { runTest("unwanted warning for pointcut");}
+   public void testDecpAndCflowadderMungerClash_pr152631() { runTest("decp and cflowadder munger clash");}
+   public void testGenericInheritanceDecp_pr150095() { runTest("generics, inheritance and decp");}
+@@ -16,6 +16,13 @@
+       </run>
+     </ajc-test>
+ 
++    <ajc-test dir="bugs153/pr153380/case1" title="pipelining decps">
++      <compile files="Ann.java,Base.java,BaseImpl.java,I1.java,Mixin.java,Runner.java,X.aj" options="-1.5">
++        <message kind="error" line="1" text="The import java.lang.retention cannot be resolved"/>
++        <message kind="error" line="3" text="Retention cannot be resolved to a type"/>
++      </compile>
++    </ajc-test>
++    
+     <ajc-test dir="bugs153/pr148381" title="argNames and javac">
+       <!--compile files="C.java" options="-1.5"/>
+       <compile files="A.java" options="-1.5"/-->

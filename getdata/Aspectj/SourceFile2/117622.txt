@@ -1,0 +1,409 @@
+@@ -602,7 +602,7 @@ public class ResolvedMemberImpl extends MemberImpl implements IHasPosition, Anno
+ 	public ResolvedMemberImpl parameterizedWith(UnresolvedType[] typeParameters,ResolvedType newDeclaringType, boolean isParameterized,List aliases) {
+ 		if (//isParameterized &&  <-- might need this bit...
+ 				!getDeclaringType().isGenericType()) {
+-			throw new IllegalStateException("Can't ask to parameterize a member of a non-generic type");
++			throw new IllegalStateException("Can't ask to parameterize a member of non-generic type: "+getDeclaringType()+"  kind("+getDeclaringType().typeKind+")");
+ 		}
+ 		TypeVariable[] typeVariables = getDeclaringType().getTypeVariables();
+ 		if (isParameterized && (typeVariables.length != typeParameters.length)) {
+@@ -23,7 +23,6 @@ import java.util.Set;
+ import java.util.WeakHashMap;
+ 
+ import org.aspectj.asm.IHierarchy;
+-import org.aspectj.bridge.IMessage;
+ import org.aspectj.bridge.IMessageHandler;
+ import org.aspectj.bridge.ISourceLocation;
+ import org.aspectj.bridge.Message;
+@@ -50,6 +49,7 @@ public abstract class World implements Dump.INode {
+ 
+ 	/** The heart of the world, a map from type signatures to resolved types */
+     protected TypeMap typeMap = new TypeMap(); // Signature to ResolvedType
++    
+ 
+     /** Calculator for working out aspect precedence */
+     private AspectPrecedenceCalculator precedenceCalculator;
+@@ -831,5 +831,23 @@ public abstract class World implements Dump.INode {
+ 	}
+ 
+ 	public void validateType(UnresolvedType type) { }
++
++    // --- with java5 we can get into a recursive mess if we aren't careful when resolving types (*cough* java.lang.Enum) ---
++	
++    // --- this first map is for java15 delegates which may try and recursively access the same type variables.
++	// --- I would rather stash this against a reference type - but we don't guarantee referencetypes are unique for
++	//     so we can't :(
++	private Map workInProgress1 = new HashMap();
++	public TypeVariable[] getTypeVariablesCurrentlyBeingProcessed(Class baseClass) {
++		return (TypeVariable[])workInProgress1.get(baseClass);
++	}
++	public void recordTypeVariablesCurrentlyBeingProcessed(Class baseClass, TypeVariable[] typeVariables) {
++		workInProgress1.put(baseClass,typeVariables);
++	}
++	public void forgetTypeVariablesCurrentlyBeingProcessed(Class baseClass) {
++		workInProgress1.remove(baseClass);
++	}
++
++    // ---
+ 
+ }
+@@ -35,6 +35,7 @@ public class BcweaverModuleTests15 extends TestCase {
+ 	        suite.addTestSuite(WildTypePatternResolutionTestCase.class);
+ 	        if (LangUtil.is15VMOrGreater()) {
+ 	            TestUtil.loadTestsReflectively(suite, "org.aspectj.weaver.tools.Java15PointcutExpressionTest", false);
++	            TestUtil.loadTestsReflectively(suite, "org.aspectj.weaver.TestJava5ReflectionBasedReferenceTypeDelegate", false);
+ 	        }
+ 	        return suite;
+ 	    }
+@@ -20,6 +20,8 @@ import java.lang.reflect.Method;
+ import java.lang.reflect.ParameterizedType;
+ import java.lang.reflect.Type;
+ import java.lang.reflect.WildcardType;
++import java.util.HashMap;
++import java.util.Map;
+ 
+ import org.aspectj.lang.annotation.Aspect;
+ import org.aspectj.lang.reflect.AjType;
+@@ -133,13 +135,33 @@ public class Java15ReflectionBasedReferenceTypeDelegate extends
+ 		 return superclass;
+ 	}
+ 
++	
+ 	public TypeVariable[] getTypeVariables() {
++		TypeVariable[] workInProgressSetOfVariables = (TypeVariable[])getResolvedTypeX().getWorld().getTypeVariablesCurrentlyBeingProcessed(getBaseClass());
++		if (workInProgressSetOfVariables!=null) {
++			return workInProgressSetOfVariables;
++		}
+ 		if (this.typeVariables == null) {
+ 			java.lang.reflect.TypeVariable[] tVars = this.getBaseClass().getTypeParameters();
+ 			this.typeVariables = new TypeVariable[tVars.length];
++			// basic initialization
++			for (int i = 0; i < tVars.length; i++) {
++				typeVariables[i] = new TypeVariable(tVars[i].getName());
++			}
++			// stash it
++			this.getResolvedTypeX().getWorld().recordTypeVariablesCurrentlyBeingProcessed(getBaseClass(),typeVariables);
++			// now fill in the details...
+ 			for (int i = 0; i < tVars.length; i++) {
+-				this.typeVariables[i] = ((TypeVariableReferenceType) fromType(tVars[i])).getTypeVariable();
++				TypeVariableReferenceType tvrt = ((TypeVariableReferenceType) fromType(tVars[i]));
++				TypeVariable tv = tvrt.getTypeVariable();
++				typeVariables[i].setUpperBound(tv.getUpperBound());
++				typeVariables[i].setAdditionalInterfaceBounds(tv.getAdditionalInterfaceBounds());
++				typeVariables[i].setDeclaringElement(tv.getDeclaringElement());
++				typeVariables[i].setDeclaringElementKind(tv.getDeclaringElementKind());
++				typeVariables[i].setRank(tv.getRank());
++				typeVariables[i].setLowerBound(tv.getLowerBound());
+ 			}
++			this.getResolvedTypeX().getWorld().forgetTypeVariablesCurrentlyBeingProcessed(getBaseClass());
+ 		}		
+ 		return this.typeVariables;
+ 	}
+@@ -162,10 +184,19 @@ public class Java15ReflectionBasedReferenceTypeDelegate extends
+ 		return methods;
+ 	}
+ 
++	/**
++	 * Returns the generic type, regardless of the resolvedType we 'know about'
++	 */
++	public ResolvedType getGenericResolvedType() {
++		ResolvedType rt = getResolvedTypeX();
++		if (rt.isParameterizedType() || rt.isRawType()) return rt.getGenericType();
++		return rt;
++	}
++	
+ 	private ResolvedMember createGenericMethodMember(Method forMethod) {
+ 		ReflectionBasedResolvedMemberImpl ret = 
+ 		new ReflectionBasedResolvedMemberImpl(org.aspectj.weaver.Member.METHOD,
+-			getResolvedTypeX(),
++			getGenericResolvedType(),
+ 			forMethod.getModifiers(),
+ 			fromType(forMethod.getGenericReturnType()),
+ 			forMethod.getName(),
+@@ -180,9 +211,9 @@ public class Java15ReflectionBasedReferenceTypeDelegate extends
+ 	private ResolvedMember createGenericConstructorMember(Constructor forConstructor) {
+ 		ReflectionBasedResolvedMemberImpl ret = 
+ 		new ReflectionBasedResolvedMemberImpl(org.aspectj.weaver.Member.METHOD,
+-			getResolvedTypeX(),
++			getGenericResolvedType(),
+ 			forConstructor.getModifiers(),
+-			getResolvedTypeX(),
++			getGenericResolvedType(),
+ 			"init",
+ 			fromTypes(forConstructor.getGenericParameterTypes()),
+ 			fromTypes(forConstructor.getGenericExceptionTypes()),
+@@ -196,7 +227,7 @@ public class Java15ReflectionBasedReferenceTypeDelegate extends
+ 		ReflectionBasedResolvedMemberImpl ret =
+ 			new ReflectionBasedResolvedMemberImpl(
+ 				org.aspectj.weaver.Member.FIELD,
+-				getResolvedTypeX(),
++				getGenericResolvedType(),
+ 				forField.getModifiers(),
+ 				fromType(forField.getGenericType()),
+ 				forField.getName(),
+@@ -266,6 +297,9 @@ public class Java15ReflectionBasedReferenceTypeDelegate extends
+ 		return getBaseClass().getTypeParameters().length > 0;
+ 	}
+ 
++	// Used to prevent recursion - we record what we are working on and return it if asked again *whilst* working on it
++	private Map /*java.lang.reflect.TypeVariable > TypeVariableReferenceType */typeVariablesInProgress = new HashMap();
++	
+ 	private ResolvedType fromType(Type aType) {
+ 		if (aType instanceof Class) {
+ 			Class clazz = (Class)aType;
+@@ -293,7 +327,15 @@ public class Java15ReflectionBasedReferenceTypeDelegate extends
+ 			ResolvedType[] resolvedArgs = fromTypes(args);
+ 			return TypeFactory.createParameterizedType(baseType, resolvedArgs, getWorld());
+ 		} else if (aType instanceof java.lang.reflect.TypeVariable) {
++			if (typeVariablesInProgress.get(aType)!=null) // check if we are already working on this type
++				return (TypeVariableReferenceType)typeVariablesInProgress.get(aType);
++
+ 			java.lang.reflect.TypeVariable tv = (java.lang.reflect.TypeVariable) aType;
++			TypeVariable rt_tv = new TypeVariable(tv.getName());
++			TypeVariableReferenceType tvrt = new TypeVariableReferenceType(rt_tv,getWorld());
++			
++			typeVariablesInProgress.put(aType,tvrt); // record what we are working on, for recursion case
++			
+ 			Type[] bounds = tv.getBounds();
+ 			ResolvedType[] resBounds = fromTypes(bounds);
+ 			ResolvedType upperBound = resBounds[0];
+@@ -302,8 +344,12 @@ public class Java15ReflectionBasedReferenceTypeDelegate extends
+ 				additionalBounds = new ResolvedType[resBounds.length - 1];
+ 				System.arraycopy(resBounds,1,additionalBounds,0,additionalBounds.length);
+ 			}
+-			TypeVariable rt_tv = new TypeVariable(tv.getName(),upperBound,additionalBounds);
+-			return new TypeVariableReferenceType(rt_tv,getWorld());
++			rt_tv.setUpperBound(upperBound);
++			rt_tv.setAdditionalInterfaceBounds(additionalBounds);
++			
++			typeVariablesInProgress.remove(aType); // we have finished working on it
++			
++			return tvrt;
+ 		} else if (aType instanceof WildcardType) {
+ 			WildcardType wildType = (WildcardType) aType;
+ 			Type[] lowerBounds = wildType.getLowerBounds();
+@@ -319,7 +365,7 @@ public class Java15ReflectionBasedReferenceTypeDelegate extends
+ 		} else if (aType instanceof GenericArrayType) {
+ 			GenericArrayType gt = (GenericArrayType) aType;
+ 			Type componentType = gt.getGenericComponentType();
+-			UnresolvedType.makeArray(fromType(componentType),1);
++			return UnresolvedType.makeArray(fromType(componentType),1).resolve(getWorld());
+ 		}
+ 		return ResolvedType.MISSING;
+ 	}
+@@ -4,22 +4,35 @@ import org.aspectj.weaver.reflect.ReflectionBasedReferenceTypeDelegateTest;
+ 
+ public class TestJava5ReflectionBasedReferenceTypeDelegate extends ReflectionBasedReferenceTypeDelegateTest {
+ 
++	/**
++	 * Let's play about with a generic type and ensure we can work with it in a reflective world.
++	 */
+ 	public void testResolveGeneric() {
+-		UnresolvedType collectionType = UnresolvedType.forName("java.util.Collection<E>");
+-//		ResolvedType rt= world.resolve(collectionType);
+-//		ResolvedMember[] methods = world.resolve(collectionType).getDeclaredMethods();
+-//		assertTrue(findMethod("toArray", methods) != -1);		
++		UnresolvedType collectionType = UnresolvedType.forName("java.util.Collection");
++		ResolvedType rt= world.resolve(collectionType).getRawType().resolve(world);
++		ResolvedMember[] methods = world.resolve(collectionType).getDeclaredMethods();
++		int i = findMethod("toArray", methods);
++		assertTrue("Couldn't find 'toArray' in the set of methods? "+methods,i != -1);
++		String expectedSignature = "T[] java.util.Collection.toArray(T[])";
++		assertTrue("Expected signature of '"+expectedSignature+"' but it was '"+methods[i],methods[i].toString().equals(expectedSignature));
++	}
++
++	/**
++	 * Can we resolve the dreaded Enum type...
++	 */
++	public void testResolveEnum() {
++		ResolvedType enumType = world.resolve("java.lang.Enum");
++		assertTrue("Should be the raw type but is "+enumType.typeKind,enumType.isRawType());
++		ResolvedType theGenericEnumType = enumType.getGenericType();
++		assertTrue("Should have a type variable ",theGenericEnumType.getTypeVariables().length>0);
++		TypeVariable tv = theGenericEnumType.getTypeVariables()[0];
++		String expected = "TypeVar E extends java.lang.Enum<E>";
++		assertTrue("Type variable should be '"+expected+"' but is '"+tv+"'",tv.toString().equals(expected));
+ 	}
+ 
+ 	public void testResolveClass() {
+-		//stack overflow
+-		world.resolve("java.lang.Class");		
++		world.resolve("java.lang.Class").getGenericType();		
+ 	}
+ 
+-	// just here to override the super one so it doesnt run in this case ;)
+-	public void testGetDeclaredMethods() {
+-		
+-	}
+-
+-
++	
+ }
+@@ -11,17 +11,20 @@
+  * ******************************************************************/
+ package org.aspectj.weaver.reflect;
+ 
++
++import junit.framework.TestCase;
++
+ import org.aspectj.weaver.ResolvedMember;
+ import org.aspectj.weaver.ResolvedType;
+ import org.aspectj.weaver.UnresolvedType;
+-import org.aspectj.weaver.World;
+-
+-import junit.framework.TestCase;
+ 
+ public class ReflectionBasedReferenceTypeDelegateTest extends TestCase {
+ 
+-	private World world;
++	protected ReflectionWorld world;
+ 	private ResolvedType objectType;
++	private ResolvedType classType;
++	private ResolvedType enumType;
++
+ 
+ 	public void testIsAspect() {
+ 		assertFalse(objectType.isAspect());
+@@ -86,31 +89,50 @@ public class ReflectionBasedReferenceTypeDelegateTest extends TestCase {
+ 	}
+ 
+ 	public void testGetSuperclass() {
+-		assertNull(objectType.getSuperclass());
++		assertTrue("Superclass of object should be null, but it is: "+objectType.getSuperclass(),objectType.getSuperclass()==null);
+ 		assertEquals(objectType,world.resolve("java.lang.Class").getSuperclass());
+ 		ResolvedType d = world.resolve("reflect.tests.D");
+ 		assertEquals(world.resolve("reflect.tests.C"),d.getSuperclass());
+ 	}
+ 
++
++	protected int findMethod(String name, ResolvedMember[] methods) {
++		for (int i=0; i<methods.length; i++) {
++			if (name.equals(methods[i].getName())) {
++				return i;
++			}
++		}
++		return -1;
++	}
++	
+ 	public void testGetDeclaredMethods() {
+ 		ResolvedMember[] methods = objectType.getDeclaredMethods();
+-		assertEquals(13,methods.length);
++		assertEquals(Object.class.getDeclaredMethods().length + Object.class.getDeclaredConstructors().length, methods.length);
+ 
+ 		ResolvedType c = world.resolve("reflect.tests.C");
+ 		methods = c.getDeclaredMethods();
+ 		assertEquals(3,methods.length);
+-		assertEquals("foo",methods[0].getName());
+-		assertEquals(world.resolve("java.lang.String"),methods[0].getReturnType());
+-		assertEquals(1, methods[0].getParameterTypes().length);
+-		assertEquals(objectType,methods[0].getParameterTypes()[0]);
+-		assertEquals(1,methods[0].getExceptions().length);
+-		assertEquals(world.resolve("java.lang.Exception"),methods[0].getExceptions()[0]);
+-		assertEquals("bar",methods[1].getName());
+-		assertEquals("init",methods[2].getName());
++		int idx = findMethod("foo", methods);
++		assertTrue(idx > -1);
++		
++		assertEquals(world.resolve("java.lang.String"),methods[idx].getReturnType());
++		assertEquals(1, methods[idx].getParameterTypes().length);
++		assertEquals(objectType,methods[idx].getParameterTypes()[0]);
++		assertEquals(1,methods[idx].getExceptions().length);
++		assertEquals(world.resolve("java.lang.Exception"),methods[idx].getExceptions()[0]);
++		int baridx = findMethod("bar", methods);
++		int initidx = findMethod("init", methods);
++		assertTrue(baridx > -1);
++		assertTrue(initidx > -1);
++		assertTrue(baridx != initidx && baridx != idx && idx <= 2 && initidx <= 2 && baridx <= 2);
+ 
+ 		ResolvedType d = world.resolve("reflect.tests.D");
+ 		methods = d.getDeclaredMethods();
+ 		assertEquals(2,methods.length);
++
++		classType = world.resolve("java.lang.Class");
++		methods = classType.getDeclaredMethods();
++		assertEquals(Class.class.getDeclaredMethods().length + Class.class.getDeclaredConstructors().length, methods.length); 
+ 	}
+ 
+ 	public void testGetDeclaredFields() {
+@@ -135,7 +157,7 @@ public class ReflectionBasedReferenceTypeDelegateTest extends TestCase {
+ 		interfaces = d.getDeclaredInterfaces();
+ 		assertEquals(1,interfaces.length);
+ 		assertEquals(world.resolve("java.io.Serializable"),interfaces[0]);
+-}
++    }
+ 
+ 	public void testGetDeclaredPointcuts() {
+ 		ResolvedMember[] pointcuts = objectType.getDeclaredPointcuts();
+@@ -79,8 +79,9 @@ public class Java15ReflectionBasedReferenceTypeDelegate extends
+ 
+ 	public AnnotationX[] getAnnotations() {
+ 		// AMC - we seem not to need to implement this method...
+-		throw new UnsupportedOperationException("getAnnotations on Java15ReflectionBasedReferenceTypeDelegate is not implemented yet");
+-		//return super.getAnnotations();
++	 	//throw new UnsupportedOperationException("getAnnotations on Java15ReflectionBasedReferenceTypeDelegate is not implemented yet");
++	    // FIXME is this the right implementation in the reflective case?
++		return super.getAnnotations();
+ 	}
+ 
+ 	public ResolvedType[] getAnnotationTypes() {
+@@ -127,7 +128,7 @@ public class Java15ReflectionBasedReferenceTypeDelegate extends
+ 	}
+ 
+ 	public ResolvedType getSuperclass() {
+-		if (superclass == null)
++		if (superclass == null && getBaseClass()!=Object.class) // superclass of Object is null
+ 		  superclass = fromType(this.getBaseClass().getGenericSuperclass());
+ 		 return superclass;
+ 	}
+@@ -267,7 +268,24 @@ public class Java15ReflectionBasedReferenceTypeDelegate extends
+ 
+ 	private ResolvedType fromType(Type aType) {
+ 		if (aType instanceof Class) {
+-			return getWorld().resolve(((Class)aType).getName());
++			Class clazz = (Class)aType;
++			String name = clazz.getName();
++			/**
++			 * getName() can return:
++			 * 
++			 * 1. If this class object represents a reference type that is not an array type 
++			 *    then the binary name of the class is returned
++			 * 2. If this class object represents a primitive type or void, then the 
++			 *    name returned is a String equal to the Java language keyword corresponding to the primitive type or void.
++			 * 3. If this class object represents a class of arrays, then the internal form 
++			 *    of the name consists of the name of the element type preceded by one or more '[' characters representing the depth of the array nesting.
++			 */
++			if (clazz.isArray()) {
++				UnresolvedType ut = UnresolvedType.forSignature(name);
++				return getWorld().resolve(ut);
++			} else {
++				return getWorld().resolve(name);
++			}
+ 		} else if (aType instanceof ParameterizedType) {
+ 			ParameterizedType pt = (ParameterizedType) aType;
+ 			ResolvedType baseType = fromType(pt.getRawType());
+@@ -0,0 +1,25 @@
++package org.aspectj.weaver;
++
++import org.aspectj.weaver.reflect.ReflectionBasedReferenceTypeDelegateTest;
++
++public class TestJava5ReflectionBasedReferenceTypeDelegate extends ReflectionBasedReferenceTypeDelegateTest {
++	
++	public void testResolveGeneric() {
++		UnresolvedType collectionType = UnresolvedType.forName("java.util.Collection<E>");
++//		ResolvedType rt= world.resolve(collectionType);
++//		ResolvedMember[] methods = world.resolve(collectionType).getDeclaredMethods();
++//		assertTrue(findMethod("toArray", methods) != -1);		
++	}
++	
++	public void testResolveClass() {
++		//stack overflow
++		world.resolve("java.lang.Class");		
++	}
++	
++	// just here to override the super one so it doesnt run in this case ;)
++	public void testGetDeclaredMethods() {
++		
++	}
++
++
++}

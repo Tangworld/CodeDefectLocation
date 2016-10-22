@@ -1,0 +1,576 @@
+@@ -2240,10 +2240,18 @@ public class BcelShadow extends Shadow {
+ 				var.appendLoad(advice, fact);
+ 			}
+ 			// ??? we don't actually need to push NULL for the closure if we take care
+-			advice.append(munger.getAdviceArgSetup(this, null,
+-					(munger.getConcreteAspect().isAnnotationStyleAspect() && munger.getDeclaringAspect() != null && munger
+-							.getDeclaringAspect().resolve(world).isAnnotationStyleAspect()) ? this.loadThisJoinPoint()
+-							: new InstructionList(InstructionConstants.ACONST_NULL)));
++			boolean isAnnoStyleConcreteAspect = munger.getConcreteAspect().isAnnotationStyleAspect();
++			boolean isAnnoStyleDeclaringAspect = munger.getDeclaringAspect() != null ? munger.getDeclaringAspect().resolve(world)
++					.isAnnotationStyleAspect() : false;
++
++			InstructionList iList = null;
++			if (isAnnoStyleConcreteAspect && isAnnoStyleDeclaringAspect) {
++				iList = this.loadThisJoinPoint();
++				iList.append(Utility.createConversion(getFactory(), LazyClassGen.tjpType, LazyClassGen.proceedingTjpType));
++			} else {
++				iList = new InstructionList(InstructionConstants.ACONST_NULL);
++			}
++			advice.append(munger.getAdviceArgSetup(this, null, iList));
+ 			// adviceMethodInvocation =
+ 			advice.append(Utility.createInvoke(fact, localAdviceMethod)); // (fact, getWorld(), munger.getSignature()));
+ 			advice.append(Utility.createConversion(getFactory(), BcelWorld.makeBcelType(mungerSig.getReturnType()),
+@@ -2496,7 +2504,7 @@ public class BcelShadow extends Shadow {
+ 						ret.append(InstructionFactory.createArrayLoad(Type.OBJECT));
+ 						ret.append(Utility.createConversion(fact, Type.OBJECT, callbackMethod.getArgumentTypes()[0]));
+ 					} else {
+-						int position = (hasThis() && pointcutBindsThis ? 1 : 0);
++						int position = (hasThis()/* && pointcutBindsThis */? 1 : 0);
+ 						ret.append(InstructionFactory.createLoad(objectArrayType, theObjectArrayLocalNumber));
+ 						ret.append(Utility.createConstant(fact, position));
+ 						ret.append(InstructionFactory.createArrayLoad(Type.OBJECT));
+@@ -0,0 +1,11 @@
++import figures.Line;
++import figures.Point;
++
++public class Main {
++	public static void main(String[] args) {
++		Point p1 = new Point(10, 100);
++		Point p2 = new Point(20, 200);
++		Line l1 = new Line(p1, p2);
++	}
++
++}
+@@ -0,0 +1,41 @@
++package answers;
++
++import org.aspectj.lang.ProceedingJoinPoint;
++import org.aspectj.lang.annotation.*;
++import figures.*;
++import java.awt.Rectangle;
++
++@Aspect
++public class Answer2h {
++	@Pointcut("call(public void figures.FigureElement+.move" +
++			"()) && target(fe)")
++	void movingFigureElement(Point fe) {}
++
++	@Around("movingFigureElement(fe)")
++	public void checkIfBoundsMovedSame(ProceedingJoinPoint thisJoinPoint,
++			Point fe) throws Throwable {		
++/*
++	@Pointcut("call(public void figures.FigureElement+.move" +
++			"(int, int)) && target(fe) && args(dx, dy)")
++	void movingFigureElement(FigureElement fe, int dx, int dy) {}
++
++	@Around("movingFigureElement(fe, dx, dy)")
++	public void checkIfBoundsMovedSame(ProceedingJoinPoint thisJoinPoint,
++			FigureElement fe, int dx, int dy) throws Throwable {		
++*/
++		Rectangle rectangleBefore = new Rectangle(fe.getBounds());
++		//thisJoinPoint.proceed(new Object[]{fe, dx, dy});		
++		thisJoinPoint.proceed(new Object[]{fe});		
++//		rectangleBefore.translate(dx, dy);
++		if(!rectangleBefore.equals(fe.getBounds()))
++			throw new IllegalStateException("move() invariant violation");
++
++		
++		// IF THE THREE LINES BELOW ARE UN-COMMENTED, THE EXCEPTION
++		// ISN'T THROWN!?
++		// Note: The three lines can be located anywhere inside the advice. 
++//		for(Object o: thisJoinPoint.getArgs()) {
++//			System.out.print(o+" ");
++//		}
++	}
++}
+@@ -0,0 +1,21 @@
++// Copyright (c) 2002 Palo Alto Research Center, Incorporated.
++// All Rights Reserved.
++
++
++package figures;
++
++import java.awt.*;
++import java.awt.geom.*;
++
++public interface FigureElement {
++    public static final int MIN_VALUE = 0;
++    public static final int MAX_VALUE = 500;
++
++    public abstract void move(int dx, int dy);
++
++    public abstract Rectangle getBounds();
++
++    public abstract boolean contains(Point2D p);
++
++    public abstract void paint(Graphics2D g2);
++}
+@@ -0,0 +1,58 @@
++// Copyright (c) 2002 Palo Alto Research Center, Incorporated.
++// All Rights Reserved.
++
++
++package figures;
++
++import java.awt.*;
++import java.awt.geom.*;
++
++public class Line extends ShapeFigureElement {
++    private Point _p1;
++    private Point _p2;
++
++    public Line(Point p1, Point p2) {
++        _p1 = p1;
++        _p2 = p2;
++    }
++
++    public Point getP1() { return _p1; }
++    public Point getP2() { return _p2; }
++
++    public void move(int dx, int dy) {
++        _p1.move(dx, dy);
++    }
++    public void move() {
++        _p1.move();
++//        _p2.move(dx, dy);
++    }
++
++    public String toString() {
++        return "Line(" + _p1 + ", " + _p2 + ")";
++    }
++
++    /**
++     * Used to determine if this line {@link contains(Point2D)} a point.
++     */
++    final static int THRESHHOLD = 5;
++
++    /**
++     * Returns <code>true</code> if the point segment distance is less than
++     * {@link THRESHHOLD}.
++     */
++    public boolean contains(Point2D p) {
++        return getLine2D().ptLineDist(p) < THRESHHOLD;
++    }
++
++    private Line2D getLine2D() {
++	return new Line2D.Float((float)getP1().getX(),
++                                (float)getP1().getY(),
++                                (float)getP2().getX(),
++                                (float)getP2().getY());
++    }
++
++    public Shape getShape() {
++        return getLine2D();
++    }
++}
++
+@@ -0,0 +1,52 @@
++// Copyright (c) 2002 Palo Alto Research Center, Incorporated.
++// All Rights Reserved.
++
++
++package figures;
++
++import java.awt.*;
++import java.awt.geom.*;
++
++public class Point extends ShapeFigureElement {
++    private int _x;
++    private int _y;
++
++    public Point(int x, int y) {
++        _x = x;
++        _y = y;
++    }
++
++    public int getX() { return _x; }
++
++    public int getY() { return _y; }
++
++    public void setX(int x) { _x = x; }
++
++    public void setY(int y) { _y = y; }
++
++    public void move() {}
++    public void move(int dx, int dy) {
++    	_x += dx; 
++    	_y += dy;
++    	//setX(getX() + dx);
++    	//setY(getY() + dy);
++    }
++
++    public String toString() {
++        return "Point(" + _x + ", " + _y + ")";
++    }
++
++    /** The height of displayed {@link Point}s. */
++    private final static int HEIGHT = 10;
++
++    /** The width of displayed {@link Point}s. -- same as {@link HEIGHT}. */
++    private final static int WIDTH  = Point.HEIGHT;
++
++    public Shape getShape() {
++	return new Ellipse2D.Float((float)getX()-Point.WIDTH/2,
++                                   (float)getY()-Point.HEIGHT/2,
++                                   (float)Point.HEIGHT,
++                                   (float)Point.WIDTH);
++    }
++}
++
+@@ -0,0 +1,38 @@
++// Copyright (c) 2002 Palo Alto Research Center, Incorporated.
++// All Rights Reserved.
++
++
++package figures;
++
++import java.awt.*;
++import java.awt.geom.*;
++
++public abstract class ShapeFigureElement implements FigureElement {
++    public abstract void move(int dx, int dy);
++
++    public abstract Shape getShape();
++
++    public Rectangle getBounds() {
++        return getShape().getBounds();
++    }
++
++    public boolean contains(Point2D p) {
++        return getShape().contains(p);
++    }
++
++    public Color getLineColor() {
++        return Color.black;
++    }
++
++    public Color getFillColor() {
++        return Color.red;
++    }
++
++    public final void paint(Graphics2D g2) {
++        Shape shape = getShape();
++        g2.setPaint(getFillColor());
++        g2.fill(shape);
++        g2.setPaint(getLineColor());
++        g2.draw(shape);
++    }
++}
+@@ -18,9 +18,13 @@ import org.aspectj.testing.XMLBasedAjcTestCase;
+ 
+ public class Ajc166Tests extends org.aspectj.testing.XMLBasedAjcTestCase {
+ 
+-//	public void testITDannos_288049() {
+-//		runTest("itd decanno");
+-//	}
++	// public void testITDannos_288049() {
++	// runTest("itd decanno");
++	// }
++
++	public void testVerifyErrorAnnoStyle_288712() {
++		runTest("verifyerror anno style");
++	}
+ 
+ 	public void testMungerCCE_288635() {
+ 		runTest("munger cce");
+@@ -2,6 +2,11 @@
+ 
+ <suite>
+ 
++  <ajc-test dir="bugs166/pr288712" title="verifyerror anno style">
++    <compile files="answers/Answer2h.java figures/FigureElement.java figures/Line.java figures/Point.java figures/ShapeFigureElement.java Main.java" options="-1.5"/>
++    <run class="Main"/>
++  </ajc-test>
++  
+   <ajc-test dir="bugs166/pr288049" title="itd decanno">
+      <compile files="org/tests/AClass.java org/tests/ASubClass.java org/tests/DeclareAnns.aj" options="-1.5"/>
+   </ajc-test>
+@@ -2240,10 +2240,18 @@ public class BcelShadow extends Shadow {
+ 				var.appendLoad(advice, fact);
+ 			}
+ 			// ??? we don't actually need to push NULL for the closure if we take care
+-			advice.append(munger.getAdviceArgSetup(this, null,
+-					(munger.getConcreteAspect().isAnnotationStyleAspect() && munger.getDeclaringAspect() != null && munger
+-							.getDeclaringAspect().resolve(world).isAnnotationStyleAspect()) ? this.loadThisJoinPoint()
+-							: new InstructionList(InstructionConstants.ACONST_NULL)));
++			boolean isAnnoStyleConcreteAspect = munger.getConcreteAspect().isAnnotationStyleAspect();
++			boolean isAnnoStyleDeclaringAspect = munger.getDeclaringAspect() != null ? munger.getDeclaringAspect().resolve(world)
++					.isAnnotationStyleAspect() : false;
++
++			InstructionList iList = null;
++			if (isAnnoStyleConcreteAspect && isAnnoStyleDeclaringAspect) {
++				iList = this.loadThisJoinPoint();
++				iList.append(Utility.createConversion(getFactory(), LazyClassGen.tjpType, LazyClassGen.proceedingTjpType));
++			} else {
++				iList = new InstructionList(InstructionConstants.ACONST_NULL);
++			}
++			advice.append(munger.getAdviceArgSetup(this, null, iList));
+ 			// adviceMethodInvocation =
+ 			advice.append(Utility.createInvoke(fact, localAdviceMethod)); // (fact, getWorld(), munger.getSignature()));
+ 			advice.append(Utility.createConversion(getFactory(), BcelWorld.makeBcelType(mungerSig.getReturnType()),
+@@ -2496,7 +2504,7 @@ public class BcelShadow extends Shadow {
+ 						ret.append(InstructionFactory.createArrayLoad(Type.OBJECT));
+ 						ret.append(Utility.createConversion(fact, Type.OBJECT, callbackMethod.getArgumentTypes()[0]));
+ 					} else {
+-						int position = (hasThis() && pointcutBindsThis ? 1 : 0);
++						int position = (hasThis()/* && pointcutBindsThis */? 1 : 0);
+ 						ret.append(InstructionFactory.createLoad(objectArrayType, theObjectArrayLocalNumber));
+ 						ret.append(Utility.createConstant(fact, position));
+ 						ret.append(InstructionFactory.createArrayLoad(Type.OBJECT));
+@@ -0,0 +1,11 @@
++import figures.Line;
++import figures.Point;
++
++public class Main {
++	public static void main(String[] args) {
++		Point p1 = new Point(10, 100);
++		Point p2 = new Point(20, 200);
++		Line l1 = new Line(p1, p2);
++	}
++
++}
+@@ -0,0 +1,41 @@
++package answers;
++
++import org.aspectj.lang.ProceedingJoinPoint;
++import org.aspectj.lang.annotation.*;
++import figures.*;
++import java.awt.Rectangle;
++
++@Aspect
++public class Answer2h {
++	@Pointcut("call(public void figures.FigureElement+.move" +
++			"()) && target(fe)")
++	void movingFigureElement(Point fe) {}
++
++	@Around("movingFigureElement(fe)")
++	public void checkIfBoundsMovedSame(ProceedingJoinPoint thisJoinPoint,
++			Point fe) throws Throwable {		
++/*
++	@Pointcut("call(public void figures.FigureElement+.move" +
++			"(int, int)) && target(fe) && args(dx, dy)")
++	void movingFigureElement(FigureElement fe, int dx, int dy) {}
++
++	@Around("movingFigureElement(fe, dx, dy)")
++	public void checkIfBoundsMovedSame(ProceedingJoinPoint thisJoinPoint,
++			FigureElement fe, int dx, int dy) throws Throwable {		
++*/
++		Rectangle rectangleBefore = new Rectangle(fe.getBounds());
++		//thisJoinPoint.proceed(new Object[]{fe, dx, dy});		
++		thisJoinPoint.proceed(new Object[]{fe});		
++//		rectangleBefore.translate(dx, dy);
++		if(!rectangleBefore.equals(fe.getBounds()))
++			throw new IllegalStateException("move() invariant violation");
++
++		
++		// IF THE THREE LINES BELOW ARE UN-COMMENTED, THE EXCEPTION
++		// ISN'T THROWN!?
++		// Note: The three lines can be located anywhere inside the advice. 
++//		for(Object o: thisJoinPoint.getArgs()) {
++//			System.out.print(o+" ");
++//		}
++	}
++}
+@@ -0,0 +1,21 @@
++// Copyright (c) 2002 Palo Alto Research Center, Incorporated.
++// All Rights Reserved.
++
++
++package figures;
++
++import java.awt.*;
++import java.awt.geom.*;
++
++public interface FigureElement {
++    public static final int MIN_VALUE = 0;
++    public static final int MAX_VALUE = 500;
++
++    public abstract void move(int dx, int dy);
++
++    public abstract Rectangle getBounds();
++
++    public abstract boolean contains(Point2D p);
++
++    public abstract void paint(Graphics2D g2);
++}
+@@ -0,0 +1,58 @@
++// Copyright (c) 2002 Palo Alto Research Center, Incorporated.
++// All Rights Reserved.
++
++
++package figures;
++
++import java.awt.*;
++import java.awt.geom.*;
++
++public class Line extends ShapeFigureElement {
++    private Point _p1;
++    private Point _p2;
++
++    public Line(Point p1, Point p2) {
++        _p1 = p1;
++        _p2 = p2;
++    }
++
++    public Point getP1() { return _p1; }
++    public Point getP2() { return _p2; }
++
++    public void move(int dx, int dy) {
++        _p1.move(dx, dy);
++    }
++    public void move() {
++        _p1.move();
++//        _p2.move(dx, dy);
++    }
++
++    public String toString() {
++        return "Line(" + _p1 + ", " + _p2 + ")";
++    }
++
++    /**
++     * Used to determine if this line {@link contains(Point2D)} a point.
++     */
++    final static int THRESHHOLD = 5;
++
++    /**
++     * Returns <code>true</code> if the point segment distance is less than
++     * {@link THRESHHOLD}.
++     */
++    public boolean contains(Point2D p) {
++        return getLine2D().ptLineDist(p) < THRESHHOLD;
++    }
++
++    private Line2D getLine2D() {
++	return new Line2D.Float((float)getP1().getX(),
++                                (float)getP1().getY(),
++                                (float)getP2().getX(),
++                                (float)getP2().getY());
++    }
++
++    public Shape getShape() {
++        return getLine2D();
++    }
++}
++
+@@ -0,0 +1,52 @@
++// Copyright (c) 2002 Palo Alto Research Center, Incorporated.
++// All Rights Reserved.
++
++
++package figures;
++
++import java.awt.*;
++import java.awt.geom.*;
++
++public class Point extends ShapeFigureElement {
++    private int _x;
++    private int _y;
++
++    public Point(int x, int y) {
++        _x = x;
++        _y = y;
++    }
++
++    public int getX() { return _x; }
++
++    public int getY() { return _y; }
++
++    public void setX(int x) { _x = x; }
++
++    public void setY(int y) { _y = y; }
++
++    public void move() {}
++    public void move(int dx, int dy) {
++    	_x += dx; 
++    	_y += dy;
++    	//setX(getX() + dx);
++    	//setY(getY() + dy);
++    }
++
++    public String toString() {
++        return "Point(" + _x + ", " + _y + ")";
++    }
++
++    /** The height of displayed {@link Point}s. */
++    private final static int HEIGHT = 10;
++
++    /** The width of displayed {@link Point}s. -- same as {@link HEIGHT}. */
++    private final static int WIDTH  = Point.HEIGHT;
++
++    public Shape getShape() {
++	return new Ellipse2D.Float((float)getX()-Point.WIDTH/2,
++                                   (float)getY()-Point.HEIGHT/2,
++                                   (float)Point.HEIGHT,
++                                   (float)Point.WIDTH);
++    }
++}
++
+@@ -0,0 +1,38 @@
++// Copyright (c) 2002 Palo Alto Research Center, Incorporated.
++// All Rights Reserved.
++
++
++package figures;
++
++import java.awt.*;
++import java.awt.geom.*;
++
++public abstract class ShapeFigureElement implements FigureElement {
++    public abstract void move(int dx, int dy);
++
++    public abstract Shape getShape();
++
++    public Rectangle getBounds() {
++        return getShape().getBounds();
++    }
++
++    public boolean contains(Point2D p) {
++        return getShape().contains(p);
++    }
++
++    public Color getLineColor() {
++        return Color.black;
++    }
++
++    public Color getFillColor() {
++        return Color.red;
++    }
++
++    public final void paint(Graphics2D g2) {
++        Shape shape = getShape();
++        g2.setPaint(getFillColor());
++        g2.fill(shape);
++        g2.setPaint(getLineColor());
++        g2.draw(shape);
++    }
++}
+@@ -18,9 +18,13 @@ import org.aspectj.testing.XMLBasedAjcTestCase;
+ 
+ public class Ajc166Tests extends org.aspectj.testing.XMLBasedAjcTestCase {
+ 
+-//	public void testITDannos_288049() {
+-//		runTest("itd decanno");
+-//	}
++	// public void testITDannos_288049() {
++	// runTest("itd decanno");
++	// }
++
++	public void testVerifyErrorAnnoStyle_288712() {
++		runTest("verifyerror anno style");
++	}
+ 
+ 	public void testMungerCCE_288635() {
+ 		runTest("munger cce");
+@@ -2,6 +2,11 @@
+ 
+ <suite>
+ 
++  <ajc-test dir="bugs166/pr288712" title="verifyerror anno style">
++    <compile files="answers/Answer2h.java figures/FigureElement.java figures/Line.java figures/Point.java figures/ShapeFigureElement.java Main.java" options="-1.5"/>
++    <run class="Main"/>
++  </ajc-test>
++  
+   <ajc-test dir="bugs166/pr288049" title="itd decanno">
+      <compile files="org/tests/AClass.java org/tests/ASubClass.java org/tests/DeclareAnns.aj" options="-1.5"/>
+   </ajc-test>

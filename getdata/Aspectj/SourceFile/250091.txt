@@ -1,0 +1,129 @@
+@@ -81,23 +81,23 @@ public final class LazyClassGen {
+ 
+ 	int highestLineNumber = 0; // ---- JSR 45 info
+ 
+-	private SortedMap /* <String, InlinedSourceFileInfo> */inlinedFiles = new TreeMap();
++	private final SortedMap /* <String, InlinedSourceFileInfo> */inlinedFiles = new TreeMap();
+ 
+ 	private boolean regenerateGenericSignatureAttribute = false;
+ 
+ 	private BcelObjectType myType; // XXX is not set for types we create
+ 	private ClassGen myGen;
+-	private ConstantPool cp;
+-	private World world;
+-	private String packageName = null;
+-
+-	private List /* BcelField */fields = new ArrayList();
+-	private List /* LazyMethodGen */methodGens = new ArrayList();
+-	private List /* LazyClassGen */classGens = new ArrayList();
+-	private List /* AnnotationGen */annotations = new ArrayList();
++	private final ConstantPool cp;
++	private final World world;
++	private final String packageName = null;
++
++	private final List /* BcelField */fields = new ArrayList();
++	private final List /* LazyMethodGen */methodGens = new ArrayList();
++	private final List /* LazyClassGen */classGens = new ArrayList();
++	private final List /* AnnotationGen */annotations = new ArrayList();
+ 	private int childCounter = 0;
+ 
+-	private InstructionFactory fact;
++	private final InstructionFactory fact;
+ 
+ 	private boolean isSerializable = false;
+ 	private boolean hasSerialVersionUIDField = false;
+@@ -615,10 +615,10 @@ public final class LazyClassGen {
+ 		writeBack(world);
+ 		byte[] wovenClassFileData = myGen.getJavaClass().getBytes();
+ 		// if is java 6 class file
+-		if (myGen.getMajor()>=Constants.MAJOR_1_6 && world.shouldGenerateStackMaps() && AsmDetector.isAsmAround) {
+-			wovenClassFileData = StackMapAdder.addStackMaps(world,wovenClassFileData);
++		if (myGen.getMajor() >= Constants.MAJOR_1_6 && world.shouldGenerateStackMaps() && AsmDetector.isAsmAround) {
++			wovenClassFileData = StackMapAdder.addStackMaps(world, wovenClassFileData);
+ 		}
+-		
++
+ 		WeaverStateInfo wsi = myType.getWeaverState();// getOrCreateWeaverStateInfo();
+ 		if (wsi != null && wsi.isReweavable()) { // && !reweavableDataInserted
+ 			// reweavableDataInserted = true;
+@@ -994,6 +994,7 @@ public final class LazyClassGen {
+ 					Constants.INVOKEVIRTUAL));
+ 		} else if (sig.getKind().equals(Member.METHOD)) {
+ 			BcelWorld w = shadow.getWorld();
++
+ 			// For methods, push the parts of the signature on.
+ 			list.append(InstructionFactory.PUSH(getConstantPool(), makeString(sig.getModifiers(w))));
+ 			list.append(InstructionFactory.PUSH(getConstantPool(), sig.getName()));
+@@ -1113,7 +1114,11 @@ public final class LazyClassGen {
+ 			// this behavior matches the string used by the eclipse compiler for Foo.class literals
+ 			return t.getSignature().replace('/', '.');
+ 		} else {
+-			return t.getName();
++			if (t.isParameterizedType()) {
++				return t.getRawType().getName();
++			} else {
++				return t.getName();
++			}
+ 		}
+ 	}
+ 
+@@ -0,0 +1,26 @@
++import org.aspectj.lang.reflect.MethodSignature;
++
++class A<X> { }
++
++class Base {
++	public A<String> foo() { return null; }
++}
++
++public aspect Demo {
++	public A<String> Base.bar() { return null; }
++	public Base Base.baz() { return null; }
++		
++	before(): execution(* Base.*(..)) {
++		Class<?> cs = ((MethodSignature)thisJoinPointStaticPart.getSignature()).getReturnType();
++		System.out.format("%s (%b)%n",
++				cs,
++				ClassNotFoundException.class == cs);
++	}
++
++	public static void main(String[] arg) {
++		new Base().foo();
++		new Base().bar();
++		new Base().baz();
++	}
++}
++
+@@ -18,6 +18,14 @@ import org.aspectj.testing.XMLBasedAjcTestCase;
+ 
+ public class Ajc163Tests extends org.aspectj.testing.XMLBasedAjcTestCase {
+ 
++	public void testItdCCE_pr250091() {
++		runTest("itd cce");
++	}
++
++	// class A from java.net.URLClassLoader@1e4853f extends class java.lang.Object (false)
++	// class java.lang.ClassNotFoundException from null extends class java.lang.Exception (true)
++	// class Base from java.net.URLClassLoader@1e4853f extends class java.lang.Object (false)
++
+ 	public void testBreakingRecovery_pr226163() {
+ 		runTest("breaking recovery");
+ 	}
+@@ -2,6 +2,17 @@
+ 
+ <suite>
+ 
++    <ajc-test dir="bugs163/pr250091" title="itd cce">
++      <compile files="Demo.java" options="-1.5"/>
++      <run class="Demo">
++        <stdout>
++          <line text="class A (false)"/>
++          <line text="class A (false)"/>
++          <line text="class Base (false)"/>
++        </stdout>
++      </run>
++    </ajc-test>
++    
+     <ajc-test dir="bugs163/pr226163" title="breaking recovery">
+       <compile files="Code.java" options="-1.5">
+         <message kind="error" line="4" text="Syntax error"/>

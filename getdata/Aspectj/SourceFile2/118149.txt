@@ -1,0 +1,61 @@
+@@ -0,0 +1,23 @@
++public aspect PR118149 {
++
++	public pointcut pc1(String s)
++		: execution(* C.*()) && args(s) && if(s != null);
++	
++	public pointcut pc2(String s)
++		: execution(C.new(String,..)) 
++		&& args(s,..) && if(s != null);
++
++	public pointcut pcOR(String s) : pc1(s) || pc2(s);
++	
++	before(String s) : pcOR(s) {	
++	}
++	
++}
++
++
++class C {
++
++	public C(String s, boolean b) {		
++	}
++	
++}
+@@ -793,6 +793,9 @@ public class Ajc150Tests extends org.aspectj.testing.XMLBasedAjcTestCase {
+ 	  runTest("no NPE when inaccessible method is called within itd");
+   }
+ 
++  public void testNoNPEWithOrPointcutAndMoreThanOneArgs_pr118149() {
++	  runTest("no NPE with or pointcut and more than one args");
++  }
+ 
+   // helper methods.....
+ 
+@@ -1276,6 +1276,10 @@
+         <run class="foo.ITDWithACall"/>
+     </ajc-test>
+ 
++	<ajc-test dir="bugs150" title="no NPE with or pointcut and more than one args">
++        <compile files="PR118149.aj"/>
++    </ajc-test>
++
+     <!-- ============================================================================ -->
+     <!-- ============================================================================ -->
+ 
+@@ -175,8 +175,15 @@ public class IfPointcut extends Pointcut {
+                     residueSource.findResidue(shadow, myState);
+ 
+ 
++                    // pr118149
++                    // It is possible for vars in myState (which would normally be set
++                    // in the call to residueSource.findResidue) to not be set (be null)
++                    // in an Or pointcut with if expressions in both branches, and where
++                    // one branch is known statically to not match. In this situation we
++                    // simply return Test.
+                     for (int i=0; i < baseArgsCount; i++) {
+                         Var v = myState.get(i);
++                        if (v == null) continue;  // pr118149
+                         args.add(v);
+                         ret = Test.makeAnd(ret,
+                             Test.makeInstanceof(v,

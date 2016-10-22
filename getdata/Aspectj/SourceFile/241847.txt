@@ -1,0 +1,77 @@
+@@ -0,0 +1,8 @@
++import java.lang.annotation.Retention;
++import java.lang.annotation.RetentionPolicy;
++
++
++@Retention(RetentionPolicy.RUNTIME)
++public @interface Ann {
++
++}
+@@ -0,0 +1,9 @@
++import java.util.Arrays;
++
++
++public aspect Asp {
++   before() : execution(* *(@Ann (*), ..)) {
++      //System.out.println(thisJoinPoint.getSignature().toShortString() + ' ' + Arrays.asList(thisJoinPoint.getArgs()));
++      throw new RuntimeException("expected exception");
++   }
++}
+@@ -0,0 +1,15 @@
++
++public class CC implements II {
++   public void m1(String arg) {
++   }
++
++   public static void main(String [] args) throws Exception {
++      try {
++         new CC().m1(null);
++         throw new Exception("(BAD) advice did not run");
++      } catch (RuntimeException e) {
++         System.out.println("(GOOD) advice ran and threw expected exception");
++         e.printStackTrace(System.out);
++      }
++   }
++}
+@@ -0,0 +1,4 @@
++
++public interface II {
++   public void m1(@Ann String arg);
++}
+@@ -0,0 +1,14 @@
++public class LongLong implements II {
++   public void m1(String arg) {
++   }
++
++   public static void main(String [] args) throws Exception {
++      try {
++         new LongLong().m1(null);
++         throw new Exception("(BAD) advice did not run");
++      } catch (RuntimeException e) {
++         System.out.println("(GOOD) advice ran and threw expected exception");
++         e.printStackTrace(System.out);
++      }
++   }
++}
+@@ -19,6 +19,7 @@ import org.aspectj.testing.XMLBasedAjcTestCase;
+ public class Ajc162Tests extends org.aspectj.testing.XMLBasedAjcTestCase {
+ 
+ 	// AspectJ1.6.2	
++//	public void testParamAnnosPipelining_pr241847() { runTest("param annos pipelining");}
+ //	public void testParamAnnoInner_pr241861() { runTest("param annotation inner class"); }
+ 	public void testAnnotationDecp_pr239441() { runTest("annotation decp"); }
+ 	public void testAtAspectJPerTarget_pr198181() { runTest("ataspectj ltw pertarget"); }
+@@ -3,6 +3,13 @@
+ <!-- AspectJ v1.6.2 Tests -->
+ <suite>
+ 
++	<ajc-test dir="bugs162/pr241847" title="param annos pipelining">
++    	<compile files="Asp.aj Ann.java CC.java II.java LongLong.java" options="-1.5 -showWeaveInfo">
++    		<message kind="weave" text="Join point 'method-execution(void LongLong.m1(java.lang.String))' in Type 'LongLong' (LongLong.java:2) advised by before advice from 'Asp' (Asp.aj:5)"/>
++    		<message kind="weave" line="3"/>
++    	</compile>
++    </ajc-test>    
++
+ 	<ajc-test dir="bugs162/pr239441" title="annotation decp">
+     	<compile files="Test3.java SampleAspect.java" options="-1.5 -showWeaveInfo -XhasMember">
+     	</compile>

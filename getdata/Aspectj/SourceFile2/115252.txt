@@ -1,0 +1,968 @@
+@@ -44,6 +44,7 @@ import org.aspectj.org.eclipse.jdt.internal.compiler.lookup.ReferenceBinding;
+ import org.aspectj.org.eclipse.jdt.internal.compiler.lookup.SourceTypeBinding;
+ import org.aspectj.org.eclipse.jdt.internal.compiler.lookup.TagBits;
+ import org.aspectj.weaver.AbstractReferenceTypeDelegate;
++import org.aspectj.weaver.AnnotationTargetKind;
+ import org.aspectj.weaver.AnnotationX;
+ import org.aspectj.weaver.ReferenceType;
+ import org.aspectj.weaver.ResolvedMember;
+@@ -78,6 +79,9 @@ public class EclipseSourceType extends AbstractReferenceTypeDelegate {
+ 	private CompilationUnitDeclaration unit;
+ 	private boolean annotationsResolved = false;
+ 	private ResolvedType[] resolvedAnnotations = null;
++		
++	private boolean discoveredAnnotationTargetKinds = false;
++	private AnnotationTargetKind[] annotationTargetKinds;
+ 
+ 	protected EclipseFactory eclipseWorld() {
+ 		return factory;
+@@ -336,6 +340,58 @@ public class EclipseSourceType extends AbstractReferenceTypeDelegate {
+ 		return null;
+ 	}
+ 
++	public boolean canAnnotationTargetType() {
++		if (isAnnotation()) {
++			return ((binding.getAnnotationTagBits() & TagBits.AnnotationForType) != 0 );
++		}
++		return false;
++	}
++	
++	public AnnotationTargetKind[] getAnnotationTargetKinds() {
++		if (discoveredAnnotationTargetKinds) return annotationTargetKinds;
++		discoveredAnnotationTargetKinds = true;
++		annotationTargetKinds = null; // null means we have no idea or the @Target annotation hasn't been used
++//		if (isAnnotation()) {
++//	        Annotation[] annotationsOnThisType = declaration.annotations;
++//	        if (annotationsOnThisType != null) {
++//		        for (int i = 0; i < annotationsOnThisType.length; i++) {
++//		            Annotation a = annotationsOnThisType[i];
++//		            if (a.resolvedType != null) {
++//		            	String packageName = new String(a.resolvedType.qualifiedPackageName()).concat(".");
++//			            String sourceName = new String(a.resolvedType.qualifiedSourceName());
++//			            if ((packageName + sourceName).equals(UnresolvedType.AT_TARGET.getName())) {
++//			            	MemberValuePair[] pairs = a.memberValuePairs();
++//			            	for (int j = 0; j < pairs.length; j++) {
++//								MemberValuePair pair = pairs[j];
++//								targetKind = pair.value.toString();
++//								return targetKind;
++//							}
++//			            }
++//					}
++//				}
++//	        }
++//		}
++//	    return targetKind;
++		if (isAnnotation()) {
++			List targetKinds = new ArrayList();
++			
++			if ((binding.getAnnotationTagBits() & TagBits.AnnotationForAnnotationType) != 0) targetKinds.add(AnnotationTargetKind.ANNOTATION_TYPE);
++			if ((binding.getAnnotationTagBits() & TagBits.AnnotationForConstructor)    != 0) targetKinds.add(AnnotationTargetKind.CONSTRUCTOR);
++			if ((binding.getAnnotationTagBits() & TagBits.AnnotationForField)          != 0) targetKinds.add(AnnotationTargetKind.FIELD);
++			if ((binding.getAnnotationTagBits() & TagBits.AnnotationForLocalVariable)  != 0) targetKinds.add(AnnotationTargetKind.LOCAL_VARIABLE);
++			if ((binding.getAnnotationTagBits() & TagBits.AnnotationForMethod)         != 0) targetKinds.add(AnnotationTargetKind.METHOD);
++			if ((binding.getAnnotationTagBits() & TagBits.AnnotationForPackage)        != 0) targetKinds.add(AnnotationTargetKind.PACKAGE);
++			if ((binding.getAnnotationTagBits() & TagBits.AnnotationForParameter)      != 0) targetKinds.add(AnnotationTargetKind.PARAMETER);
++			if ((binding.getAnnotationTagBits() & TagBits.AnnotationForType)           != 0) targetKinds.add(AnnotationTargetKind.TYPE);
++			
++			if (!targetKinds.isEmpty()) {
++				annotationTargetKinds = new AnnotationTargetKind[targetKinds.size()];
++				return (AnnotationTargetKind[]) targetKinds.toArray(annotationTargetKinds);	
++			}
++		}
++		return annotationTargetKinds;
++	}
++	
+ 	public boolean hasAnnotation(UnresolvedType ofType) {
+ 
+ 		// Make sure they are resolved
+@@ -553,4 +609,5 @@ public class EclipseSourceType extends AbstractReferenceTypeDelegate {
+ 	public void ensureDelegateConsistent() {
+ 		// do nothing, currently these can't become inconsistent (phew)
+ 	}
++	
+ }
+@@ -718,6 +718,15 @@ public class Ajc150Tests extends org.aspectj.testing.XMLBasedAjcTestCase {
+    */
+   public void testNPEinWeavingAdaptor_pr116626() { runTest("NPE in WeavingAdaptor");}
+ 
++  public void testXlintMessageForImproperAnnotationType_pr115252_Exact() {runTest("xlint message for improper exact annotation type");}
++  public void testXlintMessageForImproperAnnotationType_pr115252_OR() {runTest("xlint message for improper annotation type inside OR");}
++  public void testXlintMessageForImproperAnnotationType_pr115252_AND() {runTest("xlint message for improper annotation type inside AND");}
++  public void testXlintMessageForImproperAnnotationType_pr115252_Return() {runTest("xlint message for improper annotated return type");}  
++  public void testXlintMessageForImproperAnnotationType_pr115252_Declaring() {runTest("xlint message for improper annotated declaring type");}  
++  public void testXlintMessageForImproperAnnotationType_pr115252_Parameter() {runTest("xlint message for improper annotated parameter type");}  
++  public void testXlintMessageForImproperAnnotationType_pr115252_Throws() {runTest("xlint message for improper annotated throws pattern");}  
++  public void testXlintMessageForImproperAnnotationType_pr115252_MoreThanOne() {runTest("xlint message for more than one improper annotated parameter type");}  
++    
+   // helper methods.....
+ 
+   public SyntheticRepository createRepos(File cpentry) {
+@@ -62,7 +62,16 @@
+     <ajc-test dir="bugs150/pr113066" title="possible static imports bug - 1">
+         <compile files="Consts.java,TestNPE.java" options="-1.5"/>
+     </ajc-test>
+-    
++  
++    <ajc-test dir="bugs150" title="parameterized type and around advice">
++        <compile files="pr115250.aj" options="-1.5 -Xlint:ignore"/>
++        <run class="pr115250"/>
++          <!--stderr>
++            <line text="Advice running"/>
++          </stderr>
++        </run-->
++    </ajc-test>
++      
+     <ajc-test dir="bugs150/pr115788" title="parser exception">
+         <compile files="AAA.java">
+           <message kind="warning" line="3" text="no match for this type name: Screen"/>
+@@ -1024,6 +1033,79 @@
+         </compile>
+     </ajc-test>
+ 
++	<ajc-test dir="bugs150/pr115252" title="xlint message for improper exact annotation type">
++        <compile files="ExactAnnotationTypePattern.java" options="-1.5">
++			<message kind="warning" line="20" text="field blah"/>
++        	<message kind="warning" line="28" text="does not match because annotation @TypeAnnotation has @Target{ElementType.TYPE} [Xlint:unmatchedTargetKind]"/>
++        	<message kind="warning" line="37" text="does not match because annotation @FieldAnnotation has @Target{ElementType.FIELD} [Xlint:unmatchedTargetKind]"/>
++            <message kind="warning" line="46" text="does not match because annotation @MethodAnnotation has @Target{ElementType.METHOD} [Xlint:unmatchedTargetKind]"/>
++        </compile>
++    </ajc-test>
++
++	<ajc-test dir="bugs150/pr115252" title="xlint message for improper annotation type inside OR">
++        <compile files="OrTypePattern.java" options="-1.5">
++            <message kind="warning" line="26" text="does not match because annotation @FieldAnnotation has @Target{ElementType.FIELD} [Xlint:unmatchedTargetKind]"/>
++        	<message kind="warning" line="31" text="does not match because annotation @TypeAnnotation has @Target{ElementType.TYPE} [Xlint:unmatchedTargetKind]"/>
++        	<message kind="warning" line="31" text="does not match because annotation @FieldAnnotation has @Target{ElementType.FIELD} [Xlint:unmatchedTargetKind]"/>
++        </compile>
++    </ajc-test>
++
++	<ajc-test dir="bugs150/pr115252" title="xlint message for improper annotation type inside AND">
++        <compile files="AndTypePattern.java" options="-1.5">
++            <message kind="warning" line="23" text="does not match because annotation @FieldAnnotation has @Target{ElementType.FIELD} [Xlint:unmatchedTargetKind]"/>
++        </compile>
++    </ajc-test>
++
++	<ajc-test dir="bugs150/pr115252" title="xlint message for improper annotated return type">
++        <compile files="AnnotationReturnType.java" options="-1.5">
++            <!-- warnings coming from matching pointcuts and corresponding declare warnings -->
++			<message kind="warning" line="12" text="(@TypeAnnotation *) *(..)"/>
++			<message kind="warning" line="12" text="(@(TypeAnnotation || MethodAnnotation) *) *(..)"/>
++            <!-- xlint warnings that were put in as part of fix for pr115252 -->
++        	<message kind="warning" line="32" text="does not match because annotation @MethodAnnotation has @Target{ElementType.METHOD} [Xlint:unmatchedTargetKind]"/>
++        	<message kind="warning" line="37" text="does not match because annotation @MethodAnnotation has @Target{ElementType.METHOD} [Xlint:unmatchedTargetKind]"/>
++        </compile>
++    </ajc-test>
++
++	<ajc-test dir="bugs150/pr115252" title="xlint message for improper annotated declaring type">
++        <compile files="AnnotationDeclaringType.java" options="-1.5">
++            <!-- warning coming from matching pointcuts and corresponding declare warnings -->
++			<message kind="warning" line="13" text="* (@TypeAnnotation *).*(..)"/>
++            <!-- xlint warning that was put in as part of fix for pr115252 -->
++        	<message kind="warning" line="27" text="does not match because annotation @MethodAnnotation has @Target{ElementType.METHOD} [Xlint:unmatchedTargetKind]"/>
++        </compile>
++    </ajc-test>
++
++	<ajc-test dir="bugs150/pr115252" title="xlint message for improper annotated parameter type">
++        <compile files="AnnotationParameterType.java" options="-1.5">
++            <!-- warning coming from matching pointcuts and corresponding declare warnings -->
++			<message kind="warning" line="12" text="* *(@TypeAnnotation *)"/>
++            <!-- xlint warning that was put in as part of fix for pr115252 -->
++        	<message kind="warning" line="31" text="does not match because annotation @MethodAnnotation has @Target{ElementType.METHOD} [Xlint:unmatchedTargetKind]"/>
++        </compile>
++    </ajc-test>
++
++	<ajc-test dir="bugs150/pr115252" title="xlint message for improper annotated throws pattern">
++        <compile files="AnnotationThrowsPattern.java" options="-1.5">
++            <!-- warnings coming from matching pointcuts and corresponding declare warnings -->
++			<message kind="warning" line="12" text="(* *.*(..) throws (@TypeAnnotation *))"/>
++			<message kind="warning" line="12" text="* *.*(..) throws !(@MethodAnnotation *)"/>
++			<message kind="warning" line="14" text="(* *.*(..) throws !(@TypeAnnotation *))"/>
++			<message kind="warning" line="14" text="* *.*(..) throws !(@MethodAnnotation *)"/>
++            <!-- xlint warnings that were put in as part of fix for pr115252 -->
++        	<message kind="warning" line="40" text="does not match because annotation @MethodAnnotation has @Target{ElementType.METHOD} [Xlint:unmatchedTargetKind]"/>
++        	<message kind="warning" line="46" text="does not match because annotation @MethodAnnotation has @Target{ElementType.METHOD} [Xlint:unmatchedTargetKind]"/>
++        </compile>
++    </ajc-test>
++
++	<ajc-test dir="bugs150/pr115252" title="xlint message for more than one improper annotated parameter type">
++        <compile files="MoreThanOneTargetAnnotation.java" options="-1.5">
++            <!-- xlint warning that was put in as part of fix for pr115252 -->
++        	<message kind="warning" line="28" text="does not match because annotation @MethodAndFieldAnnotation has @Target{ElementType.FIELD,ElementType.METHOD} [Xlint:unmatchedTargetKind]"/>
++        	<message kind="warning" line="38" text="does not match because annotation @TypeAndMethodAnnotation has @Target{ElementType.METHOD,ElementType.TYPE} [Xlint:unmatchedTargetKind]"/>
++        </compile>
++    </ajc-test>
++
+     <!-- ============================================================================ -->
+     <!-- ============================================================================ -->
+ 
+@@ -2870,7 +2952,10 @@
+         <compile files="Base.java,Colored.java,WrongTarget.aj" options="-1.5" xlintfile="ignoreTypeNotExposed.properties">
+            <message kind="error" line="8" text="The annotation @MethodColoring is disallowed for this location"/>
+            <message kind="error" line="9" text="The annotation @TypeColoring is disallowed for this location"/>
+-        </compile>
++           <!-- xlint warnings that were put in as part of fix for pr115252 -->
++           <message kind="warning" line="13" text="does not match because annotation @MethodColoring has @Target{ElementType.METHOD} [Xlint:unmatchedTargetKind]"/>
++           <message kind="warning" line="16" text="does not match because annotation @TypeColoring has @Target{ElementType.TYPE} [Xlint:unmatchedTargetKind]"/>
++  </compile>
+    </ajc-test>
+ 
+    <ajc-test dir="java5/annotations/declare/atfield" title="declare @field - right target - source weaving">
+@@ -0,0 +1,51 @@
++/********************************************************************
++ * Copyright (c) 2005 Contributors. All rights reserved. 
++ * This program and the accompanying materials are made available 
++ * under the terms of the Eclipse Public License v1.0 
++ * which accompanies this distribution and is available at 
++ * http://eclipse.org/legal/epl-v10.html 
++ *  
++ * Contributors: 
++ *       Helen Hawkins - Initial implementation
++ *******************************************************************/
++package org.aspectj.weaver;
++
++import java.io.DataInputStream;
++import java.io.IOException;
++
++import org.aspectj.util.TypeSafeEnum;
++
++/**
++ * A TypeSafeEnum similar to the Java5 ElementType Enum
++ */
++public class AnnotationTargetKind extends TypeSafeEnum {
++
++	public AnnotationTargetKind(String name, int key) {
++		super(name, key);
++	}
++	
++    public static AnnotationTargetKind read(DataInputStream s) throws IOException {
++        int key = s.readByte();
++        switch(key) {
++            case 1: return ANNOTATION_TYPE;
++            case 2: return CONSTRUCTOR;
++            case 3: return FIELD;
++            case 4: return LOCAL_VARIABLE;
++            case 5: return METHOD;
++            case 6: return PACKAGE;
++            case 7: return PARAMETER;
++            case 8: return TYPE;
++        }
++        throw new BCException("weird annotation target kind " + key);
++    }
++
++	public static final AnnotationTargetKind ANNOTATION_TYPE = new AnnotationTargetKind("ANNOTATION_TYPE", 1);
++	public static final AnnotationTargetKind CONSTRUCTOR = new AnnotationTargetKind("CONSTRUCTOR", 2);
++	public static final AnnotationTargetKind FIELD = new AnnotationTargetKind("FIELD", 3);
++	public static final AnnotationTargetKind LOCAL_VARIABLE = new AnnotationTargetKind("LOCAL_VARIABLE", 4);
++	public static final AnnotationTargetKind METHOD = new AnnotationTargetKind("METHOD", 5);
++	public static final AnnotationTargetKind PACKAGE = new AnnotationTargetKind("PACKAGE", 6);
++	public static final AnnotationTargetKind PARAMETER = new AnnotationTargetKind("PARAMETER", 7);
++	public static final AnnotationTargetKind TYPE = new AnnotationTargetKind("TYPE", 8);
++
++}
+@@ -185,6 +185,14 @@ public class BoundedReferenceType extends ReferenceType {
+ 			return resolvedTypeX.getRetentionPolicy();
+ 		}
+ 
++		public boolean canAnnotationTargetType() {
++			return resolvedTypeX.canAnnotationTargetType();
++		}
++		
++		public AnnotationTargetKind[] getAnnotationTargetKinds() {
++			return resolvedTypeX.getAnnotationTargetKinds();
++		}
++		
+ 		public boolean isGeneric() {
+ 			return resolvedTypeX.isGenericType();
+ 		}
+@@ -51,6 +51,9 @@ public class Lint {
+ 	public final Kind unmatchedSuperTypeInCall = 
+ 		new Kind("unmatchedSuperTypeInCall", "does not match because declaring type is {0}, if match desired use target({1})");
+ 
++	public final Kind unmatchedTargetKind = 
++		new Kind("unmatchedTargetKind", "does not match because annotation {0} has @Target{1}");
++	
+ 	public final Kind canNotImplementLazyTjp = 
+ 		new Kind("canNotImplementLazyTjp", "can not implement lazyTjp on this joinpoint {0} because around advice is used");
+ 
+@@ -158,6 +158,14 @@ public class ReferenceType extends ResolvedType {
+     public boolean isAnnotationWithRuntimeRetention() {
+         return delegate.isAnnotationWithRuntimeRetention();
+     }
++    
++    public boolean canAnnotationTargetType() {
++    	return delegate.canAnnotationTargetType();
++    }
++    
++    public AnnotationTargetKind[] getAnnotationTargetKinds() {
++    	return delegate.getAnnotationTargetKinds();
++    }
+ 
+     // true iff the statement "this = (ThisType) other" would compile
+     public final boolean isCoerceableFrom(ResolvedType o) {
+@@ -25,8 +25,6 @@ public interface ReferenceTypeDelegate {
+ 	// TODO asc move to proxy
+ 	public void addAnnotation(AnnotationX annotationX);
+ 	public void ensureDelegateConsistent(); // Required evil because of mutator methods in delegates :(  (see pr85132)
+-
+-	
+ 
+ 	public boolean isAspect();
+     public boolean isAnnotationStyleAspect();
+@@ -34,6 +32,8 @@ public interface ReferenceTypeDelegate {
+     public boolean isEnum();
+     public boolean isAnnotation();
+     public String getRetentionPolicy();
++    public boolean canAnnotationTargetType();
++    public AnnotationTargetKind[] getAnnotationTargetKinds();
+     public boolean isAnnotationWithRuntimeRetention();
+ 	public boolean isClass();
+ 	public boolean isGeneric();
+@@ -61,4 +61,5 @@ public interface ReferenceTypeDelegate {
+ 	public boolean doesNotExposeShadowMungers();
+ 
+ 	public String getDeclaredGenericSignature();
++	
+ }
+\ No newline at end of file
+@@ -633,8 +633,21 @@ public abstract class ResolvedType extends UnresolvedType implements AnnotatedEl
+ 	public AnnotationX[] getAnnotations() {
+ 		throw new RuntimeException("ResolvedType.getAnnotations() should never be called");
+ 	}
+-
+ 
++	/**
++	 * Note: Only overridden by ReferenceType subtype
++	 */
++	public boolean canAnnotationTargetType() {
++		return false;
++	}
++	
++	/**
++	 * Note: Only overridden by ReferenceType subtype
++	 */	
++	public AnnotationTargetKind[] getAnnotationTargetKinds() {
++		return null;
++	}
++	
+     /**
+      * Note: Only overridden by Name subtype.
+      */
+@@ -32,3 +32,5 @@ uncheckedArgument = warning
+ noExplicitConstructorCall = warning
+ 
+ aspectExcludedByConfiguration = ignore
++
++unmatchedTargetKind = warning
+@@ -33,6 +33,7 @@ import org.aspectj.bridge.ISourceLocation;
+ import org.aspectj.weaver.AbstractReferenceTypeDelegate;
+ import org.aspectj.weaver.AjAttribute;
+ import org.aspectj.weaver.AjcMemberMaker;
++import org.aspectj.weaver.AnnotationTargetKind;
+ import org.aspectj.weaver.AnnotationX;
+ import org.aspectj.weaver.BCException;
+ import org.aspectj.weaver.ReferenceType;
+@@ -88,6 +89,8 @@ public class BcelObjectType extends AbstractReferenceTypeDelegate {
+ 
+ 	private boolean discoveredRetentionPolicy = false;
+ 	private String retentionPolicy;
++	private boolean discoveredAnnotationTargetKinds = false;
++	private AnnotationTargetKind[] annotationTargetKinds;
+ 
+ 
+ 	/**
+@@ -470,6 +473,60 @@ public class BcelObjectType extends AbstractReferenceTypeDelegate {
+ 	    return retentionPolicy;
+ 	}
+ 
++	public boolean canAnnotationTargetType() {
++		AnnotationTargetKind[] targetKinds = getAnnotationTargetKinds();
++		if (targetKinds == null) return true;
++		for (int i = 0; i < targetKinds.length; i++) {
++			if (targetKinds[i].equals(AnnotationTargetKind.TYPE)) {
++				return true;
++			}
++		}
++		return false;
++	}
++	
++	public AnnotationTargetKind[] getAnnotationTargetKinds() {
++		if (discoveredAnnotationTargetKinds) return annotationTargetKinds;
++		discoveredAnnotationTargetKinds = true;
++		annotationTargetKinds = null; // null means we have no idea or the @Target annotation hasn't been used
++		List targetKinds = new ArrayList();
++		if (isAnnotation()) {
++	        Annotation[] annotationsOnThisType = javaClass.getAnnotations();
++	        for (int i = 0; i < annotationsOnThisType.length; i++) {
++	            Annotation a = annotationsOnThisType[i];
++	            if (a.getTypeName().equals(UnresolvedType.AT_TARGET.getName())) {
++	                List values = a.getValues();
++	                for (Iterator it = values.iterator(); it.hasNext();) {
++                        ElementNameValuePair element = (ElementNameValuePair) it.next();
++                        ElementValue v = element.getValue();
++                        String targetKind = v.stringifyValue();
++                        if (targetKind.equals("ANNOTATION_TYPE")) {
++							targetKinds.add(AnnotationTargetKind.ANNOTATION_TYPE);
++                        } else if (targetKind.equals("CONSTRUCTOR")) {
++							targetKinds.add(AnnotationTargetKind.CONSTRUCTOR);
++						} else if (targetKind.equals("FIELD")) {
++							targetKinds.add(AnnotationTargetKind.FIELD);
++						} else if (targetKind.equals("LOCAL_VARIABLE")) {
++							targetKinds.add(AnnotationTargetKind.LOCAL_VARIABLE);
++						} else if (targetKind.equals("METHOD")) {
++							targetKinds.add(AnnotationTargetKind.METHOD);
++						} else if (targetKind.equals("PACKAGE")) {
++							targetKinds.add(AnnotationTargetKind.PACKAGE);
++						} else if (targetKind.equals("PARAMETER")) {
++							targetKinds.add(AnnotationTargetKind.PARAMETER);
++						} else if (targetKind.equals("TYPE")) {
++							targetKinds.add(AnnotationTargetKind.TYPE);
++						} 
++                    }
++	            }
++	        }
++			if (!targetKinds.isEmpty()) {
++				annotationTargetKinds = new AnnotationTargetKind[targetKinds.size()];
++				return (AnnotationTargetKind[]) targetKinds.toArray(annotationTargetKinds);	
++			}
++		}
++		return annotationTargetKinds;
++	}
++	
+ 	public boolean isSynthetic() {
+ 		return getResolvedTypeX().isSynthetic();
+ 	}
+@@ -18,16 +18,20 @@ import java.io.IOException;
+ import java.lang.reflect.Field;
+ import java.util.ArrayList;
+ import java.util.Collection;
++import java.util.HashMap;
+ import java.util.Iterator;
+ import java.util.List;
+ import java.util.Map;
++import java.util.Set;
+ 
++import org.aspectj.bridge.ISourceLocation;
+ import org.aspectj.lang.Signature;
+ import org.aspectj.lang.reflect.FieldSignature;
+ import org.aspectj.lang.reflect.MethodSignature;
+ import org.aspectj.util.FuzzyBoolean;
+ import org.aspectj.weaver.AjAttribute;
+ import org.aspectj.weaver.AjcMemberMaker;
++import org.aspectj.weaver.AnnotationTargetKind;
+ import org.aspectj.weaver.Constants;
+ import org.aspectj.weaver.ISourceContext;
+ import org.aspectj.weaver.JoinPointSignature;
+@@ -71,23 +75,175 @@ public class SignaturePattern extends PatternNode {
+     public SignaturePattern resolveBindings(IScope scope, Bindings bindings) { 
+ 		if (returnType != null) {
+ 			returnType = returnType.resolveBindings(scope, bindings, false, false);
++			checkForIncorrectTargetKind(returnType,scope,false);
+ 		} 
+ 		if (declaringType != null) {
+ 			declaringType = declaringType.resolveBindings(scope, bindings, false, false);
++			checkForIncorrectTargetKind(declaringType,scope,false);
+ 		}
+ 		if (parameterTypes != null) {
+ 			parameterTypes = parameterTypes.resolveBindings(scope, bindings, false, false);
++			checkForIncorrectTargetKind(parameterTypes,scope,false);
+ 		}
+ 		if (throwsPattern != null) {
+ 			throwsPattern = throwsPattern.resolveBindings(scope, bindings);
++			if (throwsPattern.getForbidden().getTypePatterns().length > 0 
++					|| throwsPattern.getRequired().getTypePatterns().length > 0) {
++				checkForIncorrectTargetKind(throwsPattern,scope,false);				
++			}
+ 		}
+ 		if (annotationPattern != null) {
+ 			annotationPattern = annotationPattern.resolveBindings(scope,bindings,false);
++			checkForIncorrectTargetKind(annotationPattern,scope,true);
+ 		}
+ 
+     	return this;
+     }
+ 
++    // bug 115252 - adding an xlint warning if the annnotation target type is 
++    // wrong. This logic, or similar, may have to be applied elsewhere in the case
++    // of pointcuts which don't go through SignaturePattern.resolveBindings(..)
++    private void checkForIncorrectTargetKind(PatternNode patternNode, IScope scope, boolean targetsOtherThanTypeAllowed) {
++    	// return if we're not in java5 mode, if the unmatchedTargetKind Xlint
++    	// warning has been turned off, or if the patternNode is *
++    	if (!scope.getWorld().isInJava5Mode()
++    			|| scope.getWorld().getLint().unmatchedTargetKind == null
++    			|| (patternNode instanceof AnyTypePattern)) {
++			return;
++		}
++		if (patternNode instanceof ExactAnnotationTypePattern) {
++			ResolvedType resolvedType = ((ExactAnnotationTypePattern)patternNode).getAnnotationType().resolve(scope.getWorld());
++			if (targetsOtherThanTypeAllowed) {
++				AnnotationTargetKind[] targetKinds = resolvedType.getAnnotationTargetKinds();
++				if (targetKinds == null) return;
++				reportUnmatchedTargetKindMessage(targetKinds,patternNode,scope,true);
++			} else if (!targetsOtherThanTypeAllowed && !resolvedType.canAnnotationTargetType()) {
++				// everything is incorrect since we've already checked whether we have the TYPE target annotation
++				AnnotationTargetKind[] targetKinds = resolvedType.getAnnotationTargetKinds();
++				if (targetKinds == null) return;
++				reportUnmatchedTargetKindMessage(targetKinds,patternNode,scope,false);
++			}
++		} else {
++			TypePatternVisitor visitor = new TypePatternVisitor(scope,targetsOtherThanTypeAllowed);
++			patternNode.traverse(visitor,null);
++			if (visitor.containedIncorrectTargetKind()) {
++				Set keys = visitor.getIncorrectTargetKinds().keySet();				
++				for (Iterator iter = keys.iterator(); iter.hasNext();) {
++					PatternNode node = (PatternNode)iter.next();
++					AnnotationTargetKind[] targetKinds =  (AnnotationTargetKind[]) visitor.getIncorrectTargetKinds().get(node);
++					reportUnmatchedTargetKindMessage(targetKinds,node,scope,false);
++				}
++			}
++		}
++    }
++    
++    private void reportUnmatchedTargetKindMessage(
++    		AnnotationTargetKind[] annotationTargetKinds,  
++    		PatternNode node,
++    		IScope scope,
++    		boolean checkMatchesMemberKindName) {
++    	StringBuffer targetNames = new StringBuffer("{");
++    	for (int i = 0; i < annotationTargetKinds.length; i++) {
++			AnnotationTargetKind targetKind = annotationTargetKinds[i];
++			if (checkMatchesMemberKindName && kind.getName().equals(targetKind.getName())) {
++				return;
++			}
++			if (i < (annotationTargetKinds.length - 1)) {
++				targetNames.append("ElementType." + targetKind.getName() + ",");
++			} else {
++				targetNames.append("ElementType." + targetKind.getName() + "}");
++			}
++		}
++		scope.getWorld().getLint().unmatchedTargetKind.signal(new String[] {node.toString(),targetNames.toString()}, getSourceLocation(), new ISourceLocation[0]);
++    }
++    
++    /**
++     * Class which visits the nodes in the TypePattern tree until an
++     * ExactTypePattern is found. Once this is found it creates a new
++     * ExactAnnotationTypePattern and checks whether the targetKind
++     * (created via the @Target annotation) matches ElementType.TYPE if
++     * this is the only target kind which is allowed, or matches the
++     * signature pattern kind if there is no restriction.
++     */
++    private class TypePatternVisitor extends AbstractPatternNodeVisitor {
++
++    	private IScope scope;
++    	private Map incorrectTargetKinds /* PatternNode -> AnnotationTargetKind[] */ = new HashMap();
++    	private boolean targetsOtherThanTypeAllowed;
++
++    	/**
++    	 * @param requiredTarget - the signature pattern Kind
++    	 * @param scope
++    	 */
++    	public TypePatternVisitor(IScope scope, boolean targetsOtherThanTypeAllowed) {
++    		this.scope = scope;
++    		this.targetsOtherThanTypeAllowed = targetsOtherThanTypeAllowed;
++    	}
++    	
++    	public Object visit(WildAnnotationTypePattern node, Object data) {
++    		node.getTypePattern().accept(this,data);
++    		return node;
++    	}
++    	
++    	/**
++    	 * Do the ExactAnnotationTypePatterns have the incorrect target?
++    	 */
++    	public Object visit(ExactAnnotationTypePattern node, Object data) {
++    		ResolvedType resolvedType = node.getAnnotationType().resolve(scope.getWorld());
++			if (targetsOtherThanTypeAllowed) {
++				AnnotationTargetKind[] targetKinds = resolvedType.getAnnotationTargetKinds();
++				if (targetKinds == null) return data;
++				List incorrectTargets = new ArrayList();
++				for (int i = 0; i < targetKinds.length; i++) {
++					if (targetKinds[i].getName().equals(kind.getName())) {
++						return data;
++					}
++					incorrectTargets.add(targetKinds[i]);
++				}
++				if (incorrectTargets.isEmpty()) return data;
++				AnnotationTargetKind[] kinds = new AnnotationTargetKind[incorrectTargets.size()];
++				incorrectTargetKinds.put(node,(AnnotationTargetKind[]) incorrectTargets.toArray(kinds));	
++			} else if (!targetsOtherThanTypeAllowed && !resolvedType.canAnnotationTargetType()) {
++				AnnotationTargetKind[] targetKinds = resolvedType.getAnnotationTargetKinds();
++				if (targetKinds == null) return data;
++				incorrectTargetKinds.put(node,targetKinds);
++			}
++    		return data;
++    	}
++    	
++    	public Object visit(ExactTypePattern node, Object data) {
++    		ExactAnnotationTypePattern eatp =  new ExactAnnotationTypePattern(node.getExactType().resolve(scope.getWorld()));
++    		eatp.accept(this,data);		
++    		return data;
++    	}
++    	
++    	public Object visit(AndTypePattern node, Object data) {
++    		node.getLeft().accept(this,data);
++    		node.getRight().accept(this,data);
++    		return node;
++    	}
++
++    	public Object visit(OrTypePattern node, Object data) {
++    		node.getLeft().accept(this,data);
++    		node.getRight().accept(this,data);
++    		return node;
++    	}
++
++    	public Object visit(AnyWithAnnotationTypePattern node, Object data) {
++    		node.getAnnotationPattern().accept(this,data);
++    		return node;
++    	}
++    	
++    	public boolean containedIncorrectTargetKind() {
++    		return (incorrectTargetKinds.size() != 0);
++    	}
++    	
++    	public Map getIncorrectTargetKinds() {
++    		return incorrectTargetKinds;
++    	}
++    }
++    
++    
+ 	public void postRead(ResolvedType enclosingType) {
+ 		if (returnType != null) {
+ 			returnType.postRead(enclosingType);
+@@ -17,6 +17,7 @@ import java.lang.reflect.Method;
+ import java.util.Collection;
+ import java.util.Collections;
+ 
++import org.aspectj.weaver.AnnotationTargetKind;
+ import org.aspectj.weaver.AnnotationX;
+ import org.aspectj.weaver.ReferenceType;
+ import org.aspectj.weaver.ReferenceTypeDelegate;
+@@ -132,6 +133,14 @@ public class ReflectionBasedReferenceTypeDelegate implements ReferenceTypeDelega
+ 		return null;
+ 	}
+ 
++	public boolean canAnnotationTargetType() {
++		return false;
++	}
++	
++	public AnnotationTargetKind[] getAnnotationTargetKinds() {
++		return null;
++	}
++	
+ 	/* (non-Javadoc)
+ 	 * @see org.aspectj.weaver.ReferenceTypeDelegate#isClass()
+ 	 */
+@@ -0,0 +1,26 @@
++import java.lang.annotation.Target;
++import java.lang.annotation.ElementType;
++
++@Target({ElementType.METHOD})
++@interface MethodAnnotation{}
++
++@Target({ElementType.FIELD})
++@interface FieldAnnotation{}
++
++public class AndTypePattern {
++
++	public void method1() {}
++	
++	@FieldAnnotation
++	int field = 1;
++
++}
++
++aspect A {
++	
++	// should display an xlint message because @FieldAnnotation can't be
++	// applied to methods
++	pointcut andPointcut() : execution(@(FieldAnnotation && MethodAnnotation) * *(..));
++	declare warning : andPointcut() : "andPointcut()";
++
++}
+@@ -0,0 +1,29 @@
++import java.lang.annotation.Target;
++import java.lang.annotation.ElementType;
++
++@Target({ElementType.TYPE})
++@interface TypeAnnotation{}
++
++@Target({ElementType.METHOD})
++@interface MethodAnnotation{}
++
++@TypeAnnotation
++public class AnnotationDeclaringType {
++
++	public void method1() {
++	}
++	
++}
++
++aspect A {
++	
++	// matches the execution of any method where the declaring type
++	// has the @TypeAnnotation - should compile ok and get no xlint errors
++	pointcut pc() : execution(* (@TypeAnnotation *).*(..));
++	declare warning : pc() : "* (@TypeAnnotation *).*(..)";
++	
++	// should get an xlint warning because declaring types can only
++	// have the default @Target or @Target{ElementType.TYPE} target
++	pointcut pc2() : execution(* (@MethodAnnotation *).*(..));
++	declare warning : pc2() : "* (@MethodAnnotation *).*(..)";
++}
+@@ -0,0 +1,34 @@
++import java.lang.annotation.Target;
++import java.lang.annotation.ElementType;
++
++@Target({ElementType.TYPE})
++@interface TypeAnnotation{}
++
++@Target({ElementType.METHOD})
++@interface MethodAnnotation{}
++
++public class AnnotationParameterType {
++
++	public void method1(MyClass m) {
++	}
++	
++}
++
++@TypeAnnotation
++class MyClass {
++	
++}
++
++aspect A {
++	
++	// shouldn't get an xlint warning because looking method which
++	// takes an argument that has the @TypeAnnotation
++	pointcut pc() : execution(* *(@TypeAnnotation *));
++	declare warning : pc() : "* *(@TypeAnnotation *)";
++	
++	// should get an xlint warning because can only have the default, 
++	// or @Target{ElementType.TYPE} as an argument type
++	pointcut incorrectArgumentType() : execution(* *(@MethodAnnotation *));
++	declare warning : incorrectArgumentType() : "argument type can only have @Target{ElementType.TYPE}";
++		
++}
+@@ -0,0 +1,40 @@
++import java.lang.annotation.Target;
++import java.lang.annotation.ElementType;
++
++@Target({ElementType.TYPE})
++@interface TypeAnnotation{}
++
++@Target({ElementType.METHOD})
++@interface MethodAnnotation{}
++
++public class AnnotationReturnType {
++
++	public MyClass method1() {
++		return new MyClass();
++	}
++	
++}
++
++@TypeAnnotation
++class MyClass {
++	
++}
++
++aspect A {
++	
++	// shouldn't get an xlint warning because looking for a return type
++	// which has the @TypeAnnotation annotation
++	pointcut pc() : execution((@TypeAnnotation *) *(..));
++	declare warning : pc() : "(@TypeAnnotation *) *(..)";
++	
++	// should get an xlint warning because can only have the default, 
++	// or @Target{ElementType.TYPE} as a return type
++	pointcut incorrectReturnType() : execution((@MethodAnnotation *) *(..));
++	declare warning : incorrectReturnType() : "return type can only have @Target{ElementType.TYPE}";
++	
++	// should get an xlint warning because @MethodAnnotation can never match
++	// but also get a declare warning because the @TypeAnnotation matches
++	pointcut orPointcut() : execution((@(TypeAnnotation || MethodAnnotation) *) *(..));
++	declare warning : orPointcut() : "(@(TypeAnnotation || MethodAnnotation) *) *(..)";
++	
++}
+@@ -0,0 +1,49 @@
++import java.lang.annotation.Target;
++import java.lang.annotation.ElementType;
++
++@Target({ElementType.TYPE})
++@interface TypeAnnotation{}
++
++@Target({ElementType.METHOD})
++@interface MethodAnnotation{}
++
++public class AnnotationThrowsPattern {
++
++	public void method1() throws MyException {}
++	
++	public void method2() throws MyNonAnnotatedException {}
++	
++}
++
++@TypeAnnotation
++class MyException extends Exception {
++	
++}
++
++class MyNonAnnotatedException extends Exception {
++	
++}
++
++aspect A {
++
++	// shouldn't get xlint warnings because @TypeAnnotation is allowed
++	pointcut required() : execution(* *.*(..) throws (@TypeAnnotation *));
++	declare warning : required() : "(* *.*(..) throws (@TypeAnnotation *))";
++
++	// shouldn't get xlint warnings because @TypeAnnotation is allowed
++	pointcut forbidden() : execution(* *.*(..) throws !(@TypeAnnotation *));
++	declare warning : forbidden() : "(* *.*(..) throws !(@TypeAnnotation *))";
++	
++	// should get an xlint warning here because can only have
++	// annotations with @Target{ElementType.TYPE} or the default
++	// @Target (which is everything)
++	pointcut required1() : execution(* *.*(..) throws (@MethodAnnotation *));
++	declare warning : required1() : "* *.*(..) throws (@MethodAnnotation *)";
++
++	// should get an xlint warning here because can only have
++	// annotations with @Target{ElementType.TYPE} or the default
++	// @Target (which is everything)
++	pointcut forbidden1() : execution(* *.*(..) throws !(@MethodAnnotation *));
++	declare warning : forbidden1() : "* *.*(..) throws !(@MethodAnnotation *)";
++
++}
+@@ -0,0 +1,54 @@
++import java.lang.annotation.Target;
++import java.lang.annotation.ElementType;
++
++@Target({ElementType.TYPE})
++@interface TypeAnnotation{}
++
++@Target({ElementType.METHOD})
++@interface MethodAnnotation{}
++
++@Target({ElementType.FIELD})
++@interface FieldAnnotation{}
++
++@interface AnyAnnotation{}
++
++public class ExactAnnotationTypePattern {
++
++	public void method1() {}
++	
++	@FieldAnnotation
++	int field = 1;
++
++}
++
++aspect A {
++	
++	// an xlint message should be displayed because @TypeAnnotation can only
++	// be applied to types, not methods
++	pointcut typePC() : execution(@TypeAnnotation * ExactAnnotationTypePattern.method1(..));
++	declare warning : typePC() : "blah";
++	
++	// should compile as normal, since @MethodAnnotation can be applied to methods
++	pointcut methodPC() : execution(@MethodAnnotation * ExactAnnotationTypePattern.method1(..));
++	declare warning : methodPC() : "blah";
++	
++	// an xlint message should be displayed because @FieldAnnotation can only
++	// be applied to fields, not methods
++	pointcut matchAll() : execution(@FieldAnnotation * *(..));
++	declare warning : matchAll() : "blah";
++
++	// should compile as normal since @FieldAnnotation can be applied to fields
++	pointcut legalFieldPC() : set(@FieldAnnotation int ExactAnnotationTypePattern.field);
++	declare warning : legalFieldPC() : "field blah";
++	
++	// an xlint message should be displayed because @MethodAnnotation can
++	// only be applied to methods, not fields
++	pointcut illegalFieldPC() : set(@MethodAnnotation int *);
++	declare warning : illegalFieldPC() : "field blah blah";
++	
++	// no xlint message should be displayed here because @AnyAnnotation
++	// has the default target
++	pointcut anyAnnotation() : execution(@AnyAnnotation * *(..));
++	declare warning : anyAnnotation() : "default target is allowed everywhere";
++
++}
+@@ -0,0 +1,41 @@
++import java.lang.annotation.Target;
++import java.lang.annotation.ElementType;
++
++@Target({ElementType.METHOD, ElementType.FIELD})
++@interface MethodAndFieldAnnotation{}
++
++@Target({ElementType.TYPE, ElementType.METHOD})
++@interface TypeAndMethodAnnotation{}
++
++
++public class MoreThanOneTargetAnnotation {
++
++	public void method1() {}
++	
++	int field = 1;
++
++}
++
++aspect A {
++	
++	// shouldn't get an xlint message because @MethodAndFieldAnnotation
++	// can be applied to methods and fields
++	pointcut pc1() : execution(@MethodAndFieldAnnotation * *(..));
++	declare warning : pc1() : "pc1()";
++	
++	// should get an xlint message because can only have the target
++	// ElementType.TYPE as a return type
++	pointcut pc2() : execution((@MethodAndFieldAnnotation *) *(..));
++	declare warning : pc2() : "pc2()";
++
++	// shouldn't get an xlint message because can have the target
++	// ElementType.TYPE as a return type
++	pointcut pc3() : execution((@TypeAndMethodAnnotation *) *(..));
++	declare warning : pc3() : "pc3()";
++
++	// should get an xlint message because @TypeAndMethodAnnotation
++	// can only be applied to types and methods, not fields
++	pointcut pc4() : set(@TypeAndMethodAnnotation int *);
++	declare warning : pc4() : "pc4()";
++		
++}
+@@ -0,0 +1,34 @@
++import java.lang.annotation.Target;
++import java.lang.annotation.ElementType;
++
++@Target({ElementType.TYPE})
++@interface TypeAnnotation{}
++
++@Target({ElementType.METHOD})
++@interface MethodAnnotation{}
++
++@Target({ElementType.FIELD})
++@interface FieldAnnotation{}
++
++public class OrTypePattern {
++
++	public void method1() {}
++	
++	@FieldAnnotation
++	int field = 1;
++
++}
++
++aspect A {
++	
++	// should display an xlint message because @FieldAnnotation can't be
++	// applied to methods
++	pointcut orPointcut() : execution(@(FieldAnnotation || MethodAnnotation) * *(..));
++	declare warning : orPointcut() : "orPointcut()";
++	
++	// two xlint messages should be displayed because neither @FieldAnnotation
++	// or @TypeAnnotation can match methods
++	pointcut orPointcut2() : execution(@(FieldAnnotation || TypeAnnotation) * *(..));
++	declare warning : orPointcut2() : "orPointcut2()";
++
++}

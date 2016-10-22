@@ -1,0 +1,345 @@
+@@ -0,0 +1,62 @@
++
++import java.lang.annotation.ElementType;
++import java.lang.annotation.Retention;
++import java.lang.annotation.RetentionPolicy;
++import java.lang.annotation.Target;
++
++import org.aspectj.lang.JoinPoint;
++
++public aspect pr119749 {
++        // not inherited
++        @Retention(RetentionPolicy.RUNTIME)
++        @Target(ElementType.METHOD)     
++        @interface Me{}
++
++        static class C {
++                @Me()
++                void m() throws Exception {}
++        }
++        
++        static class D extends C{
++                void m() {}
++        }
++        
++        static class E {
++                D d(){return null;}
++                C c(){return null;}
++                static aspect A {
++                        declare warning: execution(C E.*()) : "C E.*()";  //L26
++                        declare warning: execution(D E.*()) : "D E.*()";  // L25
++                }
++        }
++        
++        public static void main(String[] args) {
++                C c = new C();
++                D d = new D();
++                C cd = d;
++                try {c.m();} catch (Exception e) {}
++                try {cd.m();} catch (Exception e) {}
++                d.m();
++        }
++        
++        static aspect A {
++                static void log(JoinPoint jp, Object o) {
++                        System.out.println("" + jp + ": " + o);
++                }
++                pointcut scope() : within(pr119749);
++                pointcut execMe() :execution(@Me void m()) && scope();  // L17
++                pointcut execEx() :execution(void m() throws Exception) && scope(); // L17
++                pointcut execAnyEx() :execution(* *(..) throws Exception) && scope(); // L17
++                pointcut callEx() :call(void m() throws Exception) && scope(); // L37,38
++                declare warning : execMe() : "aa @Me void m()";
++                declare warning : execEx() : "aa void m() throws Exception";
++                declare warning : execAnyEx() : "aa * *(..) throws Exception";
++                declare warning : callEx() : "aa call void m() throws Exception";
++                before(Me me) : @annotation(me) && execMe() {
++                        log(thisJoinPoint, "execMe[" + me + "]");
++                }
++                before() : execEx() {
++                        log(thisJoinPoint, "execEx");
++                }
++        }
++}
+\ No newline at end of file
+@@ -23,7 +23,7 @@
+ 	  pointcut annotatedC2MethodCall() : 
+ 	    call(@SomeAnnotation * C2.aMethod());  // matches nothing
+ 
+-	  pointcut annotatedMethodCall() :   // CW L16, L17
++	  pointcut annotatedMethodCall() :   // CW L16
+ 	    call(@SomeAnnotation * aMethod());
+ 
+ 	  declare warning : annotatedC2MethodCall() : "annotatedC2MethodCall()";
+@@ -847,6 +847,10 @@ public class Ajc150Tests extends org.aspectj.testing.XMLBasedAjcTestCase {
+ 	  runTest("reflection on @DeclareParents");
+   }
+ 
++  public void testModifierOverrides() {
++	  runTest("modifier overrides");
++  }
++  
+   // helper methods.....
+ 
+   public SyntheticRepository createRepos(File cpentry) {
+@@ -6,6 +6,25 @@
+         <compile files="pr118698.aj"/>
+         <run class="pr118698"/>
+     </ajc-test>
++    
++    <ajc-test dir="bugs150" title="modifier overrides">
++       <compile files="pr119749.aj" options="-1.5">
++        	<message kind="warning" line="26" text="C E.*()"/>
++        	<message kind="warning" line="25" text="D E.*()"/>
++        	<message kind="warning" line="17" text="aa @Me void m()"/>
++        	<message kind="warning" line="17" text="aa void m() throws Exception"/>
++        	<message kind="warning" line="17" text="aa * *(..) throws Exception"/>
++        	<message kind="warning" line="37" text="aa call void m() throws Exception"/>
++        	<message kind="warning" line="38" text="aa call void m() throws Exception"/>
++        </compile>
++        <run class="pr119749">
++            <stdout>
++             <line text="execution(void pr119749.C.m()): execMe[@pr119749$Me()]"/>
++             <line text="execution(void pr119749.C.m()): execEx"/>
++            </stdout>
++        </run>
++    </ajc-test>
++    
+ 
+     <ajc-test dir="bugs150/pr112476/case1" title="binary weaving decp broken">
+         <compile files="lib/A.java,lib/B.java,lib/C.java" outjar="library.jar" options="-1.5"/>
+@@ -2683,7 +2702,7 @@
+      <ajc-test dir="java5/annotations/ajdkExamples" title="ajdk: @inherited">
+         <compile files="AnnotationInheritance.aj" options="-1.5">
+             <message kind="warning" line="16" text="annotatedMethodCall()"/>
+-            <message kind="warning" line="17" text="annotatedMethodCall()"/>
++            <!-- <message kind="warning" line="17" text="annotatedMethodCall()"/> -->
+         </compile>
+     </ajc-test>
+ 
+@@ -305,24 +305,30 @@ public class SignaturePattern extends PatternNode {
+ 			return FuzzyBoolean.MAYBE;
+ 		}
+ 
++		// modifiers match on the *subject*
+ 		if (!modifiers.matches(aMember.getModifiers())) {
+-			if (aMember.isPrivate()) return FuzzyBoolean.NO;
+-			else return FuzzyBoolean.MAYBE;
++			return FuzzyBoolean.NO;
++//			if (aMember.isPrivate()) return FuzzyBoolean.NO;
++//			else return FuzzyBoolean.MAYBE;
++		}
++		
++		// annotations match on the *subject* 
++		if (!matchesAnnotations(aMember,inAWorld).alwaysTrue()) {
++			return FuzzyBoolean.NO;
+ 		}
+ 
+-		FuzzyBoolean matchesIgnoringAnnotations = FuzzyBoolean.YES;
+ 		if (kind == Member.STATIC_INITIALIZATION) {
+-			matchesIgnoringAnnotations = matchesExactlyStaticInitialization(aMember, inAWorld);
++			return matchesExactlyStaticInitialization(aMember, inAWorld);
+ 		} else if (kind == Member.FIELD) {
+-			matchesIgnoringAnnotations = matchesExactlyField(aMember,inAWorld);
++			return matchesExactlyField(aMember,inAWorld);
+ 		} else if (kind == Member.METHOD) {
+-			matchesIgnoringAnnotations = matchesExactlyMethod(aMember,inAWorld);
++			return matchesExactlyMethod(aMember,inAWorld);
+ 		} else if (kind == Member.CONSTRUCTOR) {
+-			matchesIgnoringAnnotations = matchesExactlyConstructor(aMember, inAWorld);
++			return matchesExactlyConstructor(aMember, inAWorld);
++		} else {
++			return FuzzyBoolean.YES;
+ 		}
+-		if (!matchesIgnoringAnnotations.alwaysTrue()) return matchesIgnoringAnnotations;
+ 
+-		return matchesAnnotations(aMember, inAWorld);
+ 	}
+ 
+ 	/**
+@@ -357,6 +363,9 @@ public class SignaturePattern extends PatternNode {
+ 	 */
+ 	private FuzzyBoolean matchesExactlyMethod(JoinPointSignature aMethod, World world) {
+ 		if (!name.matches(aMethod.getName())) return FuzzyBoolean.NO;
++		// Check the throws pattern
++		if (!throwsPattern.matches(aMethod.getExceptions(), world)) return FuzzyBoolean.NO;
++		
+ 		if (!declaringType.matchesStatically(aMethod.getDeclaringType().resolve(world))) return FuzzyBoolean.MAYBE;
+ 		if (!returnType.matchesStatically(aMethod.getReturnType().resolve(world))) {
+ 			// looking bad, but there might be parameterization to consider...
+@@ -379,9 +388,6 @@ public class SignaturePattern extends PatternNode {
+ 		// check that varargs specifications match
+ 		if (!matchesVarArgs(aMethod,world)) return FuzzyBoolean.MAYBE;
+ 
+-		// Check the throws pattern
+-		if (!throwsPattern.matches(aMethod.getExceptions(), world)) return FuzzyBoolean.MAYBE;
+-		
+ 		// passed all the guards..
+ 		return FuzzyBoolean.YES;
+ 	}
+@@ -477,7 +483,7 @@ public class SignaturePattern extends PatternNode {
+ 	  if (annotationPattern.matches(member).alwaysTrue()) {
+ 		  return FuzzyBoolean.YES;
+ 	  } else {
+-		  return FuzzyBoolean.MAYBE;  // need to look at ancestor members too...
++		  return FuzzyBoolean.NO;  // do NOT look at ancestor members...
+ 	  }
+ 	}
+ 
+@@ -38,8 +38,8 @@ public class SignaturePatternTestCase extends TestCase {
+ 		Member mOnDerived = MemberImpl.methodFromString("void fluffy.Derived.m()");
+ 
+ 		checkMatch(makeMethodPat("* fluffy.Base.*(..) throws java.lang.CloneNotSupportedException"),
+-					new Member[] { mOnBase, mOnDerived },
+-					new Member[] { });
++					new Member[] { mOnBase },
++					new Member[] { mOnDerived });
+ 
+ 		checkMatch(makeMethodPat("* fluffy.Derived.*(..) throws java.lang.CloneNotSupportedException"),
+ 					new Member[] { },
+@@ -53,7 +53,7 @@ public class SignaturePatternTestCase extends TestCase {
+ 
+ 		checkMatch(makeMethodPat("* *(..)"), M, NONE);
+ 		checkMatch(makeMethodPat("* *(..) throws !*"), NO_EXCEPTIONS, M);
+-		checkMatch(makeMethodPat("* *(..) throws *"), BOTH, NONE);
++		checkMatch(makeMethodPat("* *(..) throws *"), M, NO_EXCEPTIONS);
+ 		checkMatch(makeMethodPat("* *(..) throws *, !*"), NONE, BOTH);
+ 
+ 		checkMatch(makeMethodPat("* *(..) throws (!*)"), NONE, BOTH);		
+@@ -1,10 +1,7 @@
+ public class InheritedThrows {
+ 
+     static aspect A {
+-        declare warning : execution (* *.*(..) throws Ex1) : "one";
+-//        declare warning : execution (* *.*(..) throws Ex2) : "two";
+-//        declare warning : execution (* *.*(..) throws !(Ex1||Ex2)) : "neither";
+-//        declare warning : execution (* *.*(..) throws Ex1, Ex2) : "both";
++        after() throwing(Ex1 a): execution(* *.*(..) throws Ex1) {}
+     }
+ 
+     public static class Ex1 extends Exception {}
+@@ -16,7 +13,7 @@ public class InheritedThrows {
+     }
+ 
+     private static class NestedClass1 implements MyInterface {
+-        public void m() throws Ex1 {}
++        public void m() throws Ex1 {} // MATCHES HERE
+     }
+ 
+     private static class NestedClass2 implements MyInterface {
+@@ -24,7 +21,7 @@ public class InheritedThrows {
+     }
+ 
+     private static class NestedClassBoth implements MyInterface {
+-        public void m() throws Ex1, Ex2 {}
++        public void m() throws Ex1, Ex2 {}  // MATCHES HERE
+     }
+ 
+     private static class NestedClassNeither implements MyInterface {
+@@ -52,7 +52,7 @@ public class Ajc150Tests extends org.aspectj.testing.XMLBasedAjcTestCase {
+   public void testCunningDeclareParents_pr92311() { runTest("cunning declare parents");}
+   public void testGenericITDsAndAbstractMethodError_pr102357() { runTest("generic itds and abstract method error");}
+   */
+-  //public void testIncorrectSignatureMatchingWithExceptions_pr119749() { runTest("incorrect exception signature matching");}
++  public void testIncorrectSignatureMatchingWithExceptions_pr119749() { runTest("incorrect exception signature matching");}
+   public void testGeneratingCodeForAnOldRuntime_pr116679_1() { runTest("generating code for a 1.2.1 runtime - 1");}
+   public void testGeneratingCodeForAnOldRuntime_pr116679_2() { runTest("generating code for a 1.2.1 runtime - 2");}
+   public void testAmbiguousMethod_pr118599_1() { runTest("ambiguous method when binary weaving - 1");}
+@@ -136,9 +136,9 @@
+     </ajc-test>  
+ 
+     <ajc-test dir="bugs150/pr119749" pr="119749" title="incorrect exception signature matching">
+-     <compile files="InheritedThrows.java" options="">  
+-     	<message kind="warning" line="19" text="one"/>
+-     	<message kind="warning" line="27" text="one"/>
++     <compile files="InheritedThrows.java" options="-showWeaveInfo">  
++     	<message kind="weave" text="Join point 'method-execution(void InheritedThrows$NestedClassBoth.m())' in Type 'InheritedThrows$NestedClassBoth' (InheritedThrows.java:24) advised by afterThrowing advice from 'InheritedThrows$A' (InheritedThrows.java:4)"/>
++     	<message kind="weave" text="Join point 'method-execution(void InheritedThrows$NestedClass1.m())' in Type 'InheritedThrows$NestedClass1' (InheritedThrows.java:16) advised by afterThrowing advice from 'InheritedThrows$A' (InheritedThrows.java:4)"/>
+      </compile>
+     </ajc-test>  
+ 
+@@ -116,8 +116,8 @@ public abstract class Advice extends ShadowMunger {
+ 				}
+ 			}
+ 
+-			
+-    		if (hasExtraParameter() && kind == AdviceKind.AfterReturning) {
++
++			if (hasExtraParameter() && kind == AdviceKind.AfterReturning) {
+     			ResolvedType resolvedExtraParameterType = getExtraParameterType().resolve(world);
+     			ResolvedType shadowReturnType = shadow.getReturnType().resolve(world);
+     			boolean matches = 
+@@ -127,6 +127,16 @@ public abstract class Advice extends ShadowMunger {
+     				maybeIssueUncheckedMatchWarning(resolvedExtraParameterType,shadowReturnType,shadow,world);
+     			}
+     			return matches;
++			} else if (hasExtraParameter() && kind==AdviceKind.AfterThrowing) { // pr119749
++	    			ResolvedType exceptionType = getExtraParameterType().resolve(world);
++	    			if (!exceptionType.isCheckedException()) return true;
++	    			UnresolvedType[] shadowThrows = shadow.getSignature().getExceptions(world);
++	    			boolean matches = false;
++	    			for (int i = 0; i < shadowThrows.length && !matches; i++) {
++						ResolvedType type = shadowThrows[i].resolve(world);
++						if (exceptionType.isAssignableFrom(type)) matches=true;
++					}
++	    			return matches;
+     		} else if (kind == AdviceKind.PerTargetEntry) {
+     			return shadow.hasTarget();
+     		} else if (kind == AdviceKind.PerThisEntry) {
+@@ -1883,6 +1883,22 @@ public abstract class ResolvedType extends UnresolvedType implements AnnotatedEl
+ 	public ResolvedPointcutDefinition findPointcut(String name, World world) {
+ 	    throw new UnsupportedOperationException("Not yet implemenented");
+ 	}
++	
++	/**
++	 * @return true if assignable to java.lang.Exception
++	 */
++	public boolean isException() {
++		return (world.getCoreType(UnresolvedType.JAVA_LANG_EXCEPTION).isAssignableFrom(this));
++	}
++	
++	/**
++	 * @return true if it is an exception and it is a checked one, false otherwise.
++	 */
++	public boolean isCheckedException() {
++		if (!isException()) return false;
++		if (world.getCoreType(UnresolvedType.RUNTIME_EXCEPTION).isAssignableFrom(this)) return false;
++		return true;
++	}
+ 
+ 	/**
+ 	 * Determines if variables of this type could be assigned values of another
+@@ -0,0 +1,33 @@
++public class InheritedThrows {
++
++    static aspect A {
++        declare warning : execution (* *.*(..) throws Ex1) : "one";
++//        declare warning : execution (* *.*(..) throws Ex2) : "two";
++//        declare warning : execution (* *.*(..) throws !(Ex1||Ex2)) : "neither";
++//        declare warning : execution (* *.*(..) throws Ex1, Ex2) : "both";
++    }
++
++    public static class Ex1 extends Exception {}
++
++    public static class Ex2 extends Exception {}
++
++    public interface MyInterface {
++        public void m() throws Ex1, Ex2;
++    }
++
++    private static class NestedClass1 implements MyInterface {
++        public void m() throws Ex1 {}
++    }
++
++    private static class NestedClass2 implements MyInterface {
++        public void m() throws Ex2 {}
++    }
++
++    private static class NestedClassBoth implements MyInterface {
++        public void m() throws Ex1, Ex2 {}
++    }
++
++    private static class NestedClassNeither implements MyInterface {
++        public void m() {}
++    }
++}

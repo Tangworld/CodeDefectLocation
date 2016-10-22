@@ -1,0 +1,182 @@
+@@ -25,6 +25,8 @@ public class AjcMemberMaker {
+ 
+ 	private static final int PUBLIC_STATIC = Modifier.PUBLIC | Modifier.STATIC;
+ 
++	private static final int BRIDGE = 0x0040;
++
+ 	private static final int VISIBILITY = Modifier.PUBLIC | Modifier.PRIVATE | Modifier.PROTECTED;
+ 
+ 	public static final UnresolvedType CFLOW_STACK_TYPE = UnresolvedType.forName(NameMangler.CFLOW_STACK_TYPE);
+@@ -476,6 +478,25 @@ public class AjcMemberMaker {
+ 	}
+ 
+ 	/**
++	 * This method goes on the target type of the inter-type method. (and possibly the topmost-implementors, if the target type is
++	 * an interface). The implementation will call the interMethodDispatch method on the aspect.
++	 */
++	public static ResolvedMember interMethodBridger(ResolvedMember meth, UnresolvedType aspectType, boolean onInterface) {
++		// if (Modifier.isPublic(meth.getModifiers()) && !onInterface)
++		// return meth;
++
++		int modifiers = makePublicNonFinal(meth.getModifiers()) | BRIDGE;
++		if (onInterface)
++			modifiers |= Modifier.ABSTRACT;
++
++		ResolvedMemberImpl rmi = new ResolvedMemberImpl(Member.METHOD, meth.getDeclaringType(), modifiers, meth.getReturnType(),
++				NameMangler.interMethod(meth.getModifiers(), aspectType, meth.getDeclaringType(), meth.getName()), meth
++						.getParameterTypes(), meth.getExceptions());
++		rmi.setTypeVariables(meth.getTypeVariables());
++		return rmi;
++	}
++
++	/**
+ 	 * Sometimes the intertyped method requires a bridge method alongside it. For example if the method 'N SomeI<N>.m()' is put onto
+ 	 * an interface 'interface I<N extends Number>' and then a concrete implementation is 'class C implements I<Float>' then the ITD
+ 	 * on the interface will be 'Number m()', whereas the ITD on the 'topmostimplementor' will be 'Float m()'. A bridge method needs
+@@ -986,7 +986,7 @@ public class BcelTypeMunger extends ConcreteTypeMunger {
+ 					}
+ 					if (needsbridging) {
+ 						ResolvedMember bridgerMethod = AjcMemberMaker.bridgerToInterMethod(unMangledInterMethod, gen.getType());
+-						ResolvedMember bridgingSetter = AjcMemberMaker.interMethod(toBridgeTo, aspectType, false);
++						ResolvedMember bridgingSetter = AjcMemberMaker.interMethodBridger(toBridgeTo, aspectType, false); // pr250493
+ 
+ 						// FIXME asc ----------------8<---------------- extract
+ 						// method
+@@ -0,0 +1,33 @@
++import java.lang.reflect.Method;
++import java.util.*;
++
++interface Super<T> {
++	public T getterA();
++}
++
++public class Bridged implements Super<String> {
++	public String getterA() {
++		return "";
++	}
++
++	// Print BRIDGE status of all getter* methods
++	public static void main(String[] argv) {
++		Method[] ms = Bridged.class.getMethods();
++		List results = new ArrayList(); 
++		for (int i = 0; i < ms.length; i++) {
++			if (ms[i].getName().startsWith("getter")) {
++				results.add(ms[i].getName()+"()"+ms[i].getReturnType().getName()+ "  isBridged?"+((ms[i].getModifiers() & 0x0040) != 0));
++			}
++		}
++		Collections.sort(results);
++		for (Iterator iterator = results.iterator(); iterator.hasNext();) {
++			String entry = (String) iterator.next();
++			System.out.println(entry);
++		}
++	}
++}
++
++aspect X {
++  public T Super<T>.getterB() { return null; }
++}
++
+@@ -9,17 +9,19 @@ import junit.framework.TestSuite;
+ import org.aspectj.systemtest.ajc160.AllTestsAspectJ160;
+ import org.aspectj.systemtest.ajc161.AllTestsAspectJ161;
+ import org.aspectj.systemtest.ajc162.AllTestsAspectJ162;
++import org.aspectj.systemtest.ajc163.AllTestsAspectJ163;
+ 
+ public class AllTests16 {
+ 
+ 	public static Test suite() {
+ 		TestSuite suite = new TestSuite("AspectJ System Test Suite - JDK 1.6");
+-		//$JUnit-BEGIN$
++		// $JUnit-BEGIN$
+ 		suite.addTest(AllTestsAspectJ160.suite()); // dont require a 1.6 JRE to run but checks 1.6 compiler behaviour
+-        suite.addTest(AllTestsAspectJ161.suite()); // dont require a 1.6 JRE to run but checks 1.6 compiler behaviour
+-        suite.addTest(AllTestsAspectJ162.suite()); // dont require a 1.6 JRE to run but checks 1.6 compiler behaviour
++		suite.addTest(AllTestsAspectJ161.suite()); // dont require a 1.6 JRE to run but checks 1.6 compiler behaviour
++		suite.addTest(AllTestsAspectJ162.suite()); // dont require a 1.6 JRE to run but checks 1.6 compiler behaviour
++		suite.addTest(AllTestsAspectJ163.suite()); // dont require a 1.6 JRE to run but checks 1.6 compiler behaviour
+ 		suite.addTest(AllTests15.suite());
+-		//$JUnit-END$
++		// $JUnit-END$
+ 		return suite;
+ 	}
+ }
+@@ -0,0 +1,33 @@
++/*******************************************************************************
++ * Copyright (c) 2008 Contributors 
++ * All rights reserved. This program and the accompanying materials
++ * are made available under the terms of the Eclipse Public License v1.0
++ * which accompanies this distribution, and is available at
++ * http://www.eclipse.org/legal/epl-v10.html
++ *
++ * Contributors:
++ *    Andy Clement - initial API and implementation
++ *******************************************************************************/
++package org.aspectj.systemtest.ajc163;
++
++import java.io.File;
++
++import junit.framework.Test;
++
++import org.aspectj.testing.XMLBasedAjcTestCase;
++
++public class Ajc163Tests extends org.aspectj.testing.XMLBasedAjcTestCase {
++
++	public void testGenericMethodBridging_pr250493() {
++		runTest("bridge methods for generic itds");
++	}
++
++	public static Test suite() {
++		return XMLBasedAjcTestCase.loadSuite(Ajc163Tests.class);
++	}
++
++	protected File getSpecFile() {
++		return new File("../tests/src/org/aspectj/systemtest/ajc163/ajc163.xml");
++	}
++
++}
+\ No newline at end of file
+@@ -0,0 +1,25 @@
++/*******************************************************************************
++ * Copyright (c) 2008 Contributors
++ * All rights reserved. This program and the accompanying materials
++ * are made available under the terms of the Eclipse Public License v1.0
++ * which accompanies this distribution, and is available at
++ * http://www.eclipse.org/legal/epl-v10.html
++ *
++ * Contributors:
++ *    Andy Clement - initial API and implementation
++ *******************************************************************************/
++package org.aspectj.systemtest.ajc163;
++
++import junit.framework.Test;
++import junit.framework.TestSuite;
++
++public class AllTestsAspectJ163 {
++
++	public static Test suite() {
++		TestSuite suite = new TestSuite("AspectJ 1.6.3 tests");
++		// $JUnit-BEGIN$
++		suite.addTest(Ajc163Tests.suite());
++		// $JUnit-END$
++		return suite;
++	}
++}
+@@ -0,0 +1,17 @@
++<!DOCTYPE suite SYSTEM "../tests/ajcTestSuite.dtd"[]>
++
++<suite>
++
++    <ajc-test dir="bugs163/pr250493" title="bridge methods for generic itds">
++      <compile files="Bridged.java" options="-1.5"/>
++      <run class="Bridged">
++        <stdout>
++          <line text="getterA()java.lang.Object  isBridged?true"/>
++          <line text="getterA()java.lang.String  isBridged?false"/>
++          <line text="getterB()java.lang.Object  isBridged?true"/>
++          <line text="getterB()java.lang.String  isBridged?false"/>
++        </stdout>
++      </run>
++    </ajc-test>
++
++</suite>
+\ No newline at end of file

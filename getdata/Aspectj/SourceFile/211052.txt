@@ -1,0 +1,215 @@
+Binary files differ
+Binary files differ
+@@ -23,7 +23,6 @@ import org.aspectj.apache.bcel.generic.MethodGen;
+ import org.aspectj.apache.bcel.util.ClassPath;
+ import org.aspectj.apache.bcel.util.SyntheticRepository;
+ import org.aspectj.testing.XMLBasedAjcTestCase;
+-import org.aspectj.weaver.patterns.PatternParser;
+ import org.aspectj.weaver.tools.ContextBasedMatcher;
+ import org.aspectj.weaver.tools.FuzzyBoolean;
+ import org.aspectj.weaver.tools.MatchingContext;
+@@ -47,6 +46,17 @@ public class Ajc154Tests extends org.aspectj.testing.XMLBasedAjcTestCase {
+ 	//public void testAfterThrowingAnnotationStyle_pr211674_1() { runTest("after throwing annotation style problem - 1");}
+ 	//public void testAfterThrowingAnnotationStyle_pr211674_2() { runTest("after throwing annotation style problem - 2");}
+ 
++	// Testing some issues with declare at type
++	public void testDeclareAtTypeProblems_pr211052_1() { runTest("declare atType problems - 1"); }
++	public void testDeclareAtTypeProblems_pr211052_2() { runTest("declare atType problems - 2"); }
++	public void testDeclareAtTypeProblems_pr211052_3() { runTest("declare atType problems - 3"); }
++	public void testDeclareAtTypeProblems_pr211052_4() { runTest("declare atType problems - 4"); }
++	public void testDeclareAtTypeProblems_pr211052_5() { runTest("declare atType problems - 5"); }
++	// declare at type and binary weaving
++	public void testDeclareAtTypeProblems_pr211052_6() { runTest("declare atType problems - 6"); }
++	public void testDeclareAtTypeProblems_pr211052_7() { runTest("declare atType problems - 7"); }
++	
++	
+ 	public void testNPEWithMissingAtAspectAnnotationInPointcutLibrary_pr162539_1() { runTest("NPE with missing @aspect annotation in pointcut library - 1"); }
+ 	public void testNPEWithMissingAtAspectAnnotationInPointcutLibrary_pr162539_2() { runTest("NPE with missing @aspect annotation in pointcut library - 2"); }
+ 
+@@ -2,6 +2,86 @@
+ 
+ <!-- AspectJ v1.6.0 Tests -->
+ <suite>
++   <ajc-test dir="bugs154/pr211052" title="declare atType problems - 1">
++     <compile options="-1.5" files="MyPojo.java"/>
++     <run class="MyPojo"/>
++   </ajc-test>
++   
++   <!--  DistantResource is explicitly mentioned as c.d.DistantResource -->
++   <ajc-test dir="bugs154/pr211052" title="declare atType problems - 2">
++     <compile options="-1.5 -showWeaveInfo" files="SimpleAnnotation.java,SimpleAspect1.java,DistantResource.java">
++       <message kind="weave" text="'c.d.DistantResource' (DistantResource.java:5) is annotated with @SimpleAnnotation(classname = &quot;oranges&quot;)"/>
++     </compile>
++     <run class="c.d.DistantResource">
++     <stdout>
++       <line text="Annotation is @a.b.SimpleAnnotation(classname=oranges)"/>
++     </stdout>
++     </run>
++   </ajc-test>
++
++   <!--  DistantResource is imported and refered to as DistantResource -->
++   <ajc-test dir="bugs154/pr211052" title="declare atType problems - 3">
++     <compile options="-1.5 -showWeaveInfo" files="SimpleAnnotation.java,SimpleAspect2.java,DistantResource.java">
++       <message kind="weave" text="'c.d.DistantResource' (DistantResource.java:5) is annotated with @SimpleAnnotation(classname = &quot;oranges&quot;)"/>
++     </compile>
++      <run class="c.d.DistantResource">
++     <stdout>       
++       <line text="Annotation is @a.b.SimpleAnnotation(classname=oranges)"/>
++     </stdout>
++     </run>
++   </ajc-test>
++   
++   <!--  Annotation is in a different package to the aspect and explicitly referenced with a fully qualified name -->
++   <ajc-test dir="bugs154/pr211052" title="declare atType problems - 4">
++     <compile options="-1.5 -showWeaveInfo" files="SimpleAnnotation2.java,SimpleAspect3.java,DistantResource.java">
++       <message kind="weave" text="'c.d.DistantResource' (DistantResource.java:5) is annotated with @e.f.SimpleAnnotation2(classname = &quot;oranges&quot;)"/>
++     </compile>     
++     <run class="c.d.DistantResource">
++     <stdout>
++       <line text="Annotation is @e.f.SimpleAnnotation2(classname=oranges)"/>
++     </stdout>
++     </run>
++   </ajc-test>
++
++   <!--  Annotation is in a different package to the aspect and imported -->
++   <ajc-test dir="bugs154/pr211052" title="declare atType problems - 5">
++     <compile options="-1.5 -showWeaveInfo" files="SimpleAnnotation2.java,SimpleAspect4.java,DistantResource.java">
++       <message kind="weave" text="'c.d.DistantResource' (DistantResource.java:5) is annotated with @SimpleAnnotation2(classname = &quot;oranges&quot;)"/>
++     </compile>
++     <run class="c.d.DistantResource">
++     <stdout>
++       <line text="Annotation is @e.f.SimpleAnnotation2(classname=oranges)"/>
++     </stdout>
++     </run>
++   </ajc-test>
++   
++   <!-- target for annotation is from a jar -->
++   <ajc-test dir="bugs154/pr211052" title="declare atType problems - 6">
++     <compile options="-1.5" files="DistantResource.java" outjar="target.jar"/>
++     <compile options="-1.5 -showWeaveInfo" files="SimpleAnnotation2.java,SimpleAspect4.java" inpath="target.jar">
++       <message kind="weave" text="'c.d.DistantResource' (DistantResource.java) is annotated with @SimpleAnnotation2(classname = &quot;oranges&quot;)"/>
++     </compile>
++     <run class="c.d.DistantResource">
++     <stdout>
++       <line text="Annotation is @e.f.SimpleAnnotation2(classname=oranges)"/>
++     </stdout>
++     </run>
++   </ajc-test>
++
++   <!-- target for annotation is from a jar and annotation and aspect are in a different jar-->
++   <ajc-test dir="bugs154/pr211052" title="declare atType problems - 7">
++     <compile options="-1.5" files="DistantResource.java" outjar="target.jar"/>
++     <compile options="-1.5 -Xlint:ignore" files="SimpleAnnotation2.java,SimpleAspect3.java" outjar="aspect.jar"/>
++     <compile options="-1.5 -showWeaveInfo" aspectpath="aspect.jar" inpath="target.jar">
++       <message kind="weave" text="'c.d.DistantResource' (DistantResource.java) is annotated with @e.f.SimpleAnnotation2(classname = &quot;oranges&quot;)"/>
++     </compile>
++     <run class="c.d.DistantResource">
++     <stdout>
++       <line text="Annotation is @e.f.SimpleAnnotation2(classname=oranges)"/>
++     </stdout>
++     </run>
++   </ajc-test>
++   
+    <ajc-test dir="bugs154/pr211674" title="after throwing annotation style problem - 1">
+      <compile options="-1.5" files="Test.java"/>
+      <run class="Test"/>
+@@ -0,0 +1,12 @@
++package c.d;
++
++import java.lang.annotation.*;
++
++public class DistantResource {
++  public static void main(String []argv) {
++    Annotation [] annos = DistantResource.class.getAnnotations();
++    for (int i=0;annos!=null && i<annos.length;i++) {
++      System.out.println("Annotation is "+annos[i]);
++    }
++  }
++}
+@@ -0,0 +1,35 @@
++
++
++aspect ConfigureTracing {
++        declare @type : MyPojo : @Tracing(level = LoggingLevel.WARN);
++//        declare @method : * MyPojo.calculate() : @TestAnnotation;
++}
++
++@interface Tracing { LoggingLevel level(); }
++
++@interface TestAnnotation {}
++
++class Level {
++  Level(int i) {}
++  public final static Level INFO = new Level(1);
++  public final static Level WARN = new Level(2);
++  public final static Level ERROR = new Level(3);
++}
++//@Tracing(level = LoggingLevel.WARN)
++enum LoggingLevel {
++  INFO(Level.INFO),
++  WARN(Level.WARN),
++  ERROR(Level.ERROR);
++      
++  private final Level level;
++  private LoggingLevel(Level level) {this.level = level;}
++  public Level getLevel() {return level;}
++}
++
++public class MyPojo {
++  public static void calculate() {
++  }
++  public static void main(String []argv) {
++	  
++  }
++}
+@@ -0,0 +1,8 @@
++package a.b;
++import java.lang.annotation.*;
++
++@Retention(RetentionPolicy.RUNTIME)
++@interface SimpleAnnotation {
++  String classname();
++}
++
+@@ -0,0 +1,8 @@
++package e.f;
++import java.lang.annotation.*;
++
++@Retention(RetentionPolicy.RUNTIME)
++public @interface SimpleAnnotation2 {
++  String classname();
++}
++
+@@ -0,0 +1,6 @@
++package a.b;
++
++// explicitly reference target type in another package
++aspect SimpleAspect1 {
++  declare @type: c.d.DistantResource: @SimpleAnnotation(classname="oranges");
++}
+@@ -0,0 +1,8 @@
++package a.b;
++
++import c.d.DistantResource;
++
++// import target type
++aspect SimpleAspect1 {
++  declare @type: DistantResource: @SimpleAnnotation(classname="oranges");
++}
+@@ -0,0 +1,6 @@
++package a.b;
++
++// fully qualified reference to annotation type
++aspect SimpleAspect3 {
++  declare @type: c.d.DistantResource: @e.f.SimpleAnnotation2(classname="oranges");
++}
+@@ -0,0 +1,9 @@
++package a.b;
++
++import c.d.DistantResource;
++import e.f.SimpleAnnotation2;
++
++// import the annotation type
++aspect SimpleAspect4 {
++  declare @type: DistantResource: @SimpleAnnotation2(classname="oranges");
++}

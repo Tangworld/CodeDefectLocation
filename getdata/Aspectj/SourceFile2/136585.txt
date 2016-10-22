@@ -1,0 +1,48 @@
+@@ -0,0 +1,3 @@
++public aspect Aspect perthis(staticinitialization(Hello)) {
++
++}
+\ No newline at end of file
+@@ -0,0 +1,6 @@
++public class Hello {
++	
++	public static void main(String[] args) {
++		System.err.println("Hello");
++	}
++}
+\ No newline at end of file
+@@ -0,0 +1,3 @@
++public aspect Aspect perthis(staticinitialization(Hello)) {
++  public void foo() {}
++}
+\ No newline at end of file
+@@ -821,6 +821,15 @@ public class MultiProjectIncrementalTests extends AjdeInteractionTestbed {
+ 		checkXMLAspectCount("PR131505","A",1);
+ 		checkXMLAspectCount("PR131505","pkg.A",1);
+ 	}
++
++	public void testPr136585() {
++		initialiseProject("PR136585");
++		build("PR136585");
++		alter("PR136585","inc1");
++		build("PR136585");
++		assertTrue("There should be no errors reported:\n"+MyTaskListManager.getErrorMessages(),
++				MyTaskListManager.getErrorMessages().isEmpty());	
++	}
+ 
+ 	public void testPr133532() {
+ 		initialiseProject("PR133532");
+@@ -28,10 +28,10 @@ public class PerObjectInterfaceTypeMunger extends ResolvedTypeMunger {
+     private TypePattern lazyTestTypePattern;
+ 
+     public boolean equals(Object other) {
+-    	if (!(other instanceof PerObjectInterfaceTypeMunger)) return false;
++    	if (other==null || !(other instanceof PerObjectInterfaceTypeMunger)) return false;
+   		PerObjectInterfaceTypeMunger o = (PerObjectInterfaceTypeMunger)other;
+-    	return ((o.testPointcut == null) ? (testPointcut == null ) : testPointcut.equals(o.testPointcut))
+-    			&& ((o.lazyTestTypePattern == null) ? (lazyTestTypePattern == null ) : lazyTestTypePattern.equals(o.lazyTestTypePattern));
++    	return ((testPointcut == null) ? (o.testPointcut == null ) : testPointcut.equals(o.testPointcut))
++    			&& ((lazyTestTypePattern == null) ? (o.lazyTestTypePattern == null ) : lazyTestTypePattern.equals(o.lazyTestTypePattern));
+     }
+ 
+     private volatile int hashCode = 0;

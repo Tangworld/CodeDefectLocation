@@ -1,0 +1,42 @@
+@@ -272,8 +272,7 @@ final class BcelMethod extends ResolvedMemberImpl {
+ 				// generic method declaration
+ 				canBeParameterized = true;
+ 			 }
+- 			 Signature.ClassSignature genericTypeSig = bcelObjectType.getGenericClassTypeSignature();
+- 			 Signature.FormalTypeParameter[] parentFormals = (genericTypeSig != null ? genericTypeSig.formalTypeParameters : new Signature.FormalTypeParameter[0]);
++ 			 Signature.FormalTypeParameter[] parentFormals = bcelObjectType.getAllFormals();
+  			 Signature.FormalTypeParameter[] formals = new
+  			 	Signature.FormalTypeParameter[parentFormals.length + mSig.formalTypeParameters.length];
+  			 // put method formal in front of type formals for overriding in lookup
+@@ -501,13 +501,14 @@ public class BcelObjectType extends AbstractReferenceTypeDelegate {
+ 	}
+ 
+ 	private boolean genericSignatureUnpacked = false;
++	private Signature.FormalTypeParameter[] formalsForResolution = null;
+ 
+ 	private void unpackGenericSignature() {
+ 		if (genericSignatureUnpacked) return;
+ 		genericSignatureUnpacked = true;
+ 		Signature.ClassSignature cSig = getGenericClassTypeSignature();
+ 		if (cSig != null) {
+-			Signature.FormalTypeParameter[] formalsForResolution = cSig.formalTypeParameters;
++			formalsForResolution = cSig.formalTypeParameters;
+ 			if (isNestedClass()) {
+ 				// we have to find any type variables from the outer type before proceeding with resolution.
+ 				Signature.FormalTypeParameter[] extraFormals = getFormalTypeParametersFromOuterClass();
+@@ -545,6 +546,15 @@ public class BcelObjectType extends AbstractReferenceTypeDelegate {
+ 		}
+ 	}
+ 
++	public Signature.FormalTypeParameter[] getAllFormals() {
++		unpackGenericSignature();
++		if (formalsForResolution == null) {
++			return new Signature.FormalTypeParameter[0];
++		} else {
++			return formalsForResolution;
++		}
++	}
++	
+ 	private boolean isNestedClass() {
+ 		return javaClass.getClassName().indexOf('$') != -1;
+ 	}

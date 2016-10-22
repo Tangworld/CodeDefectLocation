@@ -1,0 +1,103 @@
+@@ -23,10 +23,6 @@ import java.util.Enumeration;
+ public class DefaultWeavingContext implements IWeavingContext {
+ 
+ 	protected ClassLoader loader;
+-	
+-	public DefaultWeavingContext(){
+-		loader = getClass().getClassLoader();
+-	}
+ 
+ 	/**
+ 	 * Construct a new WeavingContext to use the specifed ClassLoader
+@@ -10,7 +10,7 @@ public aspect pr119749 {
+         // not inherited
+         @Retention(RetentionPolicy.RUNTIME)
+         @Target(ElementType.METHOD)     
+-        @interface Me{}
++        @interface Me { String value() default "Me"; }
+ 
+         static class C {
+                 @Me()
+@@ -53,10 +53,10 @@ public aspect pr119749 {
+                 declare warning : execAnyEx() : "aa * *(..) throws Exception";
+                 declare warning : callEx() : "aa call void m() throws Exception";
+                 before(Me me) : @annotation(me) && execMe() {
+-                        log(thisJoinPoint, "execMe[" + me + "]");
++                    log(thisJoinPoint, "execMe[" + me.value() + "]");
+                 }
+                 before() : execEx() {
+                         log(thisJoinPoint, "execEx");
+                 }
+         }
+-}
+\ No newline at end of file
++}
+@@ -19,7 +19,7 @@
+         </compile>
+         <run class="pr119749">
+             <stdout>
+-             <line text="execution(void pr119749.C.m()): execMe[@pr119749$Me()]"/>
++             <line text="execution(void pr119749.C.m()): execMe[Me]"/>
+              <line text="execution(void pr119749.C.m()): execEx"/>
+             </stdout>
+         </run>
+@@ -41,7 +41,7 @@ public class ReflectionWorld extends World {
+ 	private ClassLoader classLoader;
+ 	private AnnotationFinder annotationFinder;
+ 
+-	public ReflectionWorld() {
++	private ReflectionWorld() {
+ 		super();
+ 		this.setMessageHandler(new ExceptionBasedMessageHandler());
+ 		setBehaveInJava5Way(LangUtil.is15VMOrGreater());
+@@ -17,6 +17,7 @@ import java.util.Set;
+ 
+ import junit.framework.TestCase;
+ 
++import org.aspectj.bridge.IMessageHandler;
+ import org.aspectj.weaver.ReferenceType;
+ import org.aspectj.weaver.ResolvedMember;
+ import org.aspectj.weaver.ResolvedType;
+@@ -247,7 +248,7 @@ public class ReflectionBasedReferenceTypeDelegateTest extends TestCase {
+     	boolean barfIfClinitMissing = false;
+         world.setBehaveInJava5Way(true);
+ 
+-        BcelWorld bcelWorld = new BcelWorld();
++        BcelWorld bcelWorld = new BcelWorld(getClass().getClassLoader(),IMessageHandler.THROW,null);
+         bcelWorld.setBehaveInJava5Way(true);
+         UnresolvedType javaUtilHashMap = UnresolvedType.forName("java.util.HashMap");
+         ReferenceType rawType =(ReferenceType)bcelWorld.resolve(javaUtilHashMap );
+@@ -289,7 +290,7 @@ public class ReflectionBasedReferenceTypeDelegateTest extends TestCase {
+ 	// todo: array of int	
+ 
+ 	protected void setUp() throws Exception {
+-		world = new ReflectionWorld();
++		world = new ReflectionWorld(getClass().getClassLoader());
+ 		objectType = world.resolve("java.lang.Object");
+ 	}
+ }
+@@ -19,21 +19,21 @@ import org.aspectj.weaver.World;
+ public class ReflectionWorldTest extends TestCase {
+ 
+ 	public void testDelegateCreation() {
+-		World world = new ReflectionWorld();
++		World world = new ReflectionWorld(getClass().getClassLoader());
+ 		ResolvedType rt = world.resolve("java.lang.Object");
+ 		assertNotNull(rt);
+ 		assertEquals("Ljava/lang/Object;",rt.getSignature());
+ 	}
+ 
+ 	public void testArrayTypes() {
+-		ReflectionWorld world = new ReflectionWorld();
++		ReflectionWorld world = new ReflectionWorld(getClass().getClassLoader());
+ 		String[] strArray = new String[1];
+ 		ResolvedType rt = world.resolve(strArray.getClass());
+ 		assertTrue(rt.isArray());
+ 	}
+ 
+ 	public void testPrimitiveTypes() {
+-		ReflectionWorld world = new ReflectionWorld();
++		ReflectionWorld world = new ReflectionWorld(getClass().getClassLoader());
+ 		assertEquals("int",ResolvedType.INT,world.resolve(int.class));
+ 		assertEquals("void",ResolvedType.VOID,world.resolve(void.class));
+ 	}

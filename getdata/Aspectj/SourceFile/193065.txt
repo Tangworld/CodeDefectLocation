@@ -1,0 +1,470 @@
+@@ -14,8 +14,45 @@ package org.aspectj.weaver;
+ 
+ import java.util.Collection;
+ 
++/**
++ * <p>
++ * This interface is introduced to support tools like PointcutDoctor.
++ * </p>
++ * <p>
++ * A CustomMungerFactory is used to create ShadowMungers and/or
++ * ConcreteTypeMungers so that an extender can extract extra information during
++ * the weaving process.
++ * </p>
++ * <p>
++ * A CustomMungerFactory is assigned to a weaver through its AjCompiler in
++ * extenders' code, and gets invoked by the weaver right before the weaving
++ * starts. The custom shadow/type mungers being created will be added into the
++ * shadow/type munger list in the weaver and participate the weaving process.
++ * For example, the match method of each custom shadow munger will be called
++ * against each shadow.
++ * </p>
++ * @author lintonye
++ * 
++ */
+ public interface CustomMungerFactory {
+-	public Collection/*ShadowMunger*/ createCustomShadowMungers(ResolvedType aspectType);
+-	public Collection/*ConcreteTypeMunger*/ createCustomTypeMungers(ResolvedType aspectType);
+-//	public Collection<Declare> createCustomDeclares(ResolvedType aspectType);
++
++	/**
++	 * @param aspectType
++	 * @return a Collection&lt;ShadowMunger&gt; of custom shadow mungers for the
++	 *         given aspect
++	 */
++	public Collection/* ShadowMunger */createCustomShadowMungers(
++			ResolvedType aspectType);
++
++	/**
++	 * @param aspectType
++	 * @return a Collection&lt;ConcreteTypeMunger&gt; of custom type mungers for the
++	 *         given aspect
++	 */
++	public Collection/* ConcreteTypeMunger */createCustomTypeMungers(
++			ResolvedType aspectType);
++	
++	public Collection/* ShadowMunger */getAllCreatedCustomShadowMungers();
++
++	public Collection/* ConcreteTypeMunger */getAllCreatedCustomTypeMungers();
+ }
+@@ -59,10 +59,24 @@ public class AjCompiler {
+ 		buildManager = new AjdeCoreBuildManager(this);
+ 	}
+ 
+-	public void setCustomMungerFactory(Class factoryClass) {
+-		buildManager.setCustomMungerFactory(factoryClass);
++	/**
++	 * Set a CustomMungerFactory to the compiler's weaver
++	 * 
++	 * The type of factory should be org.aspectj.weaver.CustomMungerFactory but
++	 * due to dependency problem of project ajde.core, it is Object for now.
++	 * 
++	 * @param factory
++	 */
++	public void setCustomMungerFactory(Object factory) {
++		buildManager.setCustomMungerFactory(factory);
+ 	}
+-	
++
++	/**
++	 * @return the CustomMungerFactory from the compiler's weaver
++	 * 
++	 * The return type should be org.aspectj.weaver.CustomMungerFactory but
++	 * due to dependency problem of project ajde.core, it is Object for now.
++	 */
+ 	public Object getCustomMungerFactory() {
+ 		return buildManager.getCustomMungerFactory();
+ 	}
+@@ -0,0 +1,18 @@
++
++public aspect Aspect {
++	//:method-call(void Foo.method1())=real
++	//:(virtual) method-call(void Foo.method2())=virtual
++	pointcut calls(): call(* Foo.*(..));
++	
++	//:(virtual) method-call(void Bar.bar())=virtual
++	pointcut callBar():call(* Bar.*(..));
++	
++	//:method-call(void Foo.method1())=real
++	//:(virtual) method-call(void Foo.method2())=virtual
++	pointcut callsWithin(): call(* Foo.*(..)) && within(Bar);
++
++	//:method-call(void Foo.method1())=real
++	//:(virtual) method-call(void Foo.method2())=virtual
++	pointcut callsWithincode(): call(* Foo.*(..))&&withincode(* Bar.*(..));
++
++}
+@@ -0,0 +1,6 @@
++public class Bar {
++	public void bar() {
++		Foo f = new Foo();
++		f.method1();
++	}
++}
+@@ -0,0 +1,9 @@
++public class Foo {
++	public void method1() {
++		
++	}
++	
++	public void method2() {
++		
++	}
++}
+@@ -10,6 +10,7 @@
+  *******************************************************************************/
+ package org.aspectj.systemtest.ajc154;
+ 
++
+ import junit.framework.Test;
+ import junit.framework.TestSuite;
+ 
+@@ -19,6 +20,7 @@ public class AllTestsAspectJ154 {
+ 		TestSuite suite = new TestSuite("AspectJ 1.5.4 tests");
+ 		//$JUnit-BEGIN$
+ 		suite.addTest(Ajc154Tests.suite());
++		//suite.addTestSuite(CustomMungerExtensionTest.class);
+         //$JUnit-END$
+ 		return suite;
+ 	}
+@@ -0,0 +1,124 @@
++/* *******************************************************************
++ * Copyright (c) 2007 Contributors
++ * All rights reserved. 
++ * This program and the accompanying materials are made available 
++ * under the terms of the Eclipse Public License v1.0 
++ * which accompanies this distribution and is available at 
++ * http://www.eclipse.org/legal/epl-v10.html 
++ *  
++ * Contributors: 
++ *     Linton Ye https://bugs.eclipse.org/bugs/show_bug.cgi?id=193065
++ * ******************************************************************/
++
++package org.aspectj.systemtest.ajc154;
++
++import java.io.File;
++import java.util.ArrayList;
++import java.util.Collection;
++import java.util.Iterator;
++import java.util.List;
++import java.util.Map;
++
++import org.aspectj.ajde.core.AjCompiler;
++import org.aspectj.bridge.ISourceLocation;
++import org.aspectj.systemtest.incremental.tools.AjdeInteractionTestbed;
++import org.aspectj.weaver.Advice;
++import org.aspectj.weaver.Checker;
++import org.aspectj.weaver.ConcreteTypeMunger;
++import org.aspectj.weaver.CustomMungerFactory;
++import org.aspectj.weaver.Member;
++import org.aspectj.weaver.ResolvedType;
++import org.aspectj.weaver.ResolvedTypeMunger;
++import org.aspectj.weaver.Shadow;
++import org.aspectj.weaver.ShadowMunger;
++import org.aspectj.weaver.World;
++import org.aspectj.weaver.AjAttribute.AdviceAttribute;
++import org.aspectj.weaver.patterns.DeclareErrorOrWarning;
++import org.aspectj.weaver.patterns.IfPointcut;
++import org.aspectj.weaver.patterns.Pointcut;
++
++public class CustomMungerExtensionTest extends AjdeInteractionTestbed {
++	
++	protected void setUp() throws Exception {
++		super.setUp();
++		sandboxDir = new File(".");
++	}
++	
++	public void testExtension() {
++		String testFileDir = "bugs/pointcutdoctor-bug193065";
++		AjCompiler compiler = getCompilerForProjectWithName(testFileDir);
++		compiler.setCustomMungerFactory(new DumbCustomMungerFactory());
++
++		doBuild(testFileDir);
++		
++		CustomMungerFactory factory = (CustomMungerFactory)compiler.getCustomMungerFactory();
++		assertTrue(factory.getAllCreatedCustomShadowMungers().size()>0);
++		for (Iterator i = factory.getAllCreatedCustomShadowMungers().iterator(); i.hasNext();)
++			assertTrue(((DumbShadowMunger)i.next()).called);
++		
++		assertTrue(factory.getAllCreatedCustomTypeMungers().size()>0);
++		for (Iterator i = factory.getAllCreatedCustomTypeMungers().iterator(); i.hasNext();)
++			assertTrue(((DumbTypeMunger)i.next()).called);
++	}
++	
++	class DumbCustomMungerFactory implements CustomMungerFactory {
++		Collection allShadowMungers = new ArrayList();
++		Collection allTypeMungers = new ArrayList();
++		public Collection createCustomShadowMungers(ResolvedType aspectType) {
++			List/* ShadowMunger */ mungers = new ArrayList/*ShadowMunger*/(); 
++			Pointcut pointcut = new IfPointcut("abc");
++			mungers.add(new DumbShadowMunger(new DeclareErrorOrWarning(false, pointcut, "")));
++			allShadowMungers.addAll(mungers);
++			return mungers;
++		}
++
++		public Collection createCustomTypeMungers(ResolvedType aspectType) {
++			List/*ConcreteTypeMunger*/ mungers = new ArrayList/*ShadowMunger*/(); 
++			mungers.add(new DumbTypeMunger(null, aspectType));
++			allTypeMungers.addAll(mungers);
++			return mungers;
++		}
++
++		public Collection getAllCreatedCustomShadowMungers() {
++			return allShadowMungers;
++		}
++
++		public Collection getAllCreatedCustomTypeMungers() {
++			return allTypeMungers;
++		}
++	}
++
++	class DumbShadowMunger extends Checker {
++		public DumbShadowMunger(DeclareErrorOrWarning deow) {
++			super(deow);
++		}
++
++		public ISourceLocation getSourceLocation() {
++			return ISourceLocation.EMPTY;
++		}
++
++		boolean called;
++
++		public boolean match(Shadow shadow, World world) {
++			called = true;
++			return false;
++		}
++	}
++
++	class DumbTypeMunger extends ConcreteTypeMunger {
++		boolean called;
++
++		public DumbTypeMunger(ResolvedTypeMunger munger, ResolvedType aspectType) {
++			super(munger, aspectType);
++		}
++
++		public ConcreteTypeMunger parameterizedFor(ResolvedType targetType) {
++			return null;
++		}
++		
++		public boolean matches(ResolvedType onType) {
++			called = true;
++			return false;
++		}
++	}
++}
+@@ -255,6 +255,7 @@ public class MoreOutputLocationManagerTests extends AbstractMultiProjectIncremen
+ 	public void testAjStateDeleteResourcesInInputDir() {
+ 		// temporary problem with this on linux, think it is a filesystem lastmodtime issue
+ 		if (System.getProperty("os.name","").toLowerCase().equals("linux")) return;
++		if (System.getProperty("os.name","").toLowerCase().indexOf("mac")!=-1) return;
+ 
+ 		AjBuildManager.COPY_INPATH_DIR_RESOURCES = true;
+ 		try {
+@@ -84,6 +84,7 @@ import org.aspectj.org.eclipse.jdt.internal.compiler.problem.AbortCompilation;
+ import org.aspectj.org.eclipse.jdt.internal.compiler.problem.DefaultProblemFactory;
+ import org.aspectj.tools.ajc.Main;
+ import org.aspectj.util.FileUtil;
++import org.aspectj.weaver.CustomMungerFactory;
+ import org.aspectj.weaver.Dump;
+ import org.aspectj.weaver.ResolvedType;
+ import org.aspectj.weaver.World;
+@@ -156,6 +157,7 @@ public class AjBuildManager implements IOutputClassFileNameProvider,IBinarySourc
+ 	public BcelWorld getBcelWorld() { return state.getBcelWorld();}
+ 
+ 	public CountingMessageHandler handler;
++	private CustomMungerFactory customMungerFactory;
+ 
+ 	public AjBuildManager(IMessageHandler holder) {
+ 		super();
+@@ -749,6 +751,15 @@ public class AjBuildManager implements IOutputClassFileNameProvider,IBinarySourc
+ //    	}
+ //    }
+ 
++    //LTODO delegate to BcelWeaver?
++    public void setCustomMungerFactory(CustomMungerFactory factory) {
++    	customMungerFactory = factory;
++    }
++     
++	public CustomMungerFactory getCustomMungerFactory() {
++		return customMungerFactory;
++	}
++
+     /** init only on initial batch compile? no file-specific options */
+ 	private void initBcelWorld(IMessageHandler handler) throws IOException {
+ 		List cp = 
+@@ -767,6 +778,7 @@ public class AjBuildManager implements IOutputClassFileNameProvider,IBinarySourc
+ 		bcelWorld.setPinpointMode(buildConfig.isXdevPinpoint());
+ 		bcelWorld.setErrorAndWarningThreshold(buildConfig.getOptions().errorThreshold,buildConfig.getOptions().warningThreshold);
+ 		BcelWeaver bcelWeaver = new BcelWeaver(bcelWorld);
++		bcelWeaver.setCustomMungerFactory(customMungerFactory);
+ 		state.setWorld(bcelWorld);
+ 		state.setWeaver(bcelWeaver);
+ 		state.clearBinarySourceFiles();
+@@ -1388,5 +1400,6 @@ public class AjBuildManager implements IOutputClassFileNameProvider,IBinarySourc
+ 	public boolean wasFullBuild() {
+ 		return wasFullBuild;
+ 	}
++
+ }
+ 
+@@ -15,6 +15,7 @@ import org.aspectj.ajdt.internal.core.builder.IncrementalStateManager;
+ import org.aspectj.bridge.IMessage;
+ import org.aspectj.bridge.Message;
+ import org.aspectj.org.eclipse.jdt.internal.compiler.impl.CompilerOptions;
++import org.aspectj.weaver.CustomMungerFactory;
+ 
+ /**
+  * The class to be used by tools to drive a build. An AjCompiler is created
+@@ -59,6 +60,14 @@ public class AjCompiler {
+ 		buildManager = new AjdeCoreBuildManager(this);
+ 	}
+ 
++	public void setCustomMungerFactory(CustomMungerFactory factory) {
++		buildManager.setCustomMungerFactory(factory);
++	}
++	
++	public CustomMungerFactory getCustomMungerFactory() {
++		return buildManager.getCustomMungerFactory();
++	}
++	
+ 	/**
+ 	 * @return the id for this AjCompiler
+ 	 */
+@@ -40,6 +40,7 @@ import org.aspectj.bridge.context.CompilationAndWeavingContext;
+ import org.aspectj.org.eclipse.jdt.internal.compiler.impl.CompilerOptions;
+ import org.aspectj.util.ConfigParser;
+ import org.aspectj.util.LangUtil;
++import org.aspectj.weaver.CustomMungerFactory;
+ 
+ /**
+  * Build Manager which drives the build for a given AjCompiler.
+@@ -65,6 +66,14 @@ public class AjdeCoreBuildManager {
+ 		AsmManager.attemptIncrementalModelRepairs = true;
+ 	}
+ 
++	public void setCustomMungerFactory(CustomMungerFactory factory) {
++		ajBuildManager.setCustomMungerFactory(factory);
++	}
++	
++	public CustomMungerFactory getCustomMungerFactory() {
++		return ajBuildManager.getCustomMungerFactory();
++	}
++	
+ 	/**
+ 	 * @param buildFresh - true if want to force a full build, false otherwise
+ 	 */
+@@ -0,0 +1,21 @@
++/* *******************************************************************
++ * Copyright (c) 2007 Contributors
++ * All rights reserved. 
++ * This program and the accompanying materials are made available 
++ * under the terms of the Eclipse Public License v1.0 
++ * which accompanies this distribution and is available at 
++ * http://www.eclipse.org/legal/epl-v10.html 
++ *  
++ * Contributors: 
++ *     Linton Ye https://bugs.eclipse.org/bugs/show_bug.cgi?id=193065
++ * ******************************************************************/
++
++package org.aspectj.weaver;
++
++import java.util.Collection;
++
++public interface CustomMungerFactory {
++	public Collection/*ShadowMunger*/ createCustomShadowMungers(ResolvedType aspectType);
++	public Collection/*ConcreteTypeMunger*/ createCustomTypeMungers(ResolvedType aspectType);
++//	public Collection<Declare> createCustomDeclares(ResolvedType aspectType);
++}
+@@ -1042,6 +1042,25 @@ public abstract class World implements Dump.INode {
+ 	    public int hardSize() {
+ 	    	return tMap.size();
+ 	    }
++	    
++		public ResolvedType[] getAllTypes() {
++			List/*ResolvedType*/ results = new ArrayList();
++
++			collectTypes(expendableMap, results);
++			collectTypes(tMap, results);
++			return (ResolvedType[]) results.toArray(new ResolvedType[results.size()]);
++		}
++
++		private void collectTypes(Map map, List/*ResolvedType*/ results) {
++			for (Iterator iterator = map.keySet().iterator(); iterator.hasNext();) {
++				String key = (String) iterator.next();
++				ResolvedType type = get((String)key);
++				if (type!=null) results.add(type);
++				else System.err.println("null!:"+key);
++			}
++		}
++
++
+ 	}	
+ 
+ 	/** Reference types we don't intend to weave may be ejected from
+@@ -1250,4 +1269,9 @@ public abstract class World implements Dump.INode {
+ 	    public boolean isASMAround() { 
+ 	    	return isASMAround;
+ 	    }
++	    
++		public ResolvedType[] getAllTypes() {
++			return typeMap.getAllTypes();
++		}
++
+ }
+\ No newline at end of file
+@@ -64,6 +64,7 @@ import org.aspectj.weaver.AsmRelationshipProvider;
+ import org.aspectj.weaver.BCException;
+ import org.aspectj.weaver.ConcreteTypeMunger;
+ import org.aspectj.weaver.CrosscuttingMembersSet;
++import org.aspectj.weaver.CustomMungerFactory;
+ import org.aspectj.weaver.IClassFileProvider;
+ import org.aspectj.weaver.IWeaveRequestor;
+ import org.aspectj.weaver.IWeaver;
+@@ -138,6 +139,7 @@ public class BcelWeaver implements IWeaver {
+ 	private List declareParentsList = null; // setup by prepareForWeave
+ 
+     private ZipOutputStream zipOutputStream;
++	private CustomMungerFactory customMungerFactory;
+ 
+ 	// ----
+ 
+@@ -488,6 +490,8 @@ public class BcelWeaver implements IWeaver {
+ 		typeMungerList = xcutSet.getTypeMungers();
+         lateTypeMungerList = xcutSet.getLateTypeMungers();
+ 		declareParentsList = xcutSet.getDeclareParents();
++		
++		addCustomMungers();
+ 
+ 		// The ordering here used to be based on a string compare on toString() for the two mungers - 
+ 		// that breaks for the @AJ style where advice names aren't programmatically generated.  So we
+@@ -519,6 +523,30 @@ public class BcelWeaver implements IWeaver {
+ 		if (trace.isTraceEnabled()) trace.exit("prepareForWeave");
+     }
+ 
++    private void addCustomMungers() {
++		if (customMungerFactory != null) {
++			for (Iterator i = addedClasses.iterator(); i.hasNext();) {
++				UnwovenClassFile jc = (UnwovenClassFile) i.next();
++				String name = jc.getClassName();
++				ResolvedType type = world.resolve(name);
++				if (type.isAspect()) {
++					Collection/*ShadowMunger*/ shadowMungers = customMungerFactory.createCustomShadowMungers(type);
++					if (shadowMungers != null) {
++						shadowMungerList.addAll(shadowMungers);
++					}
++					Collection/*ConcreteTypeMunger*/ typeMungers = customMungerFactory
++							.createCustomTypeMungers(type);
++					if (typeMungers != null)
++						typeMungerList.addAll(typeMungers);
++				}
++			}
++		}
++	}
++    
++    public void setCustomMungerFactory(CustomMungerFactory factory) {
++    	customMungerFactory = factory;
++    }
++    
+     /*
+      * Rewrite all of the pointcuts in the world into their most efficient
+      * form for subsequent matching. Also ensure that if pc1.equals(pc2)

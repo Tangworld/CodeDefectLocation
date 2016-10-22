@@ -1,0 +1,65 @@
+@@ -0,0 +1,29 @@
++import org.aspectj.lang.JoinPoint;
++import org.aspectj.lang.annotation.Aspect;
++import org.aspectj.lang.annotation.Before;
++import org.aspectj.lang.annotation.Pointcut;
++
++@Aspect
++class AbstractTracer 
++{
++	
++    @Pointcut("(execution(public * Foo.anotherMethod*(..)) || execution(public * Foo.methodA(..))) && this(obj)")
++    protected void methodExec(Object obj){};
++        
++    @Before("methodExec(obj)")
++    public void beforeMethodExec(JoinPoint thisJoinPoint, Object obj) {
++      	System.out.println("Before " + thisJoinPoint.getSignature().toString());
++    }
++	
++}
++
++
++class Foo {
++
++	public void methodA() {
++	}
++	
++	public void anotherMethod() {
++	}
++	
++}
+@@ -170,6 +170,10 @@ public class Ajc151Tests extends org.aspectj.testing.XMLBasedAjcTestCase {
+ 	  runTest("@AJ declare parents retains field state");
+   }
+ 
++  public void testAtAspectNoNPEWithPcdContainingOrThisAndWildcard_pr128237() {
++	  runTest("@AJ no npe with pointcut containing or, this and a wildcard");
++  }
++  
+   /*
+    * Load-time weaving bugs and enhancements
+    */
+@@ -208,6 +208,10 @@
+         </run>
+     </ajc-test>
+ 
++    <ajc-test dir="bugs151" title="@AJ no npe with pointcut containing or, this and a wildcard">
++        <compile files="pr128237.java" options="-1.5"/>
++    </ajc-test>
++
+     <!-- New features down here... when they arent big enough to have their own test file -->
+ 
+     <ajc-test dir="features151/ptw" title="exposing withintype">
+@@ -611,7 +611,11 @@ public class BcelWeaver implements IWeaver {
+ 			// if each branch binds it in exactly the same way...
+ 			List ambiguousNames = new ArrayList();
+ 			for (int i = 0; i < numFormals; i++) {
+-				if (!leftBindings[i].equals(rightBindings[i])) {
++				if (leftBindings[i] == null) {
++					if (rightBindings[i] != null) {
++						ambiguousNames.add(names[i]);
++					}
++				} else if (!leftBindings[i].equals(rightBindings[i])) {
+ 					ambiguousNames.add(names[i]);
+ 				}
+ 			}

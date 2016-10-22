@@ -1,0 +1,186 @@
+@@ -0,0 +1,27 @@
++public aspect Tracing {
++
++    pointcut publicMethods() : execution(public * *(..));
++
++    before() : publicMethods() {
++        System.out.println("Entering "+thisJoinPoint);
++    }
++
++}
++
++class MainClass {
++
++	
++	public static void main(String[] args) {
++		
++	}
++	
++	public String toString() {
++		return super.toString();
++	}
++	
++	
++	public int hashCode() {
++		return super.hashCode();
++	}
++	
++}
+@@ -0,0 +1,30 @@
++public aspect Tracing {
++
++    pointcut publicMethods() : execution(public * *(..));
++
++    before() : publicMethods() {
++        System.out.println("Entering "+thisJoinPoint);
++    }
++    
++    after() : publicMethods() {
++    	System.out.println("Exiting " + thisJoinPoint);
++    }
++}
++
++class MainClass {
++
++	
++	public static void main(String[] args) {
++		
++	}
++	
++	public String toString() {
++		return super.toString();
++	}
++	
++	
++	public int hashCode() {
++		return super.hashCode();
++	}
++	
++}
+@@ -885,6 +885,28 @@ public class MultiProjectIncrementalTests extends AjdeInteractionTestbed {
+ 		configureBuildStructureModel(false);
+ 	}
+ 
++
++	public void testPr133117() {
++		configureNonStandardCompileOptions("-Xlint:warning");
++		initialiseProject("PR133117");
++		build("PR133117");
++		assertTrue("There should only be one xlint warning message reported:\n"
++				+MyTaskListManager.getWarningMessages(),
++				MyTaskListManager.getWarningMessages().size()==1);	
++		alter("PR133117","inc1");
++		build("PR133117");
++		List warnings = MyTaskListManager.getWarningMessages();
++		List noGuardWarnings = new ArrayList();
++		for (Iterator iter = warnings.iterator(); iter.hasNext();) {
++			IMessage element = (IMessage) iter.next();
++			if (element.getMessage().indexOf("Xlint:noGuardForLazyTjp") != -1) {
++				noGuardWarnings.add(element);
++			}
++		}
++		assertTrue("There should only be two Xlint:noGuardForLazyTjp warning message reported:\n"
++				+noGuardWarnings,noGuardWarnings.size() == 2);
++	}
++	
+ 	public void testPr131505() {
+ 		configureNonStandardCompileOptions("-outxml");
+ 		initialiseProject("PR131505");
+@@ -18,13 +18,13 @@
+ 	<ajc-test dir="bugs/lazyTjpXLintWarning"
+ 		title="no XLint warning: thisJoinPoint not lazy (no if PCD) but would have been stopped anyway by around advice">
+ 		<compile options="-Xlint:warning" files="Scenario3.aj">
+-		  <message kind="warning" line="14" text="can not build thisJoinPoint lazily for this advice since it has no suitable guard.  The advice applies at method-execution(void Test.main(java.lang.String[])) [Xlint:noGuardForLazyTjp]"/>
++			<message kind="warning" line="14" text="can not build thisJoinPoint lazily for this advice since it has no suitable guard [Xlint:noGuardForLazyTjp]"/>
+ 		</compile>
+ 	</ajc-test>
+ 
+ 	<ajc-test dir="bugs/lazyTjpXLintWarning" title="no XLint warning: thisJoinPoint cannot be built lazily">
+ 		<compile options="-Xlint:warning" files="Scenario4.aj">
+-			<message kind="warning" line="9" text="can not build thisJoinPoint lazily for this advice since it has no suitable guard.  The advice applies at method-execution(void Test.main(java.lang.String[]))"/>
++			<message kind="warning" line="9" text="can not build thisJoinPoint lazily for this advice since it has no suitable guard"/>
+ 		</compile>
+ 	</ajc-test>
+ 
+@@ -52,23 +52,23 @@
+ 	<ajc-test dir="bugs/lazyTjpXLintWarning"
+ 		title="lazytjp: warning when if missing on before advice">
+ 		<compile options="-Xlint:warning" files="LazyTjpTest2.java">
+-		  <message kind="warning" line="16" text="can not build thisJoinPoint lazily for this advice since it has no suitable guard.  The advice applies at method-execution(void LazyTjpTest2.test2())"/>
++		  <message kind="warning" line="16" text="can not build thisJoinPoint lazily for this advice since it has no suitable guard"/>
+ 		</compile>
+ 	</ajc-test>
+ 
+ 	<ajc-test dir="bugs/lazyTjpXLintWarning"
+ 		title="lazytjp: warning when if missing on after advice">
+ 		<compile options="-Xlint:warning" files="LazyTjpTest3.java">
+-		  <message kind="warning" line="17" text="can not build thisJoinPoint lazily for this advice since it has no suitable guard.  The advice applies at method-execution(void LazyTjpTest3.test2())"/>
++		  <message kind="warning" line="17" text="can not build thisJoinPoint lazily for this advice since it has no suitable guard"/>
+ 		</compile>
+ 	</ajc-test>
+ 
+ 	<ajc-test dir="bugs/lazyTjpXLintWarning"
+ 		title="lazytjp: multiple clashing advice preventing lazytjp">
+ 		<compile options="-Xlint:warning" files="LazyTjpTest4.java">
+-		  <message kind="warning" line="13" text="can not build thisJoinPoint lazily for this advice since it has no suitable guard.  The advice applies at method-execution(void LazyTjpTest4.test1())"/>
++		  <message kind="warning" line="13" text="can not build thisJoinPoint lazily for this advice since it has no suitable guard"/>
+ 		  <message kind="warning" line="3"  text="can not implement lazyTjp at joinpoint method-execution(void LazyTjpTest4.test1()) because of advice conflicts, see secondary locations to find conflicting advice"/>
+-		  <message kind="warning" line="17" text="can not build thisJoinPoint lazily for this advice since it has no suitable guard.  The advice applies at method-execution(void LazyTjpTest4.test1())"/>
++		  <message kind="warning" line="17" text="can not build thisJoinPoint lazily for this advice since it has no suitable guard"/>
+ 		</compile>
+ 	</ajc-test>
+ 
+@@ -76,7 +76,7 @@
+ 		title="lazytjp: interfering before and around">
+ 		<compile options="-Xlint:warning" files="LazyTjpTest5.java">
+ 		  <message kind="warning" line="3" text="can not implement lazyTjp at joinpoint method-execution(void LazyTjpTest5.test1()) because of advice conflicts, see secondary locations to find conflicting advice"/>
+-		  <message kind="warning" line="13" text="can not build thisJoinPoint lazily for this advice since it has no suitable guard.  The advice applies at method-execution(void LazyTjpTest5.test1())"/>
++		  <message kind="warning" line="13" text="can not build thisJoinPoint lazily for this advice since it has no suitable guard"/>
+ 		</compile>
+ 	</ajc-test>
+ 
+@@ -100,7 +100,7 @@ public class Lint {
+ 		new Kind("uncheckedAdviceConversion","unchecked conversion when advice applied at shadow {0}, expected {1} but advice uses {2}");
+ 
+ 	public final Kind noGuardForLazyTjp =
+-		new Kind("noGuardForLazyTjp","can not build thisJoinPoint lazily for this advice since it has no suitable guard.  The advice applies at {0}");
++		new Kind("noGuardForLazyTjp","can not build thisJoinPoint lazily for this advice since it has no suitable guard");
+ 
+ 	public final Kind noExplicitConstructorCall = 
+ 		new Kind("noExplicitConstructorCall","inter-type constructor does not contain explicit constructor call: field initializers in the target type will not be executed");
+@@ -23,7 +23,6 @@ import org.aspectj.apache.bcel.generic.InstructionConstants;
+ import org.aspectj.apache.bcel.generic.InstructionFactory;
+ import org.aspectj.apache.bcel.generic.InstructionHandle;
+ import org.aspectj.apache.bcel.generic.InstructionList;
+-import org.aspectj.bridge.ISourceLocation;
+ import org.aspectj.bridge.Message;
+ import org.aspectj.weaver.Advice;
+ import org.aspectj.weaver.AdviceKind;
+@@ -56,6 +55,7 @@ public class BcelAdvice extends Advice {
+ 	private ExposedState exposedState;
+ 
+     private boolean hasMatchedAtLeastOnce = false;
++    private boolean hasReportedNoGuardForLazyTJP = false;
+ 
+ 	public BcelAdvice(
+ 		AjAttribute.AdviceAttribute attribute,
+@@ -156,13 +156,14 @@ public class BcelAdvice extends Advice {
+ 				// collect up the problematic advice
+ 				((BcelShadow)shadow).addAdvicePreventingLazyTjp(this);
+ 			}
+-			if (!isAround && !hasGuardTest && world.getLint().noGuardForLazyTjp.isEnabled()) {
++			if (!hasReportedNoGuardForLazyTJP && !isAround && !hasGuardTest && world.getLint().noGuardForLazyTjp.isEnabled()) {
+ 				// can't build tjp lazily, no suitable test...
++				// ... only want to record it once against the advice(bug 133117)
+ 				world.getLint().noGuardForLazyTjp.signal(
+-					    new String[] {shadow.toString()},
+-					    getSourceLocation(),
+-					    new ISourceLocation[] { ((BcelShadow)shadow).getSourceLocation() }
+-					);				
++						"",
++					    getSourceLocation()
++				);	
++				hasReportedNoGuardForLazyTJP = true;
+ 			}
+         }
+ 

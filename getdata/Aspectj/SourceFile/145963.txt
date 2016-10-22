@@ -1,0 +1,2219 @@
+@@ -1,24 +1,24 @@
+ === MODEL STATUS REPORT ========= After a batch build
+ <root>  [java source file] 
+   pkg  [package] 
+-    SourceAspect.aj  [java source file] TEST_SANDBOX\SourceAspect.aj:1::0
++    SourceAspect.aj  [java source file] TEST_SANDBOX\SourceAspect.aj:1:
+       import declarations  [import reference] 
+-      SourceAspect  [aspect] TEST_SANDBOX\SourceAspect.aj:3::30
+-        declare warning: "There should be n.."  [declare warning] TEST_SANDBOX\SourceAspect.aj:5::49
+-        p()  [pointcut] TEST_SANDBOX\SourceAspect.aj:7::154
+-        before(): p..  [advice] TEST_SANDBOX\SourceAspect.aj:9::187
+-    BinaryAspect.class (binary)  [class] TEST_SANDBOX\simple.jar!pkg\BinaryAspect.class:1::0
++      SourceAspect  [aspect] TEST_SANDBOX\SourceAspect.aj:3:
++        declare warning: "There should be n.."  [declare warning] TEST_SANDBOX\SourceAspect.aj:5:
++        p()  [pointcut] TEST_SANDBOX\SourceAspect.aj:7:
++        before(): p..  [advice] TEST_SANDBOX\SourceAspect.aj:9:
++    BinaryAspect.class (binary)  [class] TEST_SANDBOX\simple.jar!pkg\BinaryAspect.class:1:
+       import declarations  [import reference] 
+-      BinaryAspect  [aspect] TEST_SANDBOX\simple.jar!pkg\BinaryAspect.class:1::0
+-        p()  [pointcut] TEST_SANDBOX\simple.jar!pkg\BinaryAspect.class:7::0
+-        before(): p..  [advice] TEST_SANDBOX\simple.jar!pkg\BinaryAspect.class:9::0
+-        declare warning: "There should be n.."  [declare warning] TEST_SANDBOX\simple.jar!pkg\BinaryAspect.class:5::0
++      BinaryAspect  [aspect] TEST_SANDBOX\simple.jar!pkg\BinaryAspect.class:1:
++        p()  [pointcut] TEST_SANDBOX\simple.jar!pkg\BinaryAspect.class:7:
++        before(): p..  [advice] TEST_SANDBOX\simple.jar!pkg\BinaryAspect.class:9:
++        declare warning: "There should be n.."  [declare warning] TEST_SANDBOX\simple.jar!pkg\BinaryAspect.class:5:
+   pack  [package] 
+-    C.java  [java source file] TEST_SANDBOX\C.java:1::0
++    C.java  [java source file] TEST_SANDBOX\C.java:1:
+       import declarations  [import reference] 
+-      C  [class] TEST_SANDBOX\C.java:3::30
+-        method1()  [method] TEST_SANDBOX\C.java:5::50
+-          field-get(java.io.PrintStream java.lang.System.out)  [code] TEST_SANDBOX\C.java:6::93
++      C  [class] TEST_SANDBOX\C.java:3:
++        method1()  [method] TEST_SANDBOX\C.java:5:
++          field-get(java.io.PrintStream java.lang.System.out)  [code] TEST_SANDBOX\C.java:6:
+ === END OF MODEL REPORT =========
+ === RELATIONSHIPS REPORT ========= After a batch build
+ (targets=1) <pkg[BinaryAspect.class (binary)}BinaryAspect&before (advises) <pack{C.java[C~method1
+@@ -1,24 +1,24 @@
+ === MODEL STATUS REPORT ========= After a batch build
+ <root>  [java source file] 
+   pkg  [package] 
+-    SourceAspect.aj  [java source file] TEST_SANDBOX\SourceAspect.aj:1::0
++    SourceAspect.aj  [java source file] TEST_SANDBOX\SourceAspect.aj:1:
+       import declarations  [import reference] 
+-      SourceAspect  [aspect] TEST_SANDBOX\SourceAspect.aj:3::30
+-        declare warning: "There should be n.."  [declare warning] TEST_SANDBOX\SourceAspect.aj:5::49
+-        p()  [pointcut] TEST_SANDBOX\SourceAspect.aj:7::154
+-        before(): p..  [advice] TEST_SANDBOX\SourceAspect.aj:9::187
+-    BinaryAspect.class (binary)  [class] TEST_SANDBOX!pkg\BinaryAspect.class:1::0
++      SourceAspect  [aspect] TEST_SANDBOX\SourceAspect.aj:3:
++        declare warning: "There should be n.."  [declare warning] TEST_SANDBOX\SourceAspect.aj:5:
++        p()  [pointcut] TEST_SANDBOX\SourceAspect.aj:7:
++        before(): p..  [advice] TEST_SANDBOX\SourceAspect.aj:9:
++    BinaryAspect.class (binary)  [class] TEST_SANDBOX!pkg\BinaryAspect.class:1:
+       import declarations  [import reference] 
+-      BinaryAspect  [aspect] TEST_SANDBOX!pkg\BinaryAspect.class:1::0
+-        p()  [pointcut] TEST_SANDBOX!pkg\BinaryAspect.class:7::0
+-        before(): p..  [advice] TEST_SANDBOX!pkg\BinaryAspect.class:9::0
+-        declare warning: "There should be n.."  [declare warning] TEST_SANDBOX!pkg\BinaryAspect.class:5::0
++      BinaryAspect  [aspect] TEST_SANDBOX!pkg\BinaryAspect.class:1:
++        p()  [pointcut] TEST_SANDBOX!pkg\BinaryAspect.class:7:
++        before(): p..  [advice] TEST_SANDBOX!pkg\BinaryAspect.class:9:
++        declare warning: "There should be n.."  [declare warning] TEST_SANDBOX!pkg\BinaryAspect.class:5:
+   pack  [package] 
+-    C.java  [java source file] TEST_SANDBOX\C.java:1::0
++    C.java  [java source file] TEST_SANDBOX\C.java:1:
+       import declarations  [import reference] 
+-      C  [class] TEST_SANDBOX\C.java:3::30
+-        method1()  [method] TEST_SANDBOX\C.java:5::50
+-          field-get(java.io.PrintStream java.lang.System.out)  [code] TEST_SANDBOX\C.java:6::93
++      C  [class] TEST_SANDBOX\C.java:3:
++        method1()  [method] TEST_SANDBOX\C.java:5:
++          field-get(java.io.PrintStream java.lang.System.out)  [code] TEST_SANDBOX\C.java:6:
+ === END OF MODEL REPORT =========
+ === RELATIONSHIPS REPORT ========= After a batch build
+ (targets=1) <pkg[BinaryAspect.class (binary)}BinaryAspect&before (advises) <pack{C.java[C~method1
+@@ -1,14 +1,14 @@
+ === MODEL STATUS REPORT ========= After a batch build
+ <root>  [java source file] 
+-  C.java  [java source file] TEST_SANDBOX\C.java:1::0
++  C.java  [java source file] TEST_SANDBOX\C.java:1:
+     import declarations  [import reference] 
+-    C  [class] TEST_SANDBOX\C.java:3::17
+-      method1()  [method] TEST_SANDBOX\C.java:5::37
+-        field-get(java.io.PrintStream java.lang.System.out)  [code] TEST_SANDBOX\C.java:6::80
+-  AspectInDefaultPackage.class (binary)  [class] TEST_SANDBOX\simple.jar!AspectInDefaultPackage.class:1::0
++    C  [class] TEST_SANDBOX\C.java:3:
++      method1()  [method] TEST_SANDBOX\C.java:5:
++        field-get(java.io.PrintStream java.lang.System.out)  [code] TEST_SANDBOX\C.java:6:
++  AspectInDefaultPackage.class (binary)  [class] TEST_SANDBOX\simple.jar!AspectInDefaultPackage.class:1:
+     import declarations  [import reference] 
+-    AspectInDefaultPackage  [aspect] TEST_SANDBOX\simple.jar!AspectInDefaultPackage.class:1::0
+-      declare warning: "There should be n.."  [declare warning] TEST_SANDBOX\simple.jar!AspectInDefaultPackage.class:4::0
++    AspectInDefaultPackage  [aspect] TEST_SANDBOX\simple.jar!AspectInDefaultPackage.class:1:
++      declare warning: "There should be n.."  [declare warning] TEST_SANDBOX\simple.jar!AspectInDefaultPackage.class:4:
+ === END OF MODEL REPORT =========
+ === RELATIONSHIPS REPORT ========= After a batch build
+ (targets=1) {C.java[C~method1?field-get(java.io.PrintStream java.lang.System.out) (matches declare) [AspectInDefaultPackage.class (binary)}AspectInDefaultPackage`declare warning
+@@ -1,15 +1,15 @@
+ === MODEL STATUS REPORT ========= After a batch build
+ <root>  [java source file] 
+   pack  [package] 
+-    C.java  [java source file] TEST_SANDBOX\C.java:1::0
++    C.java  [java source file] TEST_SANDBOX\C.java:1:
+       import declarations  [import reference] 
+-      C  [class] TEST_SANDBOX\C.java:3::30
+-        method1()  [method] TEST_SANDBOX\C.java:5::50
+-          field-get(java.io.PrintStream java.lang.System.out)  [code] TEST_SANDBOX\C.java:6::93
+-  A.class (binary)  [class] TEST_SANDBOX\simple.jar!A.class:1::0
++      C  [class] TEST_SANDBOX\C.java:3:
++        method1()  [method] TEST_SANDBOX\C.java:5:
++          field-get(java.io.PrintStream java.lang.System.out)  [code] TEST_SANDBOX\C.java:6:
++  A.class (binary)  [class] TEST_SANDBOX\simple.jar!A.class:1:
+     import declarations  [import reference] 
+-    A  [aspect] TEST_SANDBOX\simple.jar!A.class:1::0
+-      declare warning: "There should be n.."  [declare warning] TEST_SANDBOX\simple.jar!A.class:4::0
++    A  [aspect] TEST_SANDBOX\simple.jar!A.class:1:
++      declare warning: "There should be n.."  [declare warning] TEST_SANDBOX\simple.jar!A.class:4:
+ === END OF MODEL REPORT =========
+ === RELATIONSHIPS REPORT ========= After a batch build
+ (targets=1) <pack{C.java[C~method1?field-get(java.io.PrintStream java.lang.System.out) (matches declare) [A.class (binary)}A`declare warning
+@@ -76,7 +76,21 @@ public abstract class ModelTestCase extends XMLBasedAjcTestCase {
+ 		}
+ 
+ 		public String processFilelocation(String loc) {
+-			if (loc.startsWith(sandboxDirectory)) return "TEST_SANDBOX"+loc.substring(sandboxDirectory.length());
++			if (loc.toLowerCase().startsWith(sandboxDirectory.toLowerCase())) {
++				String sub = loc.substring(sandboxDirectory.length());
++				int forwardSlash = sub.indexOf("/");
++				// replace all "/" with "\" - to ensure platform independence
++				if (forwardSlash != -1) {
++					sub = sub.replace('/','\\');
++				}
++				// don't report the column number since this is sometimes
++				// different on windows and linux
++				int column = sub.lastIndexOf(':');
++				if (column != -1) {
++					return "TEST_SANDBOX" + sub.substring(0,column);
++				}
++				return "TEST_SANDBOX"+sub;
++			}
+ 			return loc;
+ 		}
+ 
+@@ -0,0 +1,10 @@
++package pkg;
++
++public aspect AspectInPackage {
++
++	pointcut p() : execution(* *.*(..));
++
++	before() : p() {
++	}
++
++}
+Binary files differ
+@@ -1,13 +1,13 @@
+-Join point 'method-execution(void Simple.m1())' in Type 'Simple' (no debug info available) advised by before advice from 'AspectAdvice' (AspectAdvice.aj:8)
+-Join point 'method-execution(void Simple.m1())' in Type 'Simple' (no debug info available) advised by after advice from 'AspectAdvice' (AspectAdvice.aj:12)
+-Join point 'method-execution(void Simple.m1())' in Type 'Simple' (no debug info available) advised by afterReturning advice from 'AspectAdvice' (AspectAdvice.aj:16)
+-Join point 'method-execution(void Simple.m1())' in Type 'Simple' (no debug info available) advised by afterThrowing advice from 'AspectAdvice' (AspectAdvice.aj:20)
+-Join point 'method-execution(java.lang.String Simple.m2())' in Type 'Simple' (no debug info available) advised by before advice from 'AspectAdvice' (AspectAdvice.aj:8)
+-Join point 'method-execution(java.lang.String Simple.m2())' in Type 'Simple' (no debug info available) advised by after advice from 'AspectAdvice' (AspectAdvice.aj:12)
+-Join point 'method-execution(java.lang.String Simple.m2())' in Type 'Simple' (no debug info available) advised by afterReturning advice from 'AspectAdvice' (AspectAdvice.aj:16)
+-Join point 'method-execution(java.lang.String Simple.m2())' in Type 'Simple' (no debug info available) advised by afterThrowing advice from 'AspectAdvice' (AspectAdvice.aj:20)
+-Join point 'method-execution(void Simple.main(java.lang.String[]))' in Type 'Simple' (no debug info available) advised by around advice from 'AspectAdvice' (AspectAdvice.aj:24) [with runtime test]
+-Join point 'method-execution(void Simple.mSecret())' in Type 'Simple' (no debug info available) advised by before advice from 'AspectAdvice' (AspectAdvice.aj:8)
+-Join point 'method-execution(void Simple.mSecret())' in Type 'Simple' (no debug info available) advised by after advice from 'AspectAdvice' (AspectAdvice.aj:12)
+-Join point 'method-execution(void Simple.mSecret())' in Type 'Simple' (no debug info available) advised by afterReturning advice from 'AspectAdvice' (AspectAdvice.aj:16)
+-Join point 'method-execution(void Simple.mSecret())' in Type 'Simple' (no debug info available) advised by afterThrowing advice from 'AspectAdvice' (AspectAdvice.aj:20)
++Join point 'method-execution(void Simple.m1())' in Type 'Simple' (no debug info available) advised by before advice from 'AspectAdvice' (AspectAdvice_nodebug.jar!AspectAdvice.class:8(from AspectAdvice.aj))
++Join point 'method-execution(void Simple.m1())' in Type 'Simple' (no debug info available) advised by after advice from 'AspectAdvice' (AspectAdvice_nodebug.jar!AspectAdvice.class:12(from AspectAdvice.aj))
++Join point 'method-execution(void Simple.m1())' in Type 'Simple' (no debug info available) advised by afterReturning advice from 'AspectAdvice' (AspectAdvice_nodebug.jar!AspectAdvice.class:16(from AspectAdvice.aj))
++Join point 'method-execution(void Simple.m1())' in Type 'Simple' (no debug info available) advised by afterThrowing advice from 'AspectAdvice' (AspectAdvice_nodebug.jar!AspectAdvice.class:20(from AspectAdvice.aj))
++Join point 'method-execution(java.lang.String Simple.m2())' in Type 'Simple' (no debug info available) advised by before advice from 'AspectAdvice' (AspectAdvice_nodebug.jar!AspectAdvice.class:8(from AspectAdvice.aj))
++Join point 'method-execution(java.lang.String Simple.m2())' in Type 'Simple' (no debug info available) advised by after advice from 'AspectAdvice' (AspectAdvice_nodebug.jar!AspectAdvice.class:12(from AspectAdvice.aj))
++Join point 'method-execution(java.lang.String Simple.m2())' in Type 'Simple' (no debug info available) advised by afterReturning advice from 'AspectAdvice' (AspectAdvice_nodebug.jar!AspectAdvice.class:16(from AspectAdvice.aj))
++Join point 'method-execution(java.lang.String Simple.m2())' in Type 'Simple' (no debug info available) advised by afterThrowing advice from 'AspectAdvice' (AspectAdvice_nodebug.jar!AspectAdvice.class:20(from AspectAdvice.aj))
++Join point 'method-execution(void Simple.main(java.lang.String[]))' in Type 'Simple' (no debug info available) advised by around advice from 'AspectAdvice' (AspectAdvice_nodebug.jar!AspectAdvice.class:24(from AspectAdvice.aj)) [with runtime test]
++Join point 'method-execution(void Simple.mSecret())' in Type 'Simple' (no debug info available) advised by before advice from 'AspectAdvice' (AspectAdvice_nodebug.jar!AspectAdvice.class:8(from AspectAdvice.aj))
++Join point 'method-execution(void Simple.mSecret())' in Type 'Simple' (no debug info available) advised by after advice from 'AspectAdvice' (AspectAdvice_nodebug.jar!AspectAdvice.class:12(from AspectAdvice.aj))
++Join point 'method-execution(void Simple.mSecret())' in Type 'Simple' (no debug info available) advised by afterReturning advice from 'AspectAdvice' (AspectAdvice_nodebug.jar!AspectAdvice.class:16(from AspectAdvice.aj))
++Join point 'method-execution(void Simple.mSecret())' in Type 'Simple' (no debug info available) advised by afterThrowing advice from 'AspectAdvice' (AspectAdvice_nodebug.jar!AspectAdvice.class:20(from AspectAdvice.aj))
+@@ -0,0 +1,4 @@
++Join point 'method-execution(void Simple.m1())' in Type 'Simple' (Simple.java:5) advised by before advice from 'pkg.AspectInPackage' (AspectInPackage.jar!AspectInPackage.class:7(from AspectInPackage.aj))
++Join point 'method-execution(java.lang.String Simple.m2())' in Type 'Simple' (Simple.java:9) advised by before advice from 'pkg.AspectInPackage' (AspectInPackage.jar!AspectInPackage.class:7(from AspectInPackage.aj))
++Join point 'method-execution(void Simple.main(java.lang.String[]))' in Type 'Simple' (Simple.java:13) advised by before advice from 'pkg.AspectInPackage' (AspectInPackage.jar!AspectInPackage.class:7(from AspectInPackage.aj))
++Join point 'method-execution(void Simple.mSecret())' in Type 'Simple' (Simple.java:17) advised by before advice from 'pkg.AspectInPackage' (AspectInPackage.jar!AspectInPackage.class:7(from AspectInPackage.aj))
+@@ -0,0 +1,4 @@
++Join point 'method-execution(void Simple.m1())' in Type 'Simple' (Simple.java:5) advised by before advice from 'pkg.AspectInPackage' (AspectInPackage.class:7(from AspectInPackage.aj))
++Join point 'method-execution(java.lang.String Simple.m2())' in Type 'Simple' (Simple.java:9) advised by before advice from 'pkg.AspectInPackage' (AspectInPackage.class:7(from AspectInPackage.aj))
++Join point 'method-execution(void Simple.main(java.lang.String[]))' in Type 'Simple' (Simple.java:13) advised by before advice from 'pkg.AspectInPackage' (AspectInPackage.class:7(from AspectInPackage.aj))
++Join point 'method-execution(void Simple.mSecret())' in Type 'Simple' (Simple.java:17) advised by before advice from 'pkg.AspectInPackage' (AspectInPackage.class:7(from AspectInPackage.aj))
+@@ -1,13 +1,13 @@
+-Join point 'method-execution(void Simple.m1())' in Type 'Simple' (Simple.java:5) advised by before advice from 'AspectAdvice' (AspectAdvice.aj:8)
+-Join point 'method-execution(void Simple.m1())' in Type 'Simple' (Simple.java:5) advised by after advice from 'AspectAdvice' (AspectAdvice.aj:12)
+-Join point 'method-execution(void Simple.m1())' in Type 'Simple' (Simple.java:5) advised by afterReturning advice from 'AspectAdvice' (AspectAdvice.aj:16)
+-Join point 'method-execution(void Simple.m1())' in Type 'Simple' (Simple.java:5) advised by afterThrowing advice from 'AspectAdvice' (AspectAdvice.aj:20)
+-Join point 'method-execution(java.lang.String Simple.m2())' in Type 'Simple' (Simple.java:9) advised by before advice from 'AspectAdvice' (AspectAdvice.aj:8)
+-Join point 'method-execution(java.lang.String Simple.m2())' in Type 'Simple' (Simple.java:9) advised by after advice from 'AspectAdvice' (AspectAdvice.aj:12)
+-Join point 'method-execution(java.lang.String Simple.m2())' in Type 'Simple' (Simple.java:9) advised by afterReturning advice from 'AspectAdvice' (AspectAdvice.aj:16)
+-Join point 'method-execution(java.lang.String Simple.m2())' in Type 'Simple' (Simple.java:9) advised by afterThrowing advice from 'AspectAdvice' (AspectAdvice.aj:20)
+-Join point 'method-execution(void Simple.main(java.lang.String[]))' in Type 'Simple' (Simple.java:13) advised by around advice from 'AspectAdvice' (AspectAdvice.aj:24) [with runtime test]
+-Join point 'method-execution(void Simple.mSecret())' in Type 'Simple' (Simple.java:17) advised by before advice from 'AspectAdvice' (AspectAdvice.aj:8)
+-Join point 'method-execution(void Simple.mSecret())' in Type 'Simple' (Simple.java:17) advised by after advice from 'AspectAdvice' (AspectAdvice.aj:12)
+-Join point 'method-execution(void Simple.mSecret())' in Type 'Simple' (Simple.java:17) advised by afterReturning advice from 'AspectAdvice' (AspectAdvice.aj:16)
+-Join point 'method-execution(void Simple.mSecret())' in Type 'Simple' (Simple.java:17) advised by afterThrowing advice from 'AspectAdvice' (AspectAdvice.aj:20)
++Join point 'method-execution(void Simple.m1())' in Type 'Simple' (Simple.java:5) advised by before advice from 'AspectAdvice' (AspectAdvice.jar!AspectAdvice.class:8(from AspectAdvice.aj))
++Join point 'method-execution(void Simple.m1())' in Type 'Simple' (Simple.java:5) advised by after advice from 'AspectAdvice' (AspectAdvice.jar!AspectAdvice.class:12(from AspectAdvice.aj))
++Join point 'method-execution(void Simple.m1())' in Type 'Simple' (Simple.java:5) advised by afterReturning advice from 'AspectAdvice' (AspectAdvice.jar!AspectAdvice.class:16(from AspectAdvice.aj))
++Join point 'method-execution(void Simple.m1())' in Type 'Simple' (Simple.java:5) advised by afterThrowing advice from 'AspectAdvice' (AspectAdvice.jar!AspectAdvice.class:20(from AspectAdvice.aj))
++Join point 'method-execution(java.lang.String Simple.m2())' in Type 'Simple' (Simple.java:9) advised by before advice from 'AspectAdvice' (AspectAdvice.jar!AspectAdvice.class:8(from AspectAdvice.aj))
++Join point 'method-execution(java.lang.String Simple.m2())' in Type 'Simple' (Simple.java:9) advised by after advice from 'AspectAdvice' (AspectAdvice.jar!AspectAdvice.class:12(from AspectAdvice.aj))
++Join point 'method-execution(java.lang.String Simple.m2())' in Type 'Simple' (Simple.java:9) advised by afterReturning advice from 'AspectAdvice' (AspectAdvice.jar!AspectAdvice.class:16(from AspectAdvice.aj))
++Join point 'method-execution(java.lang.String Simple.m2())' in Type 'Simple' (Simple.java:9) advised by afterThrowing advice from 'AspectAdvice' (AspectAdvice.jar!AspectAdvice.class:20(from AspectAdvice.aj))
++Join point 'method-execution(void Simple.main(java.lang.String[]))' in Type 'Simple' (Simple.java:13) advised by around advice from 'AspectAdvice' (AspectAdvice.jar!AspectAdvice.class:24(from AspectAdvice.aj)) [with runtime test]
++Join point 'method-execution(void Simple.mSecret())' in Type 'Simple' (Simple.java:17) advised by before advice from 'AspectAdvice' (AspectAdvice.jar!AspectAdvice.class:8(from AspectAdvice.aj))
++Join point 'method-execution(void Simple.mSecret())' in Type 'Simple' (Simple.java:17) advised by after advice from 'AspectAdvice' (AspectAdvice.jar!AspectAdvice.class:12(from AspectAdvice.aj))
++Join point 'method-execution(void Simple.mSecret())' in Type 'Simple' (Simple.java:17) advised by afterReturning advice from 'AspectAdvice' (AspectAdvice.jar!AspectAdvice.class:16(from AspectAdvice.aj))
++Join point 'method-execution(void Simple.mSecret())' in Type 'Simple' (Simple.java:17) advised by afterThrowing advice from 'AspectAdvice' (AspectAdvice.jar!AspectAdvice.class:20(from AspectAdvice.aj))
+@@ -0,0 +1,2 @@
++Softening exceptions in type 'Simple' (no debug info available) as defined by aspect 'AspectDeclareSoft' (AspectDeclareSoft_nodebug.jar!AspectDeclareSoft.class:4(from AspectDeclareSoft.aj))
++Softening exceptions in type 'Simple' (no debug info available) as defined by aspect 'AspectDeclareSoft' (AspectDeclareSoft_nodebug.jar!AspectDeclareSoft.class:6(from AspectDeclareSoft.aj))
+@@ -0,0 +1,2 @@
++Softening exceptions in type 'Simple' (Simple.java:13) as defined by aspect 'AspectDeclareSoft' (AspectDeclareSoft.jar!AspectDeclareSoft.class:4(from AspectDeclareSoft.aj))
++Softening exceptions in type 'Simple' (Simple.java:13) as defined by aspect 'AspectDeclareSoft' (AspectDeclareSoft.jar!AspectDeclareSoft.class:6(from AspectDeclareSoft.aj))
+Binary files differ
+@@ -243,12 +243,35 @@ public class ShowWeaveMessagesTestCase extends AjdeTestCase {
+ 		aspectpath.add(openFile("AspectDeclareSoft.jar"));
+ 		ideManager.getProjectProperties().setAspectPath(aspectpath);
+ 		assertTrue("Build failed", doSynchronousBuild("Empty.lst"));
+-		verifyWeavingMessages("declare.soft",false);	
++		verifyWeavingMessages("declare.soft.binary",true);	
+ 	}
+ 
++	public void testWeaveMessagesBinaryAdviceInPackageFromJar() {
++		if (debugTests) System.out.println("\ntestWeaveMessagesBinaryAdviceInPackageFromJar: Simple.jar + AspectInPackage.jar");
++		Set inpath = new HashSet();
++		inpath.add(openFile("Simple.jar"));
++		ideManager.getProjectProperties().setInpath(inpath);
++		Set aspectpath = new HashSet();
++		aspectpath.add(openFile("AspectInPackage.jar"));
++		ideManager.getProjectProperties().setAspectPath(aspectpath);
++		assertTrue("Build failed", doSynchronousBuild("Empty.lst"));
++        /*List l = */ideManager.getCompilationSourceLineTasks();
++        verifyWeavingMessages("advice.binary.package.jar",true);
++	}
+ 
+-
+-
++	public void testWeaveMessagesBinaryAdviceInPackage() {
++		if (debugTests) System.out.println("\ntestWeaveMessagesBinaryAdviceInPackage: Simple.jar + AspectInPackage.jar");
++		Set inpath = new HashSet();
++		inpath.add(openFile("Simple.jar"));
++		ideManager.getProjectProperties().setInpath(inpath);
++		Set aspectpath = new HashSet();
++		aspectpath.add(openFile("pkg"));
++		ideManager.getProjectProperties().setAspectPath(aspectpath);
++		assertTrue("Build failed", doSynchronousBuild("Empty.lst"));
++        /*List l = */ideManager.getCompilationSourceLineTasks();
++        verifyWeavingMessages("advice.binary.package",true);
++	}
++	
+ 	// BINARY WEAVING WHEN WE'VE LOST THE SOURCE POINTERS
+ 
+ 	public void testWeaveMessagesBinaryAdviceNoDebugInfo() {
+@@ -301,7 +324,7 @@ public class ShowWeaveMessagesTestCase extends AjdeTestCase {
+ 		aspectpath.add(openFile("AspectDeclareSoft_nodebug.jar"));
+ 		ideManager.getProjectProperties().setAspectPath(aspectpath);
+ 		assertTrue("Build failed", doSynchronousBuild("Empty.lst"));
+-		verifyWeavingMessages("declare.soft.nodebug",true);	
++		verifyWeavingMessages("declare.soft.binary.nodebug",true);	
+ 	}
+ 
+ 
+@@ -61,6 +61,7 @@ public class AsmManager {
+ 	private static boolean dumpModel = false;
+ 	private static boolean dumpRelationships = false;
+ 	private static boolean dumpDeltaProcessing = false;
++	private static IModelFilter modelFilter = null;
+ 	private static String  dumpFilename = "";
+ 	private static boolean reporting = false;
+ 
+@@ -88,7 +89,6 @@ public class AsmManager {
+ 	}
+ 
+ 	public static AsmManager getDefault() {
+-		new RuntimeException("fetching asm").printStackTrace();
+ 		return INSTANCE;
+ 	}
+ 
+@@ -380,10 +380,21 @@ public class AsmManager {
+ 		dumpFilename      = filename;
+ 	}
+ 
++	public static void setReporting(String filename,boolean dModel,boolean dRels,boolean dDeltaProcessing,
++            boolean deletefile,IModelFilter aFilter) {
++		setReporting(filename,dModel,dRels,dDeltaProcessing,deletefile);
++		modelFilter = aFilter;
++	}
++	
+ 	public static boolean isReporting() {
+ 		return reporting;
+ 	}
+ 
++	public static void setDontReport() {
++		reporting = false;
++		dumpDeltaProcessing=false;
++	}
++	
+ 
+ 
+ 	public void reportModelInfo(String reasonForReport) {
+@@ -422,8 +433,10 @@ public class AsmManager {
+ 		for (int i =0 ;i<indent;i++) w.write(" ");
+ 		String loc = "";
+ 		if (node!=null) { 
+-			if (node.getSourceLocation()!=null) 
++			if (node.getSourceLocation()!=null) {
+ 				loc = node.getSourceLocation().toString();
++				if (modelFilter!=null) loc = modelFilter.processFilelocation(loc);
++			}
+ 		}
+ 		w.write(node+"  ["+(node==null?"null":node.getKind().toString())+"] "+loc+"\n");
+ 		if (node!=null) 
+@@ -458,9 +471,12 @@ public class AsmManager {
+ 				List targets = ir.getTargets();
+ 				for (Iterator iterator2 = targets.iterator();
+ 					iterator2.hasNext();
+-					) {
++					) { 
+ 					String thid = (String) iterator2.next();
+-					w.write("Hid:"+(ctr++)+":(targets="+targets.size()+") "+hid+" ("+ir.getName()+") "+thid+"\n");
++					StringBuffer sb = new StringBuffer();
++					if (modelFilter==null || modelFilter.wantsHandleIds()) sb.append("Hid:"+(ctr++)+":");
++					sb.append("(targets="+targets.size()+") "+hid+" ("+ir.getName()+") "+thid+"\n");
++					w.write(sb.toString());
+ 				}
+ 			}
+ 		}
+@@ -0,0 +1,32 @@
++/* *******************************************************************
++ * Copyright (c) 2006 Contributors
++ * All rights reserved. 
++ * This program and the accompanying materials are made available 
++ * under the terms of the Eclipse Public License v1.0 
++ * which accompanies this distribution and is available at 
++ * http://www.eclipse.org/legal/epl-v10.html 
++ *  
++ * Contributors: 
++ *     Andy Clement IBM     initial implementation 
++ * ******************************************************************/
++package org.aspectj.asm;
++
++/**
++ * When dumping the model out (for debugging/testing), various parts of
++ * it can be passed through this filter.  Currently it is used to ensure
++ * the source locations we dump out are independent of sandbox directory.
++ */
++public interface IModelFilter {
++	/**
++	 * Called when about to dump out an absolute file location, enabling
++	 * it to be altered (eg. c:/temp/ajcsSandbox/foo/ajctemp.12323/<BLAH>
++	 * could become TEST_SANDBOX/<BLAH>
++	 */
++	String processFilelocation(String loc);
++
++	/**
++	 * When the relationship map is dumped, lines are prefixed with a handle ID.
++	 * Return true if you want these, false if you dont.
++	 */
++	boolean wantsHandleIds();
++}
+@@ -28,6 +28,7 @@ public interface IProgramElement extends Serializable {
+ 
+ 	public void setChildren(List children);	
+ 	public void addChild(IProgramElement child);
++	public boolean removeChild(IProgramElement child);
+ 
+ 	// Extra stuff
+ 	// Could be just a string but may prove more useful as an object in the long run ...
+@@ -259,6 +259,13 @@ public class AspectJElementHierarchy implements IHierarchy {
+ 		if (lastSlash == -1) {
+ 			lastSlash = sourceFilePath.lastIndexOf('/');
+ 		}
++		// '!' is used like in URLs  "c:/blahblah/X.jar!a/b.class"
++		int i = sourceFilePath.lastIndexOf('!');
++		int j = sourceFilePath.indexOf(".class");
++		if (i > lastSlash && i != -1 && j != -1) {
++			// we are a binary aspect in the default package
++			lastSlash = i;
++		}
+ 		String fileName = sourceFilePath.substring(lastSlash+1);
+ 		IProgramElement fileNode = new ProgramElement(fileName, IProgramElement.Kind.FILE_JAVA, new SourceLocation(new File(sourceFilePath), 1, 1),0,null,null);
+ 		//fileNode.setSourceLocation();
+@@ -64,4 +64,13 @@ public interface ISourceLocation  {
+     /** @return String application-specific context for source */
+     String getContext();
+ 
++    /**
++     * In the cases where getSourceFile().getName() returns a class file
++     * (for example when we have a binary aspect) this should return the 
++     * name of the source file (for example BinaryAspect.aj)
++     * 
++     * @return the name of the source file 
++     */
++    String getSourceFileName();
++    
+ }
+@@ -60,6 +60,7 @@ public class SourceLocation implements ISourceLocation, java.io.Serializable {
+     private int offset;
+     private final String context;
+     private boolean noColumn;
++    private String sourceFileName;
+ 
+     /** 
+      * Same as SourceLocation(file, line, line, 0),
+@@ -103,6 +104,11 @@ public class SourceLocation implements ISourceLocation, java.io.Serializable {
+         this.context = context;
+     }
+ 
++    public SourceLocation(File file, int line, int endLine, int column, String context, String sourceFileName) {
++    	this(file,line,endLine,column,context);
++    	this.sourceFileName = sourceFileName;
++    }
++    
+     public File getSourceFile() {
+         return sourceFile;
+     }
+@@ -156,6 +162,10 @@ public class SourceLocation implements ISourceLocation, java.io.Serializable {
+     public int getOffset() { return offset;}
+     public void setOffset(int i) { offset=i;}
+ 
++	public String getSourceFileName() {
++		return sourceFileName;
++	}
++
+ 
+ 
+ }
+@@ -158,4 +158,8 @@ public class EclipseSourceLocation implements ISourceLocation {
+           getOffset()==o.getOffset() &&
+           ((filename==null)?(o.filename==null):o.filename.equals(filename));
+     }
++
++	public String getSourceFileName() {
++		return null;
++	}
+ }
+@@ -107,7 +107,6 @@ public abstract class XMLBasedAjcTestCase extends AjcTestCase {
+                 fail("No test '" + title + "' in suite.");
+             }
+ 		} 
+-		ajc.setShouldEmptySandbox(true);
+ 		boolean run = currentTest.runTest(this);
+ 		assertTrue("Test not run",run);
+         if (clearTest) {
+@@ -126,4 +126,8 @@ public class SoftSourceLocation implements ISourceLocation  {
+             + getSourceFile().getPath() 
+             + ":" + getLine() ;
+     }
++
++	public String getSourceFileName() {
++		return null;
++	}
+ }
+@@ -20,6 +20,7 @@ import org.aspectj.systemtest.incremental.IncrementalTests;
+ import org.aspectj.systemtest.incremental.model.IncrementalModelTests;
+ import org.aspectj.systemtest.incremental.tools.OutputLocationManagerTests;
+ import org.aspectj.systemtest.inpath.InPathTests;
++import org.aspectj.systemtest.model.ModelTests;
+ import org.aspectj.systemtest.options.OptionsTests;
+ import org.aspectj.systemtest.pre10x.AjcPre10xTests;
+ import org.aspectj.systemtest.serialVerUID.SUIDTests;
+@@ -52,6 +53,7 @@ public class AllTests {
+ 		suite.addTest(SUIDTests.suite());
+ 		suite.addTest(XLintTests.suite());
+ 		suite.addTest(TracingTests.suite());
++		suite.addTest(ModelTests.suite());
+ 		//$JUnit-END$
+ 
+ 		return suite;
+@@ -11,6 +11,7 @@ import org.aspectj.systemtest.ajc150.ataspectj.AtAjAnnotationGenTests;
+ import org.aspectj.systemtest.ajc151.AllTestsAspectJ151;
+ import org.aspectj.systemtest.ajc152.AllTestsAspectJ152;
+ import org.aspectj.systemtest.ajc153.AllTestsAspectJ153;
++import org.aspectj.systemtest.model.Model5Tests;
+ import org.aspectj.systemtest.incremental.tools.MultiProjectIncrementalTests;
+ import org.aspectj.systemtest.xlint.XLint5Tests;
+ 
+@@ -25,6 +26,7 @@ public class AllTests15 {
+ 		suite.addTest(AllTestsAspectJ152.suite());
+ 		suite.addTest(AllTestsAspectJ153.suite());
+ 		suite.addTest(AtAjAnnotationGenTests.suite());
++		suite.addTest(Model5Tests.suite());
+ 		/* FIXME maw Many of these tests do not depend on Java 5 but they
+ 		 * cannot be executed in Eclipse with 1.3 because of XML issues and
+ 		 * are excluded on the build machine so moving them here loses nothing
+@@ -1880,9 +1880,9 @@
+         <weave classesFiles="AnnotatedType.java,SimpleAnnotation.java,SimpleAnnotation2.java"
+                aspectsFiles="AnnotationAspect02.aj"
+                options="-1.5,-showWeaveInfo">
+-               <message kind="weave" text="Type 'AnnotatedType' (AnnotatedType.java:3) advised by before advice from 'AnnotationAspect02' (AnnotationAspect02.aj:4)"/>
+-               <message kind="weave" text="Type 'AnnotatedType' (AnnotatedType.java:3) advised by before advice from 'AnnotationAspect02' (AnnotationAspect02.aj:2)"/>
+-               <message kind="weave" text="Type 'AnnotatedType' (AnnotatedType.java:4) advised by before advice from 'AnnotationAspect02' (AnnotationAspect02.aj:4)"/>
++               <message kind="weave" text="Type 'AnnotatedType' (AnnotatedType.java:3) advised by before advice from 'AnnotationAspect02' (aspects.jar!AnnotationAspect02.class:4(from AnnotationAspect02.aj))"/>
++               <message kind="weave" text="Type 'AnnotatedType' (AnnotatedType.java:3) advised by before advice from 'AnnotationAspect02' (aspects.jar!AnnotationAspect02.class:2(from AnnotationAspect02.aj))"/>
++               <message kind="weave" text="Type 'AnnotatedType' (AnnotatedType.java:4) advised by before advice from 'AnnotationAspect02' (aspects.jar!AnnotationAspect02.class:4(from AnnotationAspect02.aj))"/>
+         </weave>
+     </ajc-test>
+ 
+@@ -219,11 +219,11 @@ public class Ajc152Tests extends org.aspectj.testing.XMLBasedAjcTestCase {
+ 		  // expecting:
+ 		  // 	sourceOfRelationship main in MyFoo.java
+           //		relationship advised by
+-          //			target MyBar.aj
++          //			target MyBar.class
+ 		  // 
+ 		  // and
+ 		  //
+-		  // 	sourceOfRelationship MyBar.aj
++		  // 	sourceOfRelationship MyBar.class
+           //		relationship advises
+           //			target main in MyFoo.java
+ 
+@@ -236,8 +236,8 @@ public class Ajc152Tests extends org.aspectj.testing.XMLBasedAjcTestCase {
+ 			  String sourceOfRelationship = (String) iter.next();
+ 			  IProgramElement ipe = top.findElementForHandle(sourceOfRelationship);
+ 			  List relationships = asmRelMap.get(ipe);
+-			  if (ipe.getName().equals("MyBar.aj")) {
+-				  assertEquals("expected MyBar.aj to have one relationships but found "
++			  if (ipe.getName().equals("MyBar.class")) {
++				  assertEquals("expected MyBar.class to have one relationships but found "
+ 						  + relationships.size(),1,relationships.size());	
+ 				  Relationship rel = (Relationship)relationships.get(0);
+ 				  assertEquals("expected relationship to be 'advises' but was " 
+@@ -264,8 +264,8 @@ public class Ajc152Tests extends org.aspectj.testing.XMLBasedAjcTestCase {
+ 				  List targets = rel.getTargets();
+ 				  assertEquals("expected one target but found " + targets.size(),1,targets.size());
+ 				  IProgramElement link = top.findElementForHandle((String)targets.get(0));
+-				  assertEquals("expected target 'MyBar.aj' but target " + link.getName(),
+-						  "MyBar.aj",link.getName());
++				  assertEquals("expected target 'MyBar.class' but target " + link.getName(),
++						  "MyBar.class",link.getName());
+ 
+ 			  } else {
+ 				  fail("unexpected element " + ipe.getName() + " in the relationship map");
+@@ -19,7 +19,6 @@ public class AllTestsAspectJ152 {
+ 		TestSuite suite = new TestSuite("AspectJ 1.5.2 tests");
+ 		//$JUnit-BEGIN$
+ 		suite.addTest(Ajc152Tests.suite());
+-		suite.addTest(CreatingModelForInjarTests.suite());
+ 		suite.addTest(SynchronizationTests.suite());
+ 		suite.addTest(SynchronizationTransformTests.suite());
+         //$JUnit-END$
+@@ -1,198 +0,0 @@
+-/********************************************************************
+- * Copyright (c) 2006 Contributors. All rights reserved. 
+- * This program and the accompanying materials are made available 
+- * under the terms of the Eclipse Public License v1.0 
+- * which accompanies this distribution and is available at 
+- * http://eclipse.org/legal/epl-v10.html 
+- *  
+- * Contributors: IBM Corporation - initial API and implementation 
+- * 				 Helen Hawkins   - initial version
+- *******************************************************************/
+-package org.aspectj.systemtest.ajc152;
+-
+-import java.io.File;
+-import java.util.Iterator;
+-import java.util.List;
+-
+-import junit.framework.Test;
+-
+-import org.aspectj.asm.AsmManager;
+-import org.aspectj.asm.IHierarchy;
+-import org.aspectj.asm.IProgramElement;
+-import org.aspectj.asm.IRelationshipMap;
+-import org.aspectj.testing.XMLBasedAjcTestCase;
+-//import org.aspectj.weaver.World;
+-
+-public class CreatingModelForInjarTests extends org.aspectj.testing.XMLBasedAjcTestCase {
+-	
+-	public void testAdviceAndNamedPCD() {
+-		runTest("advice and deow");
+-
+-		// expect:
+-		// 		- pkg {package}
+-		// 			-  A.aj (binary) {java source file}
+-		//				- import declarations {import reference}
+-		//				- A {aspect}
+-		//					- p {pointcut}
+-		//					- before {advice}
+-
+-		IProgramElement pkgNode = getPkgNode();
+-		IProgramElement srcFile = checkChild(pkgNode,IProgramElement.Kind.FILE_JAVA,"A.aj (binary)",1);
+-		checkChild(srcFile,IProgramElement.Kind.IMPORT_REFERENCE,"import declarations",-1);
+-		IProgramElement aspectNode = checkChild(srcFile,IProgramElement.Kind.ASPECT,"A",-1);
+-		checkChild(aspectNode,IProgramElement.Kind.POINTCUT,"p",5);
+-		checkChild(aspectNode,IProgramElement.Kind.ADVICE,"before",7);	
+-	}
+-
+-	public void testDeclareWarning() {
+-		runTest("advice and deow");		
+-
+-		// expect:
+-		// 		- pkg {package}
+-		// 			-  Deow.aj (binary) {java source file}
+-		//				- import declarations {import reference}
+-		//				- Deow {aspect}
+-		//					- declare warning {declare warning}
+-
+-		IHierarchy top = AsmManager.getDefault().getHierarchy();
+-		IProgramElement dwNode = top.findElementForLabel(top.getRoot(),
+-				IProgramElement.Kind.DECLARE_WARNING,
+-				"declare warning: \"There should be n..\"");
+-		assertNotNull("Couldn't find 'declare warning: \"There should be n..\"' " +
+-				"element in the tree",dwNode);
+-		assertEquals("expected 'declare warning: \"There should be n..\"'" + 
+-				" to be on line 5 but was on " + dwNode.getSourceLocation().getLine(),
+-				5, dwNode.getSourceLocation().getLine());			
+-	}
+-	
+-	public void testNumberOfPackageNodes() {
+-		runTest("advice and deow");
+-		// check that the 'pkg' package node has not been added twice
+-		IProgramElement root = AsmManager.getDefault().getHierarchy().getRoot();
+-		List l = root.getChildren();
+-		int numberOfPkgs = 0;
+-		for (Iterator iter = l.iterator(); iter.hasNext();) {
+-			IProgramElement element = (IProgramElement) iter.next();
+-			if (element.getKind().equals(IProgramElement.Kind.PACKAGE)
+-					&& element.getName().equals("pkg")) {
+-				numberOfPkgs++;
+-			}
+-		}
+-		assertEquals("expected one package called 'pkg' but found " + numberOfPkgs,1,numberOfPkgs);		
+-	}
+-	
+-	public void testAdviceInRelMap() {
+-		runTest("advice and deow");
+-		IHierarchy top = AsmManager.getDefault().getHierarchy();
+-		IProgramElement adviceNode = top.findElementForLabel(top.getRoot(), IProgramElement.Kind.ADVICE,"before(): p..");
+-		IRelationshipMap relMap = AsmManager.getDefault().getRelationshipMap();
+-		List adviceRels = relMap.get(adviceNode);
+-		assertFalse("expected before advice to have relationships but did not",adviceRels.isEmpty());
+-	}
+-	
+-	public void testDeclareWarningInRelMap() {
+-		runTest("advice and deow");
+-		IHierarchy top = AsmManager.getDefault().getHierarchy();
+-		IProgramElement dwNode = top.findElementForLabel(top.getRoot(),
+-				IProgramElement.Kind.DECLARE_WARNING,
+-				"declare warning: \"There should be n..\"");
+-		IRelationshipMap relMap = AsmManager.getDefault().getRelationshipMap();
+-		List dwRels = relMap.get(dwNode);
+-		assertFalse("expected declare warning to have relationships but did not",dwRels.isEmpty());
+-	}
+-	
+-	public void testAdviceLabelsCorrect() {
+-		runTest("ensure advice label is correct");
+-		IHierarchy top = AsmManager.getDefault().getHierarchy();
+-		
+-		IProgramElement node = top.findElementForLabel(top.getRoot(), 
+-				IProgramElement.Kind.ADVICE, "before(): execM1()..");
+-		assertNotNull("expected to find ipe with label 'before(): execM1()..'" +
+-				" but didn't", node);
+-		
+-		node = top.findElementForLabel(top.getRoot(), 
+-				IProgramElement.Kind.ADVICE, "before(): execM2()..");
+-		assertNotNull("expected to find ipe with label 'before(): execM2()..'" +
+-				" but didn't", node);
+-		
+-		node = top.findElementForLabel(top.getRoot(), 
+-				IProgramElement.Kind.ADVICE, "before(): <anonymous pointcut>");
+-		assertNotNull("expected to find ipe with label 'before(): <anonymous pointcut>'" +
+-				" but didn't", node);
+-	}
+-	
+-	// ensure that filled in hierarchy only has one entry for
+-	// aspect
+-	public void testOnlyOneAspectEntry() {
+-		runTest("ensure advice label is correct");
+-		
+-		IProgramElement pkgNode = getPkgNode();
+-		assertEquals("expected one child node but found " + 
+-				pkgNode.getChildren().size(), 1, pkgNode.getChildren().size());
+-		
+-	}
+-	
+-	public void testOnlyOneAspectEntry_inDefaultPackage() {
+-		runTest("aspect in default package");
+-		// expect there to be two children - 'pack' and 
+-		// 'AspectInDefaultPackage.aj (binary)'
+-		IProgramElement defaultPkg = AsmManager.getDefault().getHierarchy().getRoot();
+-		assertEquals("expected two child node but found " + 
+-				defaultPkg.getChildren().size(), 2, defaultPkg.getChildren().size());
+-		
+-	}
+-	
+-	// --------------------- Helper methods ---------------------
+-	
+-	private IProgramElement getPkgNode() {
+-		IHierarchy top = AsmManager.getDefault().getHierarchy();
+-		IProgramElement pkgNode = top.findElementForLabel(top.getRoot(),
+-				IProgramElement.Kind.PACKAGE,"pkg");
+-		assertNotNull("Couldn't find 'pkg' element in the tree",pkgNode);
+-		return pkgNode;
+-	}
+-	
+-	private IProgramElement checkChild(IProgramElement parent,
+-			IProgramElement.Kind childKind,
+-			String childName,
+-			int childLineNumbr) {
+-		List children = parent.getChildren();
+-		boolean foundChild = false;
+-		for (Iterator iter = children.iterator(); iter.hasNext();) {
+-			IProgramElement element = (IProgramElement) iter.next();
+-			if (element.getKind().equals(childKind) 
+-					&& element.getName().equals(childName) ) {
+-				foundChild = true;
+-				if (childLineNumbr != -1) {
+-					assertEquals("expected " + childKind.toString() + childName + 
+-							" to be on line " + childLineNumbr + " but was on " + 
+-							element.getSourceLocation().getLine(),
+-							childLineNumbr, element.getSourceLocation().getLine());			
+-				}
+-				return element;
+-			}
+-		}	
+-		assertTrue("expected " + parent.getName() + " to have child " + childName 
+-				+ " but it did not", foundChild);
+-		return null;
+-	}
+-	
+-	protected void setUp() throws Exception {
+-		super.setUp();
+-//		World.createInjarHierarchy = true;
+-	}
+-
+-	protected void tearDown() throws Exception {
+-		super.tearDown();
+-//        World.createInjarHierarchy = false;
+-	}
+-
+-	// ///////////////////////////////////////
+-	public static Test suite() {
+-		return XMLBasedAjcTestCase.loadSuite(CreatingModelForInjarTests.class);
+-	}
+-
+-	protected File getSpecFile() {
+-		return new File("../tests/src/org/aspectj/systemtest/ajc152/injar.xml");
+-	}
+-}
+@@ -1,20 +0,0 @@
+-<!DOCTYPE suite SYSTEM "../tests/ajcTestSuite.dtd"[]>
+-
+-<!-- AspectJ v1.5.2 Tests -->
+-<suite>
+-
+-    <ajc-test dir="bugs152/pr145963" title="advice and deow">
+-      <compile files="ClassForAspectPath.java" aspectpath="adviceAndDeow.jar" options="-emacssym">
+-		<message kind="warning" line="9" text="There should be no printlns"/>
+-	  </compile>
+-    </ajc-test>
+-
+-    <ajc-test dir="bugs152/pr145963" title="ensure advice label is correct">
+-      <compile files="C.java" aspectpath="adviceLabels.jar" options="-emacssym"/>
+-    </ajc-test>
+-    
+-    <ajc-test dir="bugs152/pr145963" title="aspect in default package">
+-      <compile files="C.java" aspectpath="aspectInDefaultPackage.jar" options="-emacssym"/>
+-    </ajc-test>
+-
+-</suite>
+@@ -0,0 +1,42 @@
++/********************************************************************
++ * Copyright (c) 2006 Contributors. All rights reserved. 
++ * This program and the accompanying materials are made available 
++ * under the terms of the Eclipse Public License v1.0 
++ * which accompanies this distribution and is available at 
++ * http://eclipse.org/legal/epl-v10.html 
++ *  
++ * Contributors: IBM Corporation - initial API and implementation 
++ * 				 Helen Hawkins   - initial version
++ *******************************************************************/
++package org.aspectj.systemtest.model;
++
++import java.io.File;
++
++import junit.framework.Test;
++
++import org.aspectj.testing.XMLBasedAjcTestCase;
++
++/**
++ * Tests the model when there is a requirement on Java5 features.
++ * @see org.aspectj.systemtest.model.ModelTestCase 
++ */
++public class Model5Tests extends ModelTestCase {
++
++	static {
++		// Switch this to true for a single iteration if you want to reconstruct the
++		// 'expected model' files.
++		regenerate = false;
++		// Switch this to true if you want to debug the comparison
++		debugTest = false;
++	}
++	
++	// ///////////////////////////////////////
++	public static Test suite() {
++		return XMLBasedAjcTestCase.loadSuite(Model5Tests.class);
++	}
++
++	protected File getSpecFile() {
++		return new File("../tests/src/org/aspectj/systemtest/model/model.xml");
++	}
++
++}
+@@ -0,0 +1,208 @@
++/********************************************************************
++ * Copyright (c) 2006 Contributors. All rights reserved. 
++ * This program and the accompanying materials are made available 
++ * under the terms of the Eclipse Public License v1.0 
++ * which accompanies this distribution and is available at 
++ * http://eclipse.org/legal/epl-v10.html 
++ *  
++ * Contributors: IBM Corporation - initial API and implementation 
++ * 				 Helen Hawkins   - initial version
++ *******************************************************************/
++package org.aspectj.systemtest.model;
++
++import java.io.BufferedReader;
++import java.io.File;
++import java.io.FileReader;
++import java.io.IOException;
++import java.util.ArrayList;
++import java.util.Iterator;
++import java.util.List;
++
++import org.aspectj.asm.AsmManager;
++import org.aspectj.asm.IElementHandleProvider;
++import org.aspectj.asm.IModelFilter;
++import org.aspectj.asm.internal.JDTLikeHandleProvider;
++import org.aspectj.testing.XMLBasedAjcTestCase;
++import org.aspectj.util.FileUtil;
++
++/**
++ * This class provides an extension to the XMLBasedAjcTestCase to manage
++ * testing the model. It assumes the testdata is in ../tests/model/<testid>
++ * and that the expected model against which to do the comparison is in
++ * the file ../tests/model/expected/<testid>.txt. One test ensures that both
++ * the model and the relationship map are as expected for the given testdata.
++ * 
++ * To write a testcase, create a testdata directory containing the data
++ * for the test run and a file containing the expected model (this can be 
++ * generated by setting the regenerate flag to true). Add the required 
++ * configuration to model.xml. Finally, create a testcase in either ModelTests 
++ * or Model5Tests (depending on whether the testcase has a requirement 
++ * on Java5) and call runModelTest(<title of test>,<testid>). 
++ */
++public abstract class ModelTestCase extends XMLBasedAjcTestCase {
++
++	protected static boolean regenerate = false;
++	protected static boolean debugTest = false;
++
++	private final String expectedOutDir = "../tests/model/expected" + File.separator;		
++	private String testid;
++	
++	private String modelFilename;
++	
++	private IElementHandleProvider handleProvider;
++	
++	/* (non-Javadoc)
++	 * @see junit.framework.TestCase#setUp()
++	 */
++	protected void setUp() throws Exception {
++		super.setUp();
++		// using the JDTLikeHandleProvider because this produces consistent handles
++		// over different compiles
++		handleProvider = AsmManager.getDefault().getHandleProvider();
++		AsmManager.getDefault().setHandleProvider(new JDTLikeHandleProvider());
++		// We are about to create a sandbox for the model output file, don't let the
++		// following compile wipe it.
++		ajc.setShouldEmptySandbox(false);
++		// report all information - model, relationships delta processing
++		modelFilename = ajc.getSandboxDirectory().getAbsolutePath() + File.separator + "model.txt";
++		AsmManager.setReporting(modelFilename, 
++				true,true,true,false,new TestFilter(ajc.getSandboxDirectory().getAbsolutePath()));
++	}
++	
++	static class TestFilter implements IModelFilter {
++		String sandboxDirectory ;
++		public TestFilter(String sandboxDirectory) {
++			this.sandboxDirectory = sandboxDirectory;
++		}
++
++		public String processFilelocation(String loc) {
++			if (loc.startsWith(sandboxDirectory)) return "TEST_SANDBOX"+loc.substring(sandboxDirectory.length());
++			return loc;
++		}
++
++		public boolean wantsHandleIds() {
++			return false;
++		}
++	}
++	
++	/* (non-Javadoc)
++	 * @see junit.framework.TestCase#tearDown()
++	 */
++	protected void tearDown() throws Exception {
++		super.tearDown();
++		AsmManager.getDefault().setHandleProvider(handleProvider);
++		AsmManager.setDontReport();
++		ajc.setShouldEmptySandbox(true);
++	}
++	
++	/**
++	 * Firstly sets the testid which is both the name of the expected output
++	 * file and the name of the testdata directory. It then
++	 * invokes XMLBasedAjcTestCase.runTest(String) with the given
++	 * title and finally verifies that the model file created from this test
++	 * run is the same as the expected output (includes model information, the
++	 * relationship map and various properties about the model) contained
++	 * in ../tests/model/expected/<testid>.txt
++	 */
++	protected void runModelTest(String title,String testid) {
++		this.testid = testid;
++		runTest(title);
++		verifyModel();
++	}
++	
++	private void verifyModel() {
++		File expectedOutput = new File(expectedOutDir + testid + ".txt");
++		if (regenerate) {
++			// Create the file
++			saveModel(expectedOutput);
++		} else {
++			// Verify the file matches what we have
++			compareModel(expectedOutput);
++		}
++	}
++	
++	private void compareModel(File expectedF) {
++		if (debugTest) System.out.println("comparing with model in file " + expectedF.getAbsolutePath());
++		List fileContents = new ArrayList();
++		try {
++			String sandboxDir = ajc.getSandboxDirectory().getAbsolutePath();
++			String modelOutput = modelFilename;
++			// Load the file with the expected output
++			BufferedReader expect = new BufferedReader(new FileReader(expectedF));
++//			String tempDir = expect.readLine();
++			String expectedLine = null;
++			while((expectedLine=expect.readLine())!=null) {
++				fileContents.add(expectedLine);					
++			}
++			List expectedFileContents = new ArrayList();
++			expectedFileContents.addAll(fileContents);
++			
++			// Load the file with the output from this test run
++			BufferedReader found = new BufferedReader(new FileReader(new File(modelOutput)));
++			String foundLine = null;
++			List foundFileContents = new ArrayList();
++			while((foundLine=found.readLine())!=null) {
++//				int i = foundLine.indexOf(sandboxDir);
++//				if (i == -1) {
++//					int j = foundLine.indexOf("(targets=");
++//					if (j == -1) {
++						foundFileContents.add(foundLine);
++//					} else {
++//						foundFileContents.add(foundLine.substring(j));
++//					}
++//				} else {
++//					String newLine = foundLine.substring(0,i) + tempDir 
++//						+ foundLine.substring(i + sandboxDir.length());
++//					foundFileContents.add(newLine);
++//				}
++			}
++			
++			// iterate over what we found
++			for (Iterator iter = foundFileContents.iterator(); iter.hasNext();) {
++				String line = (String) iter.next();
++				if (debugTest) System.err.println("looking at model entry: " + line);
++				if (!fileContents.contains(line)) {
++//			    if (!((String)fileContents.get(lineNumber)).equals(line)) {
++			    	
++					if(debugTest) {
++						System.err.println("couldn't find: " + line);
++						for (Iterator iterator = fileContents.iterator(); iterator
++								.hasNext();) {
++							String element = (String) iterator.next();
++							System.err.println("compared with: " + element);
++						}
++					}
++				
++//					StringBuffer errorData = new StringBuffer();
++//					errorData.append("Problem with comparison at line number: "+)
++					fail("couldn't find model entry '" + line + "' in expected output");
++				} else {
++					fileContents.remove(line);
++				}
++			}
++			
++			if (debugTest && !fileContents.isEmpty()) {
++				for (Iterator iter = fileContents.iterator(); iter
++						.hasNext();) {
++					String element = (String) iter.next();
++					System.err.println("remaining: " + element);
++				}
++			}
++			assertTrue("should have found all expected model output: " + fileContents,fileContents.isEmpty());
++		} catch (Exception e) {
++			fail("Unexpected exception comparing model files:"+e);
++		}
++	}
++	
++	private void saveModel(File f) {
++		if (debugTest) System.out.println("Saving model into "+f.getAbsolutePath());
++		File modelFile = new File(modelFilename);	
++		try {
++			FileUtil.copyFile(modelFile, f);
++		} catch (IOException ioe) {
++			ioe.printStackTrace();
++			fail("Couldn't copy file to "+f.toString());
++		}
++	}
++
++}
+@@ -0,0 +1,47 @@
++/********************************************************************
++ * Copyright (c) 2006 Contributors. All rights reserved. 
++ * This program and the accompanying materials are made available 
++ * under the terms of the Eclipse Public License v1.0 
++ * which accompanies this distribution and is available at 
++ * http://eclipse.org/legal/epl-v10.html 
++ *  
++ * Contributors: IBM Corporation - initial API and implementation 
++ * 				 Helen Hawkins   - initial version
++ *******************************************************************/
++package org.aspectj.systemtest.model;
++
++import java.io.File;
++
++import junit.framework.Test;
++
++import org.aspectj.testing.XMLBasedAjcTestCase;
++
++/**
++ * Tests the model when there is no requirement on Java5 features.
++ * @see org.aspectj.systemtest.model.ModelTestCase 
++ */
++public class ModelTests extends ModelTestCase {
++	
++	static {
++		// Switch this to true for a single iteration if you want to reconstruct the
++		// 'expected model' files.
++		regenerate = false;
++		// Switch this to true if you want to debug the comparison
++		debugTest = false;
++	}
++	
++	public void testSourceLocationAndJarFile_pr145963() {runModelTest("sourcelocation and jar file","pr145963_1");}
++	public void testSourceLocationAndClassFile_pr145963() {runModelTest("sourcelocation and class file","pr145963_2");}
++	public void testAspectInDefaultPackage_pr145963() {runModelTest("aspect in default package", "pr145963_3");}
++	public void testAspectInJavaFile_pr145963() {runModelTest("aspect in java file", "pr145963_4");}
++	
++	/////////////////////////////////////////
++	public static Test suite() {
++		return XMLBasedAjcTestCase.loadSuite(ModelTests.class);
++	}
++
++	protected File getSpecFile() {
++		return new File("../tests/src/org/aspectj/systemtest/model/model.xml");
++	}
++
++}
+@@ -0,0 +1,31 @@
++<!DOCTYPE suite SYSTEM "../tests/ajcTestSuite.dtd"[]>
++
++<!-- Model and Hierarchy Tests -->
++<suite>
++
++    <ajc-test dir="model/pr145963_1" title="sourcelocation and jar file">
++      <compile files="C.java, SourceAspect.aj" aspectpath="simple.jar" options="-emacssym">
++		<message kind="warning" line="6" text="There should be no printlns"/>
++	  </compile>
++    </ajc-test>
++
++    <ajc-test dir="model/pr145963_2" title="sourcelocation and class file">
++      <compile files="C.java, SourceAspect.aj" aspectpath="pkg" options="-emacssym">
++		<message kind="warning" line="6" text="There should be no printlns"/>
++	  </compile>
++    </ajc-test>
++
++   <ajc-test dir="model/pr145963_3" title="aspect in default package">
++      <compile files="C.java" aspectpath="simple.jar" options="-emacssym">
++		<message kind="warning" line="6" text="There should be no printlns"/>
++	</compile>
++    </ajc-test>
++
++   <ajc-test dir="model/pr145963_4" title="aspect in java file">
++      <compile files="C.java" aspectpath="simple.jar" options="-emacssym">
++		<message kind="warning" line="6" text="There should be no printlns"/>
++	</compile>
++    </ajc-test>
++
++
++</suite>
+@@ -434,7 +434,6 @@ public abstract class Advice extends ShadowMunger {
+ 	public ResolvedType getResolvedDeclaringAspect() {
+ 		// The aspect which declares this piece of advice 
+ 		// is 'concreteAspect' since 'declaringType' is null
+-		return concreteAspect;
++		return ((concreteAspect != null) ? concreteAspect : getDeclaringType());
+ 	}
+-
+ }
+@@ -40,6 +40,7 @@ public abstract class ResolvedType extends UnresolvedType implements AnnotatedEl
+ 	public static final String PARAMETERIZED_TYPE_IDENTIFIER = "P";
+ 
+ 	private ResolvedType[] resolvedTypeParams;
++	private String binaryPath;
+ 
+     protected World world;
+ 
+@@ -2095,5 +2096,17 @@ public abstract class ResolvedType extends UnresolvedType implements AnnotatedEl
+ 		}
+ 		return myMap;
+ 	}
++	
++	public void setBinaryPath(String binaryPath) {
++		this.binaryPath = binaryPath;
++	}
++
++	/**
++	 * Returns the path to the jar or class file from which this
++	 * binary aspect came or null if not a binary aspect 
++	 */
++	public String getBinaryPath() {
++		return binaryPath;
++	}
+ 
+ }
+@@ -565,9 +565,24 @@ public abstract class Shadow {
+ 	    	int takeFrom = isl.getSourceFile().getPath().lastIndexOf('/');
+ 	    	if (takeFrom == -1) {
+ 	    		takeFrom = isl.getSourceFile().getPath().lastIndexOf('\\');
+-	    	}    			
++	    	} 
++	    	int binary = isl.getSourceFile().getPath().lastIndexOf('!');
++	    	if (binary != -1 && binary < takeFrom) {
++				// we have been woven by a binary aspect
++	    		String pathToBinaryLoc = isl.getSourceFile().getPath().substring(0,binary + 1);
++	    		if (pathToBinaryLoc.indexOf(".jar") != -1) {
++	    			// only want to add the extra info if we're from a jar file
++		    		int lastSlash = pathToBinaryLoc.lastIndexOf('/');
++		    		if (lastSlash == -1) {
++						lastSlash = pathToBinaryLoc.lastIndexOf('\\');
++					}
++		    		nice.append(pathToBinaryLoc.substring(lastSlash + 1));					
++				}
++			}
+ 	    	nice.append(isl.getSourceFile().getPath().substring(takeFrom +1));
+ 	    	if (isl.getLine()!=0) nice.append(":").append(isl.getLine());
++	    	// if it's a binary file then also want to give the file name
++	    	if (isl.getSourceFileName() != null ) nice.append("(from " + isl.getSourceFileName() + ")");
+ 		}
+ 		return nice.toString();
+ 	}
+@@ -13,6 +13,7 @@
+ 
+ package org.aspectj.weaver;
+ 
++import java.io.File;
+ import java.util.ArrayList;
+ import java.util.Collection;
+ import java.util.Collections;
+@@ -23,6 +24,7 @@ import org.aspectj.asm.AsmManager;
+ import org.aspectj.asm.IProgramElement;
+ import org.aspectj.asm.internal.ProgramElement;
+ import org.aspectj.bridge.ISourceLocation;
++import org.aspectj.bridge.SourceLocation;
+ import org.aspectj.util.PartialOrder;
+ import org.aspectj.weaver.bcel.BcelAdvice;
+ import org.aspectj.weaver.patterns.DeclareErrorOrWarning;
+@@ -48,6 +50,8 @@ public abstract class ShadowMunger implements PartialOrder.PartialComparable, IH
+ 	protected int start, end;
+ 	protected ISourceContext sourceContext;
+ 	private ISourceLocation sourceLocation;
++	private ISourceLocation binarySourceLocation;
++	private File binaryFile;
+ 	private String handle = null;
+ 	private ResolvedType declaringType;  // the type that declared this munger.
+ 
+@@ -91,6 +95,12 @@ public abstract class ShadowMunger implements PartialOrder.PartialComparable, IH
+ 				sourceLocation = sourceContext.makeSourceLocation(this);
+ 	    	}
+     	}
++    	if (isBinary()) {
++			if (binarySourceLocation == null) {
++				binarySourceLocation = getBinarySourceLocation(sourceLocation);
++			}
++			return binarySourceLocation;
++		}
+     	return sourceLocation;
+     }
+ 
+@@ -156,16 +166,26 @@ public abstract class ShadowMunger implements PartialOrder.PartialComparable, IH
+      * Creates the hierarchy for binary aspects
+      */
+     public void createHierarchy() {
++    	if (!isBinary()) return;
++    	
+     	IProgramElement sourceFileNode = AsmManager.getDefault().getHierarchy().findElementForSourceLine(getSourceLocation());
++    	// the call to findElementForSourceLine(ISourceLocation) returns a file node
++    	// if it can't find a node in the hierarchy for the given sourcelocation. 
++    	// Therefore, if this is returned, we know we can't find one and have to
++    	// continue to fault in the model.
+     	if (!sourceFileNode.getKind().equals(IProgramElement.Kind.FILE_JAVA)) {
+ 			return;
+ 		}
+-    	String name = sourceFileNode.getName();
+-    	sourceFileNode.setName(name + " (binary)");
+-    	AsmManager.getDefault().getHandleProvider().createHandleIdentifier(sourceFileNode);
+ 
+     	ResolvedType aspect = getResolvedDeclaringAspect();
+ 
++    	// create the class file node
++    	IProgramElement classFileNode = new ProgramElement(
++    			sourceFileNode.getName() + " (binary)",
++    			IProgramElement.Kind.CLASS,
++    			getBinarySourceLocation(aspect.getSourceLocation()),
++    			0,null,null);
++    	
+     	// create package ipe if one exists....
+     	IProgramElement root = AsmManager.getDefault().getHierarchy().getRoot();
+     	if (aspect.getPackageName() != null) {
+@@ -179,42 +199,44 @@ public abstract class ShadowMunger implements PartialOrder.PartialComparable, IH
+     	                IProgramElement.Kind.PACKAGE, 
+     	                new ArrayList());
+     			root.addChild(pkgNode);
+-    			pkgNode.addChild(sourceFileNode);
++    			pkgNode.addChild(classFileNode);
+ 			} else {
++				// need to add it first otherwise the handle for classFileNode
++				// may not be generated correctly if it uses information from 
++				// it's parent node
++				pkgNode.addChild(classFileNode);
+ 				for (Iterator iter = pkgNode.getChildren().iterator(); iter.hasNext();) {
+ 					IProgramElement element = (IProgramElement) iter.next();
+-					if (element.getHandleIdentifier().equals(
+-							sourceFileNode.getHandleIdentifier())) {
+-						// already added the sourcefile so have already
++					if (!element.equals(classFileNode) && 
++							element.getHandleIdentifier().equals(
++							classFileNode.getHandleIdentifier())) {
++						// already added the classfile so have already
+ 						// added the structure for this aspect
++						pkgNode.removeChild(classFileNode);
+ 						return;
+ 					}
+ 				}
+-				pkgNode.addChild(sourceFileNode);
+ 			}
+ 		} else {
++			// need to add it first otherwise the handle for classFileNode
++			// may not be generated correctly if it uses information from 
++			// it's parent node
++			root.addChild(classFileNode);
+ 			for (Iterator iter = root.getChildren().iterator(); iter.hasNext();) {
+ 				IProgramElement element = (IProgramElement) iter.next();
+-				if (element.getHandleIdentifier().equals(
+-						sourceFileNode.getHandleIdentifier())) {
++				if (!element.equals(classFileNode) &&
++						element.getHandleIdentifier().equals(
++						classFileNode.getHandleIdentifier())) {
+ 					// already added the sourcefile so have already
+ 					// added the structure for this aspect
++					root.removeChild(classFileNode);
+ 					return;
+ 				}				
+ 			}
+-			root.addChild(sourceFileNode);
+-		}
+-    	
+-       	// remove the error child from the 'A.aj' node
+-    	if (sourceFileNode instanceof ProgramElement) {
+-			IProgramElement errorNode = (IProgramElement) sourceFileNode.getChildren().get(0);
+-			if (errorNode.getKind().equals(IProgramElement.Kind.ERROR)) {
+-				((ProgramElement)sourceFileNode).removeChild(errorNode);
+-			}
+ 		}
+ 
+     	// add and create empty import declaration ipe
+-    	sourceFileNode.addChild(new ProgramElement(
++    	classFileNode.addChild(new ProgramElement(
+     			"import declarations",
+     			IProgramElement.Kind.IMPORT_REFERENCE,
+     			null,0,null,null)); 
+@@ -223,10 +245,10 @@ public abstract class ShadowMunger implements PartialOrder.PartialComparable, IH
+     	IProgramElement aspectNode = new ProgramElement(
+     			aspect.getSimpleName(),
+     			IProgramElement.Kind.ASPECT,
+-    			aspect.getSourceLocation(),
++    			getBinarySourceLocation(aspect.getSourceLocation()),
+     			aspect.getModifiers(),
+     			null,null); 
+-    	sourceFileNode.addChild(aspectNode);
++    	classFileNode.addChild(aspectNode);
+ 
+     	addChildNodes(aspectNode,aspect.getDeclaredPointcuts());
+ 
+@@ -242,7 +264,7 @@ public abstract class ShadowMunger implements PartialOrder.PartialComparable, IH
+ 				parent.addChild(new ProgramElement(
+ 						pcd.getName(),
+ 						IProgramElement.Kind.POINTCUT,
+-					    rpcd.getPointcut().getSourceLocation(),
++					    getBinarySourceLocation(rpcd.getPointcut().getSourceLocation()),
+ 						pcd.getModifiers(),
+ 						null,
+ 						Collections.EMPTY_LIST));
+@@ -258,8 +280,8 @@ public abstract class ShadowMunger implements PartialOrder.PartialComparable, IH
+ 			   	IProgramElement deowNode = new ProgramElement(
+ 		    			decl.isError() ? "declare error" : "declare warning",
+ 		    			decl.isError() ? IProgramElement.Kind.DECLARE_ERROR : IProgramElement.Kind.DECLARE_WARNING,
+-		    			getSourceLocation(),
+-		    			this.getDeclaringType().getModifiers(),
++		    			getBinarySourceLocation(decl.getSourceLocation()),
++		    			decl.getDeclaringType().getModifiers(),
+ 		    			null,null); 
+ 		    	deowNode.setDetails("\"" + AsmRelationshipUtils.genDeclareMessage(decl.getMessage()) + "\"");
+ 		    	parent.addChild(deowNode);
+@@ -268,12 +290,78 @@ public abstract class ShadowMunger implements PartialOrder.PartialComparable, IH
+ 				IProgramElement adviceNode = new ProgramElement(
+ 		    			advice.kind.getName(),
+ 		    			IProgramElement.Kind.ADVICE,
+-		    			getSourceLocation(),
++		    			getBinarySourceLocation(advice.getSourceLocation()),
+ 		    			advice.signature.getModifiers(),null,Collections.EMPTY_LIST);
+ 		    	adviceNode.setDetails(AsmRelationshipUtils.genPointcutDetails(advice.getPointcut()));
+ 		    	parent.addChild(adviceNode);
+ 			}
+ 		}
+     }
+-
++    
++    /**
++     * Returns the binarySourceLocation for the given sourcelocation. This
++     * isn't cached because it's used when faulting in the binary nodes
++     * and is called with ISourceLocations for all advice, pointcuts and deows
++     * contained within the resolvedDeclaringAspect.
++     */
++    private ISourceLocation getBinarySourceLocation(ISourceLocation sl) {
++    	if (sl == null) return null;
++    	String sourceFileName = null;
++    	if (getResolvedDeclaringAspect() instanceof ReferenceType) {
++			String s = ((ReferenceType)getResolvedDeclaringAspect()).getDelegate().getSourcefilename();
++			int i = s.lastIndexOf('/');
++			if (i != -1) {
++				sourceFileName = s.substring(i+1);
++			} else {
++				sourceFileName = s;
++			}
++		}
++		ISourceLocation sLoc = new SourceLocation(
++				getBinaryFile(),
++				sl.getLine(),
++				sl.getEndLine(),
++				((sl.getColumn() == 0) ? ISourceLocation.NO_COLUMN : sl.getColumn()),
++				sl.getContext(),
++				sourceFileName);
++		return sLoc;
++    }
++    
++    /**
++     * Returns the File with pathname to the class file, for example either
++     * C:\temp\ajcSandbox\workspace\ajcTest16957.tmp\simple.jar!pkg\BinaryAspect.class
++     * if the class file is in a jar file, or 
++     * C:\temp\ajcSandbox\workspace\ajcTest16957.tmp!pkg\BinaryAspect.class
++     * if the class file is in a directory
++     */
++    private File getBinaryFile() {
++    	if (binaryFile == null) {
++    		String s = getResolvedDeclaringAspect().getBinaryPath();
++    		File f = getResolvedDeclaringAspect().getSourceLocation().getSourceFile();
++    		int i = f.getPath().lastIndexOf('.');
++    		String path = f.getPath().substring(0,i) + ".class";
++    		binaryFile =  new File(s + "!" + path);
++		}
++    	return binaryFile;
++    }
++    
++    /**
++     * Returns whether or not this shadow munger came from
++     * a binary aspect - keep a record of whether or not we've
++     * checked if we're binary otherwise we keep caluclating the 
++     * same thing many times
++     */
++    protected boolean isBinary() {
++    	if (!checkedIsBinary) {
++        	ResolvedType rt = getResolvedDeclaringAspect();
++        	if (rt != null) {
++    			isBinary = ((rt.getBinaryPath() == null) ? false : true);
++        	}
++			checkedIsBinary = true;
++		}
++    	return isBinary;
++    }
++    
++    private boolean isBinary;
++    private boolean checkedIsBinary;
++    
+ }
+@@ -241,6 +241,7 @@ public class BcelWeaver implements IWeaver {
+ 			inStream.closeEntry();
+ 
+ 			ResolvedType type = world.addSourceObjectType(jc).getResolvedTypeX();
++			type.setBinaryPath(inFile.getAbsolutePath());
+     		if (type.isAspect()) {
+     			addedAspects.add(type);
+     		}
+@@ -272,6 +273,10 @@ public class BcelWeaver implements IWeaver {
+ 		ClassParser parser = new ClassParser(new ByteArrayInputStream(bytes),name);
+ 		JavaClass jc = parser.parse();
+ 		ResolvedType type = world.addSourceObjectType(jc).getResolvedTypeX();
++		String typeName = type.getName().replace('.', File.separatorChar);
++		int end = name.indexOf(typeName);
++		String binaryPath = name.substring(0,end-1);
++		type.setBinaryPath(binaryPath);
+ 		if (type.isAspect()) {
+ 			toList.add(type);
+ 		}		
+@@ -0,0 +1,45 @@
++=== MODEL STATUS REPORT ========= After a batch build
++<root>  [java source file] 
++  pkg  [package] 
++    SourceAspect.aj  [java source file] TEST_SANDBOX\SourceAspect.aj:1::0
++      import declarations  [import reference] 
++      SourceAspect  [aspect] TEST_SANDBOX\SourceAspect.aj:3::30
++        declare warning: "There should be n.."  [declare warning] TEST_SANDBOX\SourceAspect.aj:5::49
++        p()  [pointcut] TEST_SANDBOX\SourceAspect.aj:7::154
++        before(): p..  [advice] TEST_SANDBOX\SourceAspect.aj:9::187
++    BinaryAspect.class (binary)  [class] TEST_SANDBOX\simple.jar!pkg\BinaryAspect.class:1::0
++      import declarations  [import reference] 
++      BinaryAspect  [aspect] TEST_SANDBOX\simple.jar!pkg\BinaryAspect.class:1::0
++        p()  [pointcut] TEST_SANDBOX\simple.jar!pkg\BinaryAspect.class:7::0
++        before(): p..  [advice] TEST_SANDBOX\simple.jar!pkg\BinaryAspect.class:9::0
++        declare warning: "There should be n.."  [declare warning] TEST_SANDBOX\simple.jar!pkg\BinaryAspect.class:5::0
++  pack  [package] 
++    C.java  [java source file] TEST_SANDBOX\C.java:1::0
++      import declarations  [import reference] 
++      C  [class] TEST_SANDBOX\C.java:3::30
++        method1()  [method] TEST_SANDBOX\C.java:5::50
++          field-get(java.io.PrintStream java.lang.System.out)  [code] TEST_SANDBOX\C.java:6::93
++=== END OF MODEL REPORT =========
++=== RELATIONSHIPS REPORT ========= After a batch build
++(targets=1) <pkg[BinaryAspect.class (binary)}BinaryAspect&before (advises) <pack{C.java[C~method1
++(targets=2) <pack{C.java[C~method1 (advised by) <pkg*SourceAspect.aj}SourceAspect&before
++(targets=2) <pack{C.java[C~method1 (advised by) <pkg[BinaryAspect.class (binary)}BinaryAspect&before
++(targets=1) <pkg*SourceAspect.aj}SourceAspect`declare warning (matched by) <pack{C.java[C~method1?field-get(java.io.PrintStream java.lang.System.out)
++(targets=1) <pkg[BinaryAspect.class (binary)}BinaryAspect`declare warning (matched by) <pack{C.java[C~method1?field-get(java.io.PrintStream java.lang.System.out)
++(targets=1) <pkg*SourceAspect.aj}SourceAspect&before (advises) <pack{C.java[C~method1
++(targets=2) <pack{C.java[C~method1?field-get(java.io.PrintStream java.lang.System.out) (matches declare) <pkg*SourceAspect.aj}SourceAspect`declare warning
++(targets=2) <pack{C.java[C~method1?field-get(java.io.PrintStream java.lang.System.out) (matches declare) <pkg[BinaryAspect.class (binary)}BinaryAspect`declare warning
++=== END OF RELATIONSHIPS REPORT ==
++=== Properties of the model and relationships map =====
++method=1
++import reference=3
++aspect=2
++code=1
++declare warning=2
++class=2
++advice=2
++pointcut=2
++RelationshipMapSize=6
++FileMapSize=2
++package=2
++java source file=3
+@@ -0,0 +1,45 @@
++=== MODEL STATUS REPORT ========= After a batch build
++<root>  [java source file] 
++  pkg  [package] 
++    SourceAspect.aj  [java source file] TEST_SANDBOX\SourceAspect.aj:1::0
++      import declarations  [import reference] 
++      SourceAspect  [aspect] TEST_SANDBOX\SourceAspect.aj:3::30
++        declare warning: "There should be n.."  [declare warning] TEST_SANDBOX\SourceAspect.aj:5::49
++        p()  [pointcut] TEST_SANDBOX\SourceAspect.aj:7::154
++        before(): p..  [advice] TEST_SANDBOX\SourceAspect.aj:9::187
++    BinaryAspect.class (binary)  [class] TEST_SANDBOX!pkg\BinaryAspect.class:1::0
++      import declarations  [import reference] 
++      BinaryAspect  [aspect] TEST_SANDBOX!pkg\BinaryAspect.class:1::0
++        p()  [pointcut] TEST_SANDBOX!pkg\BinaryAspect.class:7::0
++        before(): p..  [advice] TEST_SANDBOX!pkg\BinaryAspect.class:9::0
++        declare warning: "There should be n.."  [declare warning] TEST_SANDBOX!pkg\BinaryAspect.class:5::0
++  pack  [package] 
++    C.java  [java source file] TEST_SANDBOX\C.java:1::0
++      import declarations  [import reference] 
++      C  [class] TEST_SANDBOX\C.java:3::30
++        method1()  [method] TEST_SANDBOX\C.java:5::50
++          field-get(java.io.PrintStream java.lang.System.out)  [code] TEST_SANDBOX\C.java:6::93
++=== END OF MODEL REPORT =========
++=== RELATIONSHIPS REPORT ========= After a batch build
++(targets=1) <pkg[BinaryAspect.class (binary)}BinaryAspect&before (advises) <pack{C.java[C~method1
++(targets=2) <pack{C.java[C~method1 (advised by) <pkg*SourceAspect.aj}SourceAspect&before
++(targets=2) <pack{C.java[C~method1 (advised by) <pkg[BinaryAspect.class (binary)}BinaryAspect&before
++(targets=1) <pkg*SourceAspect.aj}SourceAspect`declare warning (matched by) <pack{C.java[C~method1?field-get(java.io.PrintStream java.lang.System.out)
++(targets=1) <pkg[BinaryAspect.class (binary)}BinaryAspect`declare warning (matched by) <pack{C.java[C~method1?field-get(java.io.PrintStream java.lang.System.out)
++(targets=1) <pkg*SourceAspect.aj}SourceAspect&before (advises) <pack{C.java[C~method1
++(targets=2) <pack{C.java[C~method1?field-get(java.io.PrintStream java.lang.System.out) (matches declare) <pkg*SourceAspect.aj}SourceAspect`declare warning
++(targets=2) <pack{C.java[C~method1?field-get(java.io.PrintStream java.lang.System.out) (matches declare) <pkg[BinaryAspect.class (binary)}BinaryAspect`declare warning
++=== END OF RELATIONSHIPS REPORT ==
++=== Properties of the model and relationships map =====
++method=1
++import reference=3
++aspect=2
++code=1
++declare warning=2
++class=2
++advice=2
++pointcut=2
++RelationshipMapSize=6
++FileMapSize=2
++package=2
++java source file=3
+@@ -0,0 +1,26 @@
++=== MODEL STATUS REPORT ========= After a batch build
++<root>  [java source file] 
++  C.java  [java source file] TEST_SANDBOX\C.java:1::0
++    import declarations  [import reference] 
++    C  [class] TEST_SANDBOX\C.java:3::17
++      method1()  [method] TEST_SANDBOX\C.java:5::37
++        field-get(java.io.PrintStream java.lang.System.out)  [code] TEST_SANDBOX\C.java:6::80
++  AspectInDefaultPackage.class (binary)  [class] TEST_SANDBOX\simple.jar!AspectInDefaultPackage.class:1::0
++    import declarations  [import reference] 
++    AspectInDefaultPackage  [aspect] TEST_SANDBOX\simple.jar!AspectInDefaultPackage.class:1::0
++      declare warning: "There should be n.."  [declare warning] TEST_SANDBOX\simple.jar!AspectInDefaultPackage.class:4::0
++=== END OF MODEL REPORT =========
++=== RELATIONSHIPS REPORT ========= After a batch build
++(targets=1) {C.java[C~method1?field-get(java.io.PrintStream java.lang.System.out) (matches declare) [AspectInDefaultPackage.class (binary)}AspectInDefaultPackage`declare warning
++(targets=1) [AspectInDefaultPackage.class (binary)}AspectInDefaultPackage`declare warning (matched by) {C.java[C~method1?field-get(java.io.PrintStream java.lang.System.out)
++=== END OF RELATIONSHIPS REPORT ==
++=== Properties of the model and relationships map =====
++method=1
++import reference=2
++aspect=1
++code=1
++declare warning=1
++class=2
++RelationshipMapSize=2
++FileMapSize=1
++java source file=2
+@@ -0,0 +1,28 @@
++=== MODEL STATUS REPORT ========= After a batch build
++<root>  [java source file] 
++  pack  [package] 
++    C.java  [java source file] TEST_SANDBOX\C.java:1::0
++      import declarations  [import reference] 
++      C  [class] TEST_SANDBOX\C.java:3::30
++        method1()  [method] TEST_SANDBOX\C.java:5::50
++          field-get(java.io.PrintStream java.lang.System.out)  [code] TEST_SANDBOX\C.java:6::93
++  A.class (binary)  [class] TEST_SANDBOX\simple.jar!A.class:1::0
++    import declarations  [import reference] 
++    A  [aspect] TEST_SANDBOX\simple.jar!A.class:1::0
++      declare warning: "There should be n.."  [declare warning] TEST_SANDBOX\simple.jar!A.class:4::0
++=== END OF MODEL REPORT =========
++=== RELATIONSHIPS REPORT ========= After a batch build
++(targets=1) <pack{C.java[C~method1?field-get(java.io.PrintStream java.lang.System.out) (matches declare) [A.class (binary)}A`declare warning
++(targets=1) [A.class (binary)}A`declare warning (matched by) <pack{C.java[C~method1?field-get(java.io.PrintStream java.lang.System.out)
++=== END OF RELATIONSHIPS REPORT ==
++=== Properties of the model and relationships map =====
++method=1
++import reference=2
++aspect=1
++code=1
++declare warning=1
++class=2
++RelationshipMapSize=2
++FileMapSize=1
++package=1
++java source file=2
+@@ -0,0 +1,12 @@
++package pkg;
++
++public aspect BinaryAspect {
++
++	declare warning : (get(* System.out) || get(* System.err)) : "There should be no printlns";
++
++	pointcut p() : execution(* *.*(..));
++	
++	before() : p() {
++	}
++		
++}
+@@ -0,0 +1,9 @@
++package pack;
++
++public class C {
++
++	public void method1() {
++		System.out.println("blah");
++	}
++	
++}
+@@ -0,0 +1,3 @@
++To recreate the jar files:
++
++ajc BinaryAspect.aj -outjar simple.jar
+@@ -0,0 +1,12 @@
++package pkg;
++
++public aspect SourceAspect {
++
++	declare warning : (get(* System.out) || get(* System.err)) : "There should be no printlns";
++
++	pointcut p() : execution(* *.*(..));
++	
++	before() : p() {
++	}
++		
++}
+Binary files differ
+@@ -0,0 +1,12 @@
++package pkg;
++
++public aspect BinaryAspect {
++
++	declare warning : (get(* System.out) || get(* System.err)) : "There should be no printlns";
++
++	pointcut p() : execution(* *.*(..));
++	
++	before() : p() {
++	}
++		
++}
+@@ -0,0 +1,9 @@
++package pack;
++
++public class C {
++
++	public void method1() {
++		System.out.println("blah");
++	}
++	
++}
+@@ -0,0 +1,3 @@
++To recreate the class files:
++
++ajc BinaryAspect.aj -d .
+@@ -0,0 +1,12 @@
++package pkg;
++
++public aspect SourceAspect {
++
++	declare warning : (get(* System.out) || get(* System.err)) : "There should be no printlns";
++
++	pointcut p() : execution(* *.*(..));
++	
++	before() : p() {
++	}
++		
++}
+Binary files differ
+@@ -0,0 +1,6 @@
++
++public aspect AspectInDefaultPackage {
++
++	declare warning : (get(* System.out) || get(* System.err)) : "There should be no printlns";
++
++}
+@@ -0,0 +1,9 @@
++
++
++public class C {
++
++	public void method1() {
++		System.out.println("blah");
++	}
++	
++}
+@@ -0,0 +1,3 @@
++To recreate the jar files:
++
++ajc AspectInDefaultPackage.aj -outjar simple.jar
+Binary files differ
+@@ -0,0 +1,6 @@
++
++public aspect A {
++
++	declare warning : (get(* System.out) || get(* System.err)) : "There should be no printlns";
++
++}
+@@ -0,0 +1,9 @@
++package pack;
++
++public class C {
++
++	public void method1() {
++		System.out.println("blah");
++	}
++	
++}
+@@ -0,0 +1,3 @@
++To recreate the jar files:
++
++ajc A.java -outjar simple.jar
+Binary files differ
+@@ -34,16 +34,14 @@ import org.aspectj.org.eclipse.jdt.internal.compiler.ast.MethodDeclaration;
+ import org.aspectj.org.eclipse.jdt.internal.compiler.ast.TypeReference;
+ import org.aspectj.org.eclipse.jdt.internal.compiler.lookup.TypeBinding;
+ import org.aspectj.weaver.AdviceKind;
++import org.aspectj.weaver.AsmRelationshipUtils;
+ import org.aspectj.weaver.ResolvedType;
+ import org.aspectj.weaver.UnresolvedType;
+-import org.aspectj.weaver.patterns.AndPointcut;
+ import org.aspectj.weaver.patterns.DeclareAnnotation;
+ import org.aspectj.weaver.patterns.DeclareErrorOrWarning;
+ import org.aspectj.weaver.patterns.DeclareParents;
+ import org.aspectj.weaver.patterns.DeclarePrecedence;
+ import org.aspectj.weaver.patterns.DeclareSoft;
+-import org.aspectj.weaver.patterns.OrPointcut;
+-import org.aspectj.weaver.patterns.ReferencePointcut;
+ import org.aspectj.weaver.patterns.TypePattern;
+ import org.aspectj.weaver.patterns.TypePatternList;
+ 
+@@ -52,19 +50,6 @@ import org.aspectj.weaver.patterns.TypePatternList;
+  */
+ public class AsmElementFormatter {
+ 
+-	public static final String UNDEFINED="<undefined>";
+-	public static final String DECLARE_PRECEDENCE = "precedence";
+-	public static final String DECLARE_SOFT = "soft";
+-	public static final String DECLARE_PARENTS = "parents";
+-	public static final String DECLARE_WARNING = "warning";
+-	public static final String DECLARE_ERROR = "error";
+-	public static final String DECLARE_UNKNONWN = "<unknown declare>";
+-	public static final String POINTCUT_ABSTRACT = "<abstract pointcut>";
+-	public static final String POINTCUT_ANONYMOUS = "<anonymous pointcut>";
+-	public static final String DOUBLE_DOTS = "..";
+-	public static final int MAX_MESSAGE_LENGTH = 18;
+-	public static final String DEC_LABEL = "declare";
+-
+ 	public void genLabelAndKind(MethodDeclaration methodDeclaration, IProgramElement node) {
+ 
+ 		if (methodDeclaration instanceof AdviceDeclaration) { 
+@@ -77,28 +62,9 @@ public class AsmElementFormatter {
+ 
+ 			StringBuffer details = new StringBuffer();
+ 			if (ad.pointcutDesignator != null) {	
+-				if (ad.pointcutDesignator.getPointcut() instanceof ReferencePointcut) {
+-					ReferencePointcut rp = (ReferencePointcut)ad.pointcutDesignator.getPointcut();
+-					details.append(rp.name).append("..");
+-				} else if (ad.pointcutDesignator.getPointcut() instanceof AndPointcut) {
+-					AndPointcut ap = (AndPointcut)ad.pointcutDesignator.getPointcut();
+-					if (ap.getLeft() instanceof ReferencePointcut) {
+-						details.append(ap.getLeft().toString()).append(DOUBLE_DOTS);	
+-					} else {
+-						details.append(POINTCUT_ANONYMOUS).append(DOUBLE_DOTS);
+-					}
+-				} else if (ad.pointcutDesignator.getPointcut() instanceof OrPointcut) {
+-					OrPointcut op = (OrPointcut)ad.pointcutDesignator.getPointcut();
+-					if (op.getLeft() instanceof ReferencePointcut) {
+-						details.append(op.getLeft().toString()).append(DOUBLE_DOTS);	
+-					} else {
+-						details.append(POINTCUT_ANONYMOUS).append(DOUBLE_DOTS);
+-					}
+-				} else {
+-					details.append(POINTCUT_ANONYMOUS);
+-				}
++				details.append(AsmRelationshipUtils.genPointcutDetails(ad.pointcutDesignator.getPointcut()));
+ 			} else {
+-				details.append(POINTCUT_ABSTRACT);
++				details.append(AsmRelationshipUtils.POINTCUT_ABSTRACT);
+ 			} 
+ 			node.setName(ad.kind.toString());
+ 			//if (details.length()!=0) 
+@@ -113,25 +79,25 @@ public class AsmElementFormatter {
+ 
+ 		} else if (methodDeclaration instanceof DeclareDeclaration) { 
+ 			DeclareDeclaration declare = (DeclareDeclaration)methodDeclaration;
+-			String name = DEC_LABEL + " ";
++			String name = AsmRelationshipUtils.DEC_LABEL + " ";
+ 			if (declare.declareDecl instanceof DeclareErrorOrWarning) {
+ 				DeclareErrorOrWarning deow = (DeclareErrorOrWarning)declare.declareDecl;
+ 
+ 				if (deow.isError()) {
+ 					node.setKind( IProgramElement.Kind.DECLARE_ERROR);
+-					name += DECLARE_ERROR;
++					name += AsmRelationshipUtils.DECLARE_ERROR;
+ 				} else {
+ 					node.setKind( IProgramElement.Kind.DECLARE_WARNING);
+-					name += DECLARE_WARNING;
++					name += AsmRelationshipUtils.DECLARE_WARNING;
+ 				}
+ 				node.setName(name) ;
+-				node.setDetails("\"" + genDeclareMessage(deow.getMessage()) + "\"");
++				node.setDetails("\"" + AsmRelationshipUtils.genDeclareMessage(deow.getMessage()) + "\"");
+ 
+ 			} else if (declare.declareDecl instanceof DeclareParents) {
+ 
+ 				node.setKind( IProgramElement.Kind.DECLARE_PARENTS);
+ 				DeclareParents dp = (DeclareParents)declare.declareDecl;
+-				node.setName(name + DECLARE_PARENTS);
++				node.setName(name + AsmRelationshipUtils.DECLARE_PARENTS);
+ 
+ 				String kindOfDP = null;
+ 				StringBuffer details = new StringBuffer("");
+@@ -161,13 +127,13 @@ public class AsmElementFormatter {
+ 			} else if (declare.declareDecl instanceof DeclareSoft) {
+ 				node.setKind( IProgramElement.Kind.DECLARE_SOFT);
+ 				DeclareSoft ds = (DeclareSoft)declare.declareDecl;
+-				node.setName(name + DECLARE_SOFT);
++				node.setName(name + AsmRelationshipUtils.DECLARE_SOFT);
+ 				node.setDetails(genTypePatternLabel(ds.getException()));
+ 
+ 			} else if (declare.declareDecl instanceof DeclarePrecedence) {
+ 				node.setKind( IProgramElement.Kind.DECLARE_PRECEDENCE);
+ 				DeclarePrecedence ds = (DeclarePrecedence)declare.declareDecl;
+-				node.setName(name + DECLARE_PRECEDENCE);
++				node.setName(name + AsmRelationshipUtils.DECLARE_PRECEDENCE);
+ 				node.setDetails(genPrecedenceListLabel(ds.getPatterns()));
+ 
+ 			} else if (declare.declareDecl instanceof DeclareAnnotation) {
+@@ -188,7 +154,7 @@ public class AsmElementFormatter {
+ 
+ 			} else {
+ 				node.setKind(IProgramElement.Kind.ERROR);
+-				node.setName(DECLARE_UNKNONWN);
++				node.setName(AsmRelationshipUtils.DECLARE_UNKNONWN);
+ 			}
+ 
+ 		} else if (methodDeclaration instanceof InterTypeDeclaration) {
+@@ -247,7 +213,7 @@ public class AsmElementFormatter {
+ 	                                   || "Lorg/aspectj/lang/annotation/Around;".equals(annotationSig)) {
+ 	                            node.setKind(IProgramElement.Kind.ADVICE);
+ 	                            //TODO AV - all are considered anonymous - is that ok?
+-	                            node.setDetails(POINTCUT_ANONYMOUS);
++	                            node.setDetails(AsmRelationshipUtils.POINTCUT_ANONYMOUS);
+ 	                            break;
+ 	                        }
+                         }
+@@ -348,15 +314,6 @@ public class AsmElementFormatter {
+ 		return label;
+ 
+ 	}
+-
+-	public String genDeclareMessage(String message) {
+-		int length = message.length();
+-		if (length < MAX_MESSAGE_LENGTH) {
+-			return message;
+-		} else {
+-			return message.substring(0, MAX_MESSAGE_LENGTH-1) + "..";
+-		}
+-	}
+ 
+ //	// TODO: 
+ //	private String translateAdviceName(String label) {
+@@ -387,7 +344,8 @@ public class AsmElementFormatter {
+ //		}
+ //	}
+ 
+-	// !!! move or replace
++
++	//	 !!! move or replace
+ 	private String translatePointcutName(String name) {
+ 		int index = name.indexOf("$$")+2;
+ 		int endIndex = name.lastIndexOf('$');
+@@ -0,0 +1,10 @@
++package pkg;
++
++public abstract aspect AbstractAspect {
++
++	public abstract pointcut abstractPCD();
++	
++	before() : abstractPCD() {
++	}
++	
++}
+@@ -0,0 +1,18 @@
++
++public aspect AspectInDefaultPackage {
++
++	public pointcut execM1() : execution(* pack.C.method1(..));
++	public pointcut execM2() : execution(* pack.C.method2(..));
++	
++	before() : execM1() && this(pack.C) {		
++	}
++	
++	before() : execM2() || execM1() {
++	}
++	
++	before() : execution(* pack.C.method1()) {
++	}
++
++	
++	
++}
+@@ -0,0 +1,12 @@
++package pack;
++
++public class C {
++
++	public void method1() {
++		new C().method2();
++	}
++	
++	public void method2() {
++	}
++	
++}
+@@ -0,0 +1,17 @@
++package pkg;
++
++public aspect ConcreteAspect {
++	
++	public pointcut execM1() : execution(* pack.C.method1(..));
++	public pointcut execM2() : execution(* pack.C.method2(..));
++	
++	before() : execM1() && this(pack.C) {		
++	}
++	
++	before() : execM2() || execM1() {
++	}
++	
++	before() : execution(* pack.C.method1()) {
++	}
++
++}
+@@ -0,0 +1,16 @@
++To recreate the jar files create AspectJ projects within Eclipse containing the
++required files, right click and select 'Export > Java > JAR file with AspectJ Support'
++
++jar file					files contained in the jar file
++--------					-------------------------------
++adviceAndDeow.jar			A.aj, Deow.aj, Itd.aj, NewClass.java
++adviceLabels.jar			ConcreteAspect.aj
++aspectInDefaultPackage.jar	AspectInDefaultPackage.aj
++
++
++
++may need classpath entries on some of these: ?
++
++ajc A.aj Deow.aj Itd.aj NewClass.java -outjar adviceAndDeow.jar
++ajc ConcreteAspect.aj -outjar adviceLabels.jar
++ajc AspectInDefaultPackage.aj -outjar aspectInDefaultPackage.jar
+\ No newline at end of file
+@@ -0,0 +1,10 @@
++package pkg;
++
++public aspect SrcAspect {
++	
++	pointcut p() : execution(* *.*(..)) && !within(pkg.*);
++	
++	before() : p() {
++	}
++	
++}
+Binary files differ
+Binary files differ
+@@ -84,7 +84,7 @@ public class CreatingModelForInjarTests extends org.aspectj.testing.XMLBasedAjcT
+ 	public void testAdviceInRelMap() {
+ 		runTest("advice and deow");
+ 		IHierarchy top = AsmManager.getDefault().getHierarchy();
+-		IProgramElement adviceNode = top.findElementForLabel(top.getRoot(), IProgramElement.Kind.ADVICE,"before()");
++		IProgramElement adviceNode = top.findElementForLabel(top.getRoot(), IProgramElement.Kind.ADVICE,"before(): p..");
+ 		IRelationshipMap relMap = AsmManager.getDefault().getRelationshipMap();
+ 		List adviceRels = relMap.get(adviceNode);
+ 		assertFalse("expected before advice to have relationships but did not",adviceRels.isEmpty());
+@@ -101,6 +101,47 @@ public class CreatingModelForInjarTests extends org.aspectj.testing.XMLBasedAjcT
+ 		assertFalse("expected declare warning to have relationships but did not",dwRels.isEmpty());
+ 	}
+ 
++	public void testAdviceLabelsCorrect() {
++		runTest("ensure advice label is correct");
++		IHierarchy top = AsmManager.getDefault().getHierarchy();
++		
++		IProgramElement node = top.findElementForLabel(top.getRoot(), 
++				IProgramElement.Kind.ADVICE, "before(): execM1()..");
++		assertNotNull("expected to find ipe with label 'before(): execM1()..'" +
++				" but didn't", node);
++		
++		node = top.findElementForLabel(top.getRoot(), 
++				IProgramElement.Kind.ADVICE, "before(): execM2()..");
++		assertNotNull("expected to find ipe with label 'before(): execM2()..'" +
++				" but didn't", node);
++		
++		node = top.findElementForLabel(top.getRoot(), 
++				IProgramElement.Kind.ADVICE, "before(): <anonymous pointcut>");
++		assertNotNull("expected to find ipe with label 'before(): <anonymous pointcut>'" +
++				" but didn't", node);
++	}
++	
++	// ensure that filled in hierarchy only has one entry for
++	// aspect
++	public void testOnlyOneAspectEntry() {
++		runTest("ensure advice label is correct");
++		
++		IProgramElement pkgNode = getPkgNode();
++		assertEquals("expected one child node but found " + 
++				pkgNode.getChildren().size(), 1, pkgNode.getChildren().size());
++		
++	}
++	
++	public void testOnlyOneAspectEntry_inDefaultPackage() {
++		runTest("aspect in default package");
++		// expect there to be two children - 'pack' and 
++		// 'AspectInDefaultPackage.aj (binary)'
++		IProgramElement defaultPkg = AsmManager.getDefault().getHierarchy().getRoot();
++		assertEquals("expected two child node but found " + 
++				defaultPkg.getChildren().size(), 2, defaultPkg.getChildren().size());
++		
++	}
++	
+ 	// --------------------- Helper methods ---------------------
+ 
+ 	private IProgramElement getPkgNode() {
+@@ -9,5 +9,12 @@
+ 	  </compile>
+     </ajc-test>
+ 
++    <ajc-test dir="bugs152/pr145963" title="ensure advice label is correct">
++      <compile files="C.java" aspectpath="adviceLabels.jar" options="-emacssym"/>
++    </ajc-test>
+ 
++    <ajc-test dir="bugs152/pr145963" title="aspect in default package">
++      <compile files="C.java" aspectpath="aspectInDefaultPackage.jar" options="-emacssym"/>
++    </ajc-test>
++
+ </suite>
+@@ -176,6 +176,9 @@ public class AsmRelationshipProvider {
+ 				return;
+ 			}
+ 
++			if (World.createInjarHierarchy) {
++				munger.createHierarchy();
++			}
+ 
+ 			IRelationshipMap mapper = AsmManager.getDefault().getRelationshipMap();
+ 			IProgramElement targetNode = getNode(AsmManager.getDefault().getHierarchy(), shadow);
+@@ -0,0 +1,84 @@
++/********************************************************************
++ * Copyright (c) 2006 Contributors. All rights reserved. 
++ * This program and the accompanying materials are made available 
++ * under the terms of the Eclipse Public License v1.0 
++ * which accompanies this distribution and is available at 
++ * http://eclipse.org/legal/epl-v10.html 
++ *  
++ * Contributors: IBM Corporation - initial API and implementation 
++ * 				 Helen Hawkins   - initial version
++ *******************************************************************/
++package org.aspectj.weaver;
++
++import org.aspectj.weaver.patterns.AndPointcut;
++import org.aspectj.weaver.patterns.OrPointcut;
++import org.aspectj.weaver.patterns.Pointcut;
++import org.aspectj.weaver.patterns.ReferencePointcut;
++
++/**
++ * Provides utility methods for generating details for IProgramElements
++ * used when creating the model both from source (via AsmElementFormatter.visit(..))
++ * and when filling in the model for binary aspects (via AsmRelationshipProvider
++ * bug 145963)
++ */
++public class AsmRelationshipUtils {
++
++	public static final String UNDEFINED="<undefined>";
++	public static final String DECLARE_PRECEDENCE = "precedence";
++	public static final String DECLARE_SOFT = "soft";
++	public static final String DECLARE_PARENTS = "parents";
++	public static final String DECLARE_WARNING = "warning";
++	public static final String DECLARE_ERROR = "error";
++	public static final String DECLARE_UNKNONWN = "<unknown declare>";
++	public static final String POINTCUT_ABSTRACT = "<abstract pointcut>";
++	public static final String POINTCUT_ANONYMOUS = "<anonymous pointcut>";
++	public static final String DOUBLE_DOTS = "..";
++	public static final int MAX_MESSAGE_LENGTH = 18;
++	public static final String DEC_LABEL = "declare";
++
++	/**
++	 * Generates the declare message used in the details, for example if
++	 * the declare warning statement has message "There should be no printlns" 
++	 * will return 'declare warning: "There should be n.."' 
++	 */
++	public static String genDeclareMessage(String message) {
++		int length = message.length();
++		if (length < MAX_MESSAGE_LENGTH) {
++			return message;
++		} else {
++			return message.substring(0, MAX_MESSAGE_LENGTH-1) + DOUBLE_DOTS;
++		}
++	}
++
++	/**
++	 * Generates the pointcut details for the given pointcut, for example
++	 * an anonymous pointcut will return '<anonymous pointcut>' and 
++	 * a named pointcut called p() will return 'p()..'
++	 */
++	public static String genPointcutDetails(Pointcut pcd) {
++		StringBuffer details = new StringBuffer();
++		if (pcd instanceof ReferencePointcut) {
++			ReferencePointcut rp = (ReferencePointcut)pcd;
++			details.append(rp.name).append(DOUBLE_DOTS);
++		} else if (pcd instanceof AndPointcut) {
++			AndPointcut ap = (AndPointcut)pcd;
++			if (ap.getLeft() instanceof ReferencePointcut) {
++				details.append(ap.getLeft().toString()).append(DOUBLE_DOTS);	
++			} else {
++				details.append(POINTCUT_ANONYMOUS).append(DOUBLE_DOTS);
++			}
++		} else if (pcd instanceof OrPointcut) {
++			OrPointcut op = (OrPointcut)pcd;
++			if (op.getLeft() instanceof ReferencePointcut) {
++				details.append(op.getLeft().toString()).append(DOUBLE_DOTS);	
++			} else {
++				details.append(POINTCUT_ANONYMOUS).append(DOUBLE_DOTS);
++			}
++		} else {
++			details.append(POINTCUT_ANONYMOUS);
++		}
++		return details.toString();
++	}
++	
++	
++}
+@@ -98,9 +98,6 @@ public abstract class ShadowMunger implements PartialOrder.PartialComparable, IH
+ 		if (null == handle) {
+ 			ISourceLocation sl = getSourceLocation();
+ 			if (sl != null) {
+-				if (World.createInjarHierarchy) {
+-					createHierarchy();
+-				} 
+ 				IProgramElement ipe = AsmManager.getDefault().getHierarchy().findElementForSourceLine(sl);
+ 				handle = AsmManager.getDefault().getHandleProvider().createHandleIdentifier(ipe);
+ 			}
+@@ -155,6 +152,9 @@ public abstract class ShadowMunger implements PartialOrder.PartialComparable, IH
+      */
+     public abstract ResolvedType getResolvedDeclaringAspect();
+ 
++    /**
++     * Creates the hierarchy for binary aspects
++     */
+     public void createHierarchy() {
+     	IProgramElement sourceFileNode = AsmManager.getDefault().getHierarchy().findElementForSourceLine(getSourceLocation());
+     	if (!sourceFileNode.getKind().equals(IProgramElement.Kind.FILE_JAVA)) {
+@@ -162,6 +162,7 @@ public abstract class ShadowMunger implements PartialOrder.PartialComparable, IH
+ 		}
+     	String name = sourceFileNode.getName();
+     	sourceFileNode.setName(name + " (binary)");
++    	AsmManager.getDefault().getHandleProvider().createHandleIdentifier(sourceFileNode);
+ 
+     	ResolvedType aspect = getResolvedDeclaringAspect();
+ 
+@@ -178,9 +179,29 @@ public abstract class ShadowMunger implements PartialOrder.PartialComparable, IH
+     	                IProgramElement.Kind.PACKAGE, 
+     	                new ArrayList());
+     			root.addChild(pkgNode);
++    			pkgNode.addChild(sourceFileNode);
++			} else {
++				for (Iterator iter = pkgNode.getChildren().iterator(); iter.hasNext();) {
++					IProgramElement element = (IProgramElement) iter.next();
++					if (element.getHandleIdentifier().equals(
++							sourceFileNode.getHandleIdentifier())) {
++						// already added the sourcefile so have already
++						// added the structure for this aspect
++						return;
++					}
++				}
++				pkgNode.addChild(sourceFileNode);
+ 			}
+-    		pkgNode.addChild(sourceFileNode);
+ 		} else {
++			for (Iterator iter = root.getChildren().iterator(); iter.hasNext();) {
++				IProgramElement element = (IProgramElement) iter.next();
++				if (element.getHandleIdentifier().equals(
++						sourceFileNode.getHandleIdentifier())) {
++					// already added the sourcefile so have already
++					// added the structure for this aspect
++					return;
++				}				
++			}
+ 			root.addChild(sourceFileNode);
+ 		}
+ 
+@@ -240,26 +261,19 @@ public abstract class ShadowMunger implements PartialOrder.PartialComparable, IH
+ 		    			getSourceLocation(),
+ 		    			this.getDeclaringType().getModifiers(),
+ 		    			null,null); 
+-		    	deowNode.setDetails("\"" + genDeclareMessage(decl.getMessage()) + "\"");
++		    	deowNode.setDetails("\"" + AsmRelationshipUtils.genDeclareMessage(decl.getMessage()) + "\"");
+ 		    	parent.addChild(deowNode);
+ 			} else if (element instanceof BcelAdvice) {
+ 				BcelAdvice advice = (BcelAdvice)element;
+-		    	parent.addChild(new ProgramElement(
+-				advice.kind.getName(),
+-				IProgramElement.Kind.ADVICE,
+-				getSourceLocation(),
+-				advice.signature.getModifiers(),null,Collections.EMPTY_LIST));
++				IProgramElement adviceNode = new ProgramElement(
++		    			advice.kind.getName(),
++		    			IProgramElement.Kind.ADVICE,
++		    			getSourceLocation(),
++		    			advice.signature.getModifiers(),null,Collections.EMPTY_LIST);
++		    	adviceNode.setDetails(AsmRelationshipUtils.genPointcutDetails(advice.getPointcut()));
++		    	parent.addChild(adviceNode);
+ 			}
+ 		}
+     }
+-    
+-	// taken from AsmElementFormatter
+-	private String genDeclareMessage(String message) {
+-		int length = message.length();
+-		if (length < 18) {
+-			return message;
+-		} else {
+-			return message.substring(0, 17) + "..";
+-		}
+-	}
++
+ }

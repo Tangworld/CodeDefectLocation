@@ -1,0 +1,177 @@
+@@ -58,6 +58,7 @@ import org.aspectj.org.eclipse.jdt.internal.compiler.lookup.ClassScope;
+ import org.aspectj.org.eclipse.jdt.internal.compiler.lookup.CompilationUnitScope;
+ import org.aspectj.org.eclipse.jdt.internal.compiler.lookup.MethodScope;
+ import org.aspectj.org.eclipse.jdt.internal.compiler.util.Util;
++import org.aspectj.util.CharOperation;
+ import org.aspectj.util.LangUtil;
+ import org.aspectj.weaver.BCException;
+ import org.aspectj.weaver.Member;
+@@ -667,8 +668,9 @@ public class AsmHierarchyBuilder extends ASTVisitor {
+ 	protected String generateJavadocComment(ASTNode astNode) {
+ 		if (buildConfig != null && !buildConfig.isGenerateJavadocsInModelMode()) return null;
+ 
+-		StringBuffer sb = new StringBuffer(); // !!! specify length?
+-		boolean completed = false;
++
++        // StringBuffer sb = new StringBuffer(); // !!! specify length?
++        // boolean completed = false;
+ 		int startIndex = -1;
+ 		if (astNode instanceof MethodDeclaration) {
+ 			startIndex = ((MethodDeclaration)astNode).declarationSourceStart;
+@@ -680,20 +682,29 @@ public class AsmHierarchyBuilder extends ASTVisitor {
+ 
+ 		if (startIndex == -1) {
+ 			return null;
+-		} else if (currCompilationResult.compilationUnit.getContents()[startIndex] == '/'  // look for /**
+-			&& currCompilationResult.compilationUnit.getContents()[startIndex+1] == '*'
+-			&& currCompilationResult.compilationUnit.getContents()[startIndex+2] == '*') {
+-			
+-			for (int i = startIndex; i < astNode.sourceStart && !completed; i++) {
+-				char curr = currCompilationResult.compilationUnit.getContents()[i];
+-				if (curr == '/' && sb.length() > 2 && sb.charAt(sb.length()-1) == '*') completed = true; // found */
+-				sb.append(currCompilationResult.compilationUnit.getContents()[i]);
+-			} 
+-			return sb.toString();
+-		} else {
+-			return null;
++		} else if (currCompilationResult.compilationUnit.getContents()[startIndex] == '/') {
++            char[] comment = CharOperation.subarray(currCompilationResult.compilationUnit.getContents(), startIndex, astNode.sourceStart);
++            while (comment.length > 2) {
++                int star = CharOperation.indexOf('*', comment);
++                if (star == -1)
++                    return null;
++                // looking for '/**' and not '//' or '//*'
++                if (star != 0 && (comment[star - 1] == '/') && (comment[star + 1] == '*') && (star - 2 < 0 || comment[star - 2] != '/')) {
++                    boolean completed = false;
++                    StringBuffer sb = new StringBuffer();
++                    for (int i = 0; i < comment.length && !completed; i++) {
++                        char curr = comment[i];
++                        if (curr == '/' && sb.length() > 2 && sb.charAt(sb.length() - 1) == '*') {
++                            completed = true; // found */
++                        }
++                        sb.append(comment[i]);
++                    }
++                    return sb.toString();
++                }
++                comment = CharOperation.subarray(comment, star + 1, comment.length);
++            }
+ 		}
+-		
++		return null;
+ 	}
+ 
+ 	/**
+@@ -0,0 +1,21 @@
++public class C {
++
++    // foo's ordinary comment
++    /**
++     * description of foo
++     */
++    public void foo() {
++    }
++
++    //************
++    /**
++     * description of bar
++     */
++    public void bar() {
++    }
++    
++    //******* description of goo
++    public void goo() {
++    }
++
++}
+@@ -130,4 +130,30 @@ public class BugTests extends AjdocTestCase {
+ 		assertTrue("expected build of project to abort",Main.hasAborted());		
+ 	}
+ 
++	/**
++	 * javadoc comments should still appear even if preceded by 
++	 * 'normal' comments
++	 */
++	public void testPr164356() throws Exception {
++		initialiseProject("pr164356");
++		File[] files = {new File(getAbsoluteProjectDir() + "/C.java")};
++		runAjdoc(files);
++	    File htmlFile = new File(getAbsolutePathOutdir() + "/C.html");
++		if (htmlFile == null || !htmlFile.exists()) {
++			fail("couldn't find " + htmlFile.getAbsolutePath() + 
++					" (ajc aborted: " + Main.hasAborted() + ")");
++		}
++		String foo = "description of foo";
++		String bar = "description of bar";
++		String goo = "description of goo";
++		assertTrue("expected method description 'description of foo' to appear" +
++				" in ajdoc output but it did not", 
++				AjdocOutputChecker.containsString(htmlFile, foo));
++		assertTrue("expected method description 'description of bar' to " +
++				"appear in ajdoc output but it did not", 
++				AjdocOutputChecker.containsString(htmlFile, bar));
++		assertFalse("didn't expect method description 'description of goo' to " +
++				"appear in ajdoc output but it did not", 
++				AjdocOutputChecker.containsString(htmlFile, goo));
++	}
+ }
+@@ -179,6 +179,27 @@ public class Ajc153Tests extends org.aspectj.testing.XMLBasedAjcTestCase {
+ 
+   public void testNoNPEWithThrownExceptionWarningAndAtAspectj_pr161217() {runTest("NPE with thrown exception warning and at aspectj");}
+ 
++  public void testJavadocCommentsAreSetIfHaveNormalComments_pr164340() {
++	  runTest("javadoc comments are set if have normal comments");
++	  IHierarchy top = AsmManager.getDefault().getHierarchy();
++	  
++	  IProgramElement ipe = top.findElementForLabel(top.getRoot(),
++			  IProgramElement.Kind.METHOD,"foo()");
++	  assertNotNull("expected formal comment to be non null but" +
++	  		" found that it was null",ipe.getFormalComment());
++	  
++	  ipe = top.findElementForLabel(top.getRoot(),
++			  IProgramElement.Kind.METHOD,"bar()");
++	  assertNotNull("expected formal comment to be non null but" +
++	  		" found that it was null",ipe.getFormalComment());
++	  
++	  ipe = top.findElementForLabel(top.getRoot(),
++			  IProgramElement.Kind.METHOD,"goo()");
++	  assertNull("expected formal comment to be null but" +
++	  		" found that it was " + ipe.getFormalComment(),ipe.getFormalComment());
++
++  }
++  
+   public void testBinaryWeavingIntoJava6Library_pr164384() {runTest("binary weaving into java 6 library");}
+   public void testCompilanceJava6ThrowsUsageError_pr164384() {runTest("compliance java 6 throws usage error");}
+   public void testSourceLevelJava6ThrowsUsageError_pr164384() {runTest("source level java 6 throws usage error");}
+@@ -804,6 +804,10 @@
+ 	 </compile>
+     </ajc-test> 
+ 
++    <ajc-test dir="bugs153/pr164356" title="javadoc comments are set if have normal comments">
++      <compile files="C.java" options="-emacssym -XjavadocsInModel"/>
++    </ajc-test>
++    
+    <ajc-test dir="bugs153/pr164384" title="compliance java 6 throws usage error">
+       <compile files="MainClass.java,Hello.java,MyAnnotation.java" options="-1.6">
+  	  <!--        
+@@ -0,0 +1,21 @@
++public class C {
++
++    // foo's ordinary comment
++    /**
++     * description of foo
++     */
++    public void foo() {
++    }
++
++    //************
++    /**
++     * description of bar
++     */
++    public void bar() {
++    }
++    
++    //*******
++    public void goo() {
++    }
++
++}

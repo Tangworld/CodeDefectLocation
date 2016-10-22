@@ -1,0 +1,102 @@
+@@ -0,0 +1,40 @@
++import java.io.ByteArrayInputStream;
++import java.io.ByteArrayOutputStream;
++import java.io.ObjectInputStream;
++import java.io.ObjectOutputStream;
++import java.io.Serializable;
++
++
++public class A {
++  public static void main(String[] args) throws Exception {
++    A obj1 = new A();
++
++    ByteArrayOutputStream baos = new ByteArrayOutputStream();
++    ObjectOutputStream oos = new ObjectOutputStream(baos);
++    oos.writeObject(obj1);
++    oos.close();
++    byte[] data = baos.toByteArray();
++    
++    ByteArrayInputStream bais = new ByteArrayInputStream(data);
++    ObjectInputStream ois = new ObjectInputStream(bais);
++    Object o = ois.readObject();
++    
++    int before = ((Persistable)obj1).getPersistableId();
++    int after = ((Persistable)o).getPersistableId();
++    if (before!=after) 
++    	System.out.println("The data was lost! before="+before+" after="+after);
++    else
++    	System.out.println("It worked, data preserved!");
++  }
++}
++
++interface Persistable extends Serializable {
++  abstract public int getPersistableId();
++}
++
++aspect PersistableImpl {
++  declare parents: A extends Persistable;
++
++  final public int Persistable.persistableId = 42;
++  public int Persistable.getPersistableId() { return persistableId; }
++}
+@@ -11,7 +11,7 @@ public class TheWholeShow {
+   public static void main(String[] args) {
+     Field[] twsFields = TheWholeShow.class.getDeclaredFields();
+     for (Field f : twsFields) {
+-      if (!f.getName().equals("f") && !f.getName().equals("x")) {
++      if (!f.getName().equals("f") && !f.getName().equals("x")  && !f.getName().startsWith("ajc$interField$")) {
+         if (!f.isSynthetic()) {
+           System.err.println("Found non-synthetic field: " + f.getName());
+           throw new IllegalStateException("Found non-synthetic field: " + f.getName());
+@@ -84,7 +84,7 @@
+       <run class="Declaration1">
+         <stdout>
+           <line text="public java.lang.String Test.firstProperty has annotation:true"/>
+-          <line text="public transient java.lang.String Test.ajc$interField$Declaration1$TestInterface$secondProperty has annotation:true"/>
++          <line text="public java.lang.String Test.ajc$interField$Declaration1$TestInterface$secondProperty has annotation:true"/>
+         </stdout>
+       </run>
+     </ajc-test>
+@@ -117,7 +117,7 @@
+       <run class="Declaration2">
+         <stdout>
+           <line text="public java.lang.String Test.firstProperty has annotation:true"/>
+-          <line text="public transient java.lang.String Test.ajc$interField$Declaration2$TestInterface$secondProperty has annotation:true"/>
++          <line text="public java.lang.String Test.ajc$interField$Declaration2$TestInterface$secondProperty has annotation:true"/>
+         </stdout>
+       </run>
+     </ajc-test>
+@@ -21,6 +21,7 @@ import junit.framework.Test;
+  */
+ public class Ajc160Tests extends org.aspectj.testing.XMLBasedAjcTestCase {
+ 
++  public void testIncorrectlyMarkingFieldTransient_pr168063() { runTest("incorrectly marking field transient");}
+   public void testInheritedAnnotations_pr169706() { runTest("inherited annotations");}
+   public void testGenericFieldNPE_pr165885() { runTest("generic field npe");}
+   public void testIncorrectOptimizationOfIstore_pr166084() { runTest("incorrect optimization of istore"); }
+@@ -16,6 +16,15 @@
+ 	  </compile>
+     </ajc-test>
+ 
++    <ajc-test dir="bugs160/pr168063" title="incorrectly marking field transient">
++      <compile files="A.java"/>
++      <run class="A">
++        <stdout>
++          <line text="It worked, data preserved!"/>
++        </stdout>
++      </run>
++    </ajc-test>
++    
+     <ajc-test dir="bugs160/pr166084" title="incorrect optimization of istore">
+       <compile files="X.java" inpath="simple.jar"/>
+ 	  <run class="Simple"/>
+@@ -1237,7 +1237,8 @@ public final class LazyClassGen {
+ 	}
+ 
+ 	private void makeSyntheticAndTransientIfNeeded(Field field) {
+-		if (field.getName().startsWith(NameMangler.PREFIX)) {
++		if (field.getName().startsWith(NameMangler.PREFIX) &&
++			!field.getName().startsWith("ajc$interField$")) {
+ 			// it's an aj added field
+ 			// first do transient
+ 			if (!field.isStatic()) {

@@ -1,0 +1,691 @@
+@@ -497,6 +497,8 @@
+             <message kind="error" line="22"/>
+             <message kind="error" line="27"/>
+             <message kind="error" line="30"/>
++            <!-- new error due to 275032 - other end of itd clash has error recorded against it -->
++            <message kind="error" line="7"/>
+         </compile>
+     </ajc-test>
+ 
+@@ -337,6 +337,8 @@
+ 			<message kind="error" line="5" text="conflicts with existing member"/>
+ 			<message kind="error" line="10" text="conflicts with existing member"/>
+ 			<message kind="error" line="14" text="conflicts with existing member"/>
++			<!-- new error expected due to 275032 change - the itd for the ctor will be ignored in the clash case -->
++			<message kind="error" line="41" text="The constructor A() is not visible"/>
+ 		</compile>
+ 	</ajc-test>
+ 
+@@ -1246,6 +1246,8 @@
+         <compile files="p2/pr99125.aj,p/I.java,p/J.java"/> <!-- actually in package p, introduces incompatible change -->
+         <compile files="Aspects.aj" options="-inpath p">
+             <message kind="error" line="7" text="inter-type declaration from X conflicts with existing member"/>
++            <!-- 275032 - new error at affected member location too -->
++            <message kind="error" line="10" text="inter-type declaration from X conflicts with existing member"/>
+         </compile>
+     </ajc-test>
+ 
+@@ -0,0 +1,2 @@
++public class A {
++}
+@@ -0,0 +1,4 @@
++public aspect X {
++  public A.new() {
++  }
++}
+@@ -0,0 +1,3 @@
++public class A {
++  public A() {}
++}
+@@ -59,18 +59,16 @@ public class MultiProjectIncrementalTests extends AbstractMultiProjectIncrementa
+ 		addSourceFolderForSourceFile(p, getProjectRelativePath(p, "src/X.aj"), "src");
+ 		addSourceFolderForSourceFile(p, getProjectRelativePath(p, "src/C.java"), "src");
+ 		build(p);
+-		printModel(p);
+ 		IRelationshipMap irm = getModelFor(p).getRelationshipMap();
+ 		IRelationship ir = (IRelationship) irm.get("=pr276399/src<*X.aj}X&after").get(0);
+ 		assertNotNull(ir);
+ 		alter(p, "inc1");
+ 		build(p);
+-		printModel(p);
+ 		irm = getModelFor(p).getRelationshipMap();
+ 		List rels = irm.get("=pr276399/src<*X.aj}X&after"); // should be gone after the inc build
+ 		assertNull(rels);
+ 	}
+-/*
++
+ 	public void testIncrementalItdDefaultCtor() {
+ 		String p = "pr275032";
+ 		initialiseProject(p);
+@@ -80,14 +78,14 @@ public class MultiProjectIncrementalTests extends AbstractMultiProjectIncrementa
+ 		build(p);
+ 		// error is: inter-type declaration from X conflicts with existing member: void A.<init>()
+ 		List ms = getErrorMessages(p);
+-		for (Iterator iterator = ms.iterator(); iterator.hasNext();) {
+-			Object object = (Object) iterator.next();
+-			System.out.println(object);
+-		}
+-		assertEquals(1, getErrorMessages(p).size());
++		assertEquals(4, getErrorMessages(p).size());
++		// Why 4 errors? I believe the problem is:
++		// 2 errors are reported when there is a clash - one against the aspect, one against the affected target type.
++		// each of the two errors are recorded against the compilation result for the aspect and the target
++		// So it comes out as 4 - but for now I am tempted to leave it because at least it shows there is a problem...
+ 		assertTrue("Was:" + getErrorMessages(p).get(0), getErrorMessages(p).get(0).toString().indexOf("conflicts") != -1);
+ 	}
+-*/
++
+ 	public void testOutputLocationCallbacks2() {
+ 		String p = "pr268827_ol_res";
+ 		initialiseProject(p);
+@@ -1466,18 +1466,22 @@ public abstract class ResolvedType extends UnresolvedType implements AnnotatedEl
+ 		// System.err.println("add: " + munger + " to " + this.getClassName() +
+ 		// " with " + interTypeMungers);
+ 		if (sig.getKind() == Member.METHOD) {
+-			if (!compareToExistingMembers(munger, getMethodsWithoutIterator(false, true) /* getMethods() */))
++			if (clashesWithExistingMember(munger, getMethodsWithoutIterator(false, true))) {
+ 				return;
++			}
+ 			if (this.isInterface()) {
+-				if (!compareToExistingMembers(munger, Arrays.asList(world.getCoreType(OBJECT).getDeclaredMethods()).iterator()))
++				if (clashesWithExistingMember(munger, Arrays.asList(world.getCoreType(OBJECT).getDeclaredMethods()).iterator())) {
+ 					return;
++				}
+ 			}
+ 		} else if (sig.getKind() == Member.FIELD) {
+-			if (!compareToExistingMembers(munger, Arrays.asList(getDeclaredFields()).iterator()))
++			if (clashesWithExistingMember(munger, Arrays.asList(getDeclaredFields()).iterator())) {
+ 				return;
++			}
+ 		} else {
+-			if (!compareToExistingMembers(munger, Arrays.asList(getDeclaredMethods()).iterator()))
++			if (clashesWithExistingMember(munger, Arrays.asList(getDeclaredMethods()).iterator())) {
+ 				return;
++			}
+ 		}
+ 
+ 		// now compare to existingMungers
+@@ -1517,13 +1521,18 @@ public abstract class ResolvedType extends UnresolvedType implements AnnotatedEl
+ 		interTypeMungers.add(munger);
+ 	}
+ 
+-	private boolean compareToExistingMembers(ConcreteTypeMunger munger, List existingMembersList) {
+-		return compareToExistingMembers(munger, existingMembersList.iterator());
++	private boolean clashesWithExistingMember(ConcreteTypeMunger munger, List existingMembersList) {
++		return clashesWithExistingMember(munger, existingMembersList.iterator());
+ 	}
+ 
+-	// ??? returning too soon
+-	private boolean compareToExistingMembers(ConcreteTypeMunger munger, Iterator existingMembers) {
+-		ResolvedMember sig = munger.getSignature();
++	/**
++	 * Compare the type transformer with the existing members. A clash may not be an error (the ITD may be the 'default
++	 * implementation') so returning false is not always a sign of an error.
++	 * 
++	 * @return true if there is a clash
++	 */
++	private boolean clashesWithExistingMember(ConcreteTypeMunger typeTransformer, Iterator existingMembers) {
++		ResolvedMember typeTransformerSignature = typeTransformer.getSignature();
+ 
+ 		// ResolvedType declaringAspectType = munger.getAspectType();
+ 		// if (declaringAspectType.isRawType()) declaringAspectType =
+@@ -1547,39 +1556,36 @@ public abstract class ResolvedType extends UnresolvedType implements AnnotatedEl
+ 		// filled in
+ 		// }
+ 		while (existingMembers.hasNext()) {
+-
+ 			ResolvedMember existingMember = (ResolvedMember) existingMembers.next();
+ 			// don't worry about clashing with bridge methods
+-			if (existingMember.isBridgeMethod())
++			if (existingMember.isBridgeMethod()) {
+ 				continue;
+-			// System.err.println("Comparing munger: "+sig+" with member "+
+-			// existingMember);
+-			if (conflictingSignature(existingMember, munger.getSignature())) {
++			}
++			if (conflictingSignature(existingMember, typeTransformerSignature)) {
+ 				// System.err.println("conflict: existingMember=" +
+ 				// existingMember + "   typeMunger=" + munger);
+ 				// System.err.println(munger.getSourceLocation() + ", " +
+ 				// munger.getSignature() + ", " +
+ 				// munger.getSignature().getSourceLocation());
+ 
+-				if (isVisible(existingMember.getModifiers(), this, munger.getAspectType())) {
+-					int c = compareMemberPrecedence(sig, existingMember);
++				if (isVisible(existingMember.getModifiers(), this, typeTransformer.getAspectType())) {
++					int c = compareMemberPrecedence(typeTransformerSignature, existingMember);
+ 					// System.err.println("   c: " + c);
+ 					if (c < 0) {
+ 						// existingMember dominates munger
+-						checkLegalOverride(munger.getSignature(), existingMember);
+-						return false;
++						checkLegalOverride(typeTransformerSignature, existingMember);
++						return true;
+ 					} else if (c > 0) {
+ 						// munger dominates existingMember
+-						checkLegalOverride(existingMember, munger.getSignature());
++						checkLegalOverride(existingMember, typeTransformerSignature);
+ 						// interTypeMungers.add(munger);
+ 						// ??? might need list of these overridden abstracts
+ 						continue;
+ 					} else {
+ 						// bridge methods can differ solely in return type.
+-						// FIXME this whole method seems very hokey - unaware of
+-						// covariance/varargs/bridging - it
++						// FIXME this whole method seems very hokey - unaware of covariance/varargs/bridging - it
+ 						// could do with a rewrite !
+-						boolean sameReturnTypes = (existingMember.getReturnType().equals(sig.getReturnType()));
++						boolean sameReturnTypes = (existingMember.getReturnType().equals(typeTransformerSignature.getReturnType()));
+ 						if (sameReturnTypes) {
+ 							// pr206732 - if the existingMember is due to a
+ 							// previous application of this same ITD (which can
+@@ -1602,7 +1608,7 @@ public abstract class ResolvedType extends UnresolvedType implements AnnotatedEl
+ 										// and does it come
+ 										// from the same aspect
+ 										if (ctMunger.getSignature().equals(existingMember)
+-												&& ctMunger.aspectType.equals(munger.getAspectType())) {
++												&& ctMunger.aspectType.equals(typeTransformer.getAspectType())) {
+ 											isDuplicateOfPreviousITD = true;
+ 										}
+ 									}
+@@ -1611,24 +1617,39 @@ public abstract class ResolvedType extends UnresolvedType implements AnnotatedEl
+ 							if (!isDuplicateOfPreviousITD) {
+ 								// b275032 - this is OK if it is the default ctor and that default ctor was generated
+ 								// at compile time, otherwise we cannot overwrite it
+-								if (!(munger.getSignature().getName().equals("<init>") && existingMember.isDefaultConstructor())) {
+-									getWorld().getMessageHandler().handleMessage(
+-											MessageUtil.error(WeaverMessages.format(WeaverMessages.ITD_MEMBER_CONFLICT, munger
+-													.getAspectType().getName(), existingMember), munger.getSourceLocation()));
++								if (!(typeTransformerSignature.getName().equals("<init>") && existingMember.isDefaultConstructor())) {
++									String aspectName = typeTransformer.getAspectType().getName();
++									ISourceLocation typeTransformerLocation = typeTransformer.getSourceLocation();
++									ISourceLocation existingMemberLocation = existingMember.getSourceLocation();
++									IMessage errorMessage = null;
++									String msg = WeaverMessages.format(WeaverMessages.ITD_MEMBER_CONFLICT, aspectName,
++											existingMember);
++
++									// this isn't quite right really... as I think the errors should only be recorded against
++									// what is currently being processed or they may get lost or reported twice
++
++									// report error on the aspect
++									getWorld().getMessageHandler().handleMessage(new Message(msg, typeTransformerLocation, true));
++
++									// report error on the affected type, if we can
++									if (existingMemberLocation != null) {
++										getWorld().getMessageHandler()
++												.handleMessage(new Message(msg, existingMemberLocation, true));
++									}
++									return true; // clash - so ignore this itd
+ 								}
+ 							}
+ 						}
+ 					}
+-				} else if (isDuplicateMemberWithinTargetType(existingMember, this, sig)) {
++				} else if (isDuplicateMemberWithinTargetType(existingMember, this, typeTransformerSignature)) {
+ 					getWorld().getMessageHandler().handleMessage(
+-							MessageUtil.error(WeaverMessages.format(WeaverMessages.ITD_MEMBER_CONFLICT, munger.getAspectType()
+-									.getName(), existingMember), munger.getSourceLocation()));
+-
++							MessageUtil.error(WeaverMessages.format(WeaverMessages.ITD_MEMBER_CONFLICT, typeTransformer
++									.getAspectType().getName(), existingMember), typeTransformer.getSourceLocation()));
++					return true;
+ 				}
+-				// return;
+ 			}
+ 		}
+-		return true;
++		return false;
+ 	}
+ 
+ 	// we know that the member signature matches, but that the member in the
+@@ -69,10 +69,9 @@ import org.aspectj.weaver.bcel.asm.AsmDetector;
+ import org.aspectj.weaver.bcel.asm.StackMapAdder;
+ 
+ /**
+- * Lazy lazy lazy. We don't unpack the underlying class unless necessary. Things
+- * like new methods and annotations accumulate in here until they must be
+- * written out, don't add them to the underlying MethodGen! Things are slightly
+- * different if this represents an Aspect.
++ * Lazy lazy lazy. We don't unpack the underlying class unless necessary. Things like new methods and annotations accumulate in here
++ * until they must be written out, don't add them to the underlying MethodGen! Things are slightly different if this represents an
++ * Aspect.
+  */
+ public final class LazyClassGen {
+ 
+@@ -354,8 +353,7 @@ public final class LazyClassGen {
+ 	}
+ 
+ 	/**
+-	 * Returns the packagename - if its the default package we return an empty
+-	 * string
++	 * Returns the packagename - if its the default package we return an empty string
+ 	 */
+ 	public String getPackageName() {
+ 		if (packageName != null)
+@@ -377,6 +375,10 @@ public final class LazyClassGen {
+ 			highestLineNumber = gen.highestLineNumber;
+ 	}
+ 
++	public boolean removeMethodGen(LazyMethodGen gen) {
++		return methodGens.remove(gen);
++	}
++
+ 	public void addMethodGen(LazyMethodGen gen, ISourceLocation sourceLocation) {
+ 		addMethodGen(gen);
+ 		if (!gen.getMethod().isPrivate()) {
+@@ -446,7 +448,7 @@ public final class LazyClassGen {
+ 				myGen.addAnnotation(element);
+ 			}
+ 			// Attribute[] annAttributes =
+-			//org.aspectj.apache.bcel.classfile.Utility.getAnnotationAttributes(
++			// org.aspectj.apache.bcel.classfile.Utility.getAnnotationAttributes(
+ 			// getConstantPool(),annotations);
+ 			// for (int i = 0; i < annAttributes.length; i++) {
+ 			// Attribute attribute = annAttributes[i];
+@@ -514,20 +516,17 @@ public final class LazyClassGen {
+ 	}
+ 
+ 	/**
+-	 * When working with Java generics, a signature attribute is attached to the
+-	 * type which indicates how it was declared. This routine ensures the
+-	 * signature attribute for the class we are about to write out is correct.
+-	 * Basically its responsibilities are:
++	 * When working with Java generics, a signature attribute is attached to the type which indicates how it was declared. This
++	 * routine ensures the signature attribute for the class we are about to write out is correct. Basically its responsibilities
++	 * are:
+ 	 * <ol>
+ 	 * <li>
+-	 * Checking whether the attribute needs changing (ie. did weaving change the
+-	 * type hierarchy) - if it did, remove the old attribute
++	 * Checking whether the attribute needs changing (ie. did weaving change the type hierarchy) - if it did, remove the old
++	 * attribute
+ 	 * <li>
+-	 * Check if we need an attribute at all, are we generic? are our supertypes
+-	 * parameterized/generic?
++	 * Check if we need an attribute at all, are we generic? are our supertypes parameterized/generic?
+ 	 * <li>
+-	 * Build the new attribute which includes all typevariable, supertype and
+-	 * superinterface information
++	 * Build the new attribute which includes all typevariable, supertype and superinterface information
+ 	 * </ol>
+ 	 */
+ 	private void fixupGenericSignatureAttribute() {
+@@ -634,8 +633,7 @@ public final class LazyClassGen {
+ 	}
+ 
+ 	/**
+-	 * Helper method to create a signature attribute based on a string
+-	 * signature: e.g. "Ljava/lang/Object;LI<Ljava/lang/Double;>;"
++	 * Helper method to create a signature attribute based on a string signature: e.g. "Ljava/lang/Object;LI<Ljava/lang/Double;>;"
+ 	 */
+ 	private Signature createSignatureAttribute(String signature) {
+ 		int nameIndex = cp.addUtf8("Signature");
+@@ -1402,7 +1400,7 @@ public final class LazyClassGen {
+ 
+ 	// this test is like asking:
+ 	// if
+-	//(UnresolvedType.SERIALIZABLE.resolve(getType().getWorld()).isAssignableFrom
++	// (UnresolvedType.SERIALIZABLE.resolve(getType().getWorld()).isAssignableFrom
+ 	// (getType())) {
+ 	// only we don't do that because this forces us to find all the supertypes
+ 	// of the type,
+@@ -1432,8 +1430,8 @@ public final class LazyClassGen {
+ 	}
+ 
+ 	/**
+-	 * Return the next available field name with the specified 'prefix', e.g.
+-	 * for prefix 'class$' where class$0, class$1 exist then return class$2
++	 * Return the next available field name with the specified 'prefix', e.g. for prefix 'class$' where class$0, class$1 exist then
++	 * return class$2
+ 	 */
+ 	public String allocateField(String prefix) {
+ 		int highestAllocated = -1;
+@@ -459,9 +459,8 @@ class BcelMethod extends ResolvedMemberImpl {
+ 	}
+ 
+ 	/**
+-	 * A method can be parameterized if it has one or more generic parameters. A
+-	 * generic parameter (type variable parameter) is identified by the prefix
+-	 * "T"
++	 * A method can be parameterized if it has one or more generic parameters. A generic parameter (type variable parameter) is
++	 * identified by the prefix "T"
+ 	 */
+ 	public boolean canBeParameterized() {
+ 		unpackGenericSignature();
+@@ -474,8 +473,7 @@ class BcelMethod extends ResolvedMemberImpl {
+ 	}
+ 
+ 	/**
+-	 * Return the parameterized/generic return type or the normal return type if
+-	 * the method is not generic.
++	 * Return the parameterized/generic return type or the normal return type if the method is not generic.
+ 	 */
+ 	public UnresolvedType getGenericReturnType() {
+ 		unpackGenericSignature();
+@@ -607,9 +605,8 @@ class BcelMethod extends ResolvedMemberImpl {
+ 	}
+ 
+ 	/**
+-	 * Returns whether or not the given object is equivalent to the current one.
+-	 * Returns true if getMethod().getCode().getCodeString() are equal. Allows
+-	 * for different line number tables.
++	 * Returns whether or not the given object is equivalent to the current one. Returns true if
++	 * getMethod().getCode().getCodeString() are equal. Allows for different line number tables.
+ 	 */
+ 	// bug 154054: is similar to equals(Object) however
+ 	// doesn't require implementing equals in Method and Code
+@@ -623,4 +620,21 @@ class BcelMethod extends ResolvedMemberImpl {
+ 		return getMethod().getCode().getCodeString().equals(o.getMethod().getCode().getCodeString());
+ 	}
+ 
++	/**
++	 * Return true if the method represents the default constructor. Hard to determine this from bytecode, but the existence of the
++	 * MethodDeclarationLineNumber attribute should tell us.
++	 * 
++	 * @return true if this BcelMethod represents the default constructor
++	 */
++	public boolean isDefaultConstructor() {
++		boolean mightBe = !hasDeclarationLineNumberInfo() && name.equals("<init>") && parameterTypes.length == 0;
++		if (mightBe) {
++			// TODO would be nice to do a check to see if the file was compiled with javac or ajc?
++			// maybe by checking the constant pool for aspectj strings?
++			return true;
++		} else {
++			return false;
++		}
++	}
++
+ }
+\ No newline at end of file
+@@ -1563,6 +1563,22 @@ public class BcelTypeMunger extends ConcreteTypeMunger {
+ 			}
+ 		}
+ 
++		// Might have to remove the default constructor - b275032
++		// TODO could have tagged the type munger when the fact we needed to do this was detected earlier
++		if (mg.getArgumentTypes().length == 0) {
++			LazyMethodGen toRemove = null;
++			List existingMethods = currentClass.getMethodGens();
++			for (Iterator iterator = existingMethods.iterator(); iterator.hasNext() && toRemove == null;) {
++				LazyMethodGen object = (LazyMethodGen) iterator.next();
++				if (object.getName().equals("<init>") && object.getArgumentTypes().length == 0) {
++					toRemove = object;
++				}
++			}
++			if (toRemove != null) {
++				currentClass.removeMethodGen(toRemove);
++			}
++		}
++
+ 		currentClass.addMethodGen(mg);
+ 		// weaver.addLazyMethodGen(freshConstructor);
+ 
+@@ -15,6 +15,7 @@ import org.aspectj.apache.bcel.classfile.annotation.ElementValueGen;
+ import org.aspectj.org.eclipse.jdt.internal.compiler.ast.Annotation;
+ import org.aspectj.org.eclipse.jdt.internal.compiler.ast.ArrayInitializer;
+ import org.aspectj.org.eclipse.jdt.internal.compiler.ast.Expression;
++import org.aspectj.org.eclipse.jdt.internal.compiler.ast.MarkerAnnotation;
+ import org.aspectj.org.eclipse.jdt.internal.compiler.ast.MemberValuePair;
+ import org.aspectj.org.eclipse.jdt.internal.compiler.ast.NormalAnnotation;
+ import org.aspectj.org.eclipse.jdt.internal.compiler.ast.QualifiedNameReference;
+@@ -100,6 +101,8 @@ public class EclipseAnnotationConvertor {
+ 				annotationAJ.addNameValuePair(new AnnotationNameValuePair(new String(
+ 						singleMemberAnnotation.memberValuePairs()[0].name), av));
+ 			}
++		} else if (annotation instanceof MarkerAnnotation) {
++			MarkerAnnotation markerAnnotation = (MarkerAnnotation) annotation;
+ 		} else {
+ 			// this is a marker annotation (no member value pairs)
+ 			throw new MissingImplementationException(
+@@ -26,6 +26,7 @@ import org.aspectj.org.eclipse.jdt.internal.compiler.ast.TypeDeclaration;
+ import org.aspectj.org.eclipse.jdt.internal.compiler.impl.IntConstant;
+ import org.aspectj.org.eclipse.jdt.internal.compiler.lookup.Binding;
+ import org.aspectj.org.eclipse.jdt.internal.compiler.lookup.ClassScope;
++import org.aspectj.org.eclipse.jdt.internal.compiler.lookup.ExtraCompilerModifiers;
+ import org.aspectj.org.eclipse.jdt.internal.compiler.lookup.FieldBinding;
+ import org.aspectj.org.eclipse.jdt.internal.compiler.lookup.MethodBinding;
+ import org.aspectj.org.eclipse.jdt.internal.compiler.lookup.SourceTypeBinding;
+@@ -52,6 +53,7 @@ public class EclipseResolvedMember extends ResolvedMemberImpl {
+ 	private ResolvedType[] cachedAnnotationTypes;
+ 	private EclipseFactory eclipseFactory;
+ 
++	
+ 	public EclipseResolvedMember(MethodBinding binding, MemberKind memberKind, ResolvedType realDeclaringType, int modifiers,
+ 			UnresolvedType rettype, String name, UnresolvedType[] paramtypes, UnresolvedType[] extypes,
+ 			EclipseFactory eclipseFactory) {
+@@ -235,4 +237,19 @@ public class EclipseResolvedMember extends ResolvedMemberImpl {
+ 		return null;
+ 	}
+ 
++    /**
++     * Return true if this is the default constructor.  The default constructor
++     * is the one generated if there isn't one in the source.  Eclipse
++     * helpfully uses a bit to indicate the default constructor.
++     *
++     * @return true if this is the default constructor. 
++     */
++	public boolean isDefaultConstructor() {
++		if (!(realBinding instanceof MethodBinding)) {
++			return false;
++		}
++		MethodBinding mb = (MethodBinding) realBinding;
++		return mb.isConstructor() && ((mb.modifiers & ExtraCompilerModifiers.AccIsDefaultConstructor) != 0);
++	}
++
+ }
+@@ -397,4 +397,8 @@ public class JoinPointSignature implements ResolvedMember {
+ 	public String getSignatureErased() {
+ 		return realMember.getSignatureErased();
+ 	}
++
++	public boolean isDefaultConstructor() {
++		return realMember.isDefaultConstructor();
++	}
+ }
+@@ -182,4 +182,6 @@ public interface ResolvedMember extends Member, AnnotatedElement, TypeVariableDe
+ 
+ 	public ResolvedMember parameterizedWith(Map m, World w);
+ 
++	public boolean isDefaultConstructor();
++
+ }
+\ No newline at end of file
+@@ -927,40 +927,33 @@ public class ResolvedMemberImpl extends MemberImpl implements IHasPosition, Anno
+ 			return false;
+ 		}
+ 		boolean b = false;
+-	/*	if (ignoreGenerics) {
+-			String myParameterSignature = getParameterSigWithBoundsRemoved();
+-			String candidateParameterSignature = candidateMatchImpl.getParameterSigWithBoundsRemoved();
+-			if (myParameterSignature.equals(candidateParameterSignature)) {
+-				b = true;
+-			} else {
+-				myParameterSignature = (hasBackingGenericMember() ? backingGenericMember.getParameterSignatureErased()
+-						: getParameterSignatureErased());
+-				candidateParameterSignature = (candidateMatchImpl.hasBackingGenericMember() ? candidateMatchImpl.backingGenericMember
+-						.getParameterSignatureErased()
+-						: candidateMatchImpl.getParameterSignatureErased());
+-				// System.out.println("my psig = " + myParameterSignature);
+-				// System.out.println("can psig = " + candidateParameterSignature);
+-				b = myParameterSignature.equals(candidateParameterSignature);
+-			}
++		/*
++		 * if (ignoreGenerics) { String myParameterSignature = getParameterSigWithBoundsRemoved(); String
++		 * candidateParameterSignature = candidateMatchImpl.getParameterSigWithBoundsRemoved(); if
++		 * (myParameterSignature.equals(candidateParameterSignature)) { b = true; } else { myParameterSignature =
++		 * (hasBackingGenericMember() ? backingGenericMember.getParameterSignatureErased() : getParameterSignatureErased());
++		 * candidateParameterSignature = (candidateMatchImpl.hasBackingGenericMember() ? candidateMatchImpl.backingGenericMember
++		 * .getParameterSignatureErased() : candidateMatchImpl.getParameterSignatureErased()); // System.out.println("my psig = " +
++		 * myParameterSignature); // System.out.println("can psig = " + candidateParameterSignature); b =
++		 * myParameterSignature.equals(candidateParameterSignature); } } else {
++		 */
++		String myParameterSignature = getParameterSigWithBoundsRemoved();
++		String candidateParameterSignature = candidateMatchImpl.getParameterSigWithBoundsRemoved();
++		if (myParameterSignature.equals(candidateParameterSignature)) {
++			b = true;
+ 		} else {
+-*/
+-			String myParameterSignature = getParameterSigWithBoundsRemoved();
+-			String candidateParameterSignature = candidateMatchImpl.getParameterSigWithBoundsRemoved();
+-			if (myParameterSignature.equals(candidateParameterSignature)) {
+-				b = true;
+-			} else {
+-				// try erasure
+-				myParameterSignature = getParameterSignatureErased();
+-				candidateParameterSignature = candidateMatchImpl.getParameterSignatureErased();
+-				// myParameterSignature = (hasBackingGenericMember() ? backingGenericMember.getParameterSignatureErased()
+-				// : getParameterSignatureErased());
+-				// candidateParameterSignature = (candidateMatchImpl.hasBackingGenericMember() ?
+-				// candidateMatchImpl.backingGenericMember
+-				// .getParameterSignatureErased() : candidateMatchImpl.getParameterSignatureErased());
+-				// System.out.println("my psig = " + myParameterSignature);
+-				// System.out.println("can psig = " + candidateParameterSignature);
+-				b = myParameterSignature.equals(candidateParameterSignature);
+-//			}
++			// try erasure
++			myParameterSignature = getParameterSignatureErased();
++			candidateParameterSignature = candidateMatchImpl.getParameterSignatureErased();
++			// myParameterSignature = (hasBackingGenericMember() ? backingGenericMember.getParameterSignatureErased()
++			// : getParameterSignatureErased());
++			// candidateParameterSignature = (candidateMatchImpl.hasBackingGenericMember() ?
++			// candidateMatchImpl.backingGenericMember
++			// .getParameterSignatureErased() : candidateMatchImpl.getParameterSignatureErased());
++			// System.out.println("my psig = " + myParameterSignature);
++			// System.out.println("can psig = " + candidateParameterSignature);
++			b = myParameterSignature.equals(candidateParameterSignature);
++			// }
+ 		}
+ 		// System.out.println("Checking param signatures: " + b);
+ 		return b;
+@@ -1182,4 +1175,8 @@ public class ResolvedMemberImpl extends MemberImpl implements IHasPosition, Anno
+ 	public boolean isEquivalentTo(Object other) {
+ 		return this.equals(other);
+ 	}
++
++	public boolean isDefaultConstructor() {
++		return false;
++	}
+ }
+@@ -1609,9 +1609,13 @@ public abstract class ResolvedType extends UnresolvedType implements AnnotatedEl
+ 								}
+ 							}
+ 							if (!isDuplicateOfPreviousITD) {
+-								getWorld().getMessageHandler().handleMessage(
+-										MessageUtil.error(WeaverMessages.format(WeaverMessages.ITD_MEMBER_CONFLICT, munger
+-												.getAspectType().getName(), existingMember), munger.getSourceLocation()));
++								// b275032 - this is OK if it is the default ctor and that default ctor was generated
++								// at compile time, otherwise we cannot overwrite it
++								if (!(munger.getSignature().getName().equals("<init>") && existingMember.isDefaultConstructor())) {
++									getWorld().getMessageHandler().handleMessage(
++											MessageUtil.error(WeaverMessages.format(WeaverMessages.ITD_MEMBER_CONFLICT, munger
++													.getAspectType().getName(), existingMember), munger.getSourceLocation()));
++								}
+ 							}
+ 						}
+ 					}
+@@ -0,0 +1,7 @@
++public class A {
++  int i = 5;
++
++  public static void main(String[] argv) {
++    new A();
++  }
++}
+@@ -0,0 +1,6 @@
++import org.aspectj.lang.annotation.*;
++aspect X {
++  @SuppressAjWarnings
++  public A.new() {System.out.println("itd ctor");}
++
++}
+@@ -0,0 +1,9 @@
++public class A {
++  public A() {
++    System.out.println("real default ctor");
++  }
++
++  public static void main(String[] argv) {
++    new A();
++  }
++}
+@@ -0,0 +1,4 @@
++aspect X {
++  public A.new() {System.out.println("itd");}
++
++}
+@@ -20,6 +20,26 @@ import org.aspectj.weaver.LintMessage;
+ 
+ public class Ajc165Tests extends org.aspectj.testing.XMLBasedAjcTestCase {
+ 
++	// check ITD can replace a generated default constructor
++	public void testItdDefaultCtor_pr275032() {
++		runTest("itd default ctor");
++	}
++
++	// check ITD can't overwrite an existing constructor
++	public void testItdDefaultCtor_pr275032_2() {
++		runTest("itd default ctor - 2");
++	}
++
++	// binary weaving version of case 2 - check ITD can't overwrite an existing constructor
++	public void testItdDefaultCtor_pr275032_3() {
++		runTest("itd default ctor - 3");
++	}
++
++	// binary weaving version of case 4 - check ITD can replace a generated default constructor
++	public void testItdDefaultCtor_pr275032_4() {
++		runTest("itd default ctor - 4");
++	}
++
+ 	public void testVerifyOnAnnoBind_pr273628() {
+ 		runTest("verifyerror on anno bind");
+ 	}
+@@ -60,7 +80,7 @@ public class Ajc165Tests extends org.aspectj.testing.XMLBasedAjcTestCase {
+ 	public void testGenericITD_pr272825() {
+ 		runTest("generic ITD");
+ 	}
+-	
++
+ 	// ---
+ 
+ 	public static Test suite() {
+@@ -2,6 +2,39 @@
+ 
+ <suite>
+ 
++   <ajc-test dir="bugs165/pr275032" title="itd default ctor">
++     <compile files="A.java X.java" options="-1.5 -Xlint:ignore"/>
++     <run class="A">
++       <stdout>
++         <line text="itd ctor"/>
++       </stdout>
++     </run>
++   </ajc-test>
++   
++   <ajc-test dir="bugs165/pr275032/c2" title="itd default ctor - 2">
++     <compile files="A.java X.java" options="-1.5 -Xlint:ignore">
++	     <message kind="error" text="inter-type declaration from X conflicts with existing"/>
++     </compile>
++   </ajc-test>
++   
++   <ajc-test dir="bugs165/pr275032/c2" title="itd default ctor - 3">
++     <compile files="A.java" options="-outjar foo.jar"/>
++     <compile files="X.java" options="-1.5 -Xlint:ignore"  inpath="foo.jar">
++	     <message kind="error" text="inter-type declaration from X conflicts with existing"/>
++     </compile>
++   </ajc-test>
++   
++   <ajc-test dir="bugs165/pr275032" title="itd default ctor - 4">
++     <compile files="A.java" options="-outjar foo.jar"/>
++     <compile files="X.java" options="-1.5" inpath="foo.jar">
++     </compile>
++     <run class="A">
++       <stdout>
++         <line text="itd ctor"/>
++       </stdout>
++     </run>
++   </ajc-test>
++   
+    <ajc-test dir="bugs165/pr272233" title="funky pointcut">
+      <compile files="Iffy.java" options="-1.5">
+        <message kind="warning" text="void is not a generic type"/>

@@ -9,6 +9,7 @@ from bs4 import BeautifulSoup
 
 
 def getAllLinks(ofs):
+    print ofs
     prefix = "https://git.eclipse.org"
     begin = 'https://git.eclipse.org/c/aspectj/org.aspectj.git/log/?ofs='+str(ofs)
     html = urllib.urlopen(begin).read()
@@ -45,25 +46,28 @@ def getBugid(line):
     return num
 
 def getFile(url,bugid):
-    path = "/home/tsj/PycharmProjects/CodeDefectLocation/getdata/Aspectj/SourceFile/"
-    html = urllib.urlopen(url).read()
-    soup = BeautifulSoup(html, 'html.parser')
-    table = soup.find(name='table', attrs={"class": re.compile(r'^diff$')})
-    contents = table.tr.td.children
-    print contents
-    filename = path + bugid + ".txt"
-    f = file(filename, "a+")
-    for content in contents:
-        # print content.string
-        if content.string is None:
-            continue
-        print type(content.string)
-        f.write(content.string.encode("utf-8")+"\n")
-    f.close()
+    try:
+        path = "/home/tsj/PycharmProjects/CodeDefectLocation/getdata/Aspectj/SourceFile2/"
+        html = urllib.urlopen(url).read()
+        soup = BeautifulSoup(html, 'html.parser')
+        table = soup.find(name='table', attrs={"class": re.compile(r'^diff$')})
+        contents = table.tr.td.children
+        print contents
+        filename = path + bugid + ".txt"
+        f = file(filename, "a+")
+        for content in contents:
+            # print content.string
+            if content.string is None:
+                continue
+            print type(content.string)
+            f.write(content.string.encode("utf-8")+"\n")
+        f.close()
+    except Exception, ex:
+        print ex
     return filename
 
 if __name__ == '__main__':
-    i = 450
-    while i < 1000:
+    i = 3750
+    while i < 7700:
         getAllLinks(i)
         i += 50

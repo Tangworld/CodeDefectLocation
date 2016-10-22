@@ -1,0 +1,60 @@
+@@ -41,7 +41,7 @@ public class Ajc150Tests extends org.aspectj.testing.XMLBasedAjcTestCase {
+   protected File getSpecFile() {
+     return new File("../tests/src/org/aspectj/systemtest/ajc150/ajc150.xml");
+   }
+-  //public void testNamedPointcutPertarget_pr120521() { runTest("named pointcut not resolved in pertarget pointcut");}
++  public void testNamedPointcutPertarget_pr120521() { runTest("named pointcut not resolved in pertarget pointcut");}
+   public void testDollarClasses_pr120474() { runTest("Dollar classes");}
+   public void testGenericPTW_pr119539_1() { runTest("generic pertypewithin aspect - 1");}
+   public void testGenericPTW_pr119539_2() { runTest("generic pertypewithin aspect - 2");}
+@@ -480,6 +480,12 @@ public abstract class ResolvedType extends UnresolvedType implements AnnotatedEl
+                 return f;
+             }
+         }
++        // pr120521
++        if (!getOutermostType().equals(this)) {
++        	ResolvedType outerType = getOutermostType().resolve(world);
++        	ResolvedPointcutDefinition rpd = outerType.findPointcut(name);
++        	return rpd;
++        }
+         return null; // should we throw an exception here?
+     }
+ 
+@@ -0,0 +1,18 @@
++package bugs;
++
++public class PerTargetSubaspectError {
++       public static void main(String[] args) {
++               C.run();
++       }
++       static class C {
++               static void run() {}
++       }
++       pointcut doit() : execution(void C.run());
++
++       // no error if not pertarget
++       static aspect CPT pertarget(pc()){
++               // no error if doit() defined in CPT
++               protected pointcut pc() : doit(); // unexpected CE
++               before() : doit() {} // no CE
++       }
++}
+@@ -41,6 +41,7 @@ public class Ajc150Tests extends org.aspectj.testing.XMLBasedAjcTestCase {
+   protected File getSpecFile() {
+     return new File("../tests/src/org/aspectj/systemtest/ajc150/ajc150.xml");
+   }
++  //public void testNamedPointcutPertarget_pr120521() { runTest("named pointcut not resolved in pertarget pointcut");}
+   public void testDollarClasses_pr120474() { runTest("Dollar classes");}
+   public void testGenericPTW_pr119539_1() { runTest("generic pertypewithin aspect - 1");}
+   public void testGenericPTW_pr119539_2() { runTest("generic pertypewithin aspect - 2");}
+@@ -78,6 +78,10 @@
+      <compile files="ParameterizedDP.java,NodeImpl.java,INode.java" options="-1.5"/>
+      <run class="bugs.ParameterizedDP"/>
+     </ajc-test>  
++    
++    <ajc-test dir="bugs150/pr120521" pr="120521" title="named pointcut not resolved in pertarget pointcut">
++     <compile files="PerTargetSubaspectError.java"/>
++    </ajc-test>  
+ 
+     <ajc-test dir="bugs150/pr119210" pr="119210" title="autoboxing around advice - 1">
+      <compile files="TestLib.java,ThreadAspectLib.java" options="-1.5"/>

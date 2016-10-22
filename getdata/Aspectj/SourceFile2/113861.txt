@@ -1,0 +1,128 @@
+@@ -0,0 +1,15 @@
++package com;
++import java.util.*;
++
++public class Test {
++
++  public static void main(String [] argv) {
++    new Test().foo();
++  }
++
++  Set<Integer> intsSet = new HashSet<Integer>();
++
++  public Set<Integer> foo() {
++    return intsSet;
++  }
++}
+@@ -0,0 +1,14 @@
++package com;
++import java.util.*;
++
++public privileged aspect TestAspect {
++  pointcut gettingMember(Test t) :
++             target(t) &&
++             get(!public Set<Integer> com.*.*) &&
++             !within(TestAspect);
++
++  Set<Integer> around(Test t) : gettingMember(t)  {
++    Set s =  proceed(t);
++    return s;
++  }
++}
+@@ -51,11 +51,12 @@ public class Ajc150Tests extends org.aspectj.testing.XMLBasedAjcTestCase {
+   public void testITDCtor_pr112783()       { runTest("Problem with constructor ITDs");}
+   */
+ 
+-  public void testUnboundFormal_pr112027()    { runTest("unexpected error unboundFormalInPC");}
+-  public void testCCEGenerics_pr113445()      { runTest("Generics ClassCastException");}
++  public void testUnboundFormal_pr112027() { runTest("unexpected error unboundFormalInPC");}
++  public void testCCEGenerics_pr113445()       { runTest("Generics ClassCastException");}
+   public void testMatthewsAspect_pr113947_1() { runTest("maws generic aspect - 1");}
+   public void testMatthewsAspect_pr113947_2() { runTest("maws generic aspect - 2");}
+ 
++  
+   public void testBadDecp_pr110788_1() { runTest("bad generic decp - 1");}
+   public void testBadDecp_pr110788_2() { runTest("bad generic decp - 2");}
+   public void testBadDecp_pr110788_3() { runTest("bad generic decp - 3");}
+@@ -66,6 +67,7 @@ public class Ajc150Tests extends org.aspectj.testing.XMLBasedAjcTestCase {
+   public void testIncompatibleClassChangeError_pr113630_1() {runTest("IncompatibleClassChangeError - errorscenario");}
+   public void testIncompatibleClassChangeError_pr113630_2() {runTest("IncompatibleClassChangeError - workingscenario");}
+ 
++  public void testFieldGetProblemWithGenericField_pr113861() {runTest("field-get problems with generic field");}
+ 
+   public void testDeclareAnnotationOnNonExistentType_pr99191_1() { runTest("declare annotation on non existent type - 1");}
+   public void testDeclareAnnotationOnNonExistentType_pr99191_2() { runTest("declare annotation on non existent type - 2");}  
+@@ -10,7 +10,7 @@
+     <ajc-test dir="bugs150" title="Problem with constructor ITDs">
+         <compile files="pr112783.aj" options="-1.5"/>
+     </ajc-test>
+-    
++
+     <ajc-test dir="bugs150/pr113947/case1" title="maws generic aspect - 1">
+         <compile files="AbstractListSupport.java,AnotherItem.java,Item.java,LinkedList.java,LinkedListItem.java,ListItem.java,StringList.java" options="-1.5">
+           <!-- the 'static ref' messages are a bit poor and ought to be eliminated... -->
+@@ -26,7 +26,13 @@
+     <ajc-test dir="bugs150/pr113947/case2" title="maws generic aspect - 2">
+         <compile files="AbstractListSupport.java" options="-1.5"/><!--,AnotherItem.java,Item.java,LinkedList.java,LinkedListItem.java,ListItem.java,StringList.java" options="-1.5"/-->
+     </ajc-test>
+- 
++    
++    <ajc-test dir="bugs150/pr113861" title="field-get problems with generic field">
++        <compile files="Test.java,TestAspect.java" options="-1.5"/>
++        <run class="com.Test"/>
++    </ajc-test>
++    
++    
+     <ajc-test dir="bugs150/pr99191" title="declare annotation on non existent type - 1">
+         <compile files="pr99191_1.java" options="-1.5">
+         	<message kind="error" line="4" text="The field 'int C.noSuchField' does not exist"/>
+@@ -67,7 +73,7 @@
+         	<message kind="warning" text="void C.&lt;init&gt;(int) - already has an annotation of type Annotation, cannot add a second instance [Xlint:elementAlreadyAnnotated]"/>
+         </compile>
+     </ajc-test>
+-
++ 
+     <ajc-test dir="bugs150/pr113630/case1" title="IncompatibleClassChangeError - errorscenario">
+         <compile files="Bean.java,BeanTestCase.java,javaBean.java,propertyChanger.java,PropertySupportAspect5.aj" options="-1.5">
+           <message kind="warning" line="9" text="Failing match because annotation 'javaBean' on type 'Bean' has SOURCE retention.  Matching allowed when RetentionPolicy is CLASS or RUNTIME"/>
+@@ -158,12 +158,16 @@ public abstract class Advice extends ShadowMunger {
+     					}
+     				} else if (getSignature().getReturnType().equals(UnresolvedType.OBJECT)) {
+     					return true;
+-    				} else if(!shadow.getReturnType().resolve(world).isAssignableFrom(getSignature().getReturnType().resolve(world))) {
+-    					//System.err.println(this + ", " + sourceContext + ", " + start);
+-						world.showMessage(IMessage.ERROR,
+-								WeaverMessages.format(WeaverMessages.INCOMPATIBLE_RETURN_TYPE,shadow),
+-								getSourceLocation(), shadow.getSourceLocation());
+-	    				return false;
++    				} else {
++    					ResolvedType shadowReturnType = shadow.getReturnType().resolve(world);
++    					ResolvedType adviceReturnType = getSignature().getGenericReturnType().resolve(world);
++    					if(!shadowReturnType.isAssignableFrom(adviceReturnType)) {
++	    					//System.err.println(this + ", " + sourceContext + ", " + start);
++							world.showMessage(IMessage.ERROR,
++									WeaverMessages.format(WeaverMessages.INCOMPATIBLE_RETURN_TYPE,shadow),
++									getSourceLocation(), shadow.getSourceLocation());
++		    				return false;
++    					}
+     				}
+     			}
+     		}
+@@ -60,6 +60,8 @@ public interface Member {
+ 	public UnresolvedType getDeclaringType();
+ 
+ 	public UnresolvedType getReturnType();
++	
++	public UnresolvedType getGenericReturnType();
+ 
+ 	public UnresolvedType getType();
+ 
+@@ -457,6 +457,8 @@ public class MemberImpl implements Comparable, AnnotatedElement,Member {
+ 	 * @see org.aspectj.weaver.Member#getReturnType()
+ 	 */
+     public UnresolvedType getReturnType() { return returnType; }
++    
++    public UnresolvedType getGenericReturnType() { return getReturnType(); }
+     /* (non-Javadoc)
+ 	 * @see org.aspectj.weaver.Member#getType()
+ 	 */

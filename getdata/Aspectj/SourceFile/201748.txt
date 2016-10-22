@@ -1,0 +1,41 @@
+@@ -0,0 +1,18 @@
++aspect MA {
++  Factory AnyClass.myfactory = Factory.create();
++}
++
++class Factory {
++  public static Factory[] create() {
++    return null;
++  }
++}
++
++class AnyClass {
++}
++
++public class Foo {
++  public static void main(String []argv) {
++    new AnyClass();
++  }
++}
+\ No newline at end of file
+@@ -21,6 +21,7 @@ import junit.framework.Test;
+ public class Ajc160Tests extends org.aspectj.testing.XMLBasedAjcTestCase {
+ 
+ 	// AspectH1.6.0rc1
++	//public void testITDWithArray_pr201748() { runTest("itd with array");}
+ 	public void testBadMessage() { runTest("incorrect itd error with generics");}
+ 	public void testBadMessage2() { runTest("incorrect itd error with generics - 2");}
+ 	public void testHasMethodAnnoValueInt_various() { runTest("hasmethod anno value - I");}
+@@ -4,6 +4,12 @@
+ <suite>
+ 
+ 
++	<ajc-test dir="bugs160/pr201748" title="itd with array">
++     <compile files="Foo.java">
++       <message kind="error" text="Type mismatch: cannot convert from Factory[] to Factory"/>
++     </compile>
++   </ajc-test>
++   
+    <ajc-test dir="bugs160/various" title="incorrect itd error with generics">
+      <compile options="-1.5 -showWeaveInfo" files="IncorrectMessage.java">
+        <message kind="weave" text="Type 'Foo' (IncorrectMessage.java) has intertyped method from 'AspectDoWhatEver' (IncorrectMessage.java:'void Marker.doWhatEver()')"/>

@@ -1,0 +1,526 @@
+@@ -181,7 +181,7 @@ public class PointcutParser {
+      * <li>The pointcut expression must be anonymous with no formals allowed.
+      * </ul>
+      */
+-    private PointcutParser() {
++    protected PointcutParser() {
+         supportedPrimitives = getAllSupportedPointcutPrimitives();
+         setClassLoader(PointcutParser.class.getClassLoader());
+     }
+@@ -214,7 +214,7 @@ public class PointcutParser {
+         setClassLoader(PointcutParser.class.getClassLoader());
+     }
+ 
+-    public void setWorld(ReflectionWorld aWorld) {
++    protected void setWorld(ReflectionWorld aWorld) {
+     	this.world = aWorld;
+     }
+ 
+@@ -223,7 +223,7 @@ public class PointcutParser {
+      * type resolution.
+      * @param aLoader
+      */
+-    private void setClassLoader(ClassLoader aLoader) {
++    protected void setClassLoader(ClassLoader aLoader) {
+     	this.classLoader = aLoader;
+     	world = new ReflectionWorld(this.classLoader);
+     }
+@@ -305,23 +305,8 @@ public class PointcutParser {
+     throws UnsupportedPointcutPrimitiveException, IllegalArgumentException {
+     	 PointcutExpressionImpl pcExpr = null;
+          try {
+-        	 PatternParser parser = new PatternParser(expression);
+-        	 parser.setPointcutDesignatorHandlers(pointcutDesignators, world);
+-             Pointcut pc = parser.parsePointcut();
+-             validateAgainstSupportedPrimitives(pc,expression);
+-             IScope resolutionScope = buildResolutionScope((inScope == null ? Object.class : inScope),formalParameters);
+-             pc = pc.resolve(resolutionScope);
+-             ResolvedType declaringTypeForResolution = null;
+-             if (inScope != null) {
+-            	 declaringTypeForResolution = getWorld().resolve(inScope.getName());
+-             } else {
+-            	 declaringTypeForResolution = ResolvedType.OBJECT.resolve(getWorld());
+-             }
+-             IntMap arity = new IntMap(formalParameters.length);
+-             for (int i = 0; i < formalParameters.length; i++) {
+-            	 arity.put(i, i);
+-             }             
+-             pc = pc.concretize(declaringTypeForResolution, declaringTypeForResolution, arity);
++        	 Pointcut pc = resolvePointcutExpression(expression,inScope,formalParameters);  
++             pc = concretizePointcutExpression(pc,inScope,formalParameters);
+              validateAgainstSupportedPrimitives(pc,expression); // again, because we have now followed any ref'd pcuts
+              pcExpr = new PointcutExpressionImpl(pc,expression,formalParameters,getWorld());
+          } catch (ParserException pEx) {
+@@ -332,6 +317,37 @@ public class PointcutParser {
+          return pcExpr;
+     }
+ 
++    protected Pointcut resolvePointcutExpression(
++    		String expression, 
++    		Class inScope,
++    		PointcutParameter[] formalParameters) {
++    	try {
++      	 PatternParser parser = new PatternParser(expression);
++    	 parser.setPointcutDesignatorHandlers(pointcutDesignators, world);
++         Pointcut pc = parser.parsePointcut();
++         validateAgainstSupportedPrimitives(pc,expression);
++         IScope resolutionScope = buildResolutionScope((inScope == null ? Object.class : inScope),formalParameters);
++         pc = pc.resolve(resolutionScope);
++         return pc;
++    	} catch (ParserException pEx) {
++             throw new IllegalArgumentException(buildUserMessageFromParserException(expression,pEx));
++        }
++    }
++    
++    protected Pointcut concretizePointcutExpression(Pointcut pc, Class inScope, PointcutParameter[] formalParameters) {
++        ResolvedType declaringTypeForResolution = null;
++        if (inScope != null) {
++       	 declaringTypeForResolution = getWorld().resolve(inScope.getName());
++        } else {
++       	 declaringTypeForResolution = ResolvedType.OBJECT.resolve(getWorld());
++        }
++        IntMap arity = new IntMap(formalParameters.length);
++        for (int i = 0; i < formalParameters.length; i++) {
++       	 arity.put(i, i);
++        }             
++        return pc.concretize(declaringTypeForResolution, declaringTypeForResolution, arity);
++    }
++    
+     /**
+      * Parse the given aspectj type pattern, and return a 
+      * matcher that can be used to match types using it.
+@@ -0,0 +1,29 @@
++package org.aspectj.weaver.reflect;
++
++import org.aspectj.weaver.ResolvedPointcutDefinition;
++import org.aspectj.weaver.ResolvedType;
++import org.aspectj.weaver.UnresolvedType;
++
++/**
++ * When a Java15ReflectionBasedDelegate gets the pointcuts for a given class it 
++ * tries to resolve them before returning.
++ * This can cause problems if the resolution of one pointcut in the type depends
++ * on another pointcut in the same type. 
++ * Therefore the algorithm proceeds in two phases, first we create and store
++ * instances of this class in the pointcuts array, and once that is done, we
++ * come back round and resolve the actual pointcut expression. This means that
++ * if we recurse doing resolution, we will find the named pointcut we are 
++ * looking for!
++ * 
++ * @author adrian colyer
++ *
++ */
++public class DeferredResolvedPointcutDefinition extends ResolvedPointcutDefinition {
++
++	public DeferredResolvedPointcutDefinition(UnresolvedType declaringType,
++			int modifiers, String name, UnresolvedType[] parameterTypes) {
++		super(declaringType, modifiers, name, parameterTypes,
++				ResolvedType.VOID, null);
++	}
++	
++}
+@@ -0,0 +1,31 @@
++package org.aspectj.weaver.reflect;
++
++import org.aspectj.weaver.patterns.Pointcut;
++import org.aspectj.weaver.tools.PointcutParameter;
++import org.aspectj.weaver.tools.PointcutParser;
++
++public class InternalUseOnlyPointcutParser extends PointcutParser {
++
++	public InternalUseOnlyPointcutParser(ClassLoader classLoader, ReflectionWorld world) {
++		super();
++		setClassLoader(classLoader);
++		setWorld(world);
++	}
++	
++	public InternalUseOnlyPointcutParser(ClassLoader classLoader) {
++		super();
++		setClassLoader(classLoader);
++	}
++	
++	public Pointcut resolvePointcutExpression(
++	    		String expression, 
++	    		Class inScope,
++	    		PointcutParameter[] formalParameters) {
++		return super.resolvePointcutExpression(expression, inScope, formalParameters);
++	}
++	
++	public Pointcut concretizePointcutExpression(Pointcut pc, Class inScope, PointcutParameter[] formalParameters) {
++		return super.concretizePointcutExpression(pc, inScope, formalParameters);
++	}
++		   
++}
+@@ -245,11 +245,26 @@ public class Java15ReflectionBasedReferenceTypeDelegate extends
+ 		if (pointcuts == null) {
+ 			Pointcut[] pcs = this.myType.getDeclaredPointcuts();
+ 			pointcuts = new ResolvedMember[pcs.length];
+-			PointcutParser parser = PointcutParser.getPointcutParserSupportingAllPrimitivesAndUsingSpecifiedClassloaderForResolution(classLoader);
++			InternalUseOnlyPointcutParser parser = null;
+ 			World world = getWorld();
+ 			if (world instanceof ReflectionWorld) {
+-				parser.setWorld((ReflectionWorld)getWorld());
++				parser = new InternalUseOnlyPointcutParser(classLoader,(ReflectionWorld)getWorld());
++			} else {
++				parser = new InternalUseOnlyPointcutParser(classLoader);
+ 			}
++						
++			// phase 1, create legitimate entries in pointcuts[] before we attempt to resolve *any* of the pointcuts
++			// resolution can sometimes cause us to recurse, and this two stage process allows us to cope with that
++			for (int i = 0; i < pcs.length; i++) {
++				AjType<?>[] ptypes = pcs[i].getParameterTypes();
++				UnresolvedType[] weaverPTypes = new UnresolvedType[ptypes.length];
++				for (int j = 0; j < weaverPTypes.length; j++) {
++					weaverPTypes[j] = UnresolvedType.forName(ptypes[j].getName());
++				}
++				pointcuts[i] = new DeferredResolvedPointcutDefinition(getResolvedTypeX(),pcs[i].getModifiers(),pcs[i].getName(),weaverPTypes);				
++			}
++			// phase 2, now go back round and resolve in-place all of the pointcuts
++			PointcutParameter[][] parameters = new PointcutParameter[pcs.length][];
+ 			for (int i = 0; i < pcs.length; i++) {
+ 				AjType<?>[] ptypes = pcs[i].getParameterTypes();
+ 				String[] pnames = pcs[i].getParameterNames();
+@@ -259,18 +274,18 @@ public class Java15ReflectionBasedReferenceTypeDelegate extends
+ 						throw new IllegalStateException("Required parameter names not available when parsing pointcut " + pcs[i].getName() + " in type " + getResolvedTypeX().getName());
+ 					}
+ 				}
+-				PointcutParameter[] parameters = new PointcutParameter[ptypes.length];
+-				for (int j = 0; j < parameters.length; j++) {
+-					parameters[j] = parser.createPointcutParameter(pnames[j],ptypes[j].getJavaClass());
+-				}
+-				String pcExpr = pcs[i].getPointcutExpression().toString();
+-				PointcutExpressionImpl pEx = (PointcutExpressionImpl) parser.parsePointcutExpression(pcExpr,getBaseClass(),parameters);
+-				org.aspectj.weaver.patterns.Pointcut pc = pEx.getUnderlyingPointcut();
+-				UnresolvedType[] weaverPTypes = new UnresolvedType[ptypes.length];
+-				for (int j = 0; j < weaverPTypes.length; j++) {
+-					weaverPTypes[j] = UnresolvedType.forName(ptypes[j].getName());
+-				}
+-				pointcuts[i] = new ResolvedPointcutDefinition(getResolvedTypeX(),pcs[i].getModifiers(),pcs[i].getName(),weaverPTypes,pc);
++				parameters[i] = new PointcutParameter[ptypes.length];
++				for (int j = 0; j < parameters[i].length; j++) {
++					parameters[i][j] = parser.createPointcutParameter(pnames[j],ptypes[j].getJavaClass());
++				}				String pcExpr = pcs[i].getPointcutExpression().toString();
++				org.aspectj.weaver.patterns.Pointcut pc = parser.resolvePointcutExpression(pcExpr,getBaseClass(),parameters[i]);
++				((ResolvedPointcutDefinition)pointcuts[i]).setParameterNames(pnames);
++				((ResolvedPointcutDefinition)pointcuts[i]).setPointcut(pc);
++			}
++			// phase 3, now concretize them all
++			for (int i = 0; i < pointcuts.length; i++) {
++				ResolvedPointcutDefinition rpd = (ResolvedPointcutDefinition) pointcuts[i];
++				rpd.setPointcut(parser.concretizePointcutExpression(rpd.getPointcut(), getBaseClass(), parameters[i]));
+ 			}
+ 		}
+ 		return pointcuts;
+@@ -283,6 +283,22 @@ public class Java15PointcutExpressionTest extends TestCase {
+ 		assertTrue("should match",sm1.alwaysMatches());
+ 	}
+ 
++	public void testReferencePCsInSameType() throws Exception {
++		PointcutExpression ex = parser.parsePointcutExpression("org.aspectj.weaver.tools.Java15PointcutExpressionTest.NamedPointcutResolution.c()",NamedPointcutResolution.class,new PointcutParameter[0]);
++		ShadowMatch sm = ex.matchesMethodExecution(a);
++		assertTrue("should match",sm.alwaysMatches());
++		sm = ex.matchesMethodExecution(b);
++		assertTrue("does not match",sm.neverMatches());
++	}
++	
++	public void testReferencePCsInOtherType() throws Exception {
++		PointcutExpression ex = parser.parsePointcutExpression("org.aspectj.weaver.tools.Java15PointcutExpressionTest.ExternalReferrer.d()",ExternalReferrer.class,new PointcutParameter[0]);
++		ShadowMatch sm = ex.matchesMethodExecution(a);
++		assertTrue("should match",sm.alwaysMatches());
++		sm = ex.matchesMethodExecution(b);
++		assertTrue("does not match",sm.neverMatches());		
++	}
++	
+ 	protected void setUp() throws Exception {
+ 		super.setUp();
+ 		parser = PointcutParser.getPointcutParserSupportingAllPrimitivesAndUsingSpecifiedClassloaderForResolution(this.getClass().getClassLoader());
+@@ -334,6 +350,26 @@ public class Java15PointcutExpressionTest extends TestCase {
+ 	static class GoldenOldie {
+ 		public void foo() {}
+ 	}
++	
++	private static class NamedPointcutResolution {
++		
++		@Pointcut("execution(* *(..))")
++		public void a() {}
++		
++		@Pointcut("this(org.aspectj.weaver.tools.Java15PointcutExpressionTest.A)")
++		public void b() {}
++		
++		@Pointcut("a() && b()")
++		public void c() {}
++	}
++	
++	private static class ExternalReferrer {
++		
++	  @Pointcut("org.aspectj.weaver.tools.Java15PointcutExpressionTest.NamedPointcutResolution.a() && " + 
++			    "org.aspectj.weaver.tools.Java15PointcutExpressionTest.NamedPointcutResolution.b())")
++	  public void d() {}
++		
++	}
+ }
+ 
+ 
+@@ -181,7 +181,7 @@ public class PointcutParser {
+      * <li>The pointcut expression must be anonymous with no formals allowed.
+      * </ul>
+      */
+-    private PointcutParser() {
++    protected PointcutParser() {
+         supportedPrimitives = getAllSupportedPointcutPrimitives();
+         setClassLoader(PointcutParser.class.getClassLoader());
+     }
+@@ -214,7 +214,7 @@ public class PointcutParser {
+         setClassLoader(PointcutParser.class.getClassLoader());
+     }
+ 
+-    public void setWorld(ReflectionWorld aWorld) {
++    protected void setWorld(ReflectionWorld aWorld) {
+     	this.world = aWorld;
+     }
+ 
+@@ -223,7 +223,7 @@ public class PointcutParser {
+      * type resolution.
+      * @param aLoader
+      */
+-    private void setClassLoader(ClassLoader aLoader) {
++    protected void setClassLoader(ClassLoader aLoader) {
+     	this.classLoader = aLoader;
+     	world = new ReflectionWorld(this.classLoader);
+     }
+@@ -305,23 +305,8 @@ public class PointcutParser {
+     throws UnsupportedPointcutPrimitiveException, IllegalArgumentException {
+     	 PointcutExpressionImpl pcExpr = null;
+          try {
+-        	 PatternParser parser = new PatternParser(expression);
+-        	 parser.setPointcutDesignatorHandlers(pointcutDesignators, world);
+-             Pointcut pc = parser.parsePointcut();
+-             validateAgainstSupportedPrimitives(pc,expression);
+-             IScope resolutionScope = buildResolutionScope((inScope == null ? Object.class : inScope),formalParameters);
+-             pc = pc.resolve(resolutionScope);
+-             ResolvedType declaringTypeForResolution = null;
+-             if (inScope != null) {
+-            	 declaringTypeForResolution = getWorld().resolve(inScope.getName());
+-             } else {
+-            	 declaringTypeForResolution = ResolvedType.OBJECT.resolve(getWorld());
+-             }
+-             IntMap arity = new IntMap(formalParameters.length);
+-             for (int i = 0; i < formalParameters.length; i++) {
+-            	 arity.put(i, i);
+-             }             
+-             pc = pc.concretize(declaringTypeForResolution, declaringTypeForResolution, arity);
++        	 Pointcut pc = resolvePointcutExpression(expression,inScope,formalParameters);  
++             pc = concretizePointcutExpression(pc,inScope,formalParameters);
+              validateAgainstSupportedPrimitives(pc,expression); // again, because we have now followed any ref'd pcuts
+              pcExpr = new PointcutExpressionImpl(pc,expression,formalParameters,getWorld());
+          } catch (ParserException pEx) {
+@@ -332,6 +317,37 @@ public class PointcutParser {
+          return pcExpr;
+     }
+ 
++    protected Pointcut resolvePointcutExpression(
++    		String expression, 
++    		Class inScope,
++    		PointcutParameter[] formalParameters) {
++    	try {
++      	 PatternParser parser = new PatternParser(expression);
++    	 parser.setPointcutDesignatorHandlers(pointcutDesignators, world);
++         Pointcut pc = parser.parsePointcut();
++         validateAgainstSupportedPrimitives(pc,expression);
++         IScope resolutionScope = buildResolutionScope((inScope == null ? Object.class : inScope),formalParameters);
++         pc = pc.resolve(resolutionScope);
++         return pc;
++    	} catch (ParserException pEx) {
++             throw new IllegalArgumentException(buildUserMessageFromParserException(expression,pEx));
++        }
++    }
++    
++    protected Pointcut concretizePointcutExpression(Pointcut pc, Class inScope, PointcutParameter[] formalParameters) {
++        ResolvedType declaringTypeForResolution = null;
++        if (inScope != null) {
++       	 declaringTypeForResolution = getWorld().resolve(inScope.getName());
++        } else {
++       	 declaringTypeForResolution = ResolvedType.OBJECT.resolve(getWorld());
++        }
++        IntMap arity = new IntMap(formalParameters.length);
++        for (int i = 0; i < formalParameters.length; i++) {
++       	 arity.put(i, i);
++        }             
++        return pc.concretize(declaringTypeForResolution, declaringTypeForResolution, arity);
++    }
++    
+     /**
+      * Parse the given aspectj type pattern, and return a 
+      * matcher that can be used to match types using it.
+@@ -0,0 +1,29 @@
++package org.aspectj.weaver.reflect;
++
++import org.aspectj.weaver.ResolvedPointcutDefinition;
++import org.aspectj.weaver.ResolvedType;
++import org.aspectj.weaver.UnresolvedType;
++
++/**
++ * When a Java15ReflectionBasedDelegate gets the pointcuts for a given class it 
++ * tries to resolve them before returning.
++ * This can cause problems if the resolution of one pointcut in the type depends
++ * on another pointcut in the same type. 
++ * Therefore the algorithm proceeds in two phases, first we create and store
++ * instances of this class in the pointcuts array, and once that is done, we
++ * come back round and resolve the actual pointcut expression. This means that
++ * if we recurse doing resolution, we will find the named pointcut we are 
++ * looking for!
++ * 
++ * @author adrian colyer
++ *
++ */
++public class DeferredResolvedPointcutDefinition extends ResolvedPointcutDefinition {
++
++	public DeferredResolvedPointcutDefinition(UnresolvedType declaringType,
++			int modifiers, String name, UnresolvedType[] parameterTypes) {
++		super(declaringType, modifiers, name, parameterTypes,
++				ResolvedType.VOID, null);
++	}
++	
++}
+@@ -0,0 +1,31 @@
++package org.aspectj.weaver.reflect;
++
++import org.aspectj.weaver.patterns.Pointcut;
++import org.aspectj.weaver.tools.PointcutParameter;
++import org.aspectj.weaver.tools.PointcutParser;
++
++public class InternalUseOnlyPointcutParser extends PointcutParser {
++
++	public InternalUseOnlyPointcutParser(ClassLoader classLoader, ReflectionWorld world) {
++		super();
++		setClassLoader(classLoader);
++		setWorld(world);
++	}
++	
++	public InternalUseOnlyPointcutParser(ClassLoader classLoader) {
++		super();
++		setClassLoader(classLoader);
++	}
++	
++	public Pointcut resolvePointcutExpression(
++	    		String expression, 
++	    		Class inScope,
++	    		PointcutParameter[] formalParameters) {
++		return super.resolvePointcutExpression(expression, inScope, formalParameters);
++	}
++	
++	public Pointcut concretizePointcutExpression(Pointcut pc, Class inScope, PointcutParameter[] formalParameters) {
++		return super.concretizePointcutExpression(pc, inScope, formalParameters);
++	}
++		   
++}
+@@ -245,11 +245,26 @@ public class Java15ReflectionBasedReferenceTypeDelegate extends
+ 		if (pointcuts == null) {
+ 			Pointcut[] pcs = this.myType.getDeclaredPointcuts();
+ 			pointcuts = new ResolvedMember[pcs.length];
+-			PointcutParser parser = PointcutParser.getPointcutParserSupportingAllPrimitivesAndUsingSpecifiedClassloaderForResolution(classLoader);
++			InternalUseOnlyPointcutParser parser = null;
+ 			World world = getWorld();
+ 			if (world instanceof ReflectionWorld) {
+-				parser.setWorld((ReflectionWorld)getWorld());
++				parser = new InternalUseOnlyPointcutParser(classLoader,(ReflectionWorld)getWorld());
++			} else {
++				parser = new InternalUseOnlyPointcutParser(classLoader);
+ 			}
++						
++			// phase 1, create legitimate entries in pointcuts[] before we attempt to resolve *any* of the pointcuts
++			// resolution can sometimes cause us to recurse, and this two stage process allows us to cope with that
++			for (int i = 0; i < pcs.length; i++) {
++				AjType<?>[] ptypes = pcs[i].getParameterTypes();
++				UnresolvedType[] weaverPTypes = new UnresolvedType[ptypes.length];
++				for (int j = 0; j < weaverPTypes.length; j++) {
++					weaverPTypes[j] = UnresolvedType.forName(ptypes[j].getName());
++				}
++				pointcuts[i] = new DeferredResolvedPointcutDefinition(getResolvedTypeX(),pcs[i].getModifiers(),pcs[i].getName(),weaverPTypes);				
++			}
++			// phase 2, now go back round and resolve in-place all of the pointcuts
++			PointcutParameter[][] parameters = new PointcutParameter[pcs.length][];
+ 			for (int i = 0; i < pcs.length; i++) {
+ 				AjType<?>[] ptypes = pcs[i].getParameterTypes();
+ 				String[] pnames = pcs[i].getParameterNames();
+@@ -259,18 +274,18 @@ public class Java15ReflectionBasedReferenceTypeDelegate extends
+ 						throw new IllegalStateException("Required parameter names not available when parsing pointcut " + pcs[i].getName() + " in type " + getResolvedTypeX().getName());
+ 					}
+ 				}
+-				PointcutParameter[] parameters = new PointcutParameter[ptypes.length];
+-				for (int j = 0; j < parameters.length; j++) {
+-					parameters[j] = parser.createPointcutParameter(pnames[j],ptypes[j].getJavaClass());
+-				}
+-				String pcExpr = pcs[i].getPointcutExpression().toString();
+-				PointcutExpressionImpl pEx = (PointcutExpressionImpl) parser.parsePointcutExpression(pcExpr,getBaseClass(),parameters);
+-				org.aspectj.weaver.patterns.Pointcut pc = pEx.getUnderlyingPointcut();
+-				UnresolvedType[] weaverPTypes = new UnresolvedType[ptypes.length];
+-				for (int j = 0; j < weaverPTypes.length; j++) {
+-					weaverPTypes[j] = UnresolvedType.forName(ptypes[j].getName());
+-				}
+-				pointcuts[i] = new ResolvedPointcutDefinition(getResolvedTypeX(),pcs[i].getModifiers(),pcs[i].getName(),weaverPTypes,pc);
++				parameters[i] = new PointcutParameter[ptypes.length];
++				for (int j = 0; j < parameters[i].length; j++) {
++					parameters[i][j] = parser.createPointcutParameter(pnames[j],ptypes[j].getJavaClass());
++				}				String pcExpr = pcs[i].getPointcutExpression().toString();
++				org.aspectj.weaver.patterns.Pointcut pc = parser.resolvePointcutExpression(pcExpr,getBaseClass(),parameters[i]);
++				((ResolvedPointcutDefinition)pointcuts[i]).setParameterNames(pnames);
++				((ResolvedPointcutDefinition)pointcuts[i]).setPointcut(pc);
++			}
++			// phase 3, now concretize them all
++			for (int i = 0; i < pointcuts.length; i++) {
++				ResolvedPointcutDefinition rpd = (ResolvedPointcutDefinition) pointcuts[i];
++				rpd.setPointcut(parser.concretizePointcutExpression(rpd.getPointcut(), getBaseClass(), parameters[i]));
+ 			}
+ 		}
+ 		return pointcuts;
+@@ -283,6 +283,22 @@ public class Java15PointcutExpressionTest extends TestCase {
+ 		assertTrue("should match",sm1.alwaysMatches());
+ 	}
+ 
++	public void testReferencePCsInSameType() throws Exception {
++		PointcutExpression ex = parser.parsePointcutExpression("org.aspectj.weaver.tools.Java15PointcutExpressionTest.NamedPointcutResolution.c()",NamedPointcutResolution.class,new PointcutParameter[0]);
++		ShadowMatch sm = ex.matchesMethodExecution(a);
++		assertTrue("should match",sm.alwaysMatches());
++		sm = ex.matchesMethodExecution(b);
++		assertTrue("does not match",sm.neverMatches());
++	}
++	
++	public void testReferencePCsInOtherType() throws Exception {
++		PointcutExpression ex = parser.parsePointcutExpression("org.aspectj.weaver.tools.Java15PointcutExpressionTest.ExternalReferrer.d()",ExternalReferrer.class,new PointcutParameter[0]);
++		ShadowMatch sm = ex.matchesMethodExecution(a);
++		assertTrue("should match",sm.alwaysMatches());
++		sm = ex.matchesMethodExecution(b);
++		assertTrue("does not match",sm.neverMatches());		
++	}
++	
+ 	protected void setUp() throws Exception {
+ 		super.setUp();
+ 		parser = PointcutParser.getPointcutParserSupportingAllPrimitivesAndUsingSpecifiedClassloaderForResolution(this.getClass().getClassLoader());
+@@ -334,6 +350,26 @@ public class Java15PointcutExpressionTest extends TestCase {
+ 	static class GoldenOldie {
+ 		public void foo() {}
+ 	}
++	
++	private static class NamedPointcutResolution {
++		
++		@Pointcut("execution(* *(..))")
++		public void a() {}
++		
++		@Pointcut("this(org.aspectj.weaver.tools.Java15PointcutExpressionTest.A)")
++		public void b() {}
++		
++		@Pointcut("a() && b()")
++		public void c() {}
++	}
++	
++	private static class ExternalReferrer {
++		
++	  @Pointcut("org.aspectj.weaver.tools.Java15PointcutExpressionTest.NamedPointcutResolution.a() && " + 
++			    "org.aspectj.weaver.tools.Java15PointcutExpressionTest.NamedPointcutResolution.b())")
++	  public void d() {}
++		
++	}
+ }
+ 
+ 

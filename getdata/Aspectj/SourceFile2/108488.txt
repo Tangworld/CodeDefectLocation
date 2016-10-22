@@ -1,0 +1,179 @@
+@@ -66,6 +66,8 @@
+     <ajc-test dir="java5/ataspectj" title="AfterXTest">
+         <compile files="ataspectj/AfterXTest.java,ataspectj/TestHelper.java" options="-1.5"/>
+         <run class="ataspectj.AfterXTest"/>
++        <compile files="ataspectj/AfterXTest.java,ataspectj/TestHelper.java" options="-1.5 -Xdev:NoAtAspectJProcessing"/>
++        <run class="ataspectj.AfterXTest"/>
+     </ajc-test>
+ 
+     <ajc-test dir="java5/ataspectj" title="IfPointcutTest">
+@@ -307,13 +307,9 @@ public class ValidateAtAspectJAnnotationsVisitor extends ASTVisitor {
+ 			String thrownFormal = getStringLiteralFor("throwing",ajAnnotations.adviceAnnotation,throwingLocation);
+ 			if (thrownFormal != null) {
+ 				Argument[] arguments = methodDeclaration.arguments;
+-				if (methodDeclaration.arguments != null
+-                        && !toArgumentNames(methodDeclaration.arguments).contains(thrownFormal)) {
++				if (!toArgumentNames(methodDeclaration.arguments).contains(thrownFormal)) {
+ 						methodDeclaration.scope.problemReporter()
+ 							.signalError(methodDeclaration.sourceStart,methodDeclaration.sourceEnd,"throwing formal '" + thrownFormal + "' must be declared as a parameter in the advice signature");
+-				} else {
+-					methodDeclaration.scope.problemReporter()
+-					.signalError(methodDeclaration.sourceStart,methodDeclaration.sourceEnd,"throwing formal '" + thrownFormal + "' must be declared as a parameter in the advice signature");
+ 				}
+ 			}
+ 		}
+@@ -322,13 +318,9 @@ public class ValidateAtAspectJAnnotationsVisitor extends ASTVisitor {
+ 			int[] throwingLocation = new int[2];
+ 			String returningFormal = getStringLiteralFor("returning",ajAnnotations.adviceAnnotation,throwingLocation);
+ 			if (returningFormal != null) {
+-				if (methodDeclaration.arguments.length > 0
+-                        && !toArgumentNames(methodDeclaration.arguments).contains(returningFormal)) {
++				if (!toArgumentNames(methodDeclaration.arguments).contains(returningFormal)) {
+ 						methodDeclaration.scope.problemReporter()
+ 							.signalError(methodDeclaration.sourceStart,methodDeclaration.sourceEnd,"returning formal '" + returningFormal + "' must be declared as a parameter in the advice signature");
+-				} else {
+-					methodDeclaration.scope.problemReporter()
+-					.signalError(methodDeclaration.sourceStart,methodDeclaration.sourceEnd,"returning formal '" + returningFormal + "' must be declared as a parameter in the advice signature");
+ 				}
+ 			}
+ 		}
+@@ -62,7 +62,7 @@ public class PerClauseTest extends TestCase {
+         log("perTarget");
+     }
+ 
+-    public void xtestPerTarget() {
++    public void testPerTarget() {
+         s_log = new StringBuffer();
+         perTarget();
+         assertEquals("AOP.perTarget perTarget ", s_log.toString());
+@@ -121,7 +121,7 @@ public class PerClauseTest extends TestCase {
+         log("perCflow");
+     }
+ 
+-    public void xtestPerCflow() throws Throwable {
++    public void testPerCflow() throws Throwable {
+         s_log = new StringBuffer();
+ 
+         // no aspect bound yet
+@@ -177,7 +177,7 @@ public class PerClauseTest extends TestCase {
+         assertEquals(2, PerClauseTestAspects.TestAspectPerCflow.s_count);
+     }
+ 
+-    public void xtestPerTypeWithin() {
++    public void testPerTypeWithin() {
+         assertTrue(Aspects.hasAspect(PerClauseTestAspects.TestAspectPTW.class, PTW1.class));
+         assertTrue(Aspects.hasAspect(PerClauseTestAspects.TestAspectPTW.class, PTW2.class));
+         assertFalse(Aspects.hasAspect(PerClauseTestAspects.TestAspectPTW.class, PTWNoMatch.class));
+@@ -77,9 +77,8 @@ public class AtAjSyntaxTests extends XMLBasedAjcTestCase {
+         runTest("BindingTest no inline");
+     }
+ 
+-    //FIXME AV 2005-09 - commented as perthis(this(Type)) fails for now as of #108488
+     public void testPerClause() {
+-        //runTest("PerClause");
++        runTest("PerClause");
+     }
+ 
+     public void testAroundInlineMunger_XnoInline() {
+@@ -137,7 +137,8 @@ public class PerThisOrTargetPointcutVisitor extends IdentityPointcutVisitor {
+             //pertarget(target(Foo)) => Foo+ for type pattern matching
+             //perthis(this(Foo)) => Foo+ for type pattern matching
+             // TODO AV - we do like a deep copy by parsing it again.. quite dirty, would need a clean deep copy
+-            TypePattern copy = new PatternParser(node.getType().toString()).parseTypePattern();
++            TypePattern copy = new PatternParser(node.getType().toString().replace('$', '.')).parseTypePattern();
++            // TODO AV - see dirty replace from $ to . here as inner classes are with $ instead (#108488)
+             copy.includeSubtypes = true;
+             return copy;
+         } else {
+@@ -93,7 +93,7 @@ public class ThisOrTargetPointcut extends NameBindingPointcut {
+ 		UnresolvedType typeToMatch = isThis ? shadow.getThisType() : shadow.getTargetType(); 
+ 		//if (typeToMatch == ResolvedType.MISSING) return FuzzyBoolean.NO;
+ 
+-		return type.matches(typeToMatch.resolve(shadow.getIWorld()), TypePattern.DYNAMIC);
++		return type.matches(typeToMatch.resolve(shadow.getIWorld()), TypePattern.DYNAMIC);//AVPT was DYNAMIC
+ 	}
+ 
+ 	public void write(DataOutputStream s) throws IOException {
+@@ -447,7 +447,8 @@ public class WildTypePattern extends TypePattern {
+ 	 */
+ 	public FuzzyBoolean matchesInstanceof(ResolvedType type) {
+ 		//XXX hack to let unmatched types just silently remain so
+-		if (maybeGetSimpleName() != null) return FuzzyBoolean.NO;
++		if (maybeGetSimpleName() != null) return
++                FuzzyBoolean.NO;
+ 
+ 		type.getWorld().getMessageHandler().handleMessage(
+ 			new Message("can't do instanceof matching on patterns with wildcards",
+@@ -62,7 +62,7 @@ public class PerClauseTest extends TestCase {
+         log("perTarget");
+     }
+ 
+-    public void testPerTarget() {
++    public void xtestPerTarget() {
+         s_log = new StringBuffer();
+         perTarget();
+         assertEquals("AOP.perTarget perTarget ", s_log.toString());
+@@ -121,7 +121,7 @@ public class PerClauseTest extends TestCase {
+         log("perCflow");
+     }
+ 
+-    public void testPerCflow() throws Throwable {
++    public void xtestPerCflow() throws Throwable {
+         s_log = new StringBuffer();
+ 
+         // no aspect bound yet
+@@ -177,7 +177,7 @@ public class PerClauseTest extends TestCase {
+         assertEquals(2, PerClauseTestAspects.TestAspectPerCflow.s_count);
+     }
+ 
+-    public void testPerTypeWithin() {
++    public void xtestPerTypeWithin() {
+         assertTrue(Aspects.hasAspect(PerClauseTestAspects.TestAspectPTW.class, PTW1.class));
+         assertTrue(Aspects.hasAspect(PerClauseTestAspects.TestAspectPTW.class, PTW2.class));
+         assertFalse(Aspects.hasAspect(PerClauseTestAspects.TestAspectPTW.class, PTWNoMatch.class));
+@@ -213,4 +213,23 @@ public class PerClauseTest extends TestCase {
+     static class PTWNoMatch {
+         static void foo() {};
+     }
++
++    public void testPerThis() {
++        assertEquals(0, PerClauseTestAspects.TestAspectPerThis.s_count);
++
++        PerThis i1 = new PerThis();
++        i1.foo();
++        assertEquals(1, PerClauseTestAspects.TestAspectPerThis.s_count);
++        i1.foo();
++        assertEquals(1, PerClauseTestAspects.TestAspectPerThis.s_count);
++
++        new PerThis().foo();
++        assertEquals(2, PerClauseTestAspects.TestAspectPerThis.s_count);
++
++        assertEquals(3, PerClauseTestAspects.TestAspectPerThis.a_count);
++    }
++
++    static class PerThis {
++        void foo() {};
++    }
+ }
+@@ -78,7 +78,21 @@ public class PerClauseTestAspects {
+         public void before(JoinPoint jp) {
+             ;
+         }
++    }
++
++    @Aspect("perthis(this(ataspectj.PerClauseTest.PerThis))")
++    public static class TestAspectPerThis {
++        static int s_count;
++        static int a_count;
++
++        public TestAspectPerThis() {
++            s_count++;
++        }
+ 
++        @Before("execution(* ataspectj.PerClauseTest.PerThis.foo())")
++        public void before(JoinPoint jp) {
++            a_count++;
++        }
+     }
+ 
+ 

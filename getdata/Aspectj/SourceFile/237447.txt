@@ -1,0 +1,142 @@
+@@ -277,8 +277,12 @@ public class EclipseFactory {
+ 			// act of resolution here may cause recursion problems since the parameters may
+ 			// be type variables that we haven't fixed up yet.
+ 			if (arguments==null) arguments=new UnresolvedType[0];
+-			String parameterizedSig = ResolvedType.PARAMETERIZED_TYPE_IDENTIFIER+CharOperation.charToString(binding.genericTypeSignature()).substring(1);
+-			return TypeFactory.createUnresolvedParameterizedType(parameterizedSig,baseTypeSignature,arguments);
++//			StringBuffer parameterizedSig = new StringBuffer();
++//			parameterizedSig.append(ResolvedType.PARAMETERIZED_TYPE_IDENTIFIER);
++//			
++////			String parameterizedSig = new StringBuffer().append(ResolvedType.PARAMETERIZED_TYPE_IDENTIFIER).append(CharOperation.charToString(binding.genericTypeSignature()).substring(1)).toString();
++//			return TypeFactory.createUnresolvedParameterizedType(parameterizedSig,baseTypeSignature,arguments);
++			return TypeFactory.createUnresolvedParameterizedType(baseTypeSignature,arguments);
+ 		}
+ 
+ 		// Convert the source type binding for a generic type into a generic UnresolvedType
+@@ -0,0 +1,3 @@
++public class GenericClass<Type extends Object> {
++}
++
+@@ -0,0 +1,16 @@
++public class GenericGenericMemberClass {
++
++        // this line never causes a problem
++        GenericClass<Double> [] genericMemberArray;
++
++        // this line causes compilation errors to be introduced
++        GenericClass< GenericClass<Double> >[] genericGenericMemberArray;
++
++        // uncommenting the following lines removes the compilation errors (very unexpectedly, for me at least)
++//      @SuppressWarnings("unused")
++//      private static final GenericClass< GenericClass<Double> > genericGenericMember = null;
++
++        public void test() {
++        }
++}
++
+@@ -0,0 +1,9 @@
++public class SomeClass {
++        GenericGenericMemberClass member;
++
++        public void someMethod() {
++                // commenting the following line will remove compilation errors (and mask the problem)
++                member.test();
++        }
++}
++
+@@ -0,0 +1,7 @@
++import org.aspectj.lang.annotation.*;
++
++@SuppressAjWarnings
++public aspect UnrelatedAspect {
++	  before(): call(void UnrelatedClas*.unrelatedMethod()) {
++	  }
++}
+\ No newline at end of file
+@@ -16,19 +16,16 @@ import java.util.Set;
+ 
+ import junit.framework.Test;
+ 
+-import org.aspectj.apache.bcel.classfile.JavaClass;
+ import org.aspectj.apache.bcel.classfile.LocalVariable;
+ import org.aspectj.apache.bcel.classfile.LocalVariableTable;
+-import org.aspectj.apache.bcel.classfile.Method;
+ import org.aspectj.asm.AsmManager;
+ import org.aspectj.asm.IRelationshipMap;
+-import org.aspectj.testing.Utils;
+ import org.aspectj.testing.XMLBasedAjcTestCase;
+-import org.aspectj.tools.ajc.Ajc;
+ 
+ public class Ajc161Tests extends org.aspectj.testing.XMLBasedAjcTestCase {
+ 
+ 	// AspectJ1.6.1	
++	public void testSignatureProcessing_pr237447() { runTest("signature processing"); }
+ 	public void testGenericAtAround_pr237419() { runTest("generics ataround"); }
+ 	public void testGenericMarkerMatch_pr203367() { runTest("generic marker match"); }
+ //	public void testSuperItds_pr134425() { runTest("super itds"); }
+@@ -3,6 +3,11 @@
+ <!-- AspectJ v1.6.1 Tests -->
+ <suite>
+ 
++
++	<ajc-test dir="bugs161/pr237447" title="signature processing">
++    	<compile files="GenericClass.java SomeClass.java GenericGenericMemberClass.java UnrelatedAspect.java" options="-1.5"/>
++    </ajc-test>
++
+ 	<ajc-test dir="bugs161/pr173978" title="lv table for around">
+     	<compile files="TestAroundAspect.java Test.java" options="-1.5"/>
+     </ajc-test>
+@@ -14,6 +14,8 @@ package org.aspectj.weaver;
+ import java.util.ArrayList;
+ import java.util.List;
+ 
++import org.aspectj.asm.internal.CharOperation;
++
+ /**
+  * @author colyer
+  *
+@@ -245,4 +247,27 @@ public class TypeFactory {
+ 		types.toArray(typeParams);
+ 		return typeParams;
+ 	}
++
++	// OPTIMIZE improve all this signature processing stuff, use char arrays, etc
++	
++	/**
++	 * Create a signature then delegate to the other factory method.  Same input/output:
++	 * baseTypeSignature="LSomeType;"
++	 * arguments[0]= something with sig "Pcom/Foo<Ljava/lang/String;>;"
++	 * signature created = "PSomeType<Pcom/Foo<Ljava/lang/String;>;>;"
++	 */
++	public static UnresolvedType createUnresolvedParameterizedType(String baseTypeSignature, UnresolvedType[] arguments) {
++		StringBuffer parameterizedSig = new StringBuffer();
++		parameterizedSig.append(ResolvedType.PARAMETERIZED_TYPE_IDENTIFIER);
++		parameterizedSig.append(baseTypeSignature.substring(1,baseTypeSignature.length()-1));
++		if (arguments.length > 0) {
++			parameterizedSig.append("<");
++			for (int i=0;i<arguments.length;i++) {
++				parameterizedSig.append(arguments[i].getSignature());
++			}
++			parameterizedSig.append(">");
++		}
++		parameterizedSig.append(";");
++		return createUnresolvedParameterizedType(parameterizedSig.toString(),baseTypeSignature,arguments);
++	}
+ }
+@@ -19,6 +19,16 @@ import junit.framework.TestCase;
+ // XXX - couldn't find any unit test cases for the rest of the ReferenceType class
+ public class ReferenceTypeTestCase extends TestCase {
+ 
++	public void testUnresolvedTypeSignatureProcessing() {
++		BcelWorld world = new BcelWorld();
++		world.setBehaveInJava5Way(true);
++		UnresolvedType ut = null;
++		ut = UnresolvedType.forName("java.util.List<java.util.List<java.lang.String>>[]").resolve(world);
++		ut = UnresolvedType.forSignature("[Pjava/util/List<Pjava/util/List<Ljava/lang/String;>;>;").resolve(world);
++		assertEquals("Signatures not equal ","[Pjava/util/List<Pjava/util/List<Ljava/lang/String;>;>;",ut.getSignature());
++		assertEquals("Names not equal ","java.util.List<java.util.List<java.lang.String>>[]",ut.getName());
++	}
++	
+ 	public void testIsRawTrue() {
+ 		BcelWorld world = new BcelWorld();
+ 		world.setBehaveInJava5Way(true);

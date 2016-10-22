@@ -1,0 +1,93 @@
+@@ -663,7 +663,7 @@ public class AsmHierarchyBuilder extends ASTVisitor {
+ 	}
+ 
+ 	/**
+-	 * Doesn't print qualified allocation expressions.
++	 * 
+ 	 */
+ 	protected String genSourceSignature(FieldDeclaration fieldDeclaration) {	
+ 		StringBuffer output = new StringBuffer();
+@@ -683,6 +683,27 @@ public class AsmHierarchyBuilder extends ASTVisitor {
+ 			} else {
+ 				fieldDeclaration.initialization.printExpression(0, output);
+ 			}
++		} else if (fieldDeclaration.initialization instanceof QualifiedAllocationExpression) {
++			output.append(" = "); //$NON-NLS-1$
++			QualifiedAllocationExpression qae = (QualifiedAllocationExpression)fieldDeclaration.initialization;
++			StringBuffer sb = new StringBuffer();
++			qae.printExpression(0,sb);
++			// if the source is of the form 'static I MY_I = new I() {};' calling 
++			// printExpression on the qae returns
++			//
++			// new I() {
++			//	   x() {
++			//	     super();
++			//	   }
++			// }
++			//
++			// We want to remove the x() {super();} call. Assuming that this
++			// is the first entry in the expression we can do this by finding
++			// the position of the "{" and "}" - bug 148908
++			int i = sb.toString().indexOf("{");
++			output.append(sb.substring(0,i+1));
++			int j = sb.toString().indexOf("}");
++			output.append(sb.substring(j+1));
+ 		}
+ 
+ 		output.append(';');
+@@ -0,0 +1,11 @@
++import java.util.Comparator;
++
++
++public interface BadInterface {
++
++    static final Comparator MY_COMPARATOR = new Comparator() {
++        public int compare(Object o1, Object o2) {
++            return 0;
++        }
++    };
++}
+@@ -14,6 +14,9 @@ import java.io.File;
+ 
+ import junit.framework.Test;
+ 
++import org.aspectj.asm.AsmManager;
++import org.aspectj.asm.IHierarchy;
++import org.aspectj.asm.IProgramElement;
+ import org.aspectj.testing.Utils;
+ import org.aspectj.testing.XMLBasedAjcTestCase;
+ import org.aspectj.weaver.bcel.Utility;
+@@ -110,7 +113,22 @@ public class Ajc153Tests extends org.aspectj.testing.XMLBasedAjcTestCase {
+ 	  runTest("declare soft and inner classes");
+   }
+ 
+-  /////////////////////////////////////////
++  public void testGetSourceSignature_pr148908() {
++	runTest("ensure getSourceSignature correct with static field");
++	IHierarchy top = AsmManager.getDefault().getHierarchy();
++	IProgramElement ipe = top.findElementForLabel(top.getRoot(),
++	IProgramElement.Kind.FIELD,"MY_COMPARATOR");
++	String expected = "static final Comparator MY_COMPARATOR = new Comparator() {\n" +
++					"  public int compare(Object o1, Object o2) {\n" +
++					"    return 0;\n" +
++					"  }\n" +
++					"};";
++			assertEquals("expected source signature to be " + expected + 
++					" but found " + ipe.getSourceSignature(), 
++					expected, ipe.getSourceSignature());
++  }
++  
++    /////////////////////////////////////////
+   public static Test suite() {
+     return XMLBasedAjcTestCase.loadSuite(Ajc153Tests.class);
+   }
+@@ -2,6 +2,9 @@
+ 
+ <!-- AspectJ v1.5.3 Tests -->
+ <suite>
++	<ajc-test dir="bugs153/pr148908" title="ensure getSourceSignature correct with static field">
++      <compile files="BadInterface.java" options="-emacssym"/>
++    </ajc-test> 
+ 
+     <ajc-test dir="bugs153/pr153845" title="IllegalStateException at GenericSignatureParser.java">
+       <compile files="GenericType.java,Aspect.java,Aspect2.java,Interface.java" options="-1.5" outjar="blob.jar"/>

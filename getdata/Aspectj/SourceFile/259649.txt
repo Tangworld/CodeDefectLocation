@@ -1,0 +1,1076 @@
+@@ -75,16 +75,15 @@ import org.aspectj.weaver.patterns.DeclareParents;
+ /**
+  * Overrides the default eclipse LookupEnvironment for two purposes.
+  * 
+- * 1. To provide some additional phases to <code>completeTypeBindings</code>
+- * that weave declare parents and inter-type declarations at the correct time.
++ * 1. To provide some additional phases to <code>completeTypeBindings</code> that weave declare parents and inter-type declarations
++ * at the correct time.
+  * 
+- * 2. To intercept the loading of new binary types to ensure the they will have
+- * declare parents and inter-type declarations woven when appropriate.
++ * 2. To intercept the loading of new binary types to ensure the they will have declare parents and inter-type declarations woven
++ * when appropriate.
+  * 
+  * @author Jim Hugunin
+  */
+-public class AjLookupEnvironment extends LookupEnvironment implements
+-		AnonymousClassCreationListener {
++public class AjLookupEnvironment extends LookupEnvironment implements AnonymousClassCreationListener {
+ 	public EclipseFactory factory = null;
+ 
+ 	// private boolean builtInterTypesAndPerClauses = false;
+@@ -114,14 +113,12 @@ public class AjLookupEnvironment extends LookupEnvironment implements
+ 	// interface then we put out an error message.
+ 
+ 	/**
+-	 * interfaces targetted by ITDs that have to be implemented by accessing the
+-	 * topMostImplementor of the interface, yet the aspect where the ITD
+-	 * originated is not in the world
++	 * interfaces targetted by ITDs that have to be implemented by accessing the topMostImplementor of the interface, yet the aspect
++	 * where the ITD originated is not in the world
+ 	 */
+ 	private final Map dangerousInterfaces = new HashMap();
+ 
+-	public AjLookupEnvironment(ITypeRequestor typeRequestor,
+-			CompilerOptions options, ProblemReporter problemReporter,
++	public AjLookupEnvironment(ITypeRequestor typeRequestor, CompilerOptions options, ProblemReporter problemReporter,
+ 			INameEnvironment nameEnvironment) {
+ 		super(typeRequestor, options, problemReporter, nameEnvironment);
+ 	}
+@@ -177,8 +174,7 @@ public class AjLookupEnvironment extends LookupEnvironment implements
+ 		// We won't find out about anonymous types until later though, so
+ 		// register to be
+ 		// told about them when they turn up.
+-		AnonymousClassPublisher.aspectOf().setAnonymousClassCreationListener(
+-				this);
++		AnonymousClassPublisher.aspectOf().setAnonymousClassCreationListener(this);
+ 
+ 		// need to build inter-type declarations for all AspectDeclarations at
+ 		// this point
+@@ -195,8 +191,7 @@ public class AjLookupEnvironment extends LookupEnvironment implements
+ 		factory.getWorld().getCrosscuttingMembersSet().reset();
+ 		while (typesToProcess.size() > 0) {
+ 			// removes types from the list as they are processed...
+-			collectAllITDsAndDeclares(
+-					(SourceTypeBinding) typesToProcess.get(0), typesToProcess);
++			collectAllITDsAndDeclares((SourceTypeBinding) typesToProcess.get(0), typesToProcess);
+ 		}
+ 
+ 		factory.finishTypeMungers();
+@@ -205,8 +200,7 @@ public class AjLookupEnvironment extends LookupEnvironment implements
+ 		Collection typeMungers = factory.getTypeMungers();
+ 
+ 		Collection declareParents = factory.getDeclareParents();
+-		Collection declareAnnotationOnTypes = factory
+-				.getDeclareAnnotationOnTypes();
++		Collection declareAnnotationOnTypes = factory.getDeclareAnnotationOnTypes();
+ 
+ 		doPendingWeaves();
+ 
+@@ -232,8 +226,7 @@ public class AjLookupEnvironment extends LookupEnvironment implements
+ 		// we had the full list.
+ 		// 
+ 		// but these aren't common cases (he bravely said...)
+-		boolean typeProcessingOrderIsImportant = declareParents.size() > 0
+-				|| declareAnnotationOnTypes.size() > 0; // DECAT
++		boolean typeProcessingOrderIsImportant = declareParents.size() > 0 || declareAnnotationOnTypes.size() > 0; // DECAT
+ 
+ 		if (typeProcessingOrderIsImportant) {
+ 			typesToProcess = new ArrayList();
+@@ -365,8 +358,7 @@ public class AjLookupEnvironment extends LookupEnvironment implements
+ 	 * @param sourceType
+ 	 * @param yetToProcess
+ 	 */
+-	private void collectAllITDsAndDeclares(SourceTypeBinding sourceType,
+-			Collection yetToProcess) {
++	private void collectAllITDsAndDeclares(SourceTypeBinding sourceType, Collection yetToProcess) {
+ 		// Look at the supertype first
+ 		ContextToken tok = CompilationAndWeavingContext.enteringPhase(
+ 				CompilationAndWeavingContext.COLLECTING_ITDS_AND_DECLARES,
+@@ -431,10 +423,8 @@ public class AjLookupEnvironment extends LookupEnvironment implements
+ 	private void doPendingWeaves() {
+ 		for (Iterator i = pendingTypesToWeave.iterator(); i.hasNext();) {
+ 			SourceTypeBinding t = (SourceTypeBinding) i.next();
+-			ContextToken tok = CompilationAndWeavingContext
+-					.enteringPhase(
+-							CompilationAndWeavingContext.WEAVING_INTERTYPE_DECLARATIONS,
+-							t.sourceName);
++			ContextToken tok = CompilationAndWeavingContext.enteringPhase(
++					CompilationAndWeavingContext.WEAVING_INTERTYPE_DECLARATIONS, t.sourceName);
+ 			weaveInterTypeDeclarations(t);
+ 			CompilationAndWeavingContext.leavingPhase(tok);
+ 		}
+@@ -446,8 +436,7 @@ public class AjLookupEnvironment extends LookupEnvironment implements
+ 
+ 		if (dec instanceof AspectDeclaration) {
+ 			ResolvedType typeX = factory.fromEclipse(dec.binding);
+-			factory.getWorld().getCrosscuttingMembersSet()
+-					.addAdviceLikeDeclares(typeX);
++			factory.getWorld().getCrosscuttingMembersSet().addAdviceLikeDeclares(typeX);
+ 		}
+ 
+ 		SourceTypeBinding sourceType = s.referenceContext.binding;
+@@ -462,13 +451,10 @@ public class AjLookupEnvironment extends LookupEnvironment implements
+ 
+ 		if (dec instanceof AspectDeclaration) {
+ 			ResolvedType typeX = factory.fromEclipse(dec.binding);
+-			factory.getWorld().getCrosscuttingMembersSet().addOrReplaceAspect(
+-					typeX, false);
++			factory.getWorld().getCrosscuttingMembersSet().addOrReplaceAspect(typeX, false);
+ 
+-			if (typeX.getSuperclass().isAspect()
+-					&& !typeX.getSuperclass().isExposedToWeaver()) {
+-				factory.getWorld().getCrosscuttingMembersSet()
+-						.addOrReplaceAspect(typeX.getSuperclass(), false);
++			if (typeX.getSuperclass().isAspect() && !typeX.getSuperclass().isExposedToWeaver()) {
++				factory.getWorld().getCrosscuttingMembersSet().addOrReplaceAspect(typeX.getSuperclass(), false);
+ 			}
+ 		}
+ 
+@@ -498,12 +484,9 @@ public class AjLookupEnvironment extends LookupEnvironment implements
+ 			}
+ 		}
+ 
+-		if (hasPointcuts || dec instanceof AspectDeclaration
+-				|| couldBeAnnotationStyleAspectDeclaration(dec)) {
+-			ReferenceType name = (ReferenceType) factory
+-					.fromEclipse(sourceType);
+-			EclipseSourceType eclipseSourceType = (EclipseSourceType) name
+-					.getDelegate();
++		if (hasPointcuts || dec instanceof AspectDeclaration || couldBeAnnotationStyleAspectDeclaration(dec)) {
++			ReferenceType name = (ReferenceType) factory.fromEclipse(sourceType);
++			EclipseSourceType eclipseSourceType = (EclipseSourceType) name.getDelegate();
+ 			eclipseSourceType.checkPointcutDeclarations();
+ 		}
+ 
+@@ -544,11 +527,8 @@ public class AjLookupEnvironment extends LookupEnvironment implements
+ 		if (sourceType.superclass != null) {
+ 			ResolvedType parent = factory.fromEclipse(sourceType.superclass);
+ 			if (parent.isAspect() && !isAspect(dec)) {
+-				factory.showMessage(IMessage.ERROR, "class \'"
+-						+ new String(sourceType.sourceName)
+-						+ "\' can not extend aspect \'" + parent.getName()
+-						+ "\'", factory.fromEclipse(sourceType)
+-						.getSourceLocation(), null);
++				factory.showMessage(IMessage.ERROR, "class \'" + new String(sourceType.sourceName) + "\' can not extend aspect \'"
++						+ parent.getName() + "\'", factory.fromEclipse(sourceType).getSourceLocation(), null);
+ 			}
+ 		}
+ 
+@@ -567,27 +547,21 @@ public class AjLookupEnvironment extends LookupEnvironment implements
+ 			for (int i = 0; i < decl.annotations.length; i++) {
+ 				Annotation ann = decl.annotations[i];
+ 				if (ann.type instanceof SingleTypeReference) {
+-					if (CharOperation.equals("Aspect".toCharArray(),
+-							((SingleTypeReference) ann.type).token))
++					if (CharOperation.equals("Aspect".toCharArray(), ((SingleTypeReference) ann.type).token))
+ 						return true;
+ 				} else if (ann.type instanceof QualifiedTypeReference) {
+ 					QualifiedTypeReference qtr = (QualifiedTypeReference) ann.type;
+ 					if (qtr.tokens.length != 5)
+ 						return false;
+-					if (!CharOperation.equals("org".toCharArray(),
+-							qtr.tokens[0]))
++					if (!CharOperation.equals("org".toCharArray(), qtr.tokens[0]))
+ 						return false;
+-					if (!CharOperation.equals("aspectj".toCharArray(),
+-							qtr.tokens[1]))
++					if (!CharOperation.equals("aspectj".toCharArray(), qtr.tokens[1]))
+ 						return false;
+-					if (!CharOperation.equals("lang".toCharArray(),
+-							qtr.tokens[2]))
++					if (!CharOperation.equals("lang".toCharArray(), qtr.tokens[2]))
+ 						return false;
+-					if (!CharOperation.equals("annotation".toCharArray(),
+-							qtr.tokens[3]))
++					if (!CharOperation.equals("annotation".toCharArray(), qtr.tokens[3]))
+ 						return false;
+-					if (!CharOperation.equals("Aspect".toCharArray(),
+-							qtr.tokens[4]))
++					if (!CharOperation.equals("Aspect".toCharArray(), qtr.tokens[4]))
+ 						return false;
+ 					return true;
+ 				}
+@@ -596,12 +570,10 @@ public class AjLookupEnvironment extends LookupEnvironment implements
+ 		return false;
+ 	}
+ 
+-	private void weaveInterTypeDeclarations(CompilationUnitScope unit,
+-			Collection typeMungers, Collection declareParents,
++	private void weaveInterTypeDeclarations(CompilationUnitScope unit, Collection typeMungers, Collection declareParents,
+ 			Collection declareAnnotationOnTypes) {
+ 		for (int i = 0, length = unit.topLevelTypes.length; i < length; i++) {
+-			weaveInterTypeDeclarations(unit.topLevelTypes[i], typeMungers,
+-					declareParents, declareAnnotationOnTypes, false);
++			weaveInterTypeDeclarations(unit.topLevelTypes[i], typeMungers, declareParents, declareAnnotationOnTypes, false);
+ 		}
+ 	}
+ 
+@@ -610,14 +582,12 @@ public class AjLookupEnvironment extends LookupEnvironment implements
+ 			if (!pendingTypesToWeave.contains(sourceType))
+ 				pendingTypesToWeave.add(sourceType);
+ 		} else {
+-			weaveInterTypeDeclarations(sourceType, factory.getTypeMungers(),
+-					factory.getDeclareParents(), factory
+-							.getDeclareAnnotationOnTypes(), true);
++			weaveInterTypeDeclarations(sourceType, factory.getTypeMungers(), factory.getDeclareParents(), factory
++					.getDeclareAnnotationOnTypes(), true);
+ 		}
+ 	}
+ 
+-	private void weaveInterTypeDeclarations(SourceTypeBinding sourceType,
+-			Collection typeMungers, Collection declareParents,
++	private void weaveInterTypeDeclarations(SourceTypeBinding sourceType, Collection typeMungers, Collection declareParents,
+ 			Collection declareAnnotationOnTypes, boolean skipInners) {
+ 
+ 		ContextToken tok = CompilationAndWeavingContext.enteringPhase(
+@@ -708,8 +678,7 @@ public class AjLookupEnvironment extends LookupEnvironment implements
+ 		}
+ 
+ 		// now lets loop over and over until we have done all we can
+-		while ((anyNewAnnotations || anyNewParents)
+-				&& (!decpToRepeat.isEmpty() || !decaToRepeat.isEmpty())) {
++		while ((anyNewAnnotations || anyNewParents) && (!decpToRepeat.isEmpty() || !decaToRepeat.isEmpty())) {
+ 			anyNewParents = anyNewAnnotations = false;
+ 			List forRemoval = new ArrayList();
+ 			for (Iterator i = decpToRepeat.iterator(); i.hasNext();) {
+@@ -725,8 +694,7 @@ public class AjLookupEnvironment extends LookupEnvironment implements
+ 			forRemoval = new ArrayList();
+ 			for (Iterator i = declareAnnotationOnTypes.iterator(); i.hasNext();) {
+ 				DeclareAnnotation deca = (DeclareAnnotation) i.next();
+-				boolean didSomething = doDeclareAnnotations(deca, sourceType,
+-						false);
++				boolean didSomething = doDeclareAnnotations(deca, sourceType, false);
+ 				if (didSomething) {
+ 					anyNewAnnotations = true;
+ 					forRemoval.add(deca);
+@@ -739,13 +707,8 @@ public class AjLookupEnvironment extends LookupEnvironment implements
+ 			EclipseTypeMunger munger = (EclipseTypeMunger) i.next();
+ 			if (munger.matches(onType)) {
+ 				if (needOldStyleWarning) {
+-					factory
+-							.showMessage(
+-									IMessage.WARNING,
+-									"The class for "
+-											+ onType
+-											+ " should be recompiled with ajc-1.1.1 for best results",
+-									onType.getSourceLocation(), null);
++					factory.showMessage(IMessage.WARNING, "The class for " + onType
++							+ " should be recompiled with ajc-1.1.1 for best results", onType.getSourceLocation(), null);
+ 					needOldStyleWarning = false;
+ 				}
+ 				onType.addInterTypeMunger(munger);
+@@ -783,9 +746,8 @@ public class AjLookupEnvironment extends LookupEnvironment implements
+ 		ReferenceBinding[] memberTypes = sourceType.memberTypes;
+ 		for (int i = 0, length = memberTypes.length; i < length; i++) {
+ 			if (memberTypes[i] instanceof SourceTypeBinding) {
+-				weaveInterTypeDeclarations((SourceTypeBinding) memberTypes[i],
+-						typeMungers, declareParents, declareAnnotationOnTypes,
+-						false);
++				weaveInterTypeDeclarations((SourceTypeBinding) memberTypes[i], typeMungers, declareParents,
++						declareAnnotationOnTypes, false);
+ 			}
+ 		}
+ 		CompilationAndWeavingContext.leavingPhase(tok);
+@@ -796,8 +758,7 @@ public class AjLookupEnvironment extends LookupEnvironment implements
+ 	 * type that has an existing 'WeaverStateInfo' object - this is typically
+ 	 * some previously woven type that has been passed on the inpath.
+ 	 * 
+-	 * sourceType and onType are the 'same type' - the former is the 'Eclipse'
+-	 * version and the latter is the 'Weaver' version.
++	 * sourceType and onType are the 'same type' - the former is the 'Eclipse' version and the latter is the 'Weaver' version.
+ 	 */
+ 	private void processTypeMungersFromExistingWeaverState(
+ 			SourceTypeBinding sourceType, ResolvedType onType) {
+@@ -808,13 +769,10 @@ public class AjLookupEnvironment extends LookupEnvironment implements
+ 			ConcreteTypeMunger m = (ConcreteTypeMunger) i.next();
+ 			EclipseTypeMunger munger = factory.makeEclipseTypeMunger(m);
+ 			if (munger.munge(sourceType, onType)) {
+-				if (onType.isInterface()
+-						&& munger.getMunger().needsAccessToTopmostImplementor()) {
+-					if (!onType.getWorld().getCrosscuttingMembersSet()
+-							.containsAspect(munger.getAspectType())) {
+-						dangerousInterfaces.put(onType, "implementors of "
+-								+ onType + " must be woven by "
+-								+ munger.getAspectType());
++				if (onType.isInterface() && munger.getMunger().needsAccessToTopmostImplementor()) {
++					if (!onType.getWorld().getCrosscuttingMembersSet().containsAspect(munger.getAspectType())) {
++						dangerousInterfaces
++								.put(onType, "implementors of " + onType + " must be woven by " + munger.getAspectType());
+ 					}
+ 				}
+ 			}
+@@ -822,10 +780,8 @@ public class AjLookupEnvironment extends LookupEnvironment implements
+ 		}
+ 	}
+ 
+-	private boolean doDeclareParents(DeclareParents declareParents,
+-			SourceTypeBinding sourceType) {
+-		ContextToken tok = CompilationAndWeavingContext.enteringPhase(
+-				CompilationAndWeavingContext.PROCESSING_DECLARE_PARENTS,
++	private boolean doDeclareParents(DeclareParents declareParents, SourceTypeBinding sourceType) {
++		ContextToken tok = CompilationAndWeavingContext.enteringPhase(CompilationAndWeavingContext.PROCESSING_DECLARE_PARENTS,
+ 				sourceType.sourceName);
+ 		ResolvedType resolvedSourceType = factory.fromEclipse(sourceType);
+ 		List newParents = declareParents.findMatchingNewParents(
+@@ -840,10 +796,8 @@ public class AjLookupEnvironment extends LookupEnvironment implements
+ 							.getSourceLocation(), null);
+ 				}
+ 				if (Modifier.isFinal(parent.getModifiers())) {
+-					factory.showMessage(IMessage.ERROR,
+-							"cannot extend final class "
+-									+ parent.getClassName(), declareParents
+-									.getSourceLocation(), null);
++					factory.showMessage(IMessage.ERROR, "cannot extend final class " + parent.getClassName(), declareParents
++							.getSourceLocation(), null);
+ 				} else {
+ 					// do not actually do it if the type isn't exposed - this
+ 					// will correctly reported as a problem elsewhere
+@@ -954,32 +908,38 @@ public class AjLookupEnvironment extends LookupEnvironment implements
+ 			}
+ 			if (decaMethod != null) { // could assert this ...
+ 				AnnotationAJ[] axs = decaMethod.getAnnotations();
+-				toAdd = new Annotation[1];
+-				toAdd[0] = createAnnotationFromBcelAnnotation(axs[0],
+-						decaMethod.getSourceLocation().getOffset(), factory);
+-				// BUG BUG BUG - We dont test these abits are correct, in fact
+-				// we'll be very lucky if they are.
+-				// What does that mean? It means on an incremental compile you
+-				// might get away with an
+-				// annotation that isn't allowed on a type being put on a type.
+-				if (toAdd[0].resolvedType != null) // pr184447
+-					abits = toAdd[0].resolvedType.getAnnotationTagBits();
++				if (axs != null) { // another error has occurred, dont crash here because of it
++					toAdd = new Annotation[1];
++					toAdd[0] = createAnnotationFromBcelAnnotation(axs[0], decaMethod.getSourceLocation().getOffset(), factory);
++					// BUG BUG BUG - We dont test these abits are correct, in fact
++					// we'll be very lucky if they are.
++					// What does that mean? It means on an incremental compile you
++					// might get away with an
++					// annotation that isn't allowed on a type being put on a type.
++					if (toAdd[0].resolvedType != null) // pr184447
++						abits = toAdd[0].resolvedType.getAnnotationTagBits();
++				}
+ 			}
+-		} else {
++		} else if (stb != null) {
+ 			// much nicer, its a real SourceTypeBinding so we can stay in
+ 			// eclipse land
+-			MethodBinding[] mbs = stb.getMethods(decA.getAnnotationMethod()
+-					.toCharArray());
++			// if (decA.getAnnotationMethod() != null) {
++			MethodBinding[] mbs = stb.getMethods(decA.getAnnotationMethod().toCharArray());
+ 			abits = mbs[0].getAnnotationTagBits(); // ensure resolved
+ 			TypeDeclaration typeDecl = ((SourceTypeBinding) mbs[0].declaringClass).scope.referenceContext;
+-			AbstractMethodDeclaration methodDecl = typeDecl
+-					.declarationOf(mbs[0]);
++			AbstractMethodDeclaration methodDecl = typeDecl.declarationOf(mbs[0]);
+ 			toAdd = methodDecl.annotations; // this is what to add
+ 			toAdd[0] = createAnnotationCopy(toAdd[0]);
+ 			if (toAdd[0].resolvedType != null) // pr148536
+ 				abits = toAdd[0].resolvedType.getAnnotationTagBits();
++			// }
+ 		}
+ 
++		// This happens if there is another error in the code - that should be reported separately
++		if (toAdd == null || toAdd[0] == null || toAdd[0].type == null) {
++			CompilationAndWeavingContext.leavingPhase(tok);
++			return false;
++		}
+ 		if (sourceType instanceof BinaryTypeBinding) {
+ 			// In this case we can't access the source type binding to add a new
+ 			// annotation, so let's put something
+@@ -987,8 +947,7 @@ public class AjLookupEnvironment extends LookupEnvironment implements
+ 			ResolvedType theTargetType = factory.fromEclipse(sourceType);
+ 			TypeBinding theAnnotationType = toAdd[0].resolvedType;
+ 			String sig = new String(theAnnotationType.signature());
+-			UnresolvedType bcelAnnotationType = UnresolvedType
+-					.forSignature(sig);
++			UnresolvedType bcelAnnotationType = UnresolvedType.forSignature(sig);
+ 			String name = bcelAnnotationType.getName();
+ 			if (theTargetType.hasAnnotation(bcelAnnotationType)) {
+ 				CompilationAndWeavingContext.leavingPhase(tok);
+@@ -1039,10 +998,8 @@ public class AjLookupEnvironment extends LookupEnvironment implements
+ 				return false;
+ 			}
+ 
+-			theTargetType.addAnnotation(new BcelAnnotation(new FakeAnnotation(
+-					name, sig,
+-					(abits & TagBits.AnnotationRuntimeRetention) != 0), factory
+-					.getWorld()));
++			theTargetType.addAnnotation(new BcelAnnotation(new FakeAnnotation(name, sig,
++					(abits & TagBits.AnnotationRuntimeRetention) != 0), factory.getWorld()));
+ 			CompilationAndWeavingContext.leavingPhase(tok);
+ 			return true;
+ 		}
+@@ -1078,16 +1035,9 @@ public class AjLookupEnvironment extends LookupEnvironment implements
+ 
+ 				if (reportProblems) {
+ 					if (decA.isExactPattern()) {
+-						factory
+-								.showMessage(
+-										IMessage.ERROR,
+-										WeaverMessages
+-												.format(
+-														WeaverMessages.INCORRECT_TARGET_FOR_DECLARE_ANNOTATION,
+-														rtx.getName(),
+-														toAdd[0].type,
+-														stringifyTargets(abits)),
+-										decA.getSourceLocation(), null);
++						factory.showMessage(IMessage.ERROR, WeaverMessages.format(
++								WeaverMessages.INCORRECT_TARGET_FOR_DECLARE_ANNOTATION, rtx.getName(), toAdd[0].type,
++								stringifyTargets(abits)), decA.getSourceLocation(), null);
+ 					}
+ 					// dont put out the lint - the weaving process will do that
+ 					// else {
+@@ -1112,11 +1062,10 @@ public class AjLookupEnvironment extends LookupEnvironment implements
+ 		// first time it is called for a type)
+ 		sourceType.scope.referenceContext.rememberAnnotations();
+ 
+-		//AsmRelationshipProvider.getDefault().addDeclareAnnotationRelationship(
++		// AsmRelationshipProvider.getDefault().addDeclareAnnotationRelationship(
+ 		// decA.getSourceLocation(), rtx.getSourceLocation());
+ 		Annotation abefore[] = sourceType.scope.referenceContext.annotations;
+-		Annotation[] newset = new Annotation[toAdd.length
+-				+ (abefore == null ? 0 : abefore.length)];
++		Annotation[] newset = new Annotation[toAdd.length + (abefore == null ? 0 : abefore.length)];
+ 		System.arraycopy(toAdd, 0, newset, 0, toAdd.length);
+ 		if (abefore != null) {
+ 			System.arraycopy(abefore, 0, newset, toAdd.length, abefore.length);
+@@ -1161,8 +1110,8 @@ public class AjLookupEnvironment extends LookupEnvironment implements
+ 	}
+ 
+ 	/**
+-	 * Create a copy of an annotation, not deep but deep enough so we don't copy
+-	 * across fields that will get us into trouble like 'recipient'
++	 * Create a copy of an annotation, not deep but deep enough so we don't copy across fields that will get us into trouble like
++	 * 'recipient'
+ 	 */
+ 	private static Annotation createAnnotationCopy(Annotation ann) {
+ 		NormalAnnotation ann2 = new NormalAnnotation(ann.type, ann.sourceStart);
+@@ -1196,15 +1145,12 @@ public class AjLookupEnvironment extends LookupEnvironment implements
+ 		// return ann;
+ 	}
+ 
+-	private boolean isAnnotationTargettingSomethingOtherThanAnnotationOrNormal(
+-			long abits) {
++	private boolean isAnnotationTargettingSomethingOtherThanAnnotationOrNormal(long abits) {
+ 		return (abits & (TagBits.AnnotationForAnnotationType | TagBits.AnnotationForType)) == 0;
+ 	}
+ 
+-	private void reportDeclareParentsMessage(WeaveMessage.WeaveMessageKind wmk,
+-			SourceTypeBinding sourceType, ResolvedType parent) {
+-		if (!factory.getWorld().getMessageHandler().isIgnoring(
+-				IMessage.WEAVEINFO)) {
++	private void reportDeclareParentsMessage(WeaveMessage.WeaveMessageKind wmk, SourceTypeBinding sourceType, ResolvedType parent) {
++		if (!factory.getWorld().getMessageHandler().isIgnoring(IMessage.WEAVEINFO)) {
+ 			String filename = new String(sourceType.getFileName());
+ 
+ 			int takefrom = filename.lastIndexOf('/');
+@@ -1213,12 +1159,8 @@ public class AjLookupEnvironment extends LookupEnvironment implements
+ 			filename = filename.substring(takefrom + 1);
+ 
+ 			factory.getWorld().getMessageHandler().handleMessage(
+-					WeaveMessage.constructWeavingMessage(wmk, new String[] {
+-							CharOperation.toString(sourceType.compoundName),
+-							filename,
+-							parent.getClassName(),
+-							getShortname(parent.getSourceLocation()
+-									.getSourceFile().getPath()) }));
++					WeaveMessage.constructWeavingMessage(wmk, new String[] { CharOperation.toString(sourceType.compoundName),
++							filename, parent.getClassName(), getShortname(parent.getSourceLocation().getSourceFile().getPath()) }));
+ 		}
+ 	}
+ 
+@@ -1231,8 +1173,7 @@ public class AjLookupEnvironment extends LookupEnvironment implements
+ 	}
+ 
+ 	private void addParent(SourceTypeBinding sourceType, ResolvedType parent) {
+-		ReferenceBinding parentBinding = (ReferenceBinding) factory
+-				.makeTypeBinding(parent);
++		ReferenceBinding parentBinding = (ReferenceBinding) factory.makeTypeBinding(parent);
+ 		if (parentBinding == null)
+ 			return; // The parent is missing, it will be reported elsewhere.
+ 		sourceType.rememberTypeHierarchy();
+@@ -1287,15 +1228,11 @@ public class AjLookupEnvironment extends LookupEnvironment implements
+ 
+ 	public void warnOnAddedInterface(ResolvedType type, ResolvedType parent) {
+ 		World world = factory.getWorld();
+-		ResolvedType serializable = world
+-				.getCoreType(UnresolvedType.SERIALIZABLE);
+-		if (serializable.isAssignableFrom(type)
+-				&& !serializable.isAssignableFrom(parent)
++		ResolvedType serializable = world.getCoreType(UnresolvedType.SERIALIZABLE);
++		if (serializable.isAssignableFrom(type) && !serializable.isAssignableFrom(parent)
+ 				&& !LazyClassGen.hasSerialVersionUIDField(type)) {
+-			world.getLint().needsSerialVersionUIDField.signal(new String[] {
+-					type.getName().toString(),
+-					"added interface " + parent.getName().toString() }, null,
+-					null);
++			world.getLint().needsSerialVersionUIDField.signal(new String[] { type.getName().toString(),
++					"added interface " + parent.getName().toString() }, null, null);
+ 		}
+ 	}
+ 
+@@ -1303,21 +1240,18 @@ public class AjLookupEnvironment extends LookupEnvironment implements
+ 	boolean inBinaryTypeCreationAndWeaving = false;
+ 	boolean processingTheQueue = false;
+ 
+-	public BinaryTypeBinding createBinaryTypeFrom(IBinaryType binaryType,
+-			PackageBinding packageBinding, boolean needFieldsAndMethods,
+-			AccessRestriction accessRestriction) {
++	public BinaryTypeBinding createBinaryTypeFrom(IBinaryType binaryType, PackageBinding packageBinding,
++			boolean needFieldsAndMethods, AccessRestriction accessRestriction) {
+ 
+ 		if (inBinaryTypeCreationAndWeaving) {
+-			BinaryTypeBinding ret = super.createBinaryTypeFrom(binaryType,
+-					packageBinding, needFieldsAndMethods, accessRestriction);
++			BinaryTypeBinding ret = super.createBinaryTypeFrom(binaryType, packageBinding, needFieldsAndMethods, accessRestriction);
+ 			pendingTypesToFinish.add(ret);
+ 			return ret;
+ 		}
+ 
+ 		inBinaryTypeCreationAndWeaving = true;
+ 		try {
+-			BinaryTypeBinding ret = super.createBinaryTypeFrom(binaryType,
+-					packageBinding, needFieldsAndMethods, accessRestriction);
++			BinaryTypeBinding ret = super.createBinaryTypeFrom(binaryType, packageBinding, needFieldsAndMethods, accessRestriction);
+ 			factory.getWorld().validateType(factory.fromBinding(ret));
+ 			// if you need the bytes to pass to validate, here they
+ 			// are:((ClassFileReader)binaryType).getReferenceBytes()
+@@ -1330,8 +1264,7 @@ public class AjLookupEnvironment extends LookupEnvironment implements
+ 			if (pendingTypesToFinish.size() > 0) {
+ 				processingTheQueue = true;
+ 				while (!pendingTypesToFinish.isEmpty()) {
+-					BinaryTypeBinding nextVictim = (BinaryTypeBinding) pendingTypesToFinish
+-							.remove(0);
++					BinaryTypeBinding nextVictim = (BinaryTypeBinding) pendingTypesToFinish.remove(0);
+ 					// During this call we may recurse into this method and add
+ 					// more entries to the pendingTypesToFinish list.
+ 					weaveInterTypeDeclarations(nextVictim);
+@@ -31,12 +31,11 @@ import org.aspectj.weaver.patterns.Pointcut;
+ import org.aspectj.weaver.patterns.PointcutRewriter;
+ 
+ /**
+- * This holds on to all members that have an invasive effect outside of there
+- * own compilation unit. These members need to be all gathered up and in a world
+- * before any weaving can take place.
++ * This holds on to all members that have an invasive effect outside of there own compilation unit. These members need to be all
++ * gathered up and in a world before any weaving can take place.
+  * 
+- * They are also important in the compilation process and need to be gathered up
+- * before the inter-type declaration weaving stage (unsurprisingly).
++ * They are also important in the compilation process and need to be gathered up before the inter-type declaration weaving stage
++ * (unsurprisingly).
+  * 
+  * All members are concrete.
+  * 
+@@ -52,15 +51,15 @@ public class CrosscuttingMembers {
+ 	private List typeMungers = new ArrayList(4);
+ 	private List lateTypeMungers = new ArrayList(0);
+ 
+-	private List declareParents = new ArrayList(4);
++	private Set declareParents = new HashSet();
+ 	private List declareSofts = new ArrayList(0);
+ 	private List declareDominates = new ArrayList(4);
+ 
+ 	// These are like declare parents type mungers
+-	private List declareAnnotationsOnType = new ArrayList();
+-	private List declareAnnotationsOnField = new ArrayList();
+-	private List declareAnnotationsOnMethods = new ArrayList(); // includes
+-																// ctors
++	private Set declareAnnotationsOnType = new HashSet();
++	private Set declareAnnotationsOnField = new HashSet();
++	private Set declareAnnotationsOnMethods = new HashSet(); 
++	// declareAnnotationsOnMethods includes constructors too
+ 
+ 	private boolean shouldConcretizeIfNeeded = true;
+ 
+@@ -99,9 +98,9 @@ public class CrosscuttingMembers {
+ 	}
+ 
+ 	public void addTypeMunger(ConcreteTypeMunger m) {
+-		if (m == null)
++		if (m == null) {
+ 			throw new Error("FIXME AV - should not happen or what ?");// return;
+-																		// //???
++		}
+ 		typeMungers.add(m);
+ 	}
+ 
+@@ -220,20 +219,15 @@ public class CrosscuttingMembers {
+ 	}
+ 
+ 	/**
+-	 * Updates the records if something has changed. This is called at most
+-	 * twice, firstly whilst collecting ITDs and declares. At this point the
+-	 * CrosscuttingMembers we're comparing ourselves with doesn't know about
+-	 * shadowmungers. Therefore a straight comparison with the existing list of
+-	 * shadowmungers would return that something has changed even though it
+-	 * might not have, so in this first round we ignore the shadowMungers. The
+-	 * second time this is called is whilst we're preparing to weave. At this
+-	 * point we know everything in the system and so we're able to compare the
+-	 * shadowMunger list. (see bug 129163)
++	 * Updates the records if something has changed. This is called at most twice, firstly whilst collecting ITDs and declares. At
++	 * this point the CrosscuttingMembers we're comparing ourselves with doesn't know about shadowmungers. Therefore a straight
++	 * comparison with the existing list of shadowmungers would return that something has changed even though it might not have, so
++	 * in this first round we ignore the shadowMungers. The second time this is called is whilst we're preparing to weave. At this
++	 * point we know everything in the system and so we're able to compare the shadowMunger list. (see bug 129163)
+ 	 * 
+ 	 * @param other
+ 	 * @param careAboutShadowMungers
+-	 * @return true if something has changed since the last time this method was
+-	 *         called, false otherwise
++	 * @return true if something has changed since the last time this method was called, false otherwise
+ 	 */
+ 	public boolean replaceWith(CrosscuttingMembers other, boolean careAboutShadowMungers) {
+ 		boolean changed = false;
+@@ -352,44 +346,49 @@ public class CrosscuttingMembers {
+ 
+ 		// initial go at equivalence logic rather than set compare (see
+ 		// pr133532)
+-		// if (theseTypeMungers.size()!=otherTypeMungers.size()) {
+-		// changed = true;
+-		// typeMungers = other.typeMungers;
+-		// } else {
+-		// boolean foundInequality=false;
+-		// for (Iterator iter = theseTypeMungers.iterator(); iter.hasNext() &&
+-		// !foundInequality;) {
+-		// Object thisOne = (Object) iter.next();
+-		// boolean foundInOtherSet = false;
+-		// for (Iterator iterator = otherTypeMungers.iterator();
+-		// iterator.hasNext();) {
+-		// Object otherOne = (Object) iterator.next();
+-		// if (thisOne instanceof ConcreteTypeMunger && otherOne instanceof
+-		// ConcreteTypeMunger) {
+-		// if (((ConcreteTypeMunger)thisOne).equivalentTo(otherOne)) {
+-		// foundInOtherSet=true;
+-		// } else if (thisOne.equals(otherOne)) {
+-		// foundInOtherSet=true;
+-		// }
+-		// } else {
+-		// if (thisOne.equals(otherOne)) {
+-		// foundInOtherSet=true;
+-		// }
+-		// }
+-		// }
+-		// if (!foundInOtherSet) foundInequality=true;
+-		// }
+-		// if (foundInequality) {
+-		// changed = true;
+-		// typeMungers = other.typeMungers;
+-		// // } else {
+-		// // typeMungers = other.typeMungers;
+-		// }
+-		// }
+-		if (!theseTypeMungers.equals(otherTypeMungers)) {
++		if (theseTypeMungers.size() != otherTypeMungers.size()) {
+ 			changed = true;
+ 			typeMungers = other.typeMungers;
++		} else {
++			boolean shouldOverwriteThis = false;
++			boolean foundInequality = false;
++			for (Iterator iter = theseTypeMungers.iterator(); iter.hasNext() && !foundInequality;) {
++				Object thisOne = (Object) iter.next();
++				boolean foundInOtherSet = false;
++				for (Iterator iterator = otherTypeMungers.iterator(); iterator.hasNext();) {
++					Object otherOne = (Object) iterator.next();
++					if (thisOne instanceof ConcreteTypeMunger) {
++						if (((ConcreteTypeMunger) thisOne).shouldOverwrite()) {
++							shouldOverwriteThis = true;
++						}
++					}
++					if (thisOne instanceof ConcreteTypeMunger && otherOne instanceof ConcreteTypeMunger) {
++						if (((ConcreteTypeMunger) thisOne).equivalentTo(otherOne)) {
++							foundInOtherSet = true;
++						} else if (thisOne.equals(otherOne)) {
++							foundInOtherSet = true;
++						}
++					} else {
++						if (thisOne.equals(otherOne)) {
++							foundInOtherSet = true;
++						}
++					}
++				}
++				if (!foundInOtherSet)
++					foundInequality = true;
++			}
++			if (foundInequality) {
++				// System.out.println("type munger change");
++				changed = true;
++			}
++			if (shouldOverwriteThis) {
++				typeMungers = other.typeMungers;
++			}
+ 		}
++		// if (!theseTypeMungers.equals(otherTypeMungers)) {
++		// changed = true;
++		// typeMungers = other.typeMungers;
++		// }
+ 
+ 		if (!lateTypeMungers.equals(other.lateTypeMungers)) {
+ 			changed = true;
+@@ -460,10 +459,8 @@ public class CrosscuttingMembers {
+ 		PointcutRewriter pr = new PointcutRewriter();
+ 		Pointcut p = munger.getPointcut();
+ 		Pointcut newP = pr.rewrite(p);
+-		if (p.m_ignoreUnboundBindingForNames.length != 0) {// *sigh* dirty fix
+-															// for dirty hacky
+-															// implementation
+-															// pr149305
++		if (p.m_ignoreUnboundBindingForNames.length != 0) {
++  			// *sigh* dirty fix for dirty hacky implementation pr149305
+ 			newP.m_ignoreUnboundBindingForNames = p.m_ignoreUnboundBindingForNames;
+ 		}
+ 		munger.setPointcut(newP);
+@@ -482,7 +479,7 @@ public class CrosscuttingMembers {
+ 		return declareDominates;
+ 	}
+ 
+-	public List getDeclareParents() {
++	public Collection getDeclareParents() {
+ 		return declareParents;
+ 	}
+ 
+@@ -502,18 +499,18 @@ public class CrosscuttingMembers {
+ 		return lateTypeMungers;
+ 	}
+ 
+-	public List getDeclareAnnotationOnTypes() {
++	public Collection getDeclareAnnotationOnTypes() {
+ 		return declareAnnotationsOnType;
+ 	}
+ 
+-	public List getDeclareAnnotationOnFields() {
++	public Collection getDeclareAnnotationOnFields() {
+ 		return declareAnnotationsOnField;
+ 	}
+ 
+ 	/**
+ 	 * includes declare @method and @constructor
+ 	 */
+-	public List getDeclareAnnotationOnMethods() {
++	public Collection getDeclareAnnotationOnMethods() {
+ 		return declareAnnotationsOnMethods;
+ 	}
+ 
+@@ -148,6 +148,7 @@ public class DeclareParents extends Declare {
+     public void resolve(IScope scope) {
+ //		ScopeWithTypeVariables resolutionScope = new ScopeWithTypeVariables(typeVariablesInScope,scope);
+     	child = child.resolveBindings(scope, Bindings.NONE, false, false);
++		isWildChild = (child instanceof WildTypePattern);
+     	parents = parents.resolveBindings(scope, Bindings.NONE, false, true); 
+ 
+ //    	 Could assert this ...
+@@ -175,6 +176,8 @@ public class DeclareParents extends Declare {
+ 
+ 	private ResolvedType maybeGetNewParent(ResolvedType targetType, TypePattern typePattern, World world,boolean reportErrors) {
+ 		if (typePattern == TypePattern.NO) return null;  // already had an error here
++
++//		isWildChild = (child instanceof WildTypePattern);
+ 		UnresolvedType iType = typePattern.getExactType();
+ 		ResolvedType parentType = iType.resolve(world);
+ 
+@@ -50,6 +50,7 @@ import org.aspectj.apache.bcel.generic.ObjectType;
+ import org.aspectj.apache.bcel.generic.RET;
+ import org.aspectj.apache.bcel.generic.Tag;
+ import org.aspectj.apache.bcel.generic.Type;
++import org.aspectj.asm.AsmManager;
+ import org.aspectj.bridge.IMessage;
+ import org.aspectj.bridge.ISourceLocation;
+ import org.aspectj.bridge.Message;
+@@ -1052,34 +1053,29 @@ class BcelClassWeaver implements IClassWeaver {
+ 
+ 	// FIXME asc refactor this to neaten it up
+ 	public LazyMethodGen locateAnnotationHolderForMethodCtorMunger(LazyClassGen clazz, BcelTypeMunger methodCtorMunger) {
+-		if (methodCtorMunger.getMunger() instanceof NewMethodTypeMunger) {
+-			NewMethodTypeMunger nftm = (NewMethodTypeMunger) methodCtorMunger.getMunger();
+-
+-			ResolvedMember lookingFor = AjcMemberMaker.interMethodDispatcher(nftm.getSignature(), methodCtorMunger.getAspectType());
+-
+-			List meths = clazz.getMethodGens();
+-			for (Iterator iter = meths.iterator(); iter.hasNext();) {
+-				LazyMethodGen element = (LazyMethodGen) iter.next();
+-				if (element.getName().equals(lookingFor.getName())
+-						&& element.getParameterSignature().equals(lookingFor.getParameterSignature()))
+-					return element;
+-			}
+-			return null;
+-		} else if (methodCtorMunger.getMunger() instanceof NewConstructorTypeMunger) {
+-			NewConstructorTypeMunger nftm = (NewConstructorTypeMunger) methodCtorMunger.getMunger();
+-			ResolvedMember lookingFor = AjcMemberMaker.postIntroducedConstructor(methodCtorMunger.getAspectType(), nftm
+-					.getSignature().getDeclaringType(), nftm.getSignature().getParameterTypes());
+-			List meths = clazz.getMethodGens();
+-			for (Iterator iter = meths.iterator(); iter.hasNext();) {
+-				LazyMethodGen element = (LazyMethodGen) iter.next();
+-				if (element.getName().equals(lookingFor.getName())
+-						&& element.getParameterSignature().equals(lookingFor.getParameterSignature()))
+-					return element;
+-			}
+-			return null;
++		ResolvedTypeMunger rtMunger = methodCtorMunger.getMunger();
++		ResolvedMember lookingFor = null;
++		if (rtMunger instanceof NewMethodTypeMunger) {
++			NewMethodTypeMunger nftm = (NewMethodTypeMunger) rtMunger;
++			lookingFor = AjcMemberMaker.interMethodDispatcher(nftm.getSignature(), methodCtorMunger.getAspectType());
++		} else if (rtMunger instanceof NewConstructorTypeMunger) {
++			NewConstructorTypeMunger nftm = (NewConstructorTypeMunger) rtMunger;
++			lookingFor = AjcMemberMaker.postIntroducedConstructor(methodCtorMunger.getAspectType(), nftm.getSignature()
++					.getDeclaringType(), nftm.getSignature().getParameterTypes());
+ 		} else {
+ 			throw new BCException("Not sure what this is: " + methodCtorMunger);
+ 		}
++		List meths = clazz.getMethodGens();
++		String name = lookingFor.getName();
++		String paramSignature = lookingFor.getParameterSignature();
++		for (Iterator iter = meths.iterator(); iter.hasNext();) {
++			LazyMethodGen element = (LazyMethodGen) iter.next();
++			if (element.getName().equals(name) && element.getParameterSignature().equals(paramSignature)) {
++				return element;
++			}
++		}
++		return null;
++
+ 	}
+ 
+ 	/**
+@@ -1143,9 +1139,10 @@ class BcelClassWeaver implements IClassWeaver {
+ 	 * Applies some set of declare @method/@ctor constructs (List<DeclareAnnotation>) to some bunch of ITDmembers
+ 	 * (List<BcelTypeMunger>. It will iterate over the fields repeatedly until everything has been applied.
+ 	 */
+-	private boolean weaveAtMethodOnITDSRepeatedly(List decaMCs, List itdMethodsCtors, List reportedErrors) {
++	private boolean weaveAtMethodOnITDSRepeatedly(List decaMCs, List itdsForMethodAndConstructor, List reportedErrors) {
+ 		boolean isChanged = false;
+-		for (Iterator iter = itdMethodsCtors.iterator(); iter.hasNext();) {
++		AsmManager asmManager = world.getModelAsAsmManager();
++		for (Iterator iter = itdsForMethodAndConstructor.iterator(); iter.hasNext();) {
+ 			BcelTypeMunger methodctorMunger = (BcelTypeMunger) iter.next();
+ 			ResolvedMember unMangledInterMethod = methodctorMunger.getSignature();
+ 			List worthRetrying = new ArrayList();
+@@ -1161,15 +1158,15 @@ class BcelClassWeaver implements IClassWeaver {
+ 					}
+ 					annotationHolder.addAnnotation(decaMC.getAnnotationX());
+ 					isChanged = true;
+-					AsmRelationshipProvider.getDefault().addDeclareAnnotationRelationship(world.getModelAsAsmManager(),
+-							decaMC.getSourceLocation(), unMangledInterMethod.getSourceLocation());
++					AsmRelationshipProvider.getDefault().addDeclareAnnotationRelationship(asmManager, decaMC.getSourceLocation(),
++							unMangledInterMethod.getSourceLocation());
+ 					reportMethodCtorWeavingMessage(clazz, unMangledInterMethod, decaMC, -1);
+ 					modificationOccured = true;
+ 				} else {
+-					if (!decaMC.isStarredAnnotationPattern())
+-						worthRetrying.add(decaMC); // an annotation is specified
+-					// that might be put on by a
+-					// subsequent decaf
++					// If an annotation is specified, it might be added by one of the other declare annotation statements
++					if (!decaMC.isStarredAnnotationPattern()) {
++						worthRetrying.add(decaMC);
++					}
+ 				}
+ 			}
+ 
+@@ -1184,7 +1181,7 @@ class BcelClassWeaver implements IClassWeaver {
+ 							continue; // skip this one...
+ 						annotationHolder.addAnnotation(decaMC.getAnnotationX());
+ 						unMangledInterMethod.addAnnotation(decaMC.getAnnotationX());
+-						AsmRelationshipProvider.getDefault().addDeclareAnnotationRelationship(world.getModelAsAsmManager(),
++						AsmRelationshipProvider.getDefault().addDeclareAnnotationRelationship(asmManager,
+ 								decaMC.getSourceLocation(), unMangledInterMethod.getSourceLocation());
+ 						isChanged = true;
+ 						modificationOccured = true;
+@@ -1371,11 +1368,11 @@ class BcelClassWeaver implements IClassWeaver {
+ 			if ((declA.isExactPattern() || (declA.getSignaturePattern().getDeclaringType() instanceof ExactTypePattern))
+ 					&& (!declA.getSignaturePattern().getName().isAny() || (declA.getKind() == DeclareAnnotation.AT_CONSTRUCTOR))) {
+ 
+-				// Quickly check if an ITD meets supplies the 'missing' member
++				// Quickly check if an ITD supplies the 'missing' member
+ 				boolean itdMatch = false;
+ 				List lst = clazz.getType().getInterTypeMungers();
+ 				for (Iterator iterator = lst.iterator(); iterator.hasNext() && !itdMatch;) {
+-					BcelTypeMunger element = (BcelTypeMunger) iterator.next();
++					ConcreteTypeMunger element = (ConcreteTypeMunger) iterator.next();
+ 					if (element.getMunger() instanceof NewFieldTypeMunger) {
+ 						NewFieldTypeMunger nftm = (NewFieldTypeMunger) element.getMunger();
+ 						itdMatch = declA.getSignaturePattern().matches(nftm.getSignature(), world, false);
+@@ -77,6 +77,10 @@ public class BcelTypeMunger extends ConcreteTypeMunger {
+ 		return "(BcelTypeMunger " + getMunger() + ")";
+ 	}
+ 
++	public boolean shouldOverwrite() {
++		return false;
++	}
++
+ 	public boolean munge(BcelClassWeaver weaver) {
+ 		ContextToken tok = CompilationAndWeavingContext.enteringPhase(CompilationAndWeavingContext.MUNGING_WITH, this);
+ 		boolean changed = false;
+@@ -26,13 +26,18 @@ public abstract class ConcreteTypeMunger implements PartialOrder.PartialComparab
+ 		this.aspectType = aspectType;
+ 	}
+ 
+-	// An EclipseTypeMunger and a BcelTypeMunger may say TRUE for equivalentTo()...
+-	// public boolean equivalentTo(Object other) {
+-	// if (! (other instanceof ConcreteTypeMunger)) return false;
+-	// ConcreteTypeMunger o = (ConcreteTypeMunger) other;
+-	// return ((o.getMunger() == null) ? (getMunger() == null) : o.getMunger().equals(getMunger()))
+-	// && ((o.getAspectType() == null) ? (getAspectType() == null) : o.getAspectType().equals(getAspectType()));
+-	// }
++    /**
++     * Equivalence can be true for an EclipseTypeMunger and a BcelTypeMunger that represent the
++     * same transformation (just at different points in the pipeline).
++    */
++	public boolean equivalentTo(Object other) {
++		if (!(other instanceof ConcreteTypeMunger)) {
++			return false;
++		}
++		ConcreteTypeMunger o = (ConcreteTypeMunger) other;
++		return ((o.getMunger() == null) ? (getMunger() == null) : o.getMunger().equals(getMunger()))
++				&& ((o.getAspectType() == null) ? (getAspectType() == null) : o.getAspectType().equals(getAspectType()));
++	}
+ 
+ 	// public abstract boolean munge(LazyClassGen gen);
+ 
+@@ -141,4 +146,8 @@ public abstract class ConcreteTypeMunger implements PartialOrder.PartialComparab
+ 		}
+ 		return false;
+ 	}
++
++	public boolean shouldOverwrite() {
++		return true;
++	}
+ }
+@@ -366,6 +366,9 @@ public interface IProgramElement extends Serializable {
+ 		public boolean isSourceFile() {
+ 			return this == FILE_ASPECTJ || this == FILE_JAVA;
+ 		}
++		public boolean isFile() {
++			return this == FILE;
++		}
+ 
+ 		public boolean isDeclare() {
+ 			return name.startsWith("declare");
+@@ -324,11 +324,49 @@ public class AspectJElementHierarchy implements IHierarchy {
+ 	 */
+ 	public IProgramElement findElementForSourceLine(String sourceFilePath, int lineNumber) {
+ 		String canonicalSFP = asm.getCanonicalFilePath(new File(sourceFilePath));
+-		IProgramElement node = findNodeForSourceLineHelper(root, canonicalSFP, lineNumber, -1);
+-		if (node != null) {
++		// Used to do this:
++//		IProgramElement node2 = findNodeForSourceLineHelper(root, canonicalSFP, lineNumber, -1);
++		
++		// Find the relevant source file node first
++		IProgramElement node = findNodeForSourceFile(root, canonicalSFP);
++		if (node == null) {
++			return createFileStructureNode(sourceFilePath);
++		}
++
++		// Check if there is a more accurate child node of that source file node:
++		IProgramElement closernode = findCloserMatchForLineNumber(node, lineNumber);
++		if (closernode == null) {
+ 			return node;
+ 		} else {
+-			return createFileStructureNode(sourceFilePath);
++			return closernode;
++		}
++	}
++
++	/**
++	 * Discover the node representing a particular source file.
++	 * 
++	 * @param node where in the model to start looking (usually the root on the initial call)
++	 * @param sourcefilePath the source file being searched for
++	 * @return the node representing that source file or null if it cannot be found
++	 */
++	private IProgramElement findNodeForSourceFile(IProgramElement node, String sourcefilePath) {
++		// 1. why is <root> a sourcefile node?
++		// 2. should isSourceFile() return true for a FILE that is a .class file...?
++		if ((node.getKind().isSourceFile() && !node.getName().equals("<root>")) || node.getKind().isFile()) {
++			ISourceLocation nodeLoc = node.getSourceLocation();
++			if (nodeLoc != null && nodeLoc.getSourceFile().getAbsolutePath().equals(sourcefilePath)) {
++				return node;
++			}
++			return null; // no need to search children of a source file node
++		} else  {
++			// check the children
++			for (Iterator iterator = node.getChildren().iterator(); iterator.hasNext();) {
++				IProgramElement foundit = findNodeForSourceFile((IProgramElement) iterator.next(), sourcefilePath);
++				if (foundit != null) {
++					return foundit;
++				}
++			}
++			return null;
+ 		}
+ 	}
+ 
+@@ -363,17 +401,48 @@ public class AspectJElementHierarchy implements IHierarchy {
+ 		return fileNode;
+ 	}
+ 
+-	private IProgramElement findNodeForSourceLineHelper(IProgramElement node, String sourceFilePath, int lineNumber, int offSet) {
+-		if (matches(node, sourceFilePath, lineNumber, offSet) && !hasMoreSpecificChild(node, sourceFilePath, lineNumber, offSet)) {
++	/**
++	 * For a specified node, check if any of the children more accurately represent the specified line.
++	 * 
++	 * @param node where to start looking
++	 * @param lineno the line number
++	 * @return any closer match below 'node' or null if nothing is a more accurate match
++	 */
++	private IProgramElement findCloserMatchForLineNumber(IProgramElement node, int lineno) {
++		for (Iterator childrenIter = node.getChildren().iterator(); childrenIter.hasNext();) {
++			IProgramElement child = (IProgramElement) childrenIter.next();
++			ISourceLocation childLoc = child.getSourceLocation();
++			if (childLoc != null) {
++				if (childLoc.getLine() <= lineno && childLoc.getEndLine() >= lineno) {
++					// This child is a better match for that line number
++					IProgramElement evenCloserMatch = findCloserMatchForLineNumber(child, lineno);
++					if (evenCloserMatch == null) {
++						return child;
++					} else {
++						return evenCloserMatch;
++					}
++				} else if (child.getKind().isType()) { // types are a bit clueless about where they are... do other nodes have similar problems??
++					IProgramElement evenCloserMatch = findCloserMatchForLineNumber(child, lineno);
++					if (evenCloserMatch != null) {
++						return evenCloserMatch;
++					}					
++				}
++			}
++		}
++		return null;
++	}
++
++	private IProgramElement findNodeForSourceLineHelper(IProgramElement node, String sourceFilePath, int lineno, int offset) {
++		if (matches(node, sourceFilePath, lineno, offset) && !hasMoreSpecificChild(node, sourceFilePath, lineno, offset)) {
+ 			return node;
+ 		}
+ 
+-		if (node != null && node.getChildren() != null) {
++		if (node != null) {
+ 			for (Iterator it = node.getChildren().iterator(); it.hasNext();) {
+-				IProgramElement foundNode = findNodeForSourceLineHelper((IProgramElement) it.next(), sourceFilePath, lineNumber,
+-						offSet);
+-				if (foundNode != null)
++				IProgramElement foundNode = findNodeForSourceLineHelper((IProgramElement) it.next(), sourceFilePath, lineno, offset);
++				if (foundNode != null) {
+ 					return foundNode;
++				}
+ 			}
+ 		}
+ 
+@@ -387,11 +456,12 @@ public class AspectJElementHierarchy implements IHierarchy {
+ 		// sourceFilePath + "\n2: " +
+ 		// node.getSourceLocation().getSourceFile().getCanonicalPath().equals(sourceFilePath)
+ 		// );
++		ISourceLocation nodeSourceLocation = (node != null ? node.getSourceLocation() : null);
+ 		return node != null
+-				&& node.getSourceLocation() != null
+-				&& node.getSourceLocation().getSourceFile().getAbsolutePath().equals(sourceFilePath)
+-				&& ((offSet != -1 && node.getSourceLocation().getOffset() == offSet) || offSet == -1)
+-				&& ((node.getSourceLocation().getLine() <= lineNumber && node.getSourceLocation().getEndLine() >= lineNumber) || (lineNumber <= 1 && node
++				&& nodeSourceLocation != null
++				&& nodeSourceLocation.getSourceFile().getAbsolutePath().equals(sourceFilePath)
++				&& ((offSet != -1 && nodeSourceLocation.getOffset() == offSet) || offSet == -1)
++				&& ((nodeSourceLocation.getLine() <= lineNumber && nodeSourceLocation.getEndLine() >= lineNumber) || (lineNumber <= 1 && node
+ 						.getKind().isSourceFile()));
+ 		// } catch (IOException ioe) {
+ 		// return false;

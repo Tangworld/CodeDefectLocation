@@ -1,0 +1,533 @@
+@@ -395,8 +395,37 @@ public class ResolvedMemberImpl extends MemberImpl implements IHasPosition, Anno
+ 			returnType.write(s);
+ 		}
+     }
++
++    /**
++     * Return the member generic signature that would be suitable for inclusion in
++     * a class file Signature attribute.
++     * For:
++     * <T> List<String> getThem(T t) {}
++     * we would create:
++     * <T:Ljava/lang/Object;>(TT;)Ljava/util/List<Ljava/lang/String;>;;
++     * 
++     * @return the generic signature for the member that could be inserted into a class file
++     */
++    public String getSignatureForAttribute() {
++        StringBuffer sb = new StringBuffer();
++        if (typeVariables!=null) {
++      	  sb.append("<");
++  			for (int i = 0; i < typeVariables.length; i++) {
++  				sb.append(typeVariables[i].getSignatureForAttribute()); // need a 'getSignatureForAttribute()'
++  			}
++  			sb.append(">");
++  	  }
++        sb.append("(");
++        for (int i = 0; i < parameterTypes.length; i++) {
++	  		ResolvedType ptype = (ResolvedType)parameterTypes[i];
++	  		sb.append(ptype.getSignatureForAttribute());
++  	    }
++        sb.append(")");
++        sb.append(((ResolvedType)returnType).getSignatureForAttribute());
++        return sb.toString();
++      }
+ 
+-    public String getGenericSignature() {
++      public String getGenericSignature() {
+         StringBuffer sb = new StringBuffer();
+         if (typeVariables!=null) {
+       	  sb.append("<");
+@@ -407,13 +436,13 @@ public class ResolvedMemberImpl extends MemberImpl implements IHasPosition, Anno
+   	  }
+         sb.append("(");
+         for (int i = 0; i < parameterTypes.length; i++) {
+-  		UnresolvedType array_element = parameterTypes[i];
+-  		sb.append(array_element.getSignature());
+-  	  }
++	  		UnresolvedType ptype = parameterTypes[i];
++	  		sb.append(ptype.getSignature());
++  	    }
+         sb.append(")");
+         sb.append(returnType.getSignature());
+         return sb.toString();
+-      }
++    }
+ 
+     public static void writeArray(ResolvedMember[] members, DataOutputStream s) throws IOException {
+ 		s.writeInt(members.length);
+@@ -2113,11 +2113,8 @@ public abstract class ResolvedType extends UnresolvedType implements AnnotatedEl
+ 	    return isAssignableFrom(o);
+ 	}
+ 
+-	/** 
+-     * Implemented by ReferenceTypes
+-     */
+ 	public String getSignatureForAttribute() {
+-		throw new RuntimeException("Cannot ask this type "+this+" for a generic sig attribute");
++		return signature;  // Assume if this is being called that it is for a simple type (eg. void, int, etc)
+ 	}
+ 
+ 	private FuzzyBoolean parameterizedWithTypeVariable = FuzzyBoolean.MAYBE;
+@@ -262,7 +262,8 @@ public class TypeVariable {
+ 	}
+ 
+ 	/**
+-	 * Return *full* signature for insertion in signature attribute, e.g. "T extends Number" would return "T:Ljava/lang/Number;"
++	 * Return complete signature, e.g. "T extends Number" would return "T:Ljava/lang/Number;"
++	 * note: MAY INCLUDE P types if bounds are parameterized types
+ 	 */
+ 	public String getSignature() {
+ 	  	StringBuffer sb = new StringBuffer();
+@@ -279,6 +280,25 @@ public class TypeVariable {
+ 		return sb.toString();
+ 	}
+ 
++	/**
++	 * @return signature for inclusion in an attribute, there must be no 'P' in it signatures
++	 */
++	public String getSignatureForAttribute() {
++	  	StringBuffer sb = new StringBuffer();
++	  	sb.append(name);
++		sb.append(":");
++  		sb.append(((ResolvedType)upperBound).getSignatureForAttribute());
++	  	if (additionalInterfaceBounds!=null && additionalInterfaceBounds.length!=0) {
++		  	sb.append(":");
++		  	for (int i = 0; i < additionalInterfaceBounds.length; i++) {
++				ResolvedType iBound = (ResolvedType)additionalInterfaceBounds[i];
++				sb.append(iBound.getSignatureForAttribute());
++			}
++	  	}
++		return sb.toString();
++	}
++
++	
+ 	public void setRank(int rank) {
+ 		this.rank=rank;
+ 	}
+@@ -350,4 +370,5 @@ public class TypeVariable {
+ 	public String getErasureSignature() {
+ 		return getFirstBound().getErasureSignature();
+ 	}
++
+ }
+@@ -83,7 +83,7 @@ public class TypeVariableReferenceType extends BoundedReferenceType implements T
+ 	}
+ 
+ 	public TypeVariable getTypeVariable() {
+-		// if (!fixedUp) throw new BCException("ARGH"); // SAUSAGES - fix it up now?
++		// if (!fixedUp) throw new BCException("ARGH"); // fix it up now?
+ 		return typeVariable;
+ 	}
+ 
+@@ -24,6 +24,7 @@ import org.aspectj.apache.bcel.Constants;
+ import org.aspectj.apache.bcel.generic.FieldGen;
+ import org.aspectj.apache.bcel.generic.InstructionBranch;
+ import org.aspectj.apache.bcel.classfile.ConstantPool;
++import org.aspectj.apache.bcel.classfile.Signature;
+ import org.aspectj.apache.bcel.classfile.annotation.AnnotationGen;
+ import org.aspectj.apache.bcel.generic.InstructionConstants;
+ import org.aspectj.apache.bcel.generic.InstructionFactory;
+@@ -55,6 +56,7 @@ import org.aspectj.weaver.NewParentTypeMunger;
+ import org.aspectj.weaver.PerObjectInterfaceTypeMunger;
+ import org.aspectj.weaver.PrivilegedAccessMunger;
+ import org.aspectj.weaver.ResolvedMember;
++import org.aspectj.weaver.ResolvedMemberImpl;
+ import org.aspectj.weaver.ResolvedType;
+ import org.aspectj.weaver.ResolvedTypeMunger;
+ import org.aspectj.weaver.Shadow;
+@@ -858,6 +860,14 @@ public class BcelTypeMunger extends ConcreteTypeMunger {
+ 			}
+ 
+ 
++			if (weaver.getWorld().isInJava5Mode()){
++				String basicSignature = mangledInterMethod.getSignature();
++				String genericSignature = ((ResolvedMemberImpl)mangledInterMethod).getSignatureForAttribute();
++				if (!basicSignature.equals(genericSignature)) {
++					// Add a signature attribute to it
++					newMethod.addAttribute(createSignatureAttribute(gen.getConstantPool(),genericSignature));
++				}
++			}
+ 			// XXX make sure to check that we set exceptions properly on this guy.
+ 			weaver.addLazyMethodGen(newMethod);
+ 			weaver.getLazyClassGen().warnOnAddedMethod(newMethod.getMethod(),getSignature().getSourceLocation());
+@@ -942,6 +952,16 @@ public class BcelTypeMunger extends ConcreteTypeMunger {
+ 			  body.append(InstructionFactory.createReturn(returnType));
+ 			  mg.definingType = onType;
+ 
++
++			  if (weaver.getWorld().isInJava5Mode()) {
++				  String basicSignature = mangledInterMethod.getSignature();
++				  String genericSignature = ((ResolvedMemberImpl)mangledInterMethod).getSignatureForAttribute();
++				  if (!basicSignature.equals(genericSignature)) {
++					  // Add a signature attribute to it
++					  mg.addAttribute(createSignatureAttribute(gen.getConstantPool(),genericSignature));
++				  }
++			  }
++				
+ 			  weaver.addOrReplaceLazyMethodGen(mg);
+ 
+ 			  addNeededSuperCallMethods(weaver, onType, munger.getSuperMethodsCalled());
+@@ -1000,6 +1020,16 @@ public class BcelTypeMunger extends ConcreteTypeMunger {
+ 		}
+ 	}
+ 
++	/** 
++	 * Helper method to create a signature attribute based on a string signature:
++	 *  e.g. "Ljava/lang/Object;LI<Ljava/lang/Double;>;"
++	 */
++	private Signature createSignatureAttribute(ConstantPool cp,String signature) {
++		int nameIndex = cp.addUtf8("Signature");
++		int sigIndex  = cp.addUtf8(signature);
++		return new Signature(nameIndex,2,sigIndex,cp);
++	}
++	
+ 	/**
+ 	 * Create any bridge method required because of covariant returns being used.  This method is used in the case
+ 	 * where an ITD is applied to some type and it may be in an override relationship with a method from the supertype - but
+@@ -1586,6 +1616,17 @@ public class BcelTypeMunger extends ConcreteTypeMunger {
+ 					}
+ 				}
+ 
++				
++
++				if (weaver.getWorld().isInJava5Mode()){
++					String basicSignature = field.getSignature();
++					String genericSignature = field.getReturnType().resolve(weaver.getWorld()).getSignatureForAttribute();
++	//				String genericSignature = ((ResolvedMemberImpl)field).getSignatureForAttribute();
++					if (!basicSignature.equals(genericSignature)) {
++						  // Add a signature attribute to it
++						  fg.addAttribute(createSignatureAttribute(gen.getConstantPool(),genericSignature));
++					}
++				}
+ 				gen.addField(fg,getSourceLocation());
+ 
+ 			}
+@@ -0,0 +1,23 @@
++import java.util.*;
++import java.lang.reflect.*;
++
++aspect Foo {
++
++   public List<String> Goo.getStrings() {
++     return null;
++   }
++   
++}
++
++class Goo {
++}
++	
++public class GenericsLost {
++
++	   public static void main(String[]argv) throws Exception {
++		   Method m = Goo.class.getDeclaredMethod("getStrings");
++		   Type t = m.getGenericReturnType();
++		   if (!t.toString().equals("java.util.List<java.lang.String>")) 
++			   throw new RuntimeException("Incorrect signature. Signature is "+t);
++	   }
++}
+@@ -0,0 +1,13 @@
++import java.util.*;
++import java.lang.reflect.*;
++
++aspect Foo {
++
++   public List<String> GenericsLost2.getStrings() {
++     return null;
++   }
++}
++
++class GenericsLost2 {
++}
++	
+\ No newline at end of file
+@@ -0,0 +1,8 @@
++import java.util.*;
++import java.lang.reflect.*;
++
++public class GenericsLost2Dep {
++	public static void main(String[] args) {
++		new GenericsLost2().getStrings().add("abc");
++	}
++}
+\ No newline at end of file
+@@ -0,0 +1,79 @@
++import java.util.*;
++import java.lang.reflect.*;
++
++aspect Foo {
++
++   // return type
++   public List<String> Goo.getStrings() {
++     return null;
++   }
++   
++   // parameters
++   public void Goo.putStrings(List<String> ls, List<Integer> lls) {
++	   
++   }
++   
++   // type variables
++   public <T extends Number> List<T> Goo.numerics(T t) {
++	   return null;
++   }
++
++   // type variables 2
++   public <T extends List<String>> List<T> Goo.nightmare(T t) {
++	   return null;
++   }
++
++   // type variables 3
++   public <T extends List<Q>,Q extends Number> List<T> Goo.holyCow(Q t) {
++	   return null;
++   }
++}
++
++class Goo {
++}
++	
++public class GenericsLost3 {
++
++	   public static void main(String[]argv) throws Exception {
++		   Method m = Goo.class.getDeclaredMethod("getStrings");
++		   Type t = m.getGenericReturnType();
++		   if (!t.toString().equals("java.util.List<java.lang.String>")) 
++			   throw new RuntimeException("Incorrect signature1. Signature is "+t);
++		   
++
++		   m = Goo.class.getDeclaredMethod("putStrings",new Class[]{List.class,List.class});
++		   Type[] ps = m.getGenericParameterTypes();
++		   if (!ps[0].toString().equals("java.util.List<java.lang.String>")) 
++			   throw new RuntimeException("Incorrect signature2. Signature is "+t);
++		   if (!ps[1].toString().equals("java.util.List<java.lang.Integer>")) 
++			   throw new RuntimeException("Incorrect signature3. Signature is "+t);
++		   
++
++		   m = Goo.class.getDeclaredMethod("numerics", new Class[]{Number.class});
++		   t = m.getGenericReturnType();
++		   if (!t.toString().equals("java.util.List<T>")) 
++			   throw new RuntimeException("Incorrect signature4. Signature is "+t);
++		   t = m.getGenericParameterTypes()[0];
++		   if (!t.toString().equals("T")) 
++			   throw new RuntimeException("Incorrect signature5. Signature is "+t);
++
++		   m = Goo.class.getDeclaredMethod("nightmare", new Class[]{List.class});
++		   t = m.getGenericReturnType();
++		   if (!t.toString().equals("java.util.List<T>")) 
++			   throw new RuntimeException("Incorrect signature4. Signature is "+t);
++		   t = m.getGenericParameterTypes()[0];
++		   if (!t.toString().equals("T")) 
++			   throw new RuntimeException("Incorrect signature5. Signature is "+t);
++		   
++
++		   m = Goo.class.getDeclaredMethod("holyCow", new Class[]{Number.class});
++		   t = m.getGenericReturnType();
++		   if (!t.toString().equals("java.util.List<T>")) 
++			   throw new RuntimeException("Incorrect signature4. Signature is "+t);
++		   t = m.getGenericParameterTypes()[0];
++		   if (!t.toString().equals("Q")) 
++			   throw new RuntimeException("Incorrect signature5. Signature is "+t);
++		   
++
++	   }
++}
+@@ -0,0 +1,28 @@
++import java.util.*;
++import java.lang.reflect.*;
++
++// interface ITD
++aspect Foo {
++   public List<String> IFace.getStrings() {
++     return null;
++   }
++}
++
++interface IFace {}
++
++class Goo implements IFace {}
++
++public class GenericsLost4 {
++   public static void main(String[]argv) throws Exception {
++	   Method m = Goo.class.getDeclaredMethod("getStrings");
++	   Type t = m.getGenericReturnType();
++	   if (!t.toString().equals("java.util.List<java.lang.String>")) 
++		   throw new RuntimeException("Incorrect signature. Signature is "+t);
++
++	   m = IFace.class.getDeclaredMethod("getStrings");
++	   t = m.getGenericReturnType();
++	   if (!t.toString().equals("java.util.List<java.lang.String>")) 
++		   throw new RuntimeException("Incorrect signature. Signature is "+t);
++   }
++}
++	
+\ No newline at end of file
+@@ -0,0 +1,19 @@
++import java.util.*;
++import java.lang.reflect.*;
++
++// generic field itd
++aspect Foo {
++   public List<String> Goo.ls;
++}
++
++class Goo {}
++
++public class GenericsLost5 {
++   public static void main(String[]argv) throws Exception {
++	   Field f = Goo.class.getDeclaredField("ls");
++	   Type t = f.getGenericType();
++	   if (!t.toString().equals("java.util.List<java.lang.String>")) 
++		   throw new RuntimeException("Incorrect signature. Signature is "+t);
++   }
++}
++	
+\ No newline at end of file
+@@ -19,6 +19,11 @@ import org.aspectj.testing.XMLBasedAjcTestCase;
+ public class Ajc162Tests extends org.aspectj.testing.XMLBasedAjcTestCase {
+ 
+ 	// AspectJ1.6.2	
++	public void testLostGenericsSigOnItd_pr211146() { runTest("lost generic sig on itd"); }
++	public void testLostGenericsSigOnItd_pr211146_2() { runTest("lost generic sig on itd - 2"); }
++	public void testLostGenericsSigOnItd_pr211146_3() { runTest("lost generic sig on itd - 3"); }
++	public void testLostGenericsSigOnItd_pr211146_4() { runTest("lost generic sig on itd - 4"); }
++	public void testLostGenericsSigOnItd_pr211146_5() { runTest("lost generic sig on itd - 5"); }
+ 	public void testMissingContext_pr194429() { runTest("missing context"); }
+ 	public void testWarningsForLimitations_pr210114() { runTest("warnings for limitations"); }
+ 	public void testPTW_pr244830() { runTest("ptw initFailureCause"); }
+@@ -3,6 +3,31 @@
+ <!-- AspectJ v1.6.2 Tests -->
+ <suite>
+ 
++	<ajc-test dir="bugs162/pr211146" title="lost generic sig on itd">
++	  <compile files="GenericsLost.java" options="-1.5"/>
++	  <run class="GenericsLost"/>
++	</ajc-test>
++	
++	<ajc-test dir="bugs162/pr211146" title="lost generic sig on itd - 2">
++	  <compile files="GenericsLost2.java" outjar="code.jar" options="-1.5"/>
++	  <compile files="GenericsLost2Dep.java" classpath="$sandbox/code.jar" options="-1.5"/>
++	</ajc-test>
++	
++	<ajc-test dir="bugs162/pr211146" title="lost generic sig on itd - 3">
++	  <compile files="GenericsLost3.java" options="-1.5"/>
++	  <run class="GenericsLost3"/>
++	</ajc-test>
++	
++	<ajc-test dir="bugs162/pr211146" title="lost generic sig on itd - 4">
++	  <compile files="GenericsLost4.java" options="-1.5"/>
++	  <run class="GenericsLost4"/>
++	</ajc-test>
++	
++	<ajc-test dir="bugs162/pr211146" title="lost generic sig on itd - 5">
++	  <compile files="GenericsLost5.java" options="-1.5"/>
++	  <run class="GenericsLost5"/>
++	</ajc-test>
++	
+ 	<ajc-test dir="bugs162/pr194429" title="missing context">
+ 	  <compile files="A.java" options="-1.5">
+ 	    <message kind="error" line="14" text="incompatible type, expected java.util.Set found BindingTypePattern("/>
+@@ -20,7 +20,6 @@ import junit.framework.Test;
+  */
+ public class Ajc160Tests extends org.aspectj.testing.XMLBasedAjcTestCase {
+ 
+-//	public void testHasMethodSemantics() { runTest("hasmethod semantics"); }
+ 	public void testBoundsCheckShouldFail_pr219298() { runTest("bounds check failure");}
+ 	public void testBoundsCheckShouldFail_pr219298_2() { runTest("bounds check failure - 2");}
+ 	public void testGenericMethodMatching_pr204505_1() { runTest("generics method matching - 1");}
+@@ -34,6 +33,12 @@ public class Ajc160Tests extends org.aspectj.testing.XMLBasedAjcTestCase {
+ 	public void testDecpRepetition_pr214559_3() { runTest("decp repetition problem - 3");} // across multiple files
+ 	public void testISEAnnotations_pr209831() { runTest("illegal state exception with annotations");}
+ 	public void testISEAnnotations_pr209831_2() { runTest("illegal state exception with annotations - 2");}
++	
++//  See HasMemberTypePattern.hasMethod()
++//	public void testHasMethodSemantics() { runTest("hasmethod semantics"); }
++
++//  See BcelTypeMunger line 786 relating to these
++//String sig = interMethodDispatcher.getSignature();BROKE - should get the generic signature here and use that.
+ //	public void testITDLostGenerics_pr211146() { runTest("itd lost generic signature");}
+ //	public void testITDLostGenerics_pr211146_2() { runTest("itd lost generic signature - field");}
+ 
+@@ -0,0 +1,9 @@
++public class DemoUsage {
++	public static void main(String[] args) {
++		StringClass sc = new StringClass();
++		sc.getStrings().add("AspectJ");
++		for(String s : sc.getStrings()) {
++			System.out.println(s);
++		}
++	}
++}
+\ No newline at end of file
+@@ -0,0 +1,7 @@
++import java.util.*;
++
++public aspect StringAspect {
++	public Collection<String> StringClass.getStrings() {
++		return new ArrayList<String>();
++	}
++}
+@@ -0,0 +1 @@
++public class StringClass {}
+\ No newline at end of file
+@@ -0,0 +1,12 @@
++
++public class HasMethodSemantics {
++	public static void main(String []argv) {
++		System.out.println("Implements Marker? "+(new HasMethodSemantics() instanceof Marker?"yes":"no"));
++	}
++}
++
++interface Marker {}
++
++aspect X {
++	declare parents: HasMethodSemantics && hasmethod(String toString(..)) implements Marker;
++}
+\ No newline at end of file
+@@ -20,6 +20,7 @@ import junit.framework.Test;
+  */
+ public class Ajc160Tests extends org.aspectj.testing.XMLBasedAjcTestCase {
+ 
++//	public void testHasMethodSemantics() { runTest("hasmethod semantics"); }
+ 	public void testBoundsCheckShouldFail_pr219298() { runTest("bounds check failure");}
+ 	public void testBoundsCheckShouldFail_pr219298_2() { runTest("bounds check failure - 2");}
+ 	public void testGenericMethodMatching_pr204505_1() { runTest("generics method matching - 1");}
+@@ -33,8 +34,10 @@ public class Ajc160Tests extends org.aspectj.testing.XMLBasedAjcTestCase {
+ 	public void testDecpRepetition_pr214559_3() { runTest("decp repetition problem - 3");} // across multiple files
+ 	public void testISEAnnotations_pr209831() { runTest("illegal state exception with annotations");}
+ 	public void testISEAnnotations_pr209831_2() { runTest("illegal state exception with annotations - 2");}
+-	
+-  /////////////////////////////////////////
++//	public void testITDLostGenerics_pr211146() { runTest("itd lost generic signature");}
++//	public void testITDLostGenerics_pr211146_2() { runTest("itd lost generic signature - field");}
++
++	/////////////////////////////////////////
+   public static Test suite() {
+     return XMLBasedAjcTestCase.loadSuite(Ajc160Tests.class);
+   }
+@@ -3,6 +3,15 @@
+ <!-- AspectJ v1.6.0 Tests -->
+ <suite>
+ 
++   <ajc-test dir="bugs160/various" title="hasmethod semantics">
++     <compile options="-1.5 -XhasMember -Xlint:ignore" files="HasMethodSemantics.java"/>
++     <run class="HasMethodSemantics">
++       <stdout>
++         <line text="Implements Marker? no"/>
++       </stdout>
++     </run>
++   </ajc-test>
++
+    <ajc-test dir="bugs160/pr204505" title="generics method matching - 1">
+      <compile options="-1.5 -showWeaveInfo" files="Bug.java">
+        <message kind="weave" text="execution(void C.save(java.lang.Object))"/>
+@@ -73,4 +82,9 @@
+      <run class="Test2"/>
+    </ajc-test>
+ 
++   <ajc-test dir="bugs160/pr211146" title="itd lost generic signature">
++     <compile options=" -1.5" files="StringAspect.aj,StringClass.java" outjar="foo.jar"/>
++     <compile options=" -1.5" files="DemoUsage.java" classpath="foo.jar"/>
++   </ajc-test>
++   
+ </suite>
+\ No newline at end of file

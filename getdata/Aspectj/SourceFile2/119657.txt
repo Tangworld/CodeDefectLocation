@@ -1,0 +1,599 @@
+@@ -11,8 +11,6 @@
+  *******************************************************************************/
+ package org.aspectj.weaver.loadtime;
+ 
+-import java.lang.reflect.Method;
+-import java.lang.reflect.InvocationTargetException;
+ import java.util.Map;
+ import java.util.WeakHashMap;
+ 
+@@ -130,34 +128,6 @@ public class Aj implements ClassPreProcessor {
+         }
+     }
+ 
+-    static void defineClass(ClassLoader loader, String name, byte[] bytes) {
+-        try {
+-            //TODO av protection domain, and optimize
+-            Method defineClass = ClassLoader.class.getDeclaredMethod(
+-                    "defineClass", new Class[]{
+-                        String.class, bytes.getClass(), int.class, int.class
+-                    }
+-            );
+-            defineClass.setAccessible(true);
+-            defineClass.invoke(
+-                    loader, new Object[]{
+-                        name,
+-                        bytes,
+-                        new Integer(0),
+-                        new Integer(bytes.length)
+-                    }
+-            );
+-        } catch (InvocationTargetException e) {
+-            if (e.getTargetException() instanceof LinkageError) {
+-                ;//is already defined (happens for X$ajcMightHaveAspect interfaces since aspects are reweaved)
+-            } else {
+-                e.printStackTrace();
+-            }
+-        } catch (Exception e) {
+-            e.printStackTrace();
+-        }
+-    }
+-
+     /**
+      * Returns a namespace based on the contest of the aspects available
+      */
+@@ -15,6 +15,8 @@ package org.aspectj.weaver.loadtime;
+ import java.io.File;
+ import java.io.IOException;
+ import java.io.InputStream;
++import java.lang.reflect.InvocationTargetException;
++import java.lang.reflect.Method;
+ import java.net.URL;
+ import java.util.ArrayList;
+ import java.util.Enumeration;
+@@ -87,7 +89,7 @@ public class ClassLoaderWeavingAdaptor extends WeavingAdaptor {
+                     throwable.printStackTrace();
+                 }
+ 
+-                Aj.defineClass(loader, name, bytes);// could be done lazily using the hook
++                defineClass(loader, name, bytes);// could be done lazily using the hook
+             }
+         };
+ 
+@@ -606,4 +608,28 @@ public class ClassLoaderWeavingAdaptor extends WeavingAdaptor {
+     public void flushGeneratedClasses(){
+     	generatedClasses = new HashMap();
+     }
++
++	private void defineClass(ClassLoader loader, String name, byte[] bytes) {
++		info("generating class '" + name + "'");
++		
++		try {
++			//TODO av protection domain, and optimize
++			Method defineClass = ClassLoader.class.getDeclaredMethod(
++					"defineClass", new Class[] { String.class,
++							bytes.getClass(), int.class, int.class });
++			defineClass.setAccessible(true);
++			defineClass.invoke(loader, new Object[] { name, bytes,
++					new Integer(0), new Integer(bytes.length) });
++		} catch (InvocationTargetException e) {
++			if (e.getTargetException() instanceof LinkageError) {
++				warn("define generated class failed",e.getTargetException());
++				//is already defined (happens for X$ajcMightHaveAspect interfaces since aspects are reweaved)
++				// TODO maw I don't think this is OK and
++			} else {
++				warn("define generated class failed",e.getTargetException());
++			}
++		} catch (Exception e) {
++			warn("define generated class failed",e);
++		}
++	}
+ }
+@@ -4,5 +4,6 @@
+ 			<pointcut name="scope" expression="within(Main)"/>
+         </concrete-aspect>
+ 	</aspects>
++	<weaver options="-verbose"/>
+ </aspectj>
+ 
+@@ -808,6 +808,34 @@ public class Ajc150Tests extends org.aspectj.testing.XMLBasedAjcTestCase {
+ 	  runTest("no StringOutOfBoundsException with generic inner aspects");
+   }
+ 
++  public void testIllegalAccessErrorWithAroundAdvice_pr119657() {
++	  runTest("IllegalAccessError with around advice on interface method call");
++  }
++  
++  public void testIllegalAccessErrorWithAroundAdviceNotSelf_pr119657() {
++	  runTest("IllegalAccessError with around advice on interface method call not self");
++  }
++  
++  public void testIllegalAccessErrorWithAroundAdviceNoWeaveLTW_pr119657() {
++	  runTest("IllegalAccessError with around advice on interface method call using -XnoWeave and LTW");
++  }
++  
++  public void testIllegalAccessErrorWithAroundAdviceLTW_pr119657() {
++	  runTest("IllegalAccessError with around advice on interface method call using LTW");
++  }
++  
++  public void testIllegalAccessErrorWithAroundAdviceNotSelfLTW_pr119657() {
++	  runTest("IllegalAccessError with around advice on interface method call not self using LTW");
++  }
++  
++  public void testIllegalAccessErrorWithAroundAdviceSelfAndNotSelfLTW_pr119657() {
++	  runTest("IllegalAccessError with around advice on interface method call self and not self using LTW");
++  }
++  
++  public void testIllegalAccessErrorWithAroundAdviceLTWNoInline_pr119657() {
++	  runTest("IllegalAccessError with around advice on interface method call using LTW and -XnoInline");
++  }
++  
+   // helper methods.....
+ 
+   public SyntheticRepository createRepos(File cpentry) {
+@@ -5935,5 +5935,84 @@
+      >
+      </run>
+    </ajc-test>
++   
++   <ajc-test dir="bugs150/pr119657" title="IllegalAccessError with around advice on interface method call">
++     <compile files="services/account/StockQuoteServiceTest.java, services/accountdata/StockAccount.java, services/stockquote/StockQuoteService.java, services/stockquote/StockQuoteServiceImpl.java, services/account/AccountReport.java, accounts/recovery/Recovery.aj"/>
++     <run class="services.account.StockQuoteServiceTest">
++       <stdout>
++           <line text="Recovery.around() call(float services.stockquote.StockQuoteService.getQuote(String))"/>
++       </stdout>
++     </run>
++     <run class="services.account.StockQuoteServiceTest" ltw="aop.xml">
++       <stdout>
++           <line text="Recovery.around() call(float services.stockquote.StockQuoteService.getQuote(String))"/>
++       </stdout>
++     </run>
++   </ajc-test>
++   
++   <ajc-test dir="bugs150/pr119657" title="IllegalAccessError with around advice on interface method call not self">
++     <compile files="services/account/StockQuoteServiceTest.java, services/accountdata/StockAccount.java, services/stockquote/StockQuoteService.java, services/stockquote/StockQuoteServiceImpl.java, services/account/AccountReport.java, accounts/recovery/RecoveryNotSelf.aj"/>
++     <run class="services.account.StockQuoteServiceTest">
++       <stdout>
++           <line text="RecoveryNotSelf.around() call(float services.stockquote.StockQuoteService.getQuote(String))"/>
++       </stdout>
++     </run>
++     <run class="services.account.StockQuoteServiceTest" ltw="aop-notself.xml">
++       <stdout>
++           <line text="RecoveryNotSelf.around() call(float services.stockquote.StockQuoteService.getQuote(String))"/>
++       </stdout>
++     </run>
++   </ajc-test>
++   
++   <ajc-test dir="bugs150/pr119657" title="IllegalAccessError with around advice on interface method call using -XnoWeave and LTW">
++     <compile files="services/account/StockQuoteServiceTest.java, services/accountdata/StockAccount.java, services/stockquote/StockQuoteService.java, services/stockquote/StockQuoteServiceImpl.java, services/account/AccountReport.java"/>
++     <compile files="accounts/recovery/Recovery.aj" options="-XnoWeave"/>
++     <run class="services.account.StockQuoteServiceTest" ltw="aop.xml">
++       <stdout>
++           <line text="Recovery.around() call(float services.stockquote.StockQuoteService.getQuote(String))"/>
++       </stdout>
++     </run>
++   </ajc-test>
++   
++   <ajc-test dir="bugs150/pr119657" title="IllegalAccessError with around advice on interface method call using LTW">
++     <compile files="services/account/StockQuoteServiceTest.java, services/accountdata/StockAccount.java, services/stockquote/StockQuoteService.java, services/stockquote/StockQuoteServiceImpl.java, services/account/AccountReport.java"/>
++     <compile files="accounts/recovery/Recovery.aj"/>
++     <run class="services.account.StockQuoteServiceTest" ltw="aop.xml">
++       <stdout>
++           <line text="Recovery.around() call(float services.stockquote.StockQuoteService.getQuote(String))"/>
++       </stdout>
++     </run>
++   </ajc-test>
++   
++   <ajc-test dir="bugs150/pr119657" title="IllegalAccessError with around advice on interface method call not self using LTW">
++     <compile files="services/account/StockQuoteServiceTest.java, services/accountdata/StockAccount.java, services/stockquote/StockQuoteService.java, services/stockquote/StockQuoteServiceImpl.java, services/account/AccountReport.java"/>
++     <compile files="accounts/recovery/RecoveryNotSelf.aj"/>
++     <run class="services.account.StockQuoteServiceTest" ltw="aop-notself.xml">
++       <stdout>
++           <line text="RecoveryNotSelf.around() call(float services.stockquote.StockQuoteService.getQuote(String))"/>
++       </stdout>
++     </run>
++   </ajc-test>
++   
++   <ajc-test dir="bugs150/pr119657" title="IllegalAccessError with around advice on interface method call self and not self using LTW">
++     <compile files="services/account/StockQuoteServiceTest.java, services/accountdata/StockAccount.java, services/stockquote/StockQuoteService.java, services/stockquote/StockQuoteServiceImpl.java, services/account/AccountReport.java"/>
++     <compile files="accounts/recovery/Recovery.aj, accounts/recovery/RecoveryNotSelf.aj"/>
++     <run class="services.account.StockQuoteServiceTest" ltw="aop-selfandnotself.xml">
++       <stdout>
++           <line text="Recovery.around() call(float services.stockquote.StockQuoteService.getQuote(String))"/>
++           <line text="RecoveryNotSelf.around() call(float services.stockquote.StockQuoteService.getQuote(String))"/>
++       </stdout>
++     </run>
++   </ajc-test>
++   
++   <ajc-test dir="bugs150/pr119657" title="IllegalAccessError with around advice on interface method call using LTW and -XnoInline">
++     <compile files="services/account/StockQuoteServiceTest.java, services/accountdata/StockAccount.java, services/stockquote/StockQuoteService.java, services/stockquote/StockQuoteServiceImpl.java, services/account/AccountReport.java"/>
++     <compile files="accounts/recovery/Recovery.aj"/>
++     <run class="services.account.StockQuoteServiceTest" ltw="aop-noinline.xml">
++       <stdout>
++           <line text="Recovery.around() call(float services.stockquote.StockQuoteService.getQuote(String))"/>
++       </stdout>
++     </run>
++   </ajc-test>
+ 
+ </suite>
+\ No newline at end of file
+@@ -132,6 +132,8 @@
+                 <line text="Main.test2"/>
+             </stdout>
+         	<stderr>
++                <line text="info generating class 'ConcreteAspect'"/>
++                <line text="info weaving 'Main'"/>
+                 <line text="AbstractSuperAspect.before_test1"/>
+             </stderr>
+         </run>
+@@ -167,6 +167,14 @@ public class BcelWeaver implements IWeaver {
+ 
+     	//System.out.println("type: " + type + " for " + aspectName);
+ 		if (type.isAspect()) {
++			
++			// Bug 119657 ensure we use the unwoven aspect
++			WeaverStateInfo wsi = type.getWeaverState();		
++			if (wsi != null && wsi.isReweavable()) {
++			    BcelObjectType classType = getClassType(type.getName());
++				classType.setJavaClass(Utility.makeJavaClass(classType.getJavaClass().getFileName(), wsi.getUnwovenClassFileData(classType.getJavaClass().getBytes())));
++			}
++			
+             //TODO AV - happens to reach that a lot of time: for each type flagged reweavable X for each aspect in the weaverstate
+             //=> mainly for nothing for LTW - pbly for something in incremental build...
+ 			xcutSet.addOrReplaceAspect(type);
+@@ -45,25 +45,40 @@ public class DynamicHelloWorld extends java.lang.Object implements java.io.Seria
+     |               INVOKESTATIC MyTrace.aspectOf ()LMyTrace;
+     |               ALOAD_0
+     |               INVOKEVIRTUAL Trace.ajc$before$Trace$1$26352be2 (Ljava/lang/Object;)V
++    |               INVOKESTATIC MyTrace.aspectOf ()LMyTrace;
++    |               BIPUSH 3
++    |               ANEWARRAY java.lang.Object
++    |               ASTORE 6
++    |               ALOAD 6
++    |               BIPUSH 0
+     |               ALOAD_0
++    |               AASTORE
++    |               ALOAD 6
++    |               BIPUSH 1
+     |               ALOAD_3
++    |               AASTORE
++    |               ALOAD 6
++    |               BIPUSH 2
+     |               ALOAD 4
+-    |               INVOKESTATIC MyTrace.aspectOf ()LMyTrace;
+-    |               ACONST_NULL
+-    |               INVOKESTATIC DynamicHelloWorld.doit_aroundBody3$advice (LDynamicHelloWorld;Ljava/lang/String;Ljava/util/List;LTrace;Lorg/aspectj/runtime/internal/AroundClosure;)Ljava/lang/Object;
++    |               AASTORE
++    |               NEW DynamicHelloWorld$AjcClosure3
++    |               DUP
++    |               ALOAD 6
++    |               INVOKESPECIAL DynamicHelloWorld$AjcClosure3.<init> ([Ljava/lang/Object;)V
++    |               INVOKEVIRTUAL Trace.ajc$around$Trace$2$a986034c (Lorg/aspectj/runtime/internal/AroundClosure;)Ljava/lang/Object;
+     |               CHECKCAST java.lang.String
+     |               GOTO L0
+     |           L0: DUP
+-    |               ASTORE 5
++    |               ASTORE 7
+     |               INVOKESTATIC MyTrace.aspectOf ()LMyTrace;
+     |               ALOAD_0
+-    |               ALOAD 5
++    |               ALOAD 7
+     |               INVOKEVIRTUAL MyTrace.ajc$afterReturning$MyTrace$1$2b31dfa3 (Ljava/lang/Object;Ljava/lang/Object;)V
+     |               ARETURN
+     method-execution(java.lang.String DynamicHelloWorld.doit(java.lang.String, java.util.List))
+   end String doit(String, java.util.List)
+ 
+-  private static final String doit_aroundBody0(DynamicHelloWorld, String, java.util.List):
++  static final String doit_aroundBody0(DynamicHelloWorld, String, java.util.List):
+                     ALOAD_2     // java.util.List l   (line 21)
+                     ALOAD_1     // java.lang.String s
+                     INVOKEINTERFACE java.util.List.add (Ljava/lang/Object;)Z
+@@ -71,82 +86,90 @@ public class DynamicHelloWorld extends java.lang.Object implements java.io.Seria
+                     ALOAD_2     // java.util.List l   (line 22)
+                     INVOKEVIRTUAL java.lang.Object.toString ()Ljava/lang/String;
+                     ARETURN
+-  end private static final String doit_aroundBody0(DynamicHelloWorld, String, java.util.List)
++  end static final String doit_aroundBody0(DynamicHelloWorld, String, java.util.List)
+ 
+-  private static final Object doit_aroundBody1$advice(DynamicHelloWorld, String, java.util.List, Trace, Object, org.aspectj.runtime.internal.AroundClosure):
+-                    GETSTATIC java.lang.System.out Ljava/io/PrintStream;   (line 17)
+-                    NEW java.lang.StringBuffer
+-                    DUP
+-                    LDC "start around(2): "
+-                    INVOKESPECIAL java.lang.StringBuffer.<init> (Ljava/lang/String;)V
+-                    ALOAD 4
+-                    INVOKEVIRTUAL java.lang.StringBuffer.append (Ljava/lang/Object;)Ljava/lang/StringBuffer;
+-                    INVOKEVIRTUAL java.lang.StringBuffer.toString ()Ljava/lang/String;
+-                    INVOKEVIRTUAL java.io.PrintStream.println (Ljava/lang/String;)V
+-                    ALOAD 4   (line 18)
+-                    ALOAD 5
+-                    ASTORE 7
+-                    ASTORE 8
+-                    ALOAD 8
+-                    CHECKCAST DynamicHelloWorld
++  static final String doit_aroundBody2(DynamicHelloWorld, String, java.util.List):
++                    INVOKESTATIC MyTrace.aspectOf ()LMyTrace;
++                    ALOAD_0
++                    BIPUSH 3
++                    ANEWARRAY java.lang.Object
++                    ASTORE_3
++                    ALOAD_3
++                    BIPUSH 0
++                    ALOAD_0
++                    AASTORE
++                    ALOAD_3
++                    BIPUSH 1
+                     ALOAD_1
++                    AASTORE
++                    ALOAD_3
++                    BIPUSH 2
+                     ALOAD_2
+-                    INVOKESTATIC DynamicHelloWorld.doit_aroundBody0 (LDynamicHelloWorld;Ljava/lang/String;Ljava/util/List;)Ljava/lang/String;
+-                    ASTORE 6
+-                    GETSTATIC java.lang.System.out Ljava/io/PrintStream;   (line 19)
+-                    NEW java.lang.StringBuffer
++                    AASTORE
++                    NEW DynamicHelloWorld$AjcClosure1
+                     DUP
+-                    LDC "exiting around with(2): "
+-                    INVOKESPECIAL java.lang.StringBuffer.<init> (Ljava/lang/String;)V
+-                    ALOAD 6
+-                    INVOKEVIRTUAL java.lang.StringBuffer.append (Ljava/lang/Object;)Ljava/lang/StringBuffer;
+-                    INVOKEVIRTUAL java.lang.StringBuffer.toString ()Ljava/lang/String;
+-                    INVOKEVIRTUAL java.io.PrintStream.println (Ljava/lang/String;)V
+-                    ALOAD 6   (line 20)
++                    ALOAD_3
++                    INVOKESPECIAL DynamicHelloWorld$AjcClosure1.<init> ([Ljava/lang/Object;)V
++                    INVOKEVIRTUAL Trace.ajc$around$Trace$3$26352be2 (Ljava/lang/Object;Lorg/aspectj/runtime/internal/AroundClosure;)Ljava/lang/Object;
++                    CHECKCAST java.lang.String
+                     ARETURN
+-  end private static final Object doit_aroundBody1$advice(DynamicHelloWorld, String, java.util.List, Trace, Object, org.aspectj.runtime.internal.AroundClosure)
++  end static final String doit_aroundBody2(DynamicHelloWorld, String, java.util.List)
++end public class DynamicHelloWorld
+ 
+-  private static final String doit_aroundBody2(DynamicHelloWorld, String, java.util.List):
++public class DynamicHelloWorld$AjcClosure1 extends org.aspectj.runtime.internal.AroundClosure:
++  public void <init>(Object[]):
+                     ALOAD_0
+                     ALOAD_1
+-                    ALOAD_2
+-                    INVOKESTATIC MyTrace.aspectOf ()LMyTrace;
++                    INVOKESPECIAL org.aspectj.runtime.internal.AroundClosure.<init> ([Ljava/lang/Object;)V
++                    RETURN
++  end public void <init>(Object[])
++
++  public Object run(Object[]):
+                     ALOAD_0
+-                    ACONST_NULL
+-                    INVOKESTATIC DynamicHelloWorld.doit_aroundBody1$advice (LDynamicHelloWorld;Ljava/lang/String;Ljava/util/List;LTrace;Ljava/lang/Object;Lorg/aspectj/runtime/internal/AroundClosure;)Ljava/lang/Object;
++                    GETFIELD org.aspectj.runtime.internal.AroundClosure.state [Ljava/lang/Object;
++                    ASTORE_2
++                    ALOAD_1
++                    BIPUSH 0
++                    AALOAD
++                    CHECKCAST DynamicHelloWorld
++                    ALOAD_2
++                    BIPUSH 1
++                    AALOAD
+                     CHECKCAST java.lang.String
++                    ALOAD_2
++                    BIPUSH 2
++                    AALOAD
++                    CHECKCAST java.util.List
++                    INVOKESTATIC DynamicHelloWorld.doit_aroundBody0 (LDynamicHelloWorld;Ljava/lang/String;Ljava/util/List;)Ljava/lang/String;
+                     ARETURN
+-  end private static final String doit_aroundBody2(DynamicHelloWorld, String, java.util.List)
++  end public Object run(Object[])
++end public class DynamicHelloWorld$AjcClosure1
+ 
+-  private static final Object doit_aroundBody3$advice(DynamicHelloWorld, String, java.util.List, Trace, org.aspectj.runtime.internal.AroundClosure):
+-                    LDC "Hi"   (line 9)
+-                    ASTORE 5
+-                    GETSTATIC java.lang.System.out Ljava/io/PrintStream;   (line 10)
+-                    NEW java.lang.StringBuffer
+-                    DUP
+-                    LDC "start around: "
+-                    INVOKESPECIAL java.lang.StringBuffer.<init> (Ljava/lang/String;)V
+-                    ALOAD 5
+-                    INVOKEVIRTUAL java.lang.StringBuffer.append (Ljava/lang/Object;)Ljava/lang/StringBuffer;
+-                    INVOKEVIRTUAL java.lang.StringBuffer.toString ()Ljava/lang/String;
+-                    INVOKEVIRTUAL java.io.PrintStream.println (Ljava/lang/String;)V
+-                    ALOAD 4   (line 11)
+-                    ASTORE 7
++public class DynamicHelloWorld$AjcClosure3 extends org.aspectj.runtime.internal.AroundClosure:
++  public void <init>(Object[]):
+                     ALOAD_0
+                     ALOAD_1
++                    INVOKESPECIAL org.aspectj.runtime.internal.AroundClosure.<init> ([Ljava/lang/Object;)V
++                    RETURN
++  end public void <init>(Object[])
++
++  public Object run(Object[]):
++                    ALOAD_0
++                    GETFIELD org.aspectj.runtime.internal.AroundClosure.state [Ljava/lang/Object;
++                    ASTORE_2
++                    ALOAD_2
++                    BIPUSH 0
++                    AALOAD
++                    CHECKCAST DynamicHelloWorld
+                     ALOAD_2
++                    BIPUSH 1
++                    AALOAD
++                    CHECKCAST java.lang.String
++                    ALOAD_2
++                    BIPUSH 2
++                    AALOAD
++                    CHECKCAST java.util.List
+                     INVOKESTATIC DynamicHelloWorld.doit_aroundBody2 (LDynamicHelloWorld;Ljava/lang/String;Ljava/util/List;)Ljava/lang/String;
+-                    ASTORE 6
+-                    GETSTATIC java.lang.System.out Ljava/io/PrintStream;   (line 12)
+-                    NEW java.lang.StringBuffer
+-                    DUP
+-                    LDC "exiting around with: "
+-                    INVOKESPECIAL java.lang.StringBuffer.<init> (Ljava/lang/String;)V
+-                    ALOAD 6
+-                    INVOKEVIRTUAL java.lang.StringBuffer.append (Ljava/lang/Object;)Ljava/lang/StringBuffer;
+-                    INVOKEVIRTUAL java.lang.StringBuffer.toString ()Ljava/lang/String;
+-                    INVOKEVIRTUAL java.io.PrintStream.println (Ljava/lang/String;)V
+-                    ALOAD 6   (line 13)
+                     ARETURN
+-  end private static final Object doit_aroundBody3$advice(DynamicHelloWorld, String, java.util.List, Trace, org.aspectj.runtime.internal.AroundClosure)
+-end public class DynamicHelloWorld
++  end public Object run(Object[])
++end public class DynamicHelloWorld$AjcClosure3
+@@ -0,0 +1,13 @@
++package accounts.recovery;
++
++import services.stockquote.StockQuoteService;
++
++public aspect Recovery {
++
++	declare precedence : Recovery, *;
++	
++	Object around () : call(public * *(..)) && target(StockQuoteService) {
++		System.out.println("Recovery.around() " + thisJoinPoint);
++		return proceed();
++	}
++}
+@@ -0,0 +1,11 @@
++package accounts.recovery;
++
++import services.stockquote.StockQuoteService;
++
++public aspect RecoveryNotSelf {
++
++	Object around () : call(public * *(..)) && target(StockQuoteService) && !within(RecoveryNotSelf) {
++		System.out.println("RecoveryNotSelf.around() " + thisJoinPoint);
++		return proceed();
++	}
++}
+@@ -0,0 +1,8 @@
++<?xml version="1.0"?>
++<aspectj>
++    <aspects>
++        <aspect name="accounts.recovery.Recovery"/>
++    </aspects>
++	<weaver options="-verbose -showWeaveInfo -XnoInline"/>
++</aspectj>
++        
+@@ -0,0 +1,8 @@
++<?xml version="1.0"?>
++<aspectj>
++    <aspects>
++        <aspect name="accounts.recovery.RecoveryNotSelf"/>
++    </aspects>
++	<weaver options="-verbose -showWeaveInfo"/>
++</aspectj>
++        
+@@ -0,0 +1,9 @@
++<?xml version="1.0"?>
++<aspectj>
++    <aspects>
++        <aspect name="accounts.recovery.Recovery"/>
++        <aspect name="accounts.recovery.RecoveryNotSelf"/>
++    </aspects>
++	<weaver options="-verbose -showWeaveInfo"/>
++</aspectj>
++        
+@@ -0,0 +1,8 @@
++<?xml version="1.0"?>
++<aspectj>
++    <aspects>
++        <aspect name="accounts.recovery.Recovery"/>
++    </aspects>
++	<weaver options="-verbose -showWeaveInfo"/>
++</aspectj>
++        
+@@ -0,0 +1,9 @@
++package services.account;
++
++import java.util.List;
++
++public interface AccountReport {
++	
++	public List getAccountSummaries();
++	
++}
+@@ -0,0 +1,26 @@
++package services.account;
++
++import services.accountdata.StockAccount;
++import services.stockquote.StockQuoteService;
++import services.stockquote.StockQuoteServiceImpl;
++
++public class StockQuoteServiceTest {
++
++//	private StockQuoteService stockQuoteService = new StockQuoteServiceImpl();
++	private StockQuoteService stockQuoteService;
++	
++	public static void main (String[] args) {
++
++		new StockQuoteServiceTest().getAccountReport("123456");
++
++	}
++	
++	public AccountReport getAccountReport(String customerID) {
++		StockAccount stockAccount = new StockAccount();
++		stockQuoteService = new StockQuoteServiceImpl();
++		float balance = (stockQuoteService.getQuote(stockAccount.getSymbol()))*stockAccount.getQuantity();
++		return null;
++	}
++
++
++}
+@@ -0,0 +1,37 @@
++package services.accountdata;
++
++public class StockAccount {
++	private String accountNumber;
++
++	private String symbol;
++
++	private int quantity = 9999;
++
++//	public StockAccount (String n) {
++//		this.accountNumber  = n;
++//	}
++	
++	public String getAccountNumber() {
++		return accountNumber;
++	}
++
++	public void setAccountNumber(String accountNumber) {
++		this.accountNumber = accountNumber;
++	}
++
++	public int getQuantity() {
++		return quantity;
++	}
++
++	public void setQuantity(int quantity) {
++		this.quantity = quantity;
++	}
++
++	public String getSymbol() {
++		return symbol;
++	}
++
++	public void setSymbol(String symbol) {
++		this.symbol = symbol;
++	}
++}
+@@ -0,0 +1,5 @@
++package services.stockquote;
++
++public interface StockQuoteService {
++	public float getQuote(String symbol);
++}
+@@ -0,0 +1,11 @@
++package services.stockquote;
++
++import services.stockquote.StockQuoteService;
++
++public class StockQuoteServiceImpl implements StockQuoteService {
++	
++	public float getQuote(String symbol) {
++		return 99;
++	}
++
++}

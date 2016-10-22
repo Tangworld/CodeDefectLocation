@@ -1,0 +1,201 @@
+@@ -180,40 +180,9 @@ public class DeclareParents extends Declare {
+ 		// Ensure the target doesn't already have an 
+ 		// alternate parameterization of the generic type on it
+ 		if (parentType.isParameterizedType() || parentType.isRawType()) {
+-			ResolvedType newParentGenericType = parentType.getGenericType();
+ 			// Let's take a look at the parents we already have
+-			Iterator iter = targetType.getDirectSupertypes();
+-			while (iter.hasNext()) {
+-				ResolvedType supertype = (ResolvedType)iter.next();
+-				if ( ((supertype.isRawType() && parentType.isParameterizedType()) || 
+-					  (supertype.isParameterizedType() && parentType.isRawType())) && newParentGenericType.equals(supertype.getGenericType())) {
+-					// new parent is a parameterized type, but this is a raw type
+-					world.getMessageHandler().handleMessage(new Message(
+-							WeaverMessages.format(WeaverMessages.CANT_DECP_MULTIPLE_PARAMETERIZATIONS,parentType.getName(),targetType.getName(),supertype.getName()),
+-							getSourceLocation(), 
+-							true,
+-							new ISourceLocation[]{targetType.getSourceLocation()}));
+-					return null;
+-				}
+-				if (supertype.isParameterizedType()) {
+-					ResolvedType generictype = supertype.getGenericType();
+-					if (newParentGenericType.equals(generictype)) {
+-						// Have to verify the parameterizations match, otherwise its a no-go
+-						boolean isOk = true;
+-						for (int pNum = 0;pNum<parentType.getTypeParameters().length && isOk;pNum++) {
+-						  if (!parentType.getTypeParameters()[pNum].equals(supertype.getTypeParameters()[pNum])) isOk=false;
+-						}
+-						if (!isOk) {
+-							world.getMessageHandler().handleMessage(new Message(
+-									WeaverMessages.format(WeaverMessages.CANT_DECP_MULTIPLE_PARAMETERIZATIONS,parentType.getName(),targetType.getName(),supertype.getName()),
+-									getSourceLocation(), 
+-									true,
+-									new ISourceLocation[]{targetType.getSourceLocation()}));
+-							return null;
+-						}
+-					}
+-				}
+-			}
++			boolean isOK = verifyNoInheritedAlternateParameterization(targetType,parentType,world);
++			if (!isOK) return null;
+ 		}
+ 
+ 		if (parentType.isAssignableFrom(targetType)) return null;  // already a parent
+@@ -309,6 +278,50 @@ public class DeclareParents extends Declare {
+ 		}
+ 	}
+ 
++	/**
++	 * This method looks through the type hierarchy for some target type - it is attempting to
++	 * find an existing parameterization that clashes with the new parent that the user
++	 * wants to apply to the type.  If it finds an existing parameterization that matches the
++	 * new one, it silently completes, if it finds one that clashes (e.g. a type already has
++	 * A<String> when the user wants to add A<Number>) then it will produce an error.
++	 * 
++	 * It uses recursion and exits recursion on hitting 'jlObject'
++     *
++	 * Related bugzilla entries: pr110788
++	 */
++	private boolean verifyNoInheritedAlternateParameterization(ResolvedType typeToVerify,ResolvedType newParent,World world) {
++		
++
++		if (typeToVerify.equals(ResolvedType.OBJECT)) return true;
++
++		ResolvedType newParentGenericType = newParent.getGenericType();
++		Iterator iter = typeToVerify.getDirectSupertypes();
++		while (iter.hasNext()) {
++			ResolvedType supertype = (ResolvedType)iter.next();
++			if ( ((supertype.isRawType() && newParent.isParameterizedType()) || 
++			      (supertype.isParameterizedType() && newParent.isRawType())) && newParentGenericType.equals(supertype.getGenericType())) {
++				// new parent is a parameterized type, but this is a raw type
++				world.getMessageHandler().handleMessage(new Message(
++					WeaverMessages.format(WeaverMessages.CANT_DECP_MULTIPLE_PARAMETERIZATIONS,newParent.getName(),typeToVerify.getName(),supertype.getName()),
++					getSourceLocation(), true, new ISourceLocation[]{typeToVerify.getSourceLocation()}));
++				return false;
++			}
++			if (supertype.isParameterizedType()) {
++				ResolvedType generictype = supertype.getGenericType();
++				
++				// If the generic types are compatible but the parameterizations aren't then we have a problem
++				if (generictype.isAssignableFrom(newParentGenericType) && 
++						!supertype.isAssignableFrom(newParent)) {
++					world.getMessageHandler().handleMessage(new Message(
++							WeaverMessages.format(WeaverMessages.CANT_DECP_MULTIPLE_PARAMETERIZATIONS,newParent.getName(),typeToVerify.getName(),supertype.getName()),
++							getSourceLocation(), true, new ISourceLocation[]{typeToVerify.getSourceLocation()}));
++					return false;
++				}
++			}
++			return verifyNoInheritedAlternateParameterization(supertype,newParent,world);
++		}
++		return true;
++	}
+ 
+ 	public List/*<ResolvedType>*/ findMatchingNewParents(ResolvedType onType,boolean reportErrors) {
+ 		if (onType.isRawType()) onType = onType.getGenericType();
+@@ -0,0 +1,11 @@
++interface A<T> {}
++
++interface B<T> extends A<T> {}
++
++class C implements A<String> {}
++
++class D extends C {}
++
++aspect X {
++  declare parents: D implements B<Number>; // Can't do it, C implement A<String>
++}
+@@ -0,0 +1,9 @@
++interface A<T> {}
++
++class C implements A<String> {}
++
++class D extends C {}
++
++aspect X {
++  declare parents: D implements A<Number>; // Can't do it, C implements A<String>
++}
+@@ -0,0 +1,11 @@
++interface A<T> {}
++
++interface B<T> extends A<T> {}
++
++class C implements A<String> {}
++
++class D extends C {}
++
++aspect X {
++  declare parents: D implements B<String>; // Can do it, parameterizations are compatible
++}
+@@ -0,0 +1,11 @@
++interface A<T> {}
++
++interface B<T> extends A<T> {}
++
++class C implements A<String> {}
++
++class D extends C {}
++
++aspect X {
++  declare parents: D implements B<String>; // Can do it, parameterizations are compatible
++}
+@@ -25,9 +25,6 @@ import org.aspectj.asm.AsmManager;
+ import org.aspectj.testing.XMLBasedAjcTestCase;
+ import org.aspectj.util.LangUtil;
+ 
+-/**
+- * These are tests that will run on Java 1.4 and use the old harness format for test specification.
+- */
+ public class Ajc150Tests extends org.aspectj.testing.XMLBasedAjcTestCase {
+ 
+   public static Test suite() {
+@@ -37,6 +34,11 @@ public class Ajc150Tests extends org.aspectj.testing.XMLBasedAjcTestCase {
+   protected File getSpecFile() {
+     return new File("../tests/src/org/aspectj/systemtest/ajc150/ajc150.xml");
+   }
++  
++  public void testBadDecp_pr110788_1() { runTest("bad generic decp - 1");}
++  public void testBadDecp_pr110788_2() { runTest("bad generic decp - 2");}
++  public void testBadDecp_pr110788_3() { runTest("bad generic decp - 3");}
++  public void testBadDecp_pr110788_4() { runTest("bad generic decp - 4");}
+ 
+   public void test_typeProcessingOrderWhenDeclareParents() {
+ 	runTest("Order of types passed to compiler determines weaving behavior");
+@@ -172,10 +174,9 @@ public class Ajc150Tests extends org.aspectj.testing.XMLBasedAjcTestCase {
+ 	  runTest("overriding/polymorphism error on interface method introduction");
+   }
+ 
+-  /**
+-   * IfPointcut.findResidueInternal() was modified to make this test complete in a short amount
+-   * of time - if you see it hanging, someone has messed with the optimization.
+-   */
++  
++   // IfPointcut.findResidueInternal() was modified to make this test complete in a short amount
++   // of time - if you see it hanging, someone has messed with the optimization.
+   public void testIfEvaluationExplosion_pr94086() {
+ 	  runTest("Exploding compile time with if() statements in pointcut");
+   }
+@@ -4827,4 +4827,23 @@
+      <compile files="pr109728.java" options="-1.5"/>
+    </ajc-test>
+ 
++   <ajc-test dir="bugs150/pr110788" title="bad generic decp - 1">
++     <compile files="Case1.java" options="-1.5">
++       <message kind="error" line="10" text="Cannot declare parent B&lt;java.lang.Number&gt; onto type C since it already has A&lt;java.lang.String&gt; in its hierarchy"/>
++     </compile>
++   </ajc-test>
++   
++   <ajc-test dir="bugs150/pr110788" title="bad generic decp - 2">
++     <compile files="Case2.java" options="-1.5">
++       <message kind="error" line="8" text="Cannot declare parent A&lt;java.lang.Number&gt; onto type C since it already has A&lt;java.lang.String&gt; in its hierarchy"/>
++     </compile>
++   </ajc-test>
++   
++   <ajc-test dir="bugs150/pr110788" title="bad generic decp - 3">
++     <compile files="Case3.java" options="-1.5"/>
++   </ajc-test>
++
++   <ajc-test dir="bugs150/pr110788" title="bad generic decp - 4">
++     <compile files="Case4.java" options="-1.5"/>
++   </ajc-test>
+ </suite>
+\ No newline at end of file

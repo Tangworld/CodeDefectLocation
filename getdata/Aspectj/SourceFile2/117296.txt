@@ -1,0 +1,87 @@
+@@ -277,8 +277,7 @@ public class EclipseFactory {
+ 			TypeVariable[] tVars = new TypeVariable[tvbs.length];
+ 			for (int i = 0; i < tvbs.length; i++) {
+ 				TypeVariableBinding eclipseV = tvbs[i];
+-				String name = CharOperation.charToString(eclipseV.sourceName); 
+-				tVars[i] = new TypeVariable(name,fromBinding(eclipseV.superclass()),fromBindings(eclipseV.superInterfaces()));
++				tVars[i] = ((TypeVariableReference)fromTypeVariableBinding(eclipseV)).getTypeVariable();				
+ 			}
+ 			//TODO asc generics - temporary guard....
+ 			if (!(binding instanceof SourceTypeBinding))
+@@ -339,6 +338,8 @@ public class EclipseFactory {
+ 		UnresolvedTypeVariableReferenceType ret = new UnresolvedTypeVariableReferenceType();
+ 		typeVariableBindingsInProgress.put(aTypeVariableBinding,ret);
+ 
++		TypeVariable tv = new TypeVariable(name);
++		ret.setTypeVariable(tv);
+ 		// Dont set any bounds here, you'll get in a recursive mess
+ 		// TODO -- what about lower bounds??
+ 		UnresolvedType superclassType    = fromBinding(aTypeVariableBinding.superclass());
+@@ -346,7 +347,6 @@ public class EclipseFactory {
+ 		for (int i = 0; i < superinterfaces.length; i++) {
+ 			superinterfaces[i] = fromBinding(aTypeVariableBinding.superInterfaces[i]);
+ 		}
+-		TypeVariable tv = new TypeVariable(name,superclassType,superinterfaces);
+ 		tv.setUpperBound(superclassType);
+ 		tv.setAdditionalInterfaceBounds(superinterfaces);
+ 		tv.setRank(aTypeVariableBinding.rank);
+@@ -357,7 +357,6 @@ public class EclipseFactory {
+ 			tv.setDeclaringElementKind(TypeVariable.TYPE);
+ //		    //	tv.setDeclaringElement(fromBinding(aTypeVariableBinding.declaringElement));
+ 		}
+-		ret.setTypeVariable(tv);
+ 		if (aTypeVariableBinding.declaringElement instanceof MethodBinding) 
+ 			typeVariablesForThisMember.put(new String(aTypeVariableBinding.sourceName),ret);
+ 		typeVariableBindingsInProgress.remove(aTypeVariableBinding);
+@@ -77,7 +77,6 @@ public class Ajc150Tests extends org.aspectj.testing.XMLBasedAjcTestCase {
+ 
+   public void testVarargsITD_pr110906() { runTest("ITD varargs problem");}
+   public void testBadRenderer_pr86903() { runTest("bcelrenderer bad");}
+- // public void testSelfBoundGenerics_pr117296() { runTest("self bounding generic types");}
+ 
+   public void testIncompatibleClassChangeError_pr113630_1() {runTest("IncompatibleClassChangeError - errorscenario");}
+   public void testIncompatibleClassChangeError_pr113630_2() {runTest("IncompatibleClassChangeError - workingscenario");}
+@@ -221,6 +221,11 @@ public class GenericsTests extends XMLBasedAjcTestCase {
+ 	public void testGenericsOverrides_3() { runTest("generics and ITD overrides - 3"); }
+ 	public void testGenericsOverrides_4() { runTest("generics and ITD overrides - 4"); }
+ 
++
++    public void testSelfBoundGenerics_pr117296() { 
++	    runTest("self bounding generic types");
++    }
++	
+ 	public void testPR88606() {
+ 		runTest("Parameterized types on introduced fields not correctly recognized");
+ 	}
+@@ -52,9 +52,10 @@
+     <ajc-test dir="bugs150" pr="112756" title="pointcut expression containing 'assert'">
+      <compile files="Pr112756.aj" options="-warn:assertIdentifier -Xdev:Pinpoint"/>
+     </ajc-test>
+-
+-    <ajc-test dir="bugs150" pr="117296" title="self bounding generic types">
++    
++    <ajc-test dir="bugs150/pr117296" pr="117296" title="self bounding generic types">
+      <compile files="PropertySupport.java" options="-1.5"/>
++     <run class="PropertySupport"/>
+     </ajc-test>
+ 
+     <ajc-test dir="bugs150" pr="113368" title="thisJoinPointStaticPart in if test">
+@@ -1,3 +1,14 @@
+ public class PropertySupport<T extends PropertySupport<T>> {
+ 
++  public static void main(String []argv) {
++  }
+ }
++
++
++class Two {
++}
++
++aspect X {
++  declare parents: Two extends PropertySupport;
++}
++
+@@ -0,0 +1,3 @@
++public class PropertySupport<T extends PropertySupport<T>> {
++
++}

@@ -1,0 +1,126 @@
+Binary files differ
+Binary files differ
+@@ -0,0 +1,12 @@
++package pkg;
++
++public aspect A {
++
++        before() : execution(* pack.C.method1()) && this(pack.C) {
++                System.err.println("before exec method1 and this is C");
++        }
++
++        before() : call(* pack.C.method2()) && target(pack.C) {
++                System.err.println("before call to method2 and target is C");
++        }
++}
+@@ -0,0 +1,19 @@
++package pack;
++
++public class C {
++
++        public C() {
++        }
++
++        public void method1() {
++                new C().method2();
++        }
++
++        public void method2() {
++        }
++
++        public static void main(String[] args) {
++                new C().method1();
++        }
++
++}
+@@ -33,6 +33,7 @@ public class Ajc152Tests extends org.aspectj.testing.XMLBasedAjcTestCase {
+ //  public void testBrokenIfArgsCflowAtAj_pr145018() { runTest("ataj crashing with cflow, if and args");}
+ //  public void testItdCallingGenericMethod_pr145391() { runTest("itd calling generic method");}
+ //  public void testItdCallingGenericMethod_pr145391_2() { runTest("itd calling generic method - 2");}
++//  public void testAdviceNotWovenAspectPath_pr147841() { runTest("advice not woven on aspectpath");}
+   public void testDuplicateBridgeMethods_pr147801_1() { runTest("duplicate bridge methods");}
+   public void testPackageIgnoredForException_pr147701_1() { runTest("package for exception ignored");}
+   public void testPackageIgnoredForException_pr147701_2() { runTest("package for exception ignored - 2");}
+@@ -78,6 +78,19 @@
+      </run>
+     </ajc-test>
+ 
++    <ajc-test dir="bugs152/pr147841" title="advice not woven on aspectpath">
++      <compile files="A.java" options="-Xlint:ignore" outjar="apath.jar"/>
++      <!--compile files="C.java" outjar="cpa.jar" classpath="cpath.jar"/-->
++      <compile files="C.java" options="-showWeaveInfo" aspectpath="apath.jar">
++        <message kind="weave" text="foo"/>
++      </compile>
++      <run class="C">
++        <stderr>
++          <line text="foo"/>
++        </stderr>
++      </run>
++    </ajc-test>    
++    
+     <ajc-test dir="bugs152/pr145693" title="verifyErrNoTypeCflowField">
+       <compile files="Event.java" outjar="cpath.jar"/>
+       <compile files="Monitor.aj" outjar="apath.jar" classpath="cpath.jar"/>
+Binary files differ
+Binary files differ
+@@ -0,0 +1,12 @@
++package pkg;
++
++public aspect A {
++
++        before() : execution(* pack.C.method1()) && this(pack.C) {
++                System.err.println("before exec method1 and this is C");
++        }
++
++        before() : call(* pack.C.method2()) && target(pack.C) {
++                System.err.println("before call to method2 and target is C");
++        }
++}
+@@ -0,0 +1,19 @@
++package pack;
++
++public class C {
++
++        public C() {
++        }
++
++        public void method1() {
++                new C().method2();
++        }
++
++        public void method2() {
++        }
++
++        public static void main(String[] args) {
++                new C().method1();
++        }
++
++}
+@@ -33,6 +33,7 @@ public class Ajc152Tests extends org.aspectj.testing.XMLBasedAjcTestCase {
+ //  public void testBrokenIfArgsCflowAtAj_pr145018() { runTest("ataj crashing with cflow, if and args");}
+ //  public void testItdCallingGenericMethod_pr145391() { runTest("itd calling generic method");}
+ //  public void testItdCallingGenericMethod_pr145391_2() { runTest("itd calling generic method - 2");}
++//  public void testAdviceNotWovenAspectPath_pr147841() { runTest("advice not woven on aspectpath");}
+   public void testDuplicateBridgeMethods_pr147801_1() { runTest("duplicate bridge methods");}
+   public void testPackageIgnoredForException_pr147701_1() { runTest("package for exception ignored");}
+   public void testPackageIgnoredForException_pr147701_2() { runTest("package for exception ignored - 2");}
+@@ -78,6 +78,19 @@
+      </run>
+     </ajc-test>
+ 
++    <ajc-test dir="bugs152/pr147841" title="advice not woven on aspectpath">
++      <compile files="A.java" options="-Xlint:ignore" outjar="apath.jar"/>
++      <!--compile files="C.java" outjar="cpa.jar" classpath="cpath.jar"/-->
++      <compile files="C.java" options="-showWeaveInfo" aspectpath="apath.jar">
++        <message kind="weave" text="foo"/>
++      </compile>
++      <run class="C">
++        <stderr>
++          <line text="foo"/>
++        </stderr>
++      </run>
++    </ajc-test>    
++    
+     <ajc-test dir="bugs152/pr145693" title="verifyErrNoTypeCflowField">
+       <compile files="Event.java" outjar="cpath.jar"/>
+       <compile files="Monitor.aj" outjar="apath.jar" classpath="cpath.jar"/>

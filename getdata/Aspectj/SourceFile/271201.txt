@@ -1,0 +1,979 @@
+@@ -372,11 +372,11 @@ public class BcelWeaver {
+ 
+ 						if (filename.endsWith(".class")) {
+ 							ReferenceType type = this.addClassFile(classFile,false);
+-//							StringBuffer sb = new StringBuffer();
+-//							sb.append(inFile.getAbsolutePath());
+-//							sb.append("!");
+-//							sb.append(entry.getName());
+-//							type.setBinaryPath(sb.toString());
++							StringBuffer sb = new StringBuffer();
++							sb.append(inFile.getAbsolutePath());
++							sb.append("!");
++							sb.append(entry.getName());
++							type.setBinaryPath(sb.toString());
+ 							addedClassFiles.add(classFile);
+ 						}
+ 						// else if (!entry.isDirectory()) {
+@@ -178,16 +178,20 @@ public abstract class ShadowMunger implements PartialOrder.PartialComparable, IH
+ 	private File getBinaryFile() {
+ 		if (binaryFile == null) {
+ 			String s = getDeclaringType().getBinaryPath();
+-			File f = getDeclaringType().getSourceLocation().getSourceFile();
+-			// Replace the source file suffix with .class
+-			int i = f.getPath().lastIndexOf('.');
+-			String path = null;
+-			if (i != -1) {
+-				path = f.getPath().substring(0, i) + ".class";
++			if (s.indexOf("!")==-1) {
++				File f = getDeclaringType().getSourceLocation().getSourceFile();
++				// Replace the source file suffix with .class
++				int i = f.getPath().lastIndexOf('.');
++				String path = null;
++				if (i != -1) {
++					path = f.getPath().substring(0, i) + ".class";
++				} else {
++					path = f.getPath() + ".class";
++				}
++				binaryFile = new File(s + "!" + path);
+ 			} else {
+-				path = f.getPath() + ".class";
++				binaryFile = new File(s);
+ 			}
+-			binaryFile = new File(s + "!" + path);
+ 		}
+ 		return binaryFile;
+ 	}
+@@ -23,10 +23,10 @@
+       NewClass  [class] TEST_SANDBOX\NewClass.java:3:
+ === END OF MODEL REPORT =========
+ === RELATIONSHIPS REPORT ========= After a batch build
+-(targets=1) <bar*MyBar.aj}MyBar`declare \@type!3 (annotates) {MyFoo.java
+-(targets=1) <bar*MyBar.aj}MyBar`declare parents!2 (declared on) {MyFoo.java
+ (targets=1) {MyFoo.java (annotated by) <bar*MyBar.aj}MyBar`declare \@type!3
+-(targets=1) {MyFoo.java (aspect declarations) <bar*MyBar.aj}MyBar`declare parents!2
++(targets=1) <bar*MyBar.aj}MyBar`declare parents!2 (declared on) /,<foo(MyFoo.class[MyFoo
++(targets=1) <bar*MyBar.aj}MyBar`declare \@type!3 (annotates) {MyFoo.java
++(targets=1) /,<foo(MyFoo.class[MyFoo (aspect declarations) <bar*MyBar.aj}MyBar`declare parents!2
+ === END OF RELATIONSHIPS REPORT ==
+ === Properties of the model and relationships map =====
+ import reference=4
+@@ -39,7 +39,7 @@ declare @constructor=1
+ advice=1
+ annotation=1
+ class=1
+-RelationshipMapSize=3
++RelationshipMapSize=4
+ package declaration=3
+ FileMapSize=3
+ package=1
+@@ -4807,7 +4807,7 @@
+    	   </compile>
+        <compile files="A2.aj" inpath="code.jar" options="-1.5,-showWeaveInfo">
+          <message kind="weave" text="Type 'BaseClass' (BaseClass.java) has intertyped field from 'A1' (A1.aj:'java.util.List&lt;java.lang.String&gt; BaseClass.list1')"/>
+-   	     <message kind="weave" text="Type 'BaseClass' (BaseClass.java:12) advised by after advice from 'A1' (A1.aj:7)"/>
++   	     <message kind="weave" text="Type 'BaseClass' (BaseClass.java:12) advised by after advice from 'A1' (code.jar!A1.class:7(from A1.aj))"/>
+ 	     <message kind="weave" text="Type 'BaseClass' (BaseClass.java) has intertyped field from 'A2' (A2.aj:'java.util.List&lt;N&gt; BaseClass.list2')"/>
+          <message kind="weave" text="Type 'BaseClass' (BaseClass.java:13) advised by after advice from 'A2' (A2.aj:8)"/>
+        </compile>
+@@ -121,6 +121,13 @@ public class AjdeInteractionTestbed extends TestCase {
+ 		((MultiProjTestCompilerConfiguration) compiler.getCompilerConfiguration()).setInpath(inpath);
+ 	}
+ 
++	public static void configureInPath(String projectName, File inpath) {
++		Set s = new HashSet();
++		s.add(inpath);
++		AjCompiler compiler = CompilerFactory.getCompilerForProjectWithDir(sandboxDir + File.separator + projectName);
++		((MultiProjTestCompilerConfiguration) compiler.getCompilerConfiguration()).setInpath(s);
++	}
++
+ 	public static void configureOutputLocationManager(String projectName, IOutputLocationManager mgr) {
+ 		AjCompiler compiler = CompilerFactory.getCompilerForProjectWithDir(sandboxDir + File.separator + projectName);
+ 		((MultiProjTestCompilerConfiguration) compiler.getCompilerConfiguration()).setOutputLocationManager(mgr);
+@@ -308,7 +308,7 @@ public class MoreOutputLocationManagerTests extends AbstractMultiProjectIncremen
+ 
+ 	private void addInpathEntry(String entry) {
+ 		if (entry == null) {
+-			configureInPath("inpathTesting", null);
++			configureInPath("inpathTesting", (Set)null);
+ 			return;
+ 		}
+ 		File f = new File(entry);
+@@ -2898,42 +2898,76 @@ public class MultiProjectIncrementalTests extends AbstractMultiProjectIncrementa
+ 		assertNotNull(l);
+ 	}
+ 
++	private void printModelAndRelationships(String p) {
++		IProgramElement root = getModelFor(p).getHierarchy().getRoot();
++		
++		dumptree(root, 0);
++		PrintWriter pw = new PrintWriter(System.out);
++		try {
++		  getModelFor(p).dumprels(pw);
++		  pw.flush();
++		} catch (Exception e) {
++		}
++	}
++	
++	public void testInpathHandles_IncrementalCompilation_RemovingInpathEntries_271201() throws Exception {
++		AjdeInteractionTestbed.VERBOSE=true;
++		String p = "inpathHandles2";
++		initialiseProject(p);
++
++		String inpathDir = getWorkingDir() + File.separator + "inpathHandles2" + File.separator + "binpath";
++
++		// set up the inpath to have the directory on it's path
++		File f = new File(inpathDir);
++		configureInPath(p, f);
++		
++		// This build will weave a declare parents into the inpath class codep.A and codep.B
++		build(p);
++		assertNotNull(getModelFor(p).getRelationshipMap().get("=inpathHandles2/,<codep(A.class[A"));
++		
++		// Not let us delete one of the inpath .class files
++		assertTrue(new File(inpathDir,"codep"+File.separator+"A.class").delete());
++		setNextChangeResponse(p, ICompilerConfiguration.EVERYTHING);
++		build(p);
++//		printModelAndRelationships(p);
++	}
++	
+ 	// warning about cant change parents of Object is fine
+-//	public void testInpathJars_271201() throws Exception {
+-//		AjdeInteractionTestbed.VERBOSE=true;
+-//		String p = "inpathJars";
+-//		initialiseProject(p);
+-//
+-//		String inpathTestingDir = getWorkingDir() + File.separator + "inpathJars";
+-//		String inpathDir = inpathTestingDir + File.separator + "code.jar";
+-//		// String expectedOutputDir = inpathTestingDir + File.separator + "bin";
+-//
+-//		// set up the inpath to have the directory on it's path
+-//		System.out.println(inpathDir);
+-//		File f = new File(inpathDir);
+-//		Set s = new HashSet();
+-//		s.add(f);
+-//		Map m = new HashMap();
+-//		m.put(f,"Gibble");		
+-//		configureOutputLocationManager(p,new TestOutputLocationManager(getProjectRelativePath(p, ".").toString(),m));
+-//		configureInPath(p, s);
++	public void testInpathJars_271201() throws Exception {
++		AjdeInteractionTestbed.VERBOSE=true;
++		String p = "inpathJars";
++		initialiseProject(p);
++
++		String inpathTestingDir = getWorkingDir() + File.separator + "inpathJars";
++		String inpathDir = inpathTestingDir + File.separator + "code.jar";
++		// String expectedOutputDir = inpathTestingDir + File.separator + "bin";
++
++		// set up the inpath to have the directory on it's path
++		System.out.println(inpathDir);
++		File f = new File(inpathDir);
++		Set s = new HashSet();
++		s.add(f);
++		Map m = new HashMap();
++		m.put(f,"Gibble");		
++		configureOutputLocationManager(p,new TestOutputLocationManager(getProjectRelativePath(p, ".").toString(),m));
++		configureInPath(p, s);
++		build(p);
++
++		IProgramElement root = getModelFor(p).getHierarchy().getRoot();
++		
++//		alter(p,"inc1");
+ //		build(p);
+-//
+-//		IProgramElement root = getModelFor(p).getHierarchy().getRoot();
+-//		
+-////		alter(p,"inc1");
+-////		build(p);
+-//		dumptree(root, 0);
+-//		PrintWriter pw = new PrintWriter(System.out);
+-//		try {
+-//		  getModelFor(p).dumprels(pw);
+-//		  pw.flush();
+-//		} catch (Exception e) {
+-//		}
+-//		List l = getModelFor(p).getRelationshipMap().get("=inpathJars/;Gibble<codep(Code.class[Code");
+-//		assertNotNull(l);
+-//		System.out.println(l.get(0));
+-//	}
++		dumptree(root, 0);
++		PrintWriter pw = new PrintWriter(System.out);
++		try {
++		  getModelFor(p).dumprels(pw);
++		  pw.flush();
++		} catch (Exception e) {
++		}
++		List l = getModelFor(p).getRelationshipMap().get("=inpathJars/,Gibble<codep(Code.class[Code");
++		assertNotNull(l);
++		System.out.println(l.get(0));
++	}
+ 
+ 	// --- helper code ---
+ 
+@@ -389,6 +389,11 @@ class MyOutputLocationManager implements IOutputLocationManager {
+ 	public String getUniqueIdentifier() {
+ 		return null;
+ 	}
++	
++	public Map getInpathMap() {
++		return Collections.EMPTY_MAP;
++	}
++
+ 
+ 	public String getSourceFolderForFile(File sourceFile) {
+ 		return null;
+@@ -371,7 +371,12 @@ public class BcelWeaver {
+ 						UnwovenClassFile classFile = new UnwovenClassFile(new File(outDir, filename).getAbsolutePath(), bytes);
+ 
+ 						if (filename.endsWith(".class")) {
+-							this.addClassFile(classFile,false);
++							ReferenceType type = this.addClassFile(classFile,false);
++//							StringBuffer sb = new StringBuffer();
++//							sb.append(inFile.getAbsolutePath());
++//							sb.append("!");
++//							sb.append(entry.getName());
++//							type.setBinaryPath(sb.toString());
+ 							addedClassFiles.add(classFile);
+ 						}
+ 						// else if (!entry.isDirectory()) {
+@@ -436,7 +441,7 @@ public class BcelWeaver {
+ 	/**
+ 	 * Should be addOrReplace
+ 	 */
+-	public void addClassFile(UnwovenClassFile classFile, boolean fromInpath) {
++	public ReferenceType addClassFile(UnwovenClassFile classFile, boolean fromInpath) {
+ 		addedClasses.add(classFile);
+ 		// if (null != sourceJavaClasses.put(classFile.getClassName(),
+ 		// classFile)) {
+@@ -446,6 +451,7 @@ public class BcelWeaver {
+ 		if (fromInpath) {
+ 			type.setBinaryPath(classFile.getFilename());
+ 		}
++		return type;
+ 	}
+ 
+ 	public UnwovenClassFile addClassFile(File classFile, File inPathDir, File outDir) throws IOException {
+@@ -461,7 +467,12 @@ public class BcelWeaver {
+ 		if (filename.endsWith(".class")) {
+ 			// System.err.println(
+ 			// "BCELWeaver: processing class from input directory "+classFile);
+-			this.addClassFile(ucf,true);
++			StringBuffer sb = new StringBuffer();
++			sb.append(inPathDir.getAbsolutePath());
++			sb.append("!");
++			sb.append(filename);
++			ReferenceType type = this.addClassFile(ucf,false);
++			type.setBinaryPath(sb.toString());
+ 		}
+ 		fis.close();
+ 		return ucf;
+@@ -195,10 +195,20 @@ public class AsmRelationshipProvider {
+ 				// /; - the semicolon is a 'well defined char' that means inpath
+ 				phantomHandle.append(HandleProviderDelimiter.PACKAGEFRAGMENTROOT.getDelimiter()).append(';');
+ 
++				int pos = bpath.indexOf('!');
++				if (pos != -1) {
++					// jar or dir
++					String jarPath = bpath.substring(0,pos);
++					String element = model.getHandleElementForInpath(jarPath);
++					if (element!=null) {
++						phantomHandle.append(element);						
++					}
++				}
++				
+ 				// <g
+ 				String packageName = onType.getPackageName();
+ 				phantomHandle.append(HandleProviderDelimiter.PACKAGEFRAGMENT.getDelimiter()).append(packageName);
+-				
++
+ 				// (G.class
+ 				// could fix the binary path to only be blah.class bit
+ 				int dotClassPosition = bpath.lastIndexOf(".class");// what to do if -1
+@@ -207,7 +217,7 @@ public class AsmRelationshipProvider {
+ 				} else {
+ 					int startPosition = dotClassPosition;
+ 					char ch;
+-					while (startPosition>0 && ((ch=bpath.charAt(startPosition))!='/' && ch!='\\')) {
++					while (startPosition>0 && ((ch=bpath.charAt(startPosition))!='/' && ch!='\\' && ch!='!')) {
+ 						startPosition--;
+ 					}
+ 					String classFile = bpath.substring(startPosition+1,dotClassPosition+6);
+@@ -13,6 +13,7 @@ package org.aspectj.ajdt.internal.compiler;
+ 
+ import java.io.File;
+ import java.util.List;
++import java.util.Map;
+ 
+ /**
+  * acts as a bridge from ajde's OutputLocationManager interface to the compiler internals
+@@ -75,6 +76,8 @@ public interface CompilationResultDestinationManager {
+ 	 */
+ 	void reportFileRemove(String outputfile, int filetype);
+ 
++	Map getInpathMap();
++
+ 	int discoverChangesSince(File dir, long buildtime);
+ 
+ 	// match numbers in IOutputLocationManager - ought to factor into super interface
+@@ -23,6 +23,7 @@ import java.io.OutputStream;
+ import java.io.PrintStream;
+ import java.util.ArrayList;
+ import java.util.Collection;
++import java.util.Collections;
+ import java.util.HashMap;
+ import java.util.Iterator;
+ import java.util.List;
+@@ -756,7 +757,8 @@ public class AjBuildManager implements IOutputClassFileNameProvider, IBinarySour
+ 		// if (!AsmManager.isCreatingModel())
+ 		// return;
+ 
+-		AsmManager structureModel = AsmManager.createNewStructureModel();
++		CompilationResultDestinationManager crdm = config.getCompilationResultDestinationManager();
++		AsmManager structureModel = AsmManager.createNewStructureModel(crdm==null?Collections.EMPTY_MAP:crdm.getInpathMap());
+ 		// AsmManager.getDefault().getRelationshipMap().clear();
+ 		IHierarchy model = structureModel.getHierarchy();
+ 		String rootLabel = "<root>";
+@@ -82,6 +82,10 @@ public class AsmManager implements IStructureModel {
+ 	// below to the AjState for a compilation and recover it if switching
+ 	// between projects.
+ 	protected IHierarchy hierarchy;
++	
++	/* Map from String > String - it maps absolute paths for 
++	 * inpath dirs/jars to workspace relative paths suitable for handle inclusion */
++	protected Map inpathMap;
+ 	private IRelationshipMap mapper;
+ 	private IElementHandleProvider handleProvider;
+ 
+@@ -100,11 +104,12 @@ public class AsmManager implements IStructureModel {
+ 	private AsmManager() {
+ 	}
+ 
+-	public static AsmManager createNewStructureModel() {
++	public static AsmManager createNewStructureModel(Map inpathMap) {
+ 		if (forceSingletonBehaviour && lastActiveStructureModel != null) {
+ 			return lastActiveStructureModel;
+ 		}
+ 		AsmManager asm = new AsmManager();
++		asm.inpathMap = inpathMap;
+ 		asm.hierarchy = new AspectJElementHierarchy(asm);
+ 		asm.mapper = new RelationshipMap(asm.hierarchy);
+ 		asm.handleProvider = new JDTLikeHandleProvider(asm);
+@@ -1256,4 +1261,8 @@ public class AsmManager implements IStructureModel {
+ 		}
+ 	}
+ 
++	public String getHandleElementForInpath(String binaryPath) {
++		return (String)inpathMap.get(new File(binaryPath));
++	}
++
+ }
+Binary files differ
+@@ -0,0 +1,4 @@
++package p;
++aspect Asp {
++  declare parents: * implements java.io.Serializable;
++}
+Binary files differ
+Binary files differ
+@@ -0,0 +1,3 @@
++package codep;
++public class Code {
++}
+@@ -0,0 +1,3 @@
++package p;
++public class B {
++}
+@@ -12,7 +12,9 @@ package org.aspectj.systemtest.incremental.tools;
+ 
+ import java.io.File;
+ import java.util.ArrayList;
++import java.util.Collections;
+ import java.util.List;
++import java.util.Map;
+ 
+ import org.aspectj.ajde.core.IOutputLocationManager;
+ 
+@@ -50,6 +52,10 @@ public class IncrementalOutputLocationManagerTests extends AbstractMultiProjectI
+ 
+ 		public void reportFileRemove(String outputfile, int filetype) {
+ 		}
++		
++		public Map getInpathMap() {
++			return Collections.EMPTY_MAP;
++		}
+ 
+ 		public File getOutputLocationForClass(File compilationUnit) {
+ 			String path = compilationUnit.getAbsolutePath();
+@@ -12,6 +12,7 @@ package org.aspectj.systemtest.incremental.tools;
+ 
+ import java.io.File;
+ import java.util.ArrayList;
++import java.util.Collections;
+ import java.util.HashSet;
+ import java.util.Iterator;
+ import java.util.List;
+@@ -338,6 +339,11 @@ public class MoreOutputLocationManagerTests extends AbstractMultiProjectIncremen
+ 		public File getOutputLocationForClass(File compilationUnit) {
+ 			return outputLoc;
+ 		}
++		
++		public Map getInpathMap() {
++			return Collections.EMPTY_MAP;
++		}
++
+ 
+ 		public File getOutputLocationForResource(File resource) {
+ 			return outputLoc;
+@@ -13,6 +13,7 @@ package org.aspectj.systemtest.incremental.tools;
+ import java.io.File;
+ import java.io.IOException;
+ import java.util.ArrayList;
++import java.util.Collections;
+ import java.util.HashMap;
+ import java.util.List;
+ import java.util.Map;
+@@ -40,6 +41,11 @@ public class MultiProjTestOutputLocationManager implements IOutputLocationManage
+ 		initLocations();
+ 		return classOutputLoc;
+ 	}
++	
++	public Map getInpathMap() {
++		return Collections.EMPTY_MAP;
++	}
++
+ 
+ 	public File getOutputLocationForResource(File resource) {
+ 		initLocations();
+@@ -2815,6 +2815,78 @@ public class MultiProjectIncrementalTests extends AbstractMultiProjectIncrementa
+ 
+ //		alter(p,"inc1");
+ //		build(p);
++		dumptree(root, 0);
++		PrintWriter pw = new PrintWriter(System.out);
++		try {
++		  getModelFor(p).dumprels(pw);
++		  pw.flush();
++		} catch (Exception e) {
++		}
++		List l = getModelFor(p).getRelationshipMap().get("=inpathHandles/;<codep(Code.class[Code");
++		assertNotNull(l);
++	}
++	
++	public void testInpathHandles_WithInpathMap_271201() throws Exception {
++		AjdeInteractionTestbed.VERBOSE=true;
++		String p = "inpathHandles";
++		initialiseProject(p);
++
++		String inpathTestingDir = getWorkingDir() + File.separator + "inpathHandles";
++		String inpathDir = inpathTestingDir + File.separator + "binpath";// + File.separator+ "codep";
++		// String expectedOutputDir = inpathTestingDir + File.separator + "bin";
++
++		// set up the inpath to have the directory on it's path
++		System.out.println(inpathDir);
++		File f = new File(inpathDir);
++		Set s = new HashSet();
++		s.add(f);
++		Map m = new HashMap();
++		m.put(f,"wibble");		
++		configureOutputLocationManager(p,new TestOutputLocationManager(getProjectRelativePath(p, ".").toString(),m));
++
++		configureInPath(p, s);
++		build(p);
++
++		IProgramElement root = getModelFor(p).getHierarchy().getRoot();
++		
++//		alter(p,"inc1");
++//		build(p);
++		dumptree(root, 0);
++		PrintWriter pw = new PrintWriter(System.out);
++		try {
++		  getModelFor(p).dumprels(pw);
++		  pw.flush();
++		} catch (Exception e) {
++		}
++		List l = getModelFor(p).getRelationshipMap().get("=inpathHandles/;wibble<codep(Code.class[Code");
++		assertNotNull(l);
++	}
++	
++	// warning about cant change parents of Object is fine
++//	public void testInpathJars_271201() throws Exception {
++//		AjdeInteractionTestbed.VERBOSE=true;
++//		String p = "inpathJars";
++//		initialiseProject(p);
++//
++//		String inpathTestingDir = getWorkingDir() + File.separator + "inpathJars";
++//		String inpathDir = inpathTestingDir + File.separator + "code.jar";
++//		// String expectedOutputDir = inpathTestingDir + File.separator + "bin";
++//
++//		// set up the inpath to have the directory on it's path
++//		System.out.println(inpathDir);
++//		File f = new File(inpathDir);
++//		Set s = new HashSet();
++//		s.add(f);
++//		Map m = new HashMap();
++//		m.put(f,"Gibble");		
++//		configureOutputLocationManager(p,new TestOutputLocationManager(getProjectRelativePath(p, ".").toString(),m));
++//		configureInPath(p, s);
++//		build(p);
++//
++//		IProgramElement root = getModelFor(p).getHierarchy().getRoot();
++//		
++////		alter(p,"inc1");
++////		build(p);
+ //		dumptree(root, 0);
+ //		PrintWriter pw = new PrintWriter(System.out);
+ //		try {
+@@ -2822,10 +2894,10 @@ public class MultiProjectIncrementalTests extends AbstractMultiProjectIncrementa
+ //		  pw.flush();
+ //		} catch (Exception e) {
+ //		}
+-		List l = getModelFor(p).getRelationshipMap().get("=inpathHandles/;<codep(Code.class[Code");
+-		assertNotNull(l);
+-		System.out.println(l.get(0));
+-	}
++//		List l = getModelFor(p).getRelationshipMap().get("=inpathJars/;Gibble<codep(Code.class[Code");
++//		assertNotNull(l);
++//		System.out.println(l.get(0));
++//	}
+ 
+ 	// --- helper code ---
+ 
+@@ -13,6 +13,7 @@ package org.aspectj.systemtest.incremental.tools;
+ 
+ import java.io.File;
+ import java.util.ArrayList;
++import java.util.Collections;
+ import java.util.HashMap;
+ import java.util.List;
+ import java.util.Map;
+@@ -104,6 +105,11 @@ public class OutputLocationManagerTests extends AbstractMultiProjectIncrementalA
+ 
+ 		public void reportFileRemove(String outputfile, int filetype) {
+ 		}
++		
++		public Map getInpathMap() {
++			return Collections.EMPTY_MAP;
++		}
++
+ 
+ 		public File getOutputLocationForClass(File compilationUnit) {
+ 			String relativePath = "";
+@@ -13,6 +13,7 @@ package org.aspectj.ajde.core;
+ 
+ import java.io.File;
+ import java.util.List;
++import java.util.Map;
+ 
+ /**
+  * Interface that handles where the compilation output is sent. Allows for the output folder to be different for different source
+@@ -69,6 +70,11 @@ public interface IOutputLocationManager {
+ 	void reportFileWrite(String outputfile, int fileType);
+ 
+ 	/**
++	 * @return a Map<File,String> from inpath absolute paths to handle components
++	 */
++	Map getInpathMap();
++	
++	/**
+ 	 * Callback from the compiler to indicate that a file has been removed from disk, the type of the file (if known) is also
+ 	 * supplied.
+ 	 * 
+@@ -14,6 +14,7 @@ package org.aspectj.ajde.core.internal;
+ 
+ import java.io.File;
+ import java.util.List;
++import java.util.Map;
+ 
+ import org.aspectj.ajde.core.IOutputLocationManager;
+ import org.aspectj.ajdt.internal.compiler.CompilationResultDestinationManager;
+@@ -61,4 +62,13 @@ public class OutputLocationAdapter implements CompilationResultDestinationManage
+ 		return this.locationManager.discoverChangesSince(dir,buildtime);
+ 	}
+ 
++	/**
++	 * Return a map from fully qualified jar/dir entries to handle components.
++	 * 
++	 * @return a map from inpath entries (jars/dirs) to handle components.
++	 */
++	public Map getInpathMap() {
++		return this.locationManager.getInpathMap();
++	}
++
+ }
+@@ -12,7 +12,9 @@ package org.aspectj.ajde.core;
+ 
+ import java.io.File;
+ import java.util.ArrayList;
++import java.util.Collections;
+ import java.util.List;
++import java.util.Map;
+ 
+ /**
+  * Test implementation of IOutputLocationManager. By default returns the same location for both resources and classes, however,
+@@ -25,11 +27,17 @@ public class TestOutputLocationManager implements IOutputLocationManager {
+ 	private File classOutputLoc;
+ 	private File resourceOutputLoc;
+ 	private List allOutputLocations;
++	private Map inpathMap = Collections.EMPTY_MAP;
+ 
+ 	public TestOutputLocationManager(String testProjectPath) {
+ 		this.testProjectOutputPath = testProjectPath + File.separator + "bin";
+ 	}
+ 
++	public TestOutputLocationManager(String string, Map inpathMap) {
++		this(string);
++		this.inpathMap = inpathMap;
++	}
++
+ 	public File getOutputLocationForClass(File compilationUnit) {
+ 		initLocations();
+ 		return classOutputLoc;
+@@ -39,6 +47,11 @@ public class TestOutputLocationManager implements IOutputLocationManager {
+ 		initLocations();
+ 		return resourceOutputLoc;
+ 	}
++	
++	public Map getInpathMap() {
++		return inpathMap;
++	}
++
+ 
+ 	// -------------- setter methods useful for testing -------------
+ 	public void setOutputLocForClass(File f) {
+@@ -14,6 +14,7 @@ package org.aspectj.ajde.core.tests.model;
+ 
+ import java.io.File;
+ import java.util.ArrayList;
++import java.util.Collections;
+ import java.util.List;
+ 
+ import org.aspectj.ajde.core.AjdeCoreTestCase;
+@@ -54,7 +55,7 @@ public class SavedModelConsistencyTests extends AjdeCoreTestCase {
+ 	}
+ 
+ 	public void testInterfaceIsSameInBoth() {
+-		AsmManager asm = AsmManager.createNewStructureModel();
++		AsmManager asm = AsmManager.createNewStructureModel(Collections.EMPTY_MAP);
+ 		asm.readStructureModel(getAbsoluteProjectDir());
+ 
+ 		IHierarchy model = asm.getHierarchy();
+@@ -77,7 +78,7 @@ public class SavedModelConsistencyTests extends AjdeCoreTestCase {
+ 	}
+ 
+ 	public void testModelIsSamePreAndPostBuild() {
+-		AsmManager asm = AsmManager.createNewStructureModel();
++		AsmManager asm = AsmManager.createNewStructureModel(Collections.EMPTY_MAP);
+ 		asm.readStructureModel(getAbsoluteProjectDir());
+ 		// AsmManager.getDefault().readStructureModel(getAbsoluteProjectDir());
+ 		IHierarchy model = asm.getHierarchy();
+@@ -17,6 +17,7 @@ package org.aspectj.ajde;
+ import java.awt.Frame;
+ import java.io.File;
+ import java.util.Arrays;
++import java.util.Collections;
+ import java.util.Iterator;
+ import java.util.List;
+ 
+@@ -100,7 +101,7 @@ public class Ajde {
+ 			INSTANCE.compilerConfig = compilerConfig;
+ 			INSTANCE.uiBuildMsgHandler = uiBuildMessageHandler;
+ 			INSTANCE.buildProgressMonitor = monitor;
+-			INSTANCE.asm = AsmManager.createNewStructureModel();
++			INSTANCE.asm = AsmManager.createNewStructureModel(Collections.EMPTY_MAP);
+ 
+ 			INSTANCE.iconRegistry = iconRegistry;
+ 			INSTANCE.ideUIAdapter = ideUIAdapter;
+@@ -12,7 +12,9 @@ package org.aspectj.ajde.ui.utils;
+ 
+ import java.io.File;
+ import java.util.ArrayList;
++import java.util.Collections;
+ import java.util.List;
++import java.util.Map;
+ 
+ import org.aspectj.ajde.core.IOutputLocationManager;
+ 
+@@ -38,6 +40,10 @@ public class TestOutputLocationManager implements IOutputLocationManager {
+ 	public String getUniqueIdentifier() {
+ 		return testProjectOutputPath;
+ 	}
++	
++	public Map getInpathMap() {
++		return Collections.EMPTY_MAP;
++	}
+ 
+ 	public File getOutputLocationForClass(File compilationUnit) {
+ 		initLocations();
+@@ -12,7 +12,9 @@ package org.aspectj.tools.ajbrowser.core;
+ 
+ import java.io.File;
+ import java.util.ArrayList;
++import java.util.Collections;
+ import java.util.List;
++import java.util.Map;
+ 
+ import org.aspectj.ajde.core.IOutputLocationManager;
+ import org.aspectj.ajde.ui.UserPreferencesAdapter;
+@@ -69,4 +71,8 @@ public class BrowserOutputLocationManager implements IOutputLocationManager {
+ 		return 0;
+ 	}
+ 
++	public Map getInpathMap() {
++		return Collections.EMPTY_MAP;
++	}
++
+ }
+@@ -25,6 +25,7 @@ import org.aspectj.asm.IHierarchy;
+ import org.aspectj.asm.IProgramElement;
+ import org.aspectj.asm.IRelationship;
+ import org.aspectj.asm.IRelationshipMap;
++import org.aspectj.asm.internal.HandleProviderDelimiter;
+ import org.aspectj.asm.internal.ProgramElement;
+ import org.aspectj.bridge.ISourceLocation;
+ import org.aspectj.bridge.SourceLocation;
+@@ -149,10 +150,10 @@ public class AsmRelationshipProvider {
+ 			// .getSourceLocation());
+ 			// sourceHandle =
+ 			// asm.getHandleProvider().createHandleIdentifier(sourceNode);
+-			if (sourceHandle == null)
++			if (sourceHandle == null) {
+ 				return;
+-			IProgramElement targetNode = model.getHierarchy().findElementForSourceLine(onType.getSourceLocation());
+-			String targetHandle = model.getHandleProvider().createHandleIdentifier(targetNode);
++			}
++			String targetHandle = findOrFakeUpNode(model, onType);
+ 			if (targetHandle == null)
+ 				return;
+ 
+@@ -171,6 +172,82 @@ public class AsmRelationshipProvider {
+ 		}
+ 	}
+ 
++	private static String findOrFakeUpNode(AsmManager model, ResolvedType onType) {
++		IHierarchy hierarchy = model.getHierarchy();
++		ISourceLocation sourceLocation = onType.getSourceLocation();
++		String canonicalFilePath = model.getCanonicalFilePath(sourceLocation.getSourceFile());
++		int lineNumber = sourceLocation.getLine(); 
++		// Find the relevant source file node first
++		IProgramElement node = hierarchy.findNodeForSourceFile(hierarchy.getRoot(), canonicalFilePath);
++		if (node == null) {
++			// Does not exist in the model - probably an inpath 
++			String bpath = onType.getBinaryPath();
++			if (bpath==null) {
++				return model.getHandleProvider().createHandleIdentifier(createFileStructureNode(model,canonicalFilePath));
++			} else {
++				IProgramElement programElement = model.getHierarchy().getRoot();
++				// =Foo/;<g(G.class[G
++				StringBuffer phantomHandle = new StringBuffer();
++				
++				// =Foo
++				phantomHandle.append(programElement.getHandleIdentifier());
++				
++				// /; - the semicolon is a 'well defined char' that means inpath
++				phantomHandle.append(HandleProviderDelimiter.PACKAGEFRAGMENTROOT.getDelimiter()).append(';');
++				
++				// <g
++				String packageName = onType.getPackageName();
++				phantomHandle.append(HandleProviderDelimiter.PACKAGEFRAGMENT.getDelimiter()).append(packageName);
++				
++				// (G.class
++				// could fix the binary path to only be blah.class bit
++				int dotClassPosition = bpath.lastIndexOf(".class");// what to do if -1
++				int startPosition = dotClassPosition;
++				char ch;
++				while (startPosition>0 && ((ch=bpath.charAt(startPosition))!='/' && ch!='\\')) {
++					startPosition--;
++				}
++				String classFile = bpath.substring(startPosition+1,dotClassPosition+6);
++				phantomHandle.append(HandleProviderDelimiter.CLASSFILE.getDelimiter()).append(classFile);
++				
++				// [G
++				phantomHandle.append(HandleProviderDelimiter.TYPE.getDelimiter()).append(onType.getClassName());
++				
++				return phantomHandle.toString();
++			}
++		} else {
++			// Check if there is a more accurate child node of that source file node:
++			IProgramElement closernode = hierarchy.findCloserMatchForLineNumber(node, lineNumber);
++			if (closernode == null) {
++				return model.getHandleProvider().createHandleIdentifier(node);
++			} else {
++				return model.getHandleProvider().createHandleIdentifier(closernode);
++			}
++		}
++		
++	}
++	
++	public static IProgramElement createFileStructureNode(AsmManager asm, String sourceFilePath) {
++		// SourceFilePath might have originated on windows on linux...
++		int lastSlash = sourceFilePath.lastIndexOf('\\');
++		if (lastSlash == -1) {
++			lastSlash = sourceFilePath.lastIndexOf('/');
++		}
++		// '!' is used like in URLs "c:/blahblah/X.jar!a/b.class"
++		int i = sourceFilePath.lastIndexOf('!');
++		int j = sourceFilePath.indexOf(".class");
++		if (i > lastSlash && i != -1 && j != -1) {
++			// we are a binary aspect in the default package
++			lastSlash = i;
++		}
++		String fileName = sourceFilePath.substring(lastSlash + 1);
++		IProgramElement fileNode = new ProgramElement(asm, fileName, IProgramElement.Kind.FILE_JAVA, new SourceLocation(new File(
++				sourceFilePath), 1, 1), 0, null, null);
++		// fileNode.setSourceLocation();
++		fileNode.addChild(IHierarchy.NO_STRUCTURE);
++		return fileNode;
++	}
++
+ 	private static boolean isBinaryAspect(ResolvedType aspect) {
+ 		return aspect.getBinaryPath() != null;
+ 	}
+@@ -371,7 +371,7 @@ public class BcelWeaver {
+ 						UnwovenClassFile classFile = new UnwovenClassFile(new File(outDir, filename).getAbsolutePath(), bytes);
+ 
+ 						if (filename.endsWith(".class")) {
+-							this.addClassFile(classFile);
++							this.addClassFile(classFile,false);
+ 							addedClassFiles.add(classFile);
+ 						}
+ 						// else if (!entry.isDirectory()) {
+@@ -436,13 +436,16 @@ public class BcelWeaver {
+ 	/**
+ 	 * Should be addOrReplace
+ 	 */
+-	public void addClassFile(UnwovenClassFile classFile) {
++	public void addClassFile(UnwovenClassFile classFile, boolean fromInpath) {
+ 		addedClasses.add(classFile);
+ 		// if (null != sourceJavaClasses.put(classFile.getClassName(),
+ 		// classFile)) {
+ 		// // throw new RuntimeException(classFile.getClassName());
+ 		// }
+-		world.addSourceObjectType(classFile.getJavaClass());
++		ReferenceType type = world.addSourceObjectType(classFile.getJavaClass()).getResolvedTypeX();
++		if (fromInpath) {
++			type.setBinaryPath(classFile.getFilename());
++		}
+ 	}
+ 
+ 	public UnwovenClassFile addClassFile(File classFile, File inPathDir, File outDir) throws IOException {
+@@ -458,7 +461,7 @@ public class BcelWeaver {
+ 		if (filename.endsWith(".class")) {
+ 			// System.err.println(
+ 			// "BCELWeaver: processing class from input directory "+classFile);
+-			this.addClassFile(ucf);
++			this.addClassFile(ucf,true);
+ 		}
+ 		fis.close();
+ 		return ucf;
+@@ -32,7 +32,7 @@ public class TraceJarWeaveTestCase extends WeaveTestCase {
+ 		UnwovenClassFile classFile 
+             = makeUnwovenClassFile(classDir, "DynamicHelloWorld", outDirPath);
+ 
+-        weaver.addClassFile(classFile);
++        weaver.addClassFile(classFile,false);
+         weaver.prepareForWeave();
+ 
+ 		weaveTestInner(weaver, classFile, "DynamicHelloWorld", "TraceJarHello");
+@@ -97,7 +97,7 @@ public abstract class WeaveTestCase extends TestCase {
+ 
+ 			UnwovenClassFile classFile = makeUnwovenClassFile(classDir, name, outDirPath);
+ 
+-			weaver.addClassFile(classFile);
++			weaver.addClassFile(classFile,false);
+ 			weaver.setShadowMungers(planners);
+ 			weaveTestInner(weaver, classFile, name, outName);
+ 		} finally {
+@@ -2791,6 +2791,41 @@ public class MultiProjectIncrementalTests extends AbstractMultiProjectIncrementa
+ 		warnings = getWarningMessages("inpathTesting");
+ 		assertTrue("Expected there to be two warning message but found " + warnings.size() + ": " + warnings, warnings.size() == 2);
+ 	}
++	
++
++	// warning about cant change parents of Object is fine
++	public void testInpathHandles_271201() throws Exception {
++		AjdeInteractionTestbed.VERBOSE=true;
++		String p = "inpathHandles";
++		initialiseProject(p);
++
++		String inpathTestingDir = getWorkingDir() + File.separator + "inpathHandles";
++		String inpathDir = inpathTestingDir + File.separator + "binpath";// + File.separator+ "codep";
++		// String expectedOutputDir = inpathTestingDir + File.separator + "bin";
++
++		// set up the inpath to have the directory on it's path
++		System.out.println(inpathDir);
++		File f = new File(inpathDir);
++		Set s = new HashSet();
++		s.add(f);
++		configureInPath(p, s);
++		build(p);
++
++		IProgramElement root = getModelFor(p).getHierarchy().getRoot();
++		
++//		alter(p,"inc1");
++//		build(p);
++//		dumptree(root, 0);
++//		PrintWriter pw = new PrintWriter(System.out);
++//		try {
++//		  getModelFor(p).dumprels(pw);
++//		  pw.flush();
++//		} catch (Exception e) {
++//		}
++		List l = getModelFor(p).getRelationshipMap().get("=inpathHandles/;<codep(Code.class[Code");
++		assertNotNull(l);
++		System.out.println(l.get(0));
++	}
+ 
+ 	// --- helper code ---
+ 
+@@ -289,7 +289,7 @@ public class AjCompilerAdapter extends AbstractCompilerAdapter {
+ 		for (Iterator iter = resultsPendingWeave.iterator(); iter.hasNext();) {
+ 			InterimCompilationResult iresult = (InterimCompilationResult) iter.next();
+ 			for (int i = 0; i < iresult.unwovenClassFiles().length; i++) {
+-				weaver.addClassFile(iresult.unwovenClassFiles()[i]);
++				weaver.addClassFile(iresult.unwovenClassFiles()[i],false);
+ 			}
+ 		}
+ 
+@@ -425,7 +425,7 @@ public class AjPipeliningCompilerAdapter extends AbstractCompilerAdapter {
+ 		for (Iterator iter = resultsPendingWeave.iterator(); iter.hasNext();) {
+ 			InterimCompilationResult iresult = (InterimCompilationResult) iter.next();
+ 			for (int i = 0; i < iresult.unwovenClassFiles().length; i++) {
+-				weaver.addClassFile(iresult.unwovenClassFiles()[i]);
++				weaver.addClassFile(iresult.unwovenClassFiles()[i],false);
+ 			}
+ 		}
+ 		ensureWeaverInitialized(); // by doing this only once, are we saying needToReweaveWorld can't change once the aspects have
+@@ -898,12 +898,12 @@ public class AjBuildManager implements IOutputClassFileNameProvider, IBinarySour
+ 		return getBcelWorld();
+ 	}
+ 
+-	void addAspectClassFilesToWeaver(List addedClassFiles) throws IOException {
+-		for (Iterator i = addedClassFiles.iterator(); i.hasNext();) {
+-			UnwovenClassFile classFile = (UnwovenClassFile) i.next();
+-			getWeaver().addClassFile(classFile);
+-		}
+-	}
++//	void addAspectClassFilesToWeaver(List addedClassFiles) throws IOException {
++//		for (Iterator i = addedClassFiles.iterator(); i.hasNext();) {
++//			UnwovenClassFile classFile = (UnwovenClassFile) i.next();
++//			getWeaver().addClassFile(classFile);
++//		}
++//	}
+ 
+ 	public FileSystem getLibraryAccess(String[] classpaths, String[] filenames) {
+ 		String defaultEncoding = buildConfig.getOptions().defaultEncoding;
+Binary files differ
+@@ -0,0 +1,4 @@
++package p;
++aspect Asp {
++  declare parents: * implements java.io.Serializable;
++}
+Binary files differ
+@@ -0,0 +1,3 @@
++package codep;
++public class Code {
++}
+@@ -0,0 +1,3 @@
++package p;
++public class B {
++}

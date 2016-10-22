@@ -1,0 +1,433 @@
+@@ -69,7 +69,7 @@ import  java.io.*;
+  * is used for debugging purposes and <em>LocalVariableTable</em> which 
+  * contains information about the local variables.
+  *
+- * @version $Id: Code.java,v 1.2 2004/11/19 16:45:18 aclement Exp $
++ * @version $Id: Code.java,v 1.3 2006/09/22 10:50:17 aclement Exp $
+  * @author  <A HREF="mailto:markus.dahm@berlin.de">M. Dahm</A>
+  * @see     Attribute
+  * @see     CodeException
+@@ -370,4 +370,29 @@ public final class Code extends Attribute {
+ 
+     return c;
+   }
++  
++  /**
++   * Returns the same as toString(true) except that the attribute information
++   * isn't included (line numbers).
++   * Can be used to check whether two pieces of code are equivalent.
++   */
++  public String getCodeString() {
++	  StringBuffer codeString = new StringBuffer();
++	  codeString.append("Code(max_stack = ").append(max_stack);
++	  codeString.append(", max_locals = ").append(max_locals);
++	  codeString.append(", code_length = ").append(code_length).append(")\n");
++	  codeString.append(Utility.codeToString(code, constant_pool, 0, -1,true));
++	  if (exception_table_length>0) {
++		  codeString.append("\n").append("Exception entries =  ").append(exception_table_length).append("\n");
++		  for (int i = 0; i < exception_table_length; i++) {
++			CodeException exc = exception_table[i];
++			int type = exc.getCatchType();
++			String name = "finally";
++			if (type!=0) name = this.constant_pool.getConstantString(type,Constants.CONSTANT_Class);
++			codeString.append(name).append("[");
++			codeString.append(exc.getStartPC()).append(">").append(exc.getEndPC()).append("]\n");
++		  }
++	  }
++	  return codeString.toString();
++  }
+ }
+Binary files differ
+Binary files differ
+@@ -0,0 +1,10 @@
++public aspect MyAspect {
++
++	pointcut mypointcut(): execution(* getX()) && !within(MyAspect);
++
++	int around(): mypointcut() {
++		int w = proceed() + 4;
++		return w;	
++	}
++
++}
+@@ -0,0 +1,10 @@
++public aspect MyAspect {
++
++	pointcut mypointcut(): execution(* getX()) && !within(MyAspect);
++
++	int around(): mypointcut() {
++		int w = proceed() + 3;
++		return w;	
++	}
++
++}
+@@ -0,0 +1,19 @@
++public class MyClass {
++
++	int x;
++
++	public int getX() {
++		return x;
++	}
++
++	public void setX(int x) {
++		this.x = x;
++	}
++
++	public static void main(String[] args) {
++		MyClass m = new MyClass();
++		m.setX(10);
++		System.out.println(m.getX());
++	}
++
++}
+@@ -0,0 +1,10 @@
++public aspect MyAspect {
++
++	pointcut mypointcut(): execution(* getName()) && !within(MyAspect);
++
++	String around(): mypointcut() {
++		String w = proceed() + " and Harry";
++		return w;	
++	}
++
++}
+@@ -0,0 +1,10 @@
++public aspect MyAspect {
++
++	pointcut mypointcut(): execution(* getName()) && !within(MyAspect);
++
++	String around(): mypointcut() {
++		String w = proceed() + " and George";
++		return w;	
++	}
++
++}
+@@ -0,0 +1,19 @@
++public class MyClass {
++
++	String name;
++
++	public String getName() {
++		return name;
++	}
++
++	public void setName(String name) {
++		this.name = name;
++	}
++
++	public static void main(String[] args) {
++		MyClass m = new MyClass();
++		m.setName("Fred");
++		System.out.println(m.getName());
++	}
++
++}
+@@ -33,20 +33,24 @@ public class IfPointcut2Test extends TestCase {
+         f.doo();
+         f.doo(1);
+         f.dooMulti();
+-        assertEquals(
+-                "test aop test2-doo-doo aop2 doo test3-1-doo-doo-doo aop3 doo-1 testTWO-dooMulti testONE-dooMulti aop doMulti ",
+-                s_log.toString()
+-        );
++        // we don't want to rely on the order the if pcds are evaluated
++        String exp1 = "test aop test2-doo-doo aop2 doo test3-1-doo-doo-doo aop3 doo-1 testTWO-dooMulti testONE-dooMulti aop doMulti ";
++        String exp2 = "test aop test2-doo-doo aop2 doo test3-1-doo-doo-doo aop3 doo-1 testONE-dooMulti testTWO-dooMulti aop doMulti ";
++        boolean equ = (exp1.equals(s_log.toString()) || exp2.equals(s_log.toString()));
++        assertTrue("expected log to contain \n" + exp1 +"\n or \n" + exp2 + "\n but found \n" + s_log.toString(), equ);
+ 
+         s_log = new StringBuffer();
+         IfAspect.ISON = false;
+         f.doo();
+         f.doo(1);
+         f.dooMulti();
+-        assertEquals(
+-                "test test2-doo-doo doo test3-1-doo-doo-doo doo-1 testTWO-dooMulti doMulti ",                
+-                s_log.toString()
+-        );
++        
++        // we don't want to rely on the order the if pcds are evaluated
++        String exp3 = "test test2-doo-doo doo test3-1-doo-doo-doo doo-1 testTWO-dooMulti doMulti ";
++        String exp4 = "test test2-doo-doo doo test3-1-doo-doo-doo doo-1 testONE-dooMulti doMulti ";
++
++        equ = (exp3.equals(s_log.toString()) || exp4.equals(s_log.toString()));
++        assertTrue("expected log to contain \n" + exp3 +"\n or \n" + exp4 + "\n but found \n" + s_log.toString(), equ);
+     }
+ 
+     public static void main(String[] args) {
+@@ -280,5 +280,30 @@ public class IncrementalTests extends org.aspectj.testing.XMLBasedAjcTestCase {
+ 	  RunResult before = run("pack.Main");
+   }
+ 
++  public void testIncrementalUpdateOfBodyInAroundAdvice_pr154054() throws Exception {
++	  runTest("incremental update of body in around advice");
++	  nextIncrement(true);
++	  RunResult before = run("MyClass");
++	  assertTrue("value should be 13 but was " + before.getStdOut(),
++			  before.getStdOut().startsWith("13"));
++	  // update value added to proceed
++	  copyFileAndDoIncrementalBuild("changes/MyAspect.20.aj","src/MyAspect.aj");
++	  RunResult after = run("MyClass");
++	  assertTrue("value should be 14 but was " + after.getStdOut(),
++			  after.getStdOut().startsWith("14"));
++  }
++  
++  public void testIncrementalUpdateOfBodyInAroundAdviceWithString_pr154054() throws Exception {
++	  runTest("incremental update of body in around advice with string");
++	  nextIncrement(true);
++	  RunResult before = run("MyClass");
++	  assertTrue("expected 'Fred and George' in output but found " + before.getStdOut(),
++			  before.getStdOut().startsWith("Fred and George"));
++	  // update value added to proceed
++	  copyFileAndDoIncrementalBuild("changes/MyAspect.30.aj","src/MyAspect.aj");
++	  RunResult after = run("MyClass");
++	  assertTrue("expected 'Fred and Harry' in output but found " + after.getStdOut(),
++			  after.getStdOut().startsWith("Fred and Harry"));
++  }
+ }
+ 
+@@ -388,4 +388,22 @@
+         <!--inc-compile tag="20"/-->
+         <!--run class="pack.Main"/-->
+     </ajc-test>
++
++   <ajc-test dir="bugs153/pr154054" pr="154054"
++   	 title="incremental update of body in around advice">
++        <compile staging="true" 
++        	options="-incremental,-verbose"
++        	sourceroots="src"/>
++        <!--inc-compile tag="20"/-->
++        <!--run class="MyClass"/-->
++    </ajc-test>
++
++   <ajc-test dir="bugs153/pr154054_2" pr="154054"
++   	 title="incremental update of body in around advice with string">
++        <compile staging="true" 
++        	options="-incremental,-verbose"
++        	sourceroots="src"/>
++        <!--inc-compile tag="30"/-->
++        <!--run class="MyClass"/-->
++    </ajc-test>
+ 	
+\ No newline at end of file
+@@ -1524,6 +1524,24 @@ public class MultiProjectIncrementalTests extends AbstractMultiProjectIncrementa
+ 				+warnings,warnings.isEmpty());	
+ 	}
+ 
++	// see comment #11 of bug 154054
++	public void testNoFullBuildOnChangeInSysOutInAdviceBody_pr154054() {
++		initialiseProject("PR154054");
++		build("PR154054");
++		alter("PR154054","inc1");
++		build("PR154054");
++		checkWasntFullBuild();
++	}
++
++	// change exception type in around advice, does it notice?
++	public void testShouldFullBuildOnExceptionChange_pr154054() {
++		initialiseProject("PR154054_2");
++		build("PR154054_2");
++		alter("PR154054_2","inc1");
++		build("PR154054_2");
++		checkWasFullBuild();
++	}
++	
+ 	// --- helper code ---
+ 
+ 	/**
+@@ -20,6 +20,7 @@ import java.util.Iterator;
+ import java.util.List;
+ import java.util.Set;
+ 
++import org.aspectj.weaver.bcel.BcelMethod;
+ import org.aspectj.weaver.bcel.BcelTypeMunger;
+ import org.aspectj.weaver.patterns.Declare;
+ import org.aspectj.weaver.patterns.DeclareAnnotation;
+@@ -230,23 +231,51 @@ public class CrosscuttingMembers {
+   	    if (careAboutShadowMungers) {
+ 		    // bug 129163: use set equality rather than list equality 
+ 			Set theseShadowMungers = new HashSet();
+-			theseShadowMungers.addAll(shadowMungers);
++			Set theseInlinedAroundMungers = new HashSet();
++			for (Iterator iter = shadowMungers.iterator(); iter
++					.hasNext();) {
++				ShadowMunger munger = (ShadowMunger) iter.next();
++				if (munger instanceof Advice) {
++					Advice adviceMunger = (Advice)munger;
++					// bug 154054: if we're around advice that has been inlined
++					// then we need to do more checking than existing equals
++					// methods allow
++					if (!world.isXnoInline() && adviceMunger.getKind().equals(AdviceKind.Around)) {
++						theseInlinedAroundMungers.add(adviceMunger);
++					} else {
++						theseShadowMungers.add(adviceMunger);
++					}
++				} else {
++					theseShadowMungers.add(munger);
++				}
++			}
++			Set tempSet = new HashSet();
++			tempSet.addAll(other.shadowMungers);
+ 			Set otherShadowMungers = new HashSet();
+-			otherShadowMungers.addAll(other.shadowMungers);
+-			
+-			PointcutRewriter pr = new PointcutRewriter();
+-			for (Iterator iter = otherShadowMungers.iterator(); iter.hasNext();) {
++			Set otherInlinedAroundMungers = new HashSet();
++			for (Iterator iter = tempSet.iterator(); iter.hasNext();) {
+ 				ShadowMunger munger = (ShadowMunger) iter.next();
+-				Pointcut p          = munger.getPointcut();
+-				Pointcut newP       = pr.rewrite(p);
+-				if (p.m_ignoreUnboundBindingForNames.length!=0) {// *sigh* dirty fix for dirty hacky implementation pr149305
+-					newP.m_ignoreUnboundBindingForNames = p.m_ignoreUnboundBindingForNames;
++				if (munger instanceof Advice) {
++					Advice adviceMunger = (Advice)munger;
++					// bug 154054: if we're around advice that has been inlined
++					// then we need to do more checking than existing equals
++					// methods allow
++					if (!world.isXnoInline() && adviceMunger.getKind().equals(AdviceKind.Around)) {
++						otherInlinedAroundMungers.add(rewritePointcutInMunger(adviceMunger));
++					} else {
++						otherShadowMungers.add(rewritePointcutInMunger(adviceMunger));
++					}
++				} else {
++					otherShadowMungers.add(rewritePointcutInMunger(munger));
+ 				}
+-				munger.setPointcut(newP);
+ 			}
+ 			if (!theseShadowMungers.equals(otherShadowMungers)) {
+ 				changed = true;
+ 			}
++			if (!equivalent(theseInlinedAroundMungers,otherInlinedAroundMungers)) {
++				changed = true;
++			}
++			
+ 			// replace the existing list of shadowmungers with the 
+ 			// new ones in case anything like the sourcelocation has
+ 			// changed, however, don't want this flagged as a change
+@@ -365,6 +394,44 @@ public class CrosscuttingMembers {
+ 		return changed;
+ 	}
+ 
++	private boolean equivalent(Set theseInlinedAroundMungers, Set otherInlinedAroundMungers) {
++		if (theseInlinedAroundMungers.size() != otherInlinedAroundMungers.size()) {
++			return false;
++		}
++		for (Iterator iter = theseInlinedAroundMungers.iterator(); iter.hasNext();) {
++			Advice thisAdvice = (Advice) iter.next();
++			boolean foundIt = false;
++			for (Iterator iterator = otherInlinedAroundMungers.iterator(); iterator.hasNext();) {
++				Advice otherAdvice = (Advice) iterator.next();				
++				if (thisAdvice.equals(otherAdvice)) {
++					if(thisAdvice.getSignature() instanceof BcelMethod) {
++						if (((BcelMethod)thisAdvice.getSignature())
++								.isEquivalentTo(otherAdvice.getSignature()) ) {
++							foundIt = true;
++							continue;
++						}						
++					}
++					return false;
++				}
++			}
++			if (!foundIt) {
++				return false;
++			}
++		}
++		return true;
++	}
++
++	private ShadowMunger rewritePointcutInMunger(ShadowMunger munger) {
++		PointcutRewriter pr = new PointcutRewriter();
++		Pointcut p          = munger.getPointcut();
++		Pointcut newP       = pr.rewrite(p);
++		if (p.m_ignoreUnboundBindingForNames.length!=0) {// *sigh* dirty fix for dirty hacky implementation pr149305
++			newP.m_ignoreUnboundBindingForNames = p.m_ignoreUnboundBindingForNames;
++		}
++		munger.setPointcut(newP);
++		return munger;
++	}
++	
+ 	public void setPerClause(PerClause perClause) {
+ 		if (this.shouldConcretizeIfNeeded) {
+ 			this.perClause = perClause.concretize(inAspect);
+@@ -44,7 +44,7 @@ import org.aspectj.weaver.UnresolvedType;
+ import org.aspectj.weaver.World;
+ import org.aspectj.weaver.bcel.BcelGenericSignatureToTypeXConverter.GenericSignatureFormatException;
+ 
+-final class BcelMethod extends ResolvedMemberImpl {
++public final class BcelMethod extends ResolvedMemberImpl {
+ 
+ 	private Method method;
+ 	private boolean isAjSynthetic;
+@@ -423,4 +423,21 @@ final class BcelMethod extends ResolvedMemberImpl {
+ 		}
+ 	}
+ 
++	/**
++	 * Returns whether or not the given object is equivalent to the
++	 * current one. Returns true if getMethod().getCode().getCodeString()
++	 * are equal. Allows for different line number tables.
++	 */
++	// bug 154054: is similar to equals(Object) however
++	// doesn't require implementing equals in Method and Code
++	// which proved expensive. Currently used within 
++	// CrosscuttingMembers.replaceWith() to decide if we need
++	// to do a full build
++	public boolean isEquivalentTo(Object other) {	
++		if(! (other instanceof BcelMethod)) return false;
++		BcelMethod o = (BcelMethod)other;
++		return getMethod().getCode().getCodeString().equals(
++				o.getMethod().getCode().getCodeString());
++	}
++
+ }
+@@ -0,0 +1,4 @@
++public aspect A {
++	before(): execution(* *(..)) { System.out.println("abc");}
++	void around(): execution(* *(..)) { proceed();}
++}
+@@ -0,0 +1,6 @@
++public class C {
++
++	public void foo() {
++	}
++
++}
+@@ -0,0 +1,4 @@
++public aspect A {
++	before(): execution(* *(..)) { System.out.println("def");}
++	void around(): execution(* *(..)) { proceed();}
++}
+@@ -0,0 +1,11 @@
++public aspect A {
++  before(): execution(* *(..)) { System.out.println("abc");}
++  void around(): execution(* *(..)) { proceed();}
++
++  void around(): execution(* *(..)) {
++    try {
++      proceed();
++    } catch (Exception e) {
++    }
++  }
++}
+\ No newline at end of file
+@@ -0,0 +1,6 @@
++public class C {
++
++	public void foo() {
++	}
++
++}
+@@ -0,0 +1,11 @@
++public aspect A {
++  before(): execution(* *(..)) { System.out.println("abc");}
++  void around(): execution(* *(..)) { proceed();}
++
++  void around(): execution(* *(..)) {
++    try {
++      proceed();
++    } catch (Throwable e) {
++    }
++  }
++}

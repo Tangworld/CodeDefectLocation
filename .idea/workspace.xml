@@ -2,7 +2,9 @@
 <project version="4">
   <component name="ChangeListManager">
     <list default="true" id="33cfeda7-3181-4d5e-a7ff-12787469554c" name="Default" comment="">
+      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/getdata/Aspectj/CrawlerForBugs.py" afterPath="$PROJECT_DIR$/getdata/Aspectj/CrawlerForBugs.py" />
       <change type="MODIFICATION" beforePath="$PROJECT_DIR$/getdata/Aspectj/CrawlerForGit.py" afterPath="$PROJECT_DIR$/getdata/Aspectj/CrawlerForGit.py" />
+      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/getdata/Aspectj/SourceFile/278496.txt" afterPath="$PROJECT_DIR$/getdata/Aspectj/SourceFile/278496.txt" />
     </list>
     <ignored path="CodeDefectLocation.iws" />
     <ignored path=".idea/workspace.xml" />
@@ -15,7 +17,8 @@
     <option name="LAST_RESOLUTION" value="IGNORE" />
   </component>
   <component name="CoverageDataManager">
-    <SUITE FILE_PATH="coverage/CodeDefectLocation$CrawlerForGit.coverage" NAME="CrawlerForGit Coverage Results" MODIFIED="1477044940436" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/getdata/Aspectj" />
+    <SUITE FILE_PATH="coverage/CodeDefectLocation$UpdateData.coverage" NAME="UpdateData Coverage Results" MODIFIED="1477128209430" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/getdata/Aspectj" />
+    <SUITE FILE_PATH="coverage/CodeDefectLocation$CrawlerForGit.coverage" NAME="CrawlerForGit Coverage Results" MODIFIED="1477119361808" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/getdata/Aspectj" />
   </component>
   <component name="CreatePatchCommitExecutor">
     <option name="PATCH_PATH" value="" />
@@ -42,25 +45,44 @@
       <file leaf-file-name="CrawlerForBugs.py" pinned="false" current-in-tab="false">
         <entry file="file://$PROJECT_DIR$/getdata/Aspectj/CrawlerForBugs.py">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="180">
-              <caret line="37" column="56" selection-start-line="37" selection-start-column="40" selection-end-line="37" selection-end-column="56" />
+            <state relative-caret-position="90">
+              <caret line="5" column="0" selection-start-line="5" selection-start-column="0" selection-end-line="5" selection-end-column="14" />
               <folding>
-                <element signature="e#105#118#0" expanded="true" />
-                <marker date="1477034520772" expanded="true" signature="3762:3863" ph="INSERT INTO aspectj... " />
-                <marker date="1477034520772" expanded="true" signature="3948:4037" ph="INSERT INTO aspectj... " />
+                <marker date="1477114576583" expanded="true" signature="3788:3889" ph="INSERT INTO aspectj... " />
+                <marker date="1477114576583" expanded="true" signature="3974:4063" ph="INSERT INTO aspectj... " />
               </folding>
             </state>
           </provider>
         </entry>
       </file>
-      <file leaf-file-name="CrawlerForGit.py" pinned="false" current-in-tab="true">
+      <file leaf-file-name="CrawlerForGit.py" pinned="false" current-in-tab="false">
         <entry file="file://$PROJECT_DIR$/getdata/Aspectj/CrawlerForGit.py">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="288">
-              <caret line="16" column="18" selection-start-line="16" selection-start-column="18" selection-end-line="16" selection-end-column="18" />
+            <state relative-caret-position="-322">
+              <caret line="0" column="0" selection-start-line="0" selection-start-column="0" selection-end-line="2" selection-end-column="16" />
               <folding>
                 <element signature="e#105#118#0" expanded="true" />
-                <marker date="1477044940400" expanded="true" signature="1118:1189" ph="INSERT INTO assist... " />
+                <marker date="1477119361751" expanded="true" signature="1132:1203" ph="INSERT INTO assist... " />
+              </folding>
+            </state>
+          </provider>
+        </entry>
+      </file>
+      <file leaf-file-name="UpdateData.py" pinned="false" current-in-tab="true">
+        <entry file="file://$PROJECT_DIR$/getdata/Aspectj/UpdateData.py">
+          <provider selected="true" editor-type-id="text-editor">
+            <state relative-caret-position="468">
+              <caret line="26" column="25" selection-start-line="26" selection-start-column="25" selection-end-line="26" selection-end-column="25" />
+              <folding>
+                <marker date="1477128273271" expanded="true" signature="256:277" ph="select * fro... aspectj" />
+                <marker date="1477128273271" expanded="true" signature="358:378" ph="select * fro... assist" />
+                <marker date="1477128273271" expanded="true" signature="746:776" ph="update assis... " />
+                <marker date="1477128273271" expanded="true" signature="746:800" ph="update assis... " />
+                <marker date="1477128273271" expanded="true" signature="746:801" ph="update assis... " />
+                <marker date="1477128273271" expanded="true" signature="746:818" ph="update assis... " />
+                <marker date="1477128273271" expanded="true" signature="746:819" ph="update assis... " />
+                <marker date="1477128273271" expanded="true" signature="746:827" ph="update assis... " />
+                <marker date="1477128273271" expanded="true" signature="746:829" ph="update assis... " />
               </folding>
             </state>
           </provider>
@@ -91,9 +113,10 @@
   <component name="IdeDocumentHistory">
     <option name="CHANGED_PATHS">
       <list>
-        <option value="$PROJECT_DIR$/getdata/Aspectj/CrawlerForBugs.py" />
         <option value="$PROJECT_DIR$/getdata/Aspectj/git.py" />
+        <option value="$PROJECT_DIR$/getdata/Aspectj/CrawlerForBugs.py" />
         <option value="$PROJECT_DIR$/getdata/Aspectj/CrawlerForGit.py" />
+        <option value="$PROJECT_DIR$/getdata/Aspectj/UpdateData.py" />
       </list>
     </option>
   </component>
@@ -201,7 +224,7 @@
       <recent name="$PROJECT_DIR$/getdata/Aspectj" />
     </key>
   </component>
-  <component name="RunManager" selected="Python.CrawlerForGit">
+  <component name="RunManager" selected="Python.UpdateData">
     <configuration default="false" name="CrawlerForGit" type="PythonConfigurationType" factoryName="Python" temporary="true">
       <option name="INTERPRETER_OPTIONS" value="" />
       <option name="PARENT_ENVS" value="true" />
@@ -216,6 +239,24 @@
       <module name="CodeDefectLocation" />
       <EXTENSION ID="PythonCoverageRunConfigurationExtension" enabled="false" sample_coverage="true" runner="coverage.py" />
       <option name="SCRIPT_NAME" value="$PROJECT_DIR$/getdata/Aspectj/CrawlerForGit.py" />
+      <option name="PARAMETERS" value="" />
+      <option name="SHOW_COMMAND_LINE" value="false" />
+      <method />
+    </configuration>
+    <configuration default="false" name="UpdateData" type="PythonConfigurationType" factoryName="Python" temporary="true">
+      <option name="INTERPRETER_OPTIONS" value="" />
+      <option name="PARENT_ENVS" value="true" />
+      <envs>
+        <env name="PYTHONUNBUFFERED" value="1" />
+      </envs>
+      <option name="SDK_HOME" value="" />
+      <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$/getdata/Aspectj" />
+      <option name="IS_MODULE_SDK" value="true" />
+      <option name="ADD_CONTENT_ROOTS" value="true" />
+      <option name="ADD_SOURCE_ROOTS" value="true" />
+      <module name="CodeDefectLocation" />
+      <EXTENSION ID="PythonCoverageRunConfigurationExtension" enabled="false" sample_coverage="true" runner="coverage.py" />
+      <option name="SCRIPT_NAME" value="$PROJECT_DIR$/getdata/Aspectj/UpdateData.py" />
       <option name="PARAMETERS" value="" />
       <option name="SHOW_COMMAND_LINE" value="false" />
       <method />
@@ -422,12 +463,14 @@
       <option name="USE_KEYWORD" value="false" />
       <method />
     </configuration>
-    <list size="1">
+    <list size="2">
       <item index="0" class="java.lang.String" itemvalue="Python.CrawlerForGit" />
+      <item index="1" class="java.lang.String" itemvalue="Python.UpdateData" />
     </list>
     <recent_temporary>
-      <list size="1">
-        <item index="0" class="java.lang.String" itemvalue="Python.CrawlerForGit" />
+      <list size="2">
+        <item index="0" class="java.lang.String" itemvalue="Python.UpdateData" />
+        <item index="1" class="java.lang.String" itemvalue="Python.CrawlerForGit" />
       </list>
     </recent_temporary>
   </component>
@@ -446,7 +489,7 @@
   </component>
   <component name="ToolWindowManager">
     <frame x="62" y="-9" width="1307" height="783" extended-state="6" />
-    <editor active="false" />
+    <editor active="true" />
     <layout>
       <window_info id="Project" active="false" anchor="left" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="true" show_stripe_button="true" weight="0.24980783" sideWeight="0.5" order="0" side_tool="false" content_ui="combo" />
       <window_info id="TODO" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.33" sideWeight="0.5" order="6" side_tool="false" content_ui="tabs" />
@@ -454,7 +497,7 @@
       <window_info id="Database" active="false" anchor="right" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.33" sideWeight="0.5" order="-1" side_tool="false" content_ui="tabs" />
       <window_info id="Version Control" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.33" sideWeight="0.5" order="-1" side_tool="false" content_ui="tabs" />
       <window_info id="Python Console" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.33" sideWeight="0.5" order="-1" side_tool="false" content_ui="tabs" />
-      <window_info id="Run" active="true" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="true" show_stripe_button="true" weight="1.0" sideWeight="0.5" order="2" side_tool="false" content_ui="tabs" />
+      <window_info id="Run" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="true" show_stripe_button="true" weight="0.32880846" sideWeight="0.5" order="2" side_tool="false" content_ui="tabs" />
       <window_info id="Structure" active="false" anchor="left" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.25" sideWeight="0.5" order="1" side_tool="false" content_ui="tabs" />
       <window_info id="Terminal" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.33" sideWeight="0.5" order="-1" side_tool="false" content_ui="tabs" />
       <window_info id="Favorites" active="false" anchor="left" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.33" sideWeight="0.5" order="-1" side_tool="true" content_ui="tabs" />
@@ -511,6 +554,14 @@
         </state>
       </provider>
     </entry>
+    <entry file="file://$PROJECT_DIR$/getdata/Aspectj/SourceFile/493554.txt">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="3">
+          <caret line="12" column="6" selection-start-line="12" selection-start-column="6" selection-end-line="12" selection-end-column="6" />
+          <folding />
+        </state>
+      </provider>
+    </entry>
     <entry file="file://$PROJECT_DIR$/getdata/Aspectj/git.py">
       <provider selected="true" editor-type-id="text-editor">
         <state relative-caret-position="234">
@@ -521,31 +572,40 @@
     </entry>
     <entry file="file://$PROJECT_DIR$/getdata/Aspectj/CrawlerForBugs.py">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="180">
-          <caret line="37" column="56" selection-start-line="37" selection-start-column="40" selection-end-line="37" selection-end-column="56" />
+        <state relative-caret-position="90">
+          <caret line="5" column="0" selection-start-line="5" selection-start-column="0" selection-end-line="5" selection-end-column="14" />
           <folding>
-            <element signature="e#105#118#0" expanded="true" />
-            <marker date="1477034520772" expanded="true" signature="3762:3863" ph="INSERT INTO aspectj... " />
-            <marker date="1477034520772" expanded="true" signature="3948:4037" ph="INSERT INTO aspectj... " />
+            <marker date="1477114576583" expanded="true" signature="3788:3889" ph="INSERT INTO aspectj... " />
+            <marker date="1477114576583" expanded="true" signature="3974:4063" ph="INSERT INTO aspectj... " />
           </folding>
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://$PROJECT_DIR$/getdata/Aspectj/SourceFile/493554.txt">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="3">
-          <caret line="12" column="6" selection-start-line="12" selection-start-column="6" selection-end-line="12" selection-end-column="6" />
-          <folding />
         </state>
       </provider>
     </entry>
     <entry file="file://$PROJECT_DIR$/getdata/Aspectj/CrawlerForGit.py">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="288">
-          <caret line="16" column="18" selection-start-line="16" selection-start-column="18" selection-end-line="16" selection-end-column="18" />
+        <state relative-caret-position="-322">
+          <caret line="0" column="0" selection-start-line="0" selection-start-column="0" selection-end-line="2" selection-end-column="16" />
           <folding>
             <element signature="e#105#118#0" expanded="true" />
-            <marker date="1477044940400" expanded="true" signature="1118:1189" ph="INSERT INTO assist... " />
+            <marker date="1477119361751" expanded="true" signature="1132:1203" ph="INSERT INTO assist... " />
+          </folding>
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/getdata/Aspectj/UpdateData.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="468">
+          <caret line="26" column="25" selection-start-line="26" selection-start-column="25" selection-end-line="26" selection-end-column="25" />
+          <folding>
+            <marker date="1477128273271" expanded="true" signature="256:277" ph="select * fro... aspectj" />
+            <marker date="1477128273271" expanded="true" signature="358:378" ph="select * fro... assist" />
+            <marker date="1477128273271" expanded="true" signature="746:776" ph="update assis... " />
+            <marker date="1477128273271" expanded="true" signature="746:800" ph="update assis... " />
+            <marker date="1477128273271" expanded="true" signature="746:801" ph="update assis... " />
+            <marker date="1477128273271" expanded="true" signature="746:818" ph="update assis... " />
+            <marker date="1477128273271" expanded="true" signature="746:819" ph="update assis... " />
+            <marker date="1477128273271" expanded="true" signature="746:827" ph="update assis... " />
+            <marker date="1477128273271" expanded="true" signature="746:829" ph="update assis... " />
           </folding>
         </state>
       </provider>

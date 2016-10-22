@@ -1,0 +1,168 @@
+@@ -0,0 +1,27 @@
++
++
++interface SecurityEntity {}
++class Goo {}
++interface Base {}
++interface Hoo<X> { public void m(X x);}
++
++class Foo<B extends Base, C extends B> extends Goo implements Hoo<B> {
++
++  public void m(B b) {
++  }
++}
++
++
++interface Interface1 extends Base {}
++
++class Impl1 implements Interface1 {}
++
++
++
++
++public class Blurgh {
++  public static void main(String []argv) {
++    new Foo<Interface1,Impl1>();
++   }
++}
++
+@@ -0,0 +1,4 @@
++aspect X {
++  before(): staticinitialization(Fo*) { }
++  before(): call(Fo*.new(..)) { }
++}
+@@ -0,0 +1,5 @@
++<aspectj>
++    <aspects>
++         <aspect name="X"/> 
++    </aspects>
++</aspectj>
+@@ -33,8 +33,9 @@ public class Ajc153Tests extends org.aspectj.testing.XMLBasedAjcTestCase {
+   public void testVerifyErrNoTypeCflowField_pr145693_1()       { runTest("verifyErrNoTypeCflowField"); }
+   public void testVerifyErrInpathNoTypeCflowField_pr145693_2() { runTest("verifyErrInpathNoTypeCflowField"); }
+   public void testCpathNoTypeCflowField_pr145693_3()           { runTest("cpathNoTypeCflowField"); }
+-  //public void testVisibilityProblem_pr149071()                 { runTest("visibility problem");}
+-  //public void testAdviceNotWovenAspectPath_pr147841() { runTest("advice not woven on aspectpath");}
++  // public void testVisibilityProblem_pr149071()                 { runTest("visibility problem");}
++  // public void testAdviceNotWovenAspectPath_pr147841()          { runTest("advice not woven on aspectpath");}
++  public void testGenericSignatures_pr148409()                 { runTest("generic signature problem"); }
+ 
+   /////////////////////////////////////////
+   public static Test suite() {
+@@ -75,6 +75,12 @@
+       <run class="Sample" classpath="run.jar,apath.jar"/>
+     </ajc-test>    
+ 
++     <ajc-test dir="bugs153/pr148409" title="generic signature problem">
++      <compile files="Blurgh.java" options="-1.5"/>
++      <compile files="X.java" options="-1.5 -Xlint:ignore"/>
++      <run class="Blurgh" options="-1.5" ltw="aop.xml"/>
++    </ajc-test>    
++    
+     <ajc-test dir="bugs153/pr149071" title="visibility problem">
+       <compile files="AspectItd.java"/>
+     </ajc-test>    
+@@ -346,8 +346,17 @@ public class UnresolvedType implements TypeVariableDeclaringElement {
+     	ret.typeVariables = new TypeVariable[ftps.length];
+     	for (int i = 0; i < ftps.length; i++) {
+ 			Signature.FormalTypeParameter parameter = ftps[i];
+-			Signature.ClassTypeSignature cts = (Signature.ClassTypeSignature)parameter.classBound;
+-			ret.typeVariables[i]=new TypeVariable(ftps[i].identifier,UnresolvedType.forSignature(cts.outerType.identifier+";"));
++			if (parameter.classBound instanceof Signature.ClassTypeSignature) {
++				Signature.ClassTypeSignature cts = (Signature.ClassTypeSignature)parameter.classBound;
++				ret.typeVariables[i]=new TypeVariable(ftps[i].identifier,UnresolvedType.forSignature(cts.outerType.identifier+";"));
++			} else if (parameter.classBound instanceof Signature.TypeVariableSignature) {
++				Signature.TypeVariableSignature tvs = (Signature.TypeVariableSignature)parameter.classBound;
++				UnresolvedTypeVariableReferenceType utvrt = new UnresolvedTypeVariableReferenceType(new TypeVariable(tvs.typeVariableName));
++				ret.typeVariables[i]=new TypeVariable(ftps[i].identifier,utvrt);
++			} else {
++			  throw new BCException("UnresolvedType.forGenericTypeSignature(): Do not know how to process type variable bound of type '"+
++					  parameter.classBound.getClass()+"'.  Full signature is '"+sig+"'");
++			}
+ 		}
+     	ret.signatureErasure = sig;
+     	ret.signature = ret.signatureErasure;
+@@ -0,0 +1,27 @@
++
++
++interface SecurityEntity {}
++class Goo {}
++interface Base {}
++interface Hoo<X> { public void m(X x);}
++
++class Foo<B extends Base, C extends B> extends Goo implements Hoo<B> {
++
++  public void m(B b) {
++  }
++}
++
++
++interface Interface1 extends Base {}
++
++class Impl1 implements Interface1 {}
++
++
++
++
++public class Blurgh {
++  public static void main(String []argv) {
++    new Foo<Interface1,Impl1>();
++   }
++}
++
+@@ -0,0 +1,4 @@
++aspect X {
++  before(): staticinitialization(Fo*) { }
++  before(): call(Fo*.new(..)) { }
++}
+@@ -0,0 +1,5 @@
++<aspectj>
++    <aspects>
++         <aspect name="X"/> 
++    </aspects>
++</aspectj>
+@@ -33,8 +33,9 @@ public class Ajc153Tests extends org.aspectj.testing.XMLBasedAjcTestCase {
+   public void testVerifyErrNoTypeCflowField_pr145693_1()       { runTest("verifyErrNoTypeCflowField"); }
+   public void testVerifyErrInpathNoTypeCflowField_pr145693_2() { runTest("verifyErrInpathNoTypeCflowField"); }
+   public void testCpathNoTypeCflowField_pr145693_3()           { runTest("cpathNoTypeCflowField"); }
+-  //public void testVisibilityProblem_pr149071()                 { runTest("visibility problem");}
+-  //public void testAdviceNotWovenAspectPath_pr147841() { runTest("advice not woven on aspectpath");}
++  // public void testVisibilityProblem_pr149071()                 { runTest("visibility problem");}
++  // public void testAdviceNotWovenAspectPath_pr147841()          { runTest("advice not woven on aspectpath");}
++  public void testGenericSignatures_pr148409()                 { runTest("generic signature problem"); }
+ 
+   /////////////////////////////////////////
+   public static Test suite() {
+@@ -75,6 +75,12 @@
+       <run class="Sample" classpath="run.jar,apath.jar"/>
+     </ajc-test>    
+ 
++     <ajc-test dir="bugs153/pr148409" title="generic signature problem">
++      <compile files="Blurgh.java" options="-1.5"/>
++      <compile files="X.java" options="-1.5 -Xlint:ignore"/>
++      <run class="Blurgh" options="-1.5" ltw="aop.xml"/>
++    </ajc-test>    
++    
+     <ajc-test dir="bugs153/pr149071" title="visibility problem">
+       <compile files="AspectItd.java"/>
+     </ajc-test>    
+@@ -346,8 +346,17 @@ public class UnresolvedType implements TypeVariableDeclaringElement {
+     	ret.typeVariables = new TypeVariable[ftps.length];
+     	for (int i = 0; i < ftps.length; i++) {
+ 			Signature.FormalTypeParameter parameter = ftps[i];
+-			Signature.ClassTypeSignature cts = (Signature.ClassTypeSignature)parameter.classBound;
+-			ret.typeVariables[i]=new TypeVariable(ftps[i].identifier,UnresolvedType.forSignature(cts.outerType.identifier+";"));
++			if (parameter.classBound instanceof Signature.ClassTypeSignature) {
++				Signature.ClassTypeSignature cts = (Signature.ClassTypeSignature)parameter.classBound;
++				ret.typeVariables[i]=new TypeVariable(ftps[i].identifier,UnresolvedType.forSignature(cts.outerType.identifier+";"));
++			} else if (parameter.classBound instanceof Signature.TypeVariableSignature) {
++				Signature.TypeVariableSignature tvs = (Signature.TypeVariableSignature)parameter.classBound;
++				UnresolvedTypeVariableReferenceType utvrt = new UnresolvedTypeVariableReferenceType(new TypeVariable(tvs.typeVariableName));
++				ret.typeVariables[i]=new TypeVariable(ftps[i].identifier,utvrt);
++			} else {
++			  throw new BCException("UnresolvedType.forGenericTypeSignature(): Do not know how to process type variable bound of type '"+
++					  parameter.classBound.getClass()+"'.  Full signature is '"+sig+"'");
++			}
+ 		}
+     	ret.signatureErasure = sig;
+     	ret.signature = ret.signatureErasure;

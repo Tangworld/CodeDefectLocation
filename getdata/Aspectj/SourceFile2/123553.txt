@@ -1,0 +1,42 @@
+@@ -0,0 +1,19 @@
++
++public class A {
++    static Object s;
++    public static void main(String[] args) {
++        String t = "Hello, World!";
++        t.toString();
++        if (s != t) throw new Error();
++    }
++    static abstract aspect GenericAspect<T> {
++        abstract pointcut checkpoint(T t);
++
++        // advice declaration causes error
++        after(T t): checkpoint(t) { s = t;}
++    }
++    static aspect AAA extends GenericAspect<String>{
++        pointcut checkpoint(String s) : target(s) && 
++            call(String String.toString());
++    }  
++}
+@@ -23,7 +23,8 @@ import org.aspectj.systemtest.ajc150.GenericsTests;
+ import org.aspectj.testing.XMLBasedAjcTestCase;
+ 
+ public class Ajc151Tests extends org.aspectj.testing.XMLBasedAjcTestCase {
+-	  
++    
++  public void testGenericAdviceParameters_pr123553()    { runTest("generic advice parameters");}
+   public void testMemberTypesInGenericTypes_pr122458()    { runTest("member types in generic types");}
+   public void testMemberTypesInGenericTypes_pr122458_2()  { runTest("member types in generic types - 2");}
+   public void testNPEOnDeclareAnnotation_pr123695() { runTest("Internal nullptr exception with complex declare annotation");}
+@@ -3,6 +3,11 @@
+ <!-- AspectJ v1.5.1 Tests -->
+ <suite>
+ 
++    <ajc-test dir="bugs151/pr123553" title="generic advice parameters">
++        <compile files="A.java" options="-1.5"/>
++        <run class="A"/>
++    </ajc-test>  
++    
+     <ajc-test dir="bugs151" title="member types in generic types">
+         <compile files="pr122458.aj" options="-1.5 -emacssym"/>
+     </ajc-test>  

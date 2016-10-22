@@ -1,0 +1,170 @@
+@@ -0,0 +1,43 @@
++package testing;
++
++import java.util.HashMap;
++import java.util.Map;
++
++public abstract aspect AbstractCache<Key,Value> {
++
++	public abstract pointcut cachePoint(Key key);
++
++	private Map<Object,Object> cache = new HashMap<Object,Object>();
++	private Integer hitCount = 0;
++	private Integer missCount = 0;
++	
++	Value around(Key key) : cachePoint(key){
++		Value value = get(key);
++		if(value == null){
++			value = proceed(key);
++			put(key,value);
++			missCount++;
++		} else {
++			hitCount++;
++		}
++		return value;
++	}
++
++	@SuppressWarnings("unchecked")
++	private Value get(Key key){
++		return (Value) cache.get(key);
++	}
++	
++	private void put(Key key, Value value) {
++		cache.put(key, value);
++	}
++
++	public Integer getHitCount() {
++		return hitCount;
++	}
++
++	public Integer getMissCount() {
++		return missCount;
++	}
++	
++}
+@@ -0,0 +1,15 @@
++package testing;
++
++public class Resource {
++
++	private final String id;
++
++	public Resource(String id){
++		this.id = id;
++	}
++
++	public String getId(){
++		return id;
++	}
++}
++
+@@ -0,0 +1,10 @@
++package testing;
++
++public aspect ResourceCache extends AbstractCache<String,Resource> {
++
++	public pointcut cachePoint(String key):
++		args(key) &&
++		execution(public Resource ResourceManager.lookupResource(String));
++
++
++}
+@@ -0,0 +1,8 @@
++package testing;
++
++public class ResourceManager {
++
++	public Resource lookupResource(String resourceId){
++		return new Resource(resourceId);
++	}
++}
+@@ -0,0 +1,24 @@
++package testing;
++
++import java.lang.reflect.Method;
++
++public class TestRunner {
++
++	public static void main(String[] args) {
++		ResourceManager manager = new ResourceManager();
++		ResourceCache cache = ResourceCache.aspectOf();
++		
++		Resource r1_1 = manager.lookupResource("1");
++		Resource r1_2 = manager.lookupResource("1");
++		Resource r1_3 = manager.lookupResource("1");
++		Resource r1_4 = manager.lookupResource("1");
++		Resource r1_5 = manager.lookupResource("1");
++		
++		Resource r2_1 = manager.lookupResource("2");
++		Resource r2_2 = manager.lookupResource("2");
++
++		System.out.println("Cache hits: " + cache.getHitCount());
++		System.out.println("Cache hits: " + cache.getMissCount());
++	}
++
++}
+@@ -18,6 +18,10 @@ import org.aspectj.testing.XMLBasedAjcTestCase;
+ 
+ public class Ajc167Tests extends org.aspectj.testing.XMLBasedAjcTestCase {
+ 
++	public void testGenericAspectSignatures_296533() {
++		runTest("generic aspect signatures");
++	}
++
+ 	public void testOptimizingAnnotationStringValueBinding() {
+ 		runTest("optimizing string anno value binding");
+ 	}
+@@ -29,11 +33,10 @@ public class Ajc167Tests extends org.aspectj.testing.XMLBasedAjcTestCase {
+ 	public void testOptimizingAnnotationBindingPerfTest() {
+ 		runTest("optimizing annotation binding - 2");
+ 	}
+-/*
+-	public void testPerThisLTW_295092() {
+-		runTest("perthis ltw");
+-	}
+-*/
++
++	/*
++	 * public void testPerThisLTW_295092() { runTest("perthis ltw"); }
++	 */
+ 
+ 	public void testNpeOnBrokenCode_296054() {
+ 		runTest("npe on broken code");
+@@ -3,6 +3,16 @@
+ <suite>
+ 
+ 
++  <ajc-test dir="bugs167/pr296533" title="generic aspect signatures">
++     <compile files="testing/AbstractCache.aj testing/Resource.java testing/ResourceCache.aj testing/ResourceManager.java testing/TestRunner.java" options="-1.5"/>
++     <run class="testing.TestRunner">
++       <stdout>
++         <line text="Cache hits: 5"/>
++         <line text="Cache hits: 2"/>
++       </stdout>
++     </run>
++  </ajc-test>
++
+   <ajc-test dir="bugs167/pr296501" title="optimizing string anno value binding">
+      <compile files="StringBinding.java" options="-1.5"/>
+      <run class="StringBinding">
+@@ -209,6 +209,11 @@ public class ReferenceType extends ResolvedType {
+ 	}
+ 
+ 	@Override
++	public String getNameAsIdentifier() {
++		return getRawName().replace('.', '_');
++	}
++
++	@Override
+ 	public AnnotationAJ getAnnotationOfType(UnresolvedType ofType) {
+ 		AnnotationAJ[] axs = delegate.getAnnotations();
+ 		if (axs == null) {
+@@ -635,7 +640,7 @@ public class ReferenceType extends ResolvedType {
+ 		} else if (isRawType()) {
+ 			UnresolvedType[] paramTypes = getTypesForMemberParameterization();
+ 			interfaces = new ResolvedType[delegateInterfaces.length];
+-			for (int i = 0,max=interfaces.length; i < max; i++) {
++			for (int i = 0, max = interfaces.length; i < max; i++) {
+ 				interfaces[i] = delegateInterfaces[i];
+ 				if (interfaces[i].isGenericType()) {
+ 					// a generic supertype of a raw type is replaced by its raw

@@ -1,0 +1,163 @@
+@@ -0,0 +1,52 @@
++import org.aspectj.lang.JoinPoint;
++import org.aspectj.lang.annotation.AfterReturning;
++import org.aspectj.lang.annotation.Aspect;
++
++@Aspect
++public class AfterReturningTest {
++
++	public static void main(String[] args) {
++		new B1().start();
++	}
++	
++	// include "JoinPoint" in the argument list
++	@AfterReturning(pointcut = "execution(public B1 B1.start())", returning = "r")
++	public void afterJP(JoinPoint jp, B1 r) {
++		r.stop();
++	}
++	
++	// include "JoinPoint.StaticPart" in the argument list
++	@AfterReturning(pointcut = "execution(public B1 B1.start())", returning = "r")
++	public void afterJPSP(JoinPoint.StaticPart jp, B1 r) {
++		r.stop();
++	}
++	
++	// include "JoinPoint.EnclosingStaticPart" in the argument list
++	@AfterReturning(pointcut = "execution(public B1 B1.start())", returning = "r")
++	public void afterJPESP(JoinPoint.EnclosingStaticPart jp, B1 r) {
++		r.stop();
++	}
++	
++	// include "JoinPoint and JoinPoint.EnclosingStaticPart" in the argument list
++	@AfterReturning(pointcut = "execution(public B1 B1.start())", returning = "r")
++	public void afterJPESP2(JoinPoint jp1, JoinPoint.EnclosingStaticPart jp, B1 r) {
++		r.stop();
++	}
++	
++	// make sure it still works if "JoinPoint" is second in the argument list
++	@AfterReturning(pointcut = "execution(public B1 B1.start())", returning = "r")
++	public void afterJP2(B1 r, JoinPoint jp) {
++		r.stop();
++	}
++}
++
++class B1 {
++	
++	public B1 start() {
++		return new B1();
++	}
++	
++	public void stop() {
++	}
++	
++}
+@@ -0,0 +1,50 @@
++import org.aspectj.lang.JoinPoint;
++import org.aspectj.lang.annotation.AfterThrowing;
++import org.aspectj.lang.annotation.Aspect;
++
++@Aspect
++public class AfterThrowingTest {
++
++	public static void main(String[] args) {
++		try {
++			new B().start();
++		} catch (Exception e) {
++			e.printStackTrace();
++		}
++	}
++	
++	// include "JoinPoint" in the argument list
++	@AfterThrowing(pointcut = "execution(public void B.start())", throwing = "ex")
++	public void handleExceptionJP(JoinPoint jp, Exception ex) {	
++	}
++
++	// include "JoinPoint.StaticPart" in the argument list
++	@AfterThrowing(pointcut = "execution(public void B.start())", throwing = "ex")
++	public void handleExceptionJPSP(JoinPoint.StaticPart jp, Exception ex) {	
++	}
++	
++	// include "JoinPoint.EnclosingStaticPart" in the argument list
++	@AfterThrowing(pointcut = "execution(public void B.start())", throwing = "ex")
++	public void handleExceptionJPESP(JoinPoint.EnclosingStaticPart jp, Exception ex) {	
++	}
++	
++	// include "JoinPoint" and "JoinPoint.EnclosingStaticPart" in the argument list
++	@AfterThrowing(pointcut = "execution(public void B.start())", throwing = "ex")
++	public void handleExceptionJPESP(JoinPoint jp1, JoinPoint.EnclosingStaticPart jp, Exception ex) {	
++	}
++	
++	// make sure it still works if "JoinPoint" is second on the argument list
++	@AfterThrowing(pointcut = "execution(public void B.start())", throwing = "ex")
++	public void handleExceptionJP2(JoinPoint jp, Exception ex) {	
++	}
++}
++
++class B implements I {
++	public void start() throws Exception {
++		throw new IllegalArgumentException();
++	}	
++}
++
++interface I {
++	public void start() throws Exception;
++}
+@@ -87,6 +87,14 @@ public class Ajc151Tests extends org.aspectj.testing.XMLBasedAjcTestCase {
+ 	  runTest("swallowed exceptions");
+   }
+ 
++  public void testAtAspectVerifyErrorWithAfterThrowingAndthisJoinPoint_pr122742() {
++	  runTest("@AJ VerifyError with @AfterThrowing and thisJoinPoint argument");
++  }
++  
++  public void testAtAspectVerifyErrorWithAfterReturningAndthisJoinPoint_pr122742() {
++	  runTest("@AJ VerifyError with @AfterReturning and thisJoinPoint argument");
++  }
++  
+   public void testSwallowedExceptionIgnored() {
+ 	  runTest("swallowed exceptions with xlint");
+   }
+@@ -14,8 +14,20 @@
+ 
+     <ajc-test dir="bugs151/pr127299" title="missing import gives funny message">
+         <compile files="ModelErrorConversion.aj" options="-1.5"/>
+-    </ajc-test>  
+-    
++    </ajc-test>
++      
++    <ajc-test dir="bugs151/pr122742" title="@AJ VerifyError with @AfterThrowing and thisJoinPoint argument">
++    	<compile files="AfterThrowingTest.java" options="-1.5"/>
++    	<run class="AfterThrowingTest">
++    	</run>
++    </ajc-test>
++
++    <ajc-test dir="bugs151/pr122742" title="@AJ VerifyError with @AfterReturning and thisJoinPoint argument">
++    	<compile files="AfterReturningTest.java" options="-1.5"/>
++    	<run class="AfterReturningTest">
++    	</run>
++    </ajc-test>
++   
+     <ajc-test dir="bugs151/pr120527" title="incorrect unused interface message">
+         <compile files="Bugs.aj" options="-warn:unusedPrivate"/>
+     </ajc-test>  
+@@ -285,6 +285,20 @@ public abstract class Advice extends ShadowMunger {
+ 	public UnresolvedType getExtraParameterType() {
+ 		if (!hasExtraParameter()) return ResolvedType.MISSING;
+ 		if (signature instanceof ResolvedMember) {
++			if (getConcreteAspect().isAnnotationStyleAspect()) {
++				// bug 122742 - if we're an annotation style aspect then one 
++				// of the extra parameters could be JoinPoint which we want
++				// to ignore
++				int baseParmCnt = getBaseParameterCount();
++				UnresolvedType[] genericParameterTypes = ((ResolvedMember)signature).getGenericParameterTypes();
++				while ((baseParmCnt + 1 < genericParameterTypes.length)
++						&& (genericParameterTypes[baseParmCnt].equals(AjcMemberMaker.TYPEX_JOINPOINT)
++								|| genericParameterTypes[baseParmCnt].equals(AjcMemberMaker.TYPEX_STATICJOINPOINT)
++								|| genericParameterTypes[baseParmCnt].equals(AjcMemberMaker.TYPEX_ENCLOSINGSTATICJOINPOINT))) {
++					baseParmCnt++;
++				}
++				return ((ResolvedMember)signature).getGenericParameterTypes()[baseParmCnt];
++			}
+ 			return ((ResolvedMember)signature).getGenericParameterTypes()[getBaseParameterCount()];
+ 		} else {
+ 			return signature.getParameterTypes()[getBaseParameterCount()];

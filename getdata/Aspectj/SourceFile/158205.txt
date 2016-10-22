@@ -1,0 +1,657 @@
+@@ -29,11 +29,19 @@ public class DefaultMessageHandler implements IMessageHandler {
+         if (isIgnoring(message.getKind())) {
+     		return false;
+     	} else {
+-            if (message.getKind().isSameOrLessThan(IMessage.INFO)) {
+-                return SYSTEM_OUT.handleMessage(message);
+-            } else {
+-                return SYSTEM_ERR.handleMessage(message);
+-            }
++    		/*
++    		 * TODO maw We ship this class but don't use or document it. Changed
++    		 * to use stderr instead of stdout to allow improvements to LTW tests.
++    		 * Currently many pass whether or not LTW occurs because they are
++    		 * already woven. Some changed to check for appropriate weaving messages
++    		 * as well as absence of warnings or errors. 
++    		 */
++    		return SYSTEM_ERR.handleMessage(message);
++//            if (message.getKind().isSameOrLessThan(IMessage.INFO)) {
++//                return SYSTEM_OUT.handleMessage(message);
++//            } else {
++//                return SYSTEM_ERR.handleMessage(message);
++//            }
+         }
+     }
+ 
+@@ -1,6 +1,6 @@
+ <?xml version="1.0"?>
+ <aspectj>
+-    <weaver options="-XmessageHandlerClass:ataspectj.TestHelper -1.5 -Xlint:ignore"/>
++    <weaver options="-XmessageHandlerClass:ataspectj.TestHelper -1.5 -Xlint:ignore -showWeaveInfo"/>
+     <aspects>
+         <aspect name="ataspectj.DeclareParentsImplementsTest.TestAspect"/>
+         <aspect name="ataspectj.DeclareParentsInterfaceTest.TestAspect"/>
+@@ -245,7 +245,15 @@
+                 options="-1.5"
+                 />
+         <!--<run class="ataspectj.DeclareParentsInterfaceTest" ltw="ataspectj/aop-decptest.xml"/>-->
+-        <ant file="ajc-ant.xml" target="ltw.Decp" verbose="true"/>
++        <ant file="ajc-ant.xml" target="ltw.Decp" verbose="true">
++        	<stderr>
++                <line text="weaveinfo Extending interface set for type 'ataspectj.DeclareParentsInterfaceTest$Target' (DeclareParentsInterfaceTest.java) to include 'ataspectj.DeclareParentsInterfaceTest$Marker' (DeclareParentsInterfaceTest.java)"/>
++                <line text="weaveinfo Join point 'method-execution(void ataspectj.DeclareParentsInterfaceTest$Target.target())' in Type 'ataspectj.DeclareParentsInterfaceTest$Target' (DeclareParentsInterfaceTest.java:27) advised by before advice from 'ataspectj.DeclareParentsInterfaceTest$TestAspect' (DeclareParentsInterfaceTest.java)"/>
++                <line text="weaveinfo Extending interface set for type 'ataspectj.DeclareParentsImplementsTest$Target' (DeclareParentsImplementsTest.java) to include 'ataspectj.DeclareParentsImplementsTest$Introduced' (DeclareParentsImplementsTest.java)"/>
++                <line text="weaveinfo Type 'ataspectj.DeclareParentsImplementsTest$Target' (DeclareParentsImplementsTest.java) has intertyped method from 'ataspectj.DeclareParentsImplementsTest$TestAspect' (DeclareParentsImplementsTest.java:'void ataspectj.DeclareParentsImplementsTest$Introduced.intro()')"/>
++                <line text="weaveinfo Join point 'method-execution(void ataspectj.DeclareParentsImplementsTest$Implementation.intro())' in Type 'ataspectj.DeclareParentsImplementsTest$Implementation' (DeclareParentsImplementsTest.java:47) advised by before advice from 'ataspectj.DeclareParentsImplementsTest$TestAspect' (DeclareParentsImplementsTest.java)"/>
++            </stderr>
++        </ant>
+     </ajc-test>
+ 
+     <ajc-test dir="java5/ataspectj" title="LTW Decp2">
+@@ -29,28 +29,31 @@
+     </target>
+ 
+     <target name="ltw.PerClauseTest">
++        <copy file="ataspectj/aop-perclausetest.xml"
++              tofile="${aj.sandbox}/META-INF/aop.xml"/>
+         <java fork="yes" classname="ataspectj.PerClauseTest" failonerror="yes">
+             <classpath refid="aj.path"/>
+             <jvmarg value="-javaagent:${aj.root}/lib/test/loadtime5.jar"/>
+-            <jvmarg value="-Daj5.def=ataspectj/aop-perclausetest.xml"/>
+ <!--            <jvmarg line="${jdwp}"/>            -->
+         </java>
+     </target>
+ 
+     <target name="ltw.AroundInlineMungerTest">
++        <copy file="${aj.root}/tests/java5/ataspectj/ataspectj/aop-aroundinlinemungertest.xml"
++              tofile="${aj.sandbox}/META-INF/aop.xml"/>
+         <java fork="yes" classname="ataspectj.AroundInlineMungerTest" failonerror="yes">
+             <classpath refid="aj.path"/>
+             <jvmarg value="-javaagent:${aj.root}/lib/test/loadtime5.jar"/>
+-            <jvmarg value="-Daj5.def=ataspectj/aop-aroundinlinemungertest.xml"/>
+             <!--<jvmarg line="${jdwp}"/>--><!-- uncomment to debug with JDWP -->
+         </java>
+     </target>
+ 
+     <target name="ltw.AroundInlineMungerTest2">
++        <copy file="${aj.root}/tests/java5/ataspectj/ataspectj/aop-aroundinlinemungertest2.xml"
++              tofile="${aj.sandbox}/META-INF/aop.xml"/>
+         <java fork="yes" classname="ataspectj.AroundInlineMungerTest2" failonerror="yes">
+             <classpath refid="aj.path"/>
+             <jvmarg value="-javaagent:${aj.root}/lib/test/loadtime5.jar"/>
+-            <jvmarg value="-Daj5.def=ataspectj/aop-aroundinlinemungertest2.xml"/>
+         </java>
+     </target>
+ 
+@@ -58,15 +61,15 @@
+         <java fork="yes" classname="ataspectj.DumpTest" failonerror="yes">
+             <classpath refid="aj.path"/>
+             <jvmarg value="-javaagent:${aj.root}/lib/test/loadtime5.jar"/>
+-            <jvmarg value="-Daj5.def=ataspectj/aop-dump.xml"/>
+         </java>
+     </target>
+ 
+     <target name="ltw.DumpProxyTest">
++        <copy file="ataspectj/aop-dumpproxy.xml"
++              tofile="${aj.sandbox}/META-INF/aop.xml"/>
+         <java fork="yes" classname="ataspectj.TestProxyGenerator" failonerror="yes">
+             <classpath refid="aj.path"/>
+             <jvmarg value="-javaagent:${aj.root}/lib/test/loadtime5.jar"/>
+-            <jvmarg value="-Daj5.def=ataspectj/aop-dumpproxy.xml"/>
+         </java>
+     </target>
+ 
+@@ -78,13 +81,14 @@
+             debug="true">
+         </javac>
+         <delete dir="${aj.sandbox}" includes="**/Aspect1.class, **/Main.class"/>
++        <copy file="ataspectj/ltwreweavable/aop-ltwreweavable.xml"
++              tofile="${aj.sandbox}/META-INF/aop.xml"/>
+         <java fork="yes" classname="ataspectj.ltwreweavable.Main" failonerror="yes">
+             <classpath refid="aj.path"/>
+             <classpath>
+                 <pathelement path="${aj.sandbox}/main1.jar"/>
+             </classpath>
+             <jvmarg value="-javaagent:${aj.root}/lib/test/loadtime5.jar"/>
+-            <jvmarg value="-Daj5.def=ataspectj/ltwreweavable/aop-ltwreweavable.xml"/>
+         </java>
+     </target>
+ 
+@@ -94,20 +98,29 @@
+             includes="ataspectj/ltwlog/*"
+             debug="true">
+         </javac>
++        <copy file="ataspectj/ltwlog/aop-silent.xml"
++              tofile="${aj.sandbox}/META-INF/aop.xml"
++        	  overwrite="yes"	
++        />
+         <java fork="yes" classname="ataspectj.ltwlog.MainSilent" failonerror="yes">
+             <classpath refid="aj.path"/>
+             <jvmarg value="-javaagent:${aj.root}/lib/test/loadtime5.jar"/>
+-            <jvmarg value="-Daj5.def=ataspectj/ltwlog/aop-silent.xml"/>
+         </java>
++        <copy file="ataspectj/ltwlog/aop-verbsoe.xml"
++              tofile="${aj.sandbox}/META-INF/aop.xml"
++        	  overwrite="yes"	
++        />
+         <java fork="yes" classname="ataspectj.ltwlog.MainVerbose" failonerror="yes">
+             <classpath refid="aj.path"/>
+             <jvmarg value="-javaagent:${aj.root}/lib/test/loadtime5.jar"/>
+-            <jvmarg value="-Daj5.def=ataspectj/ltwlog/aop-verbose.xml"/>
+         </java>
++        <copy file="ataspectj/ltwlog/aop-verboseandshow.xml"
++              tofile="${aj.sandbox}/META-INF/aop.xml"
++		  	  overwrite="yes"	
++		/>
+         <java fork="yes" classname="ataspectj.ltwlog.MainVerboseAndShow" failonerror="yes">
+             <classpath refid="aj.path"/>
+             <jvmarg value="-javaagent:${aj.root}/lib/test/loadtime5.jar"/>
+-            <jvmarg value="-Daj5.def=ataspectj/ltwlog/aop-verboseandshow.xml"/>
+         </java>
+     </target>
+ 
+@@ -121,30 +134,38 @@
+                 <pathelement path="${aj.root}/lib/asm/asm-2.0.jar"/>
+             </classpath>
+         </javac>
++        <copy file="ataspectj/aop-unweavabletest.xml"
++              tofile="${aj.sandbox}/META-INF/aop.xml"/>
+         <java fork="yes" classname="ataspectj.UnweavableTest" failonerror="yes">
+             <classpath>
+                 <path refid="aj.path"/>
+                 <pathelement path="${aj.root}/lib/asm/asm-2.0.jar"/>
+             </classpath>
+             <jvmarg value="-javaagent:${aj.root}/lib/test/loadtime5.jar"/>
+-            <jvmarg value="-Daj5.def=ataspectj/aop-unweavabletest.xml"/>
+         </java>
+     </target>
+ 
+     <target name="ltw.Decp">
++        <copy file="ataspectj/aop-decptest.xml"
++              tofile="${aj.sandbox}/META-INF/aop.xml"
++        	  overwrite="yes"	
++        />
+         <java fork="yes" classname="ataspectj.DeclareParentsInterfaceTest" failonerror="yes">
+             <classpath>
+                 <path refid="aj.path"/>
+             </classpath>
+             <jvmarg value="-javaagent:${aj.root}/lib/test/loadtime5.jar"/>
+-            <jvmarg value="-Daj5.def=ataspectj/aop-decptest.xml"/>
+         </java>
+-        <java fork="yes" classname="ataspectj.DeclareParentsImplementsTest" failonerror="yes">
++
++        <copy file="ataspectj/aop-decptest.xml"
++              tofile="${aj.sandbox}/META-INF/aop.xml"
++        	  overwrite="yes"	
++        />
++    	<java fork="yes" classname="ataspectj.DeclareParentsImplementsTest" failonerror="yes">
+             <classpath>
+                 <path refid="aj.path"/>
+             </classpath>
+             <jvmarg value="-javaagent:${aj.root}/lib/test/loadtime5.jar"/>
+-            <jvmarg value="-Daj5.def=ataspectj/aop-decptest.xml"/>
+         </java>
+     </target>
+ 
+@@ -159,12 +180,13 @@
+             </classpath>
+         </javac>
+ 
++        <copy file="ataspectj/aop-decptest2.xml"
++              tofile="${aj.sandbox}/META-INF/aop.xml"/>
+         <java fork="yes" classname="ataspectj.DeclareParentsImplementsReweavableTest" failonerror="yes">
+             <classpath>
+                 <path refid="aj.path"/>
+             </classpath>
+             <jvmarg value="-javaagent:${aj.root}/lib/test/loadtime5.jar"/>
+-            <jvmarg value="-Daj5.def=ataspectj/aop-decptest2.xml"/>
+         </java>
+     </target>
+ 
+@@ -173,23 +195,26 @@
+         If they are not declared, then they will be lost during reweaving-->
+ 
+         <!--First test that the error is produced if the declaration is not made-->
++        <copy file="ataspectj/ltwreweavable/aop-ltwreweavable-declared.xml"
++              tofile="${aj.sandbox}/META-INF/aop.xml"/>
+         <java fork="yes" classname="ataspectj.ltwreweavable.MainReweavableLogging" failonerror="yes">
+             <classpath refid="aj.path"/>
+             <classpath>
+                 <pathelement path="${aj.sandbox}/main1.jar"/>
+             </classpath>
+             <jvmarg value="-javaagent:${aj.root}/lib/test/loadtime5.jar"/>
+-            <jvmarg value="-Daj5.def=ataspectj/ltwreweavable/aop-ltwreweavable-declared.xml"/>
+             <jvmarg value="-DaspectDeclared=true"/>
+         </java>
+         <!--Now ensure that the error is not produced when the declaration is made.-->
++        <copy file="ataspectj/ltwreweavable/aop-ltwreweavable-omitted.xml"
++              tofile="${aj.sandbox}/META-INF/aop.xml"
++        	  overwrite="yes"/>
+         <java fork="yes" classname="ataspectj.ltwreweavable.MainReweavableLogging" failonerror="yes">
+             <classpath refid="aj.path"/>
+             <classpath>
+                 <pathelement path="${aj.sandbox}/main1.jar"/>
+             </classpath>
+             <jvmarg value="-javaagent:${aj.root}/lib/test/loadtime5.jar"/>
+-            <jvmarg value="-Daj5.def=ataspectj/ltwreweavable/aop-ltwreweavable-omitted.xml"/>
+             <jvmarg value="-DaspectDeclared=false"/>
+         </java>
+     </target>
+@@ -0,0 +1,4 @@
++
++public class NullSecurityManager extends SecurityManager {
++
++}
+@@ -5,6 +5,7 @@
+     <property
+         name="jdwp"
+         value="-Xdebug -Xnoagent -Djava.compiler=NONE -Xrunjdwp:transport=dt_socket,server=y,suspend=y,address=5005"/>
++	<property name="aj.bootpath" refid="aj.path"/>
+ 
+     <target name="JDK14 LTW with XML">
+         <java fork="yes" classname="HelloWorld" failonerror="yes">
+@@ -67,4 +68,36 @@
+         </java>
+     </target>
+ 
++	<!-- Beware, this is complicated! We need to intercept class loading on 
++	     the System class loader before any classes are loaded. We do this
++	     by replacing the URLClassLoader. We then define a custom
++	     SecurityManager that will be loaded _before_ the class loader
++	     hierarch is fully initialized. -->
++    <target name="NPE with custom agent">
++        <java fork="yes" classname="HelloWorld" failonerror="yes">
++        	
++        	<!-- Prepend custom URLClassLoader and append AspectJ
++        	     to bootclasspath -->
++        	<jvmarg value="-Xbootclasspath/p:${aj.sandbox}"/>
++            <jvmarg value="-Xbootclasspath/a:${aj.bootpath}"/>
++
++        	<classpath>
++                <pathelement path="${aj.sandbox}/hello.jar:${aj.sandbox}/handler.jar:${aj.sandbox}/security.jar"/>
++            </classpath>
++
++        	<!-- Specify custom SecurityManager that will be loaded
++        	     and woven very early -->
++        	<jvmarg value="-Djava.security.manager=NullSecurityManager"/>
++        	
++            <jvmarg value="-Daj.weaving.verbose=true"/>
++            <jvmarg value="-Dorg.aspectj.weaver.showWeaveInfo=true"/>
++        	
++<!--        	
++            <jvmarg value="-Dorg.aspectj.tracing.enabled=true"/>
++            <jvmarg value="-Dorg.aspectj.tracing.factory=default"/>
++            <jvmarg value="-Dorg.aspectj.tracing.messages=true"/>
++-->            
++        </java>
++    </target>
++
+ </project>
+@@ -0,0 +1,274 @@
++package java.net;
++
++import java.io.ByteArrayInputStream;
++import java.io.File;
++import java.io.FileInputStream;
++import java.io.IOException;
++import java.io.InputStream;
++import java.security.SecureClassLoader;
++import java.util.Enumeration;
++import java.util.Iterator;
++import java.util.LinkedList;
++import java.util.List;
++import java.util.Vector;
++import java.util.jar.JarFile;
++import java.util.zip.ZipEntry;
++
++import org.aspectj.weaver.loadtime.Aj;
++
++public class URLClassLoader extends SecureClassLoader {
++	
++	public final static boolean debug = false;
++	
++	private List path = new LinkedList();
++	private Aj agent;
++
++	public URLClassLoader() {
++		super();
++	}
++
++	public URLClassLoader(ClassLoader parent) {
++		super(parent);
++	}
++
++	public URLClassLoader(URL[] urls) throws IOException {
++		this(urls,null,null);
++	}
++	
++	public URLClassLoader(URL[] urls, ClassLoader parent, URLStreamHandlerFactory factory) throws IOException {
++		super(parent);
++		if (debug) System.err.println("> URLClassLoader.URLClassLoader() parent=" + parent);
++
++		for (int i = 0; i < urls.length; i++) {
++			Object pathElement;
++			URL url = urls[i];
++			if (debug) System.err.println("- URLClassLoader.URLClassLoader() url=" + url.getPath());
++			File file = new File(encode(url.getFile()));
++			if (debug) System.err.println("- URLClassLoader.URLClassLoader() file" + file);
++			if (file.isDirectory()) pathElement = file;
++			else if (file.exists() && file.getName().endsWith(".jar")) pathElement = new JarFile(file);
++			else throw new RuntimeException(file.getAbsolutePath().toString());
++			path.add(pathElement);
++		}
++
++		agent = new Aj();
++		
++		if (debug) System.err.println("< URLClassLoader.URLClassLoader() path=" + path);
++	}
++	
++//	public final static boolean debug = false;
++//	
++//	private List path = new LinkedList();
++////	private com.bea.jvm.ClassPreProcessor agent;
++//	private Object agent;
++//	private Method preProcess;
++	
++//	public JRockitClassLoader (URLClassLoader clone) throws Exception {
++//		/* Use extensions loader */
++//		super(clone.getParent());
++//
++//		URL[] urls = clone.getURLs();
++//		for (int i = 0; i < urls.length; i++) {
++//			Object pathElement;
++//			URL url = urls[i];
++//			if (debug) System.err.println("JRockitClassLoader.JRockitClassLoader() url=" + url.getPath());
++//			File file = new File(encode(url.getFile()));
++//			if (debug) System.err.println("JRockitClassLoader.JRockitClassLoader() file" + file);
++//			if (file.isDirectory()) pathElement = file;
++//			else if (file.exists() && file.getName().endsWith(".jar")) pathElement = new JarFile(file);
++//			else throw new RuntimeException(file.getAbsolutePath().toString());
++//			path.add(pathElement);
++//		}
++//		
++//		Class agentClazz = Class.forName("org.aspectj.weaver.loadtime.JRockitAgent",false,this);
++//		Object obj = agentClazz.newInstance();
++//		if (debug) System.err.println("JRockitClassLoader.JRockitClassLoader() obj=" + obj);
++//		this.agent = obj;
++//		byte[] bytes = new byte[] {};
++//		Class[] parameterTypes = new Class[] { java.lang.ClassLoader.class, java.lang.String.class, bytes.getClass() }; 
++//		preProcess = agentClazz.getMethod("preProcess",parameterTypes);
++//	}
++	
++	/* Get rid of escaped characters */
++	private String encode (String s) {
++		StringBuffer result = new StringBuffer();
++		int i = s.indexOf("%");
++		while (i != -1) {
++			result.append(s.substring(0,i));
++			String escaped = s.substring(i+1,i+3);
++			s = s.substring(i+3);
++			Integer value = Integer.valueOf(escaped,16);
++			result.append(new Character((char)value.intValue()));
++			i = s.indexOf("%");
++		}
++		result.append(s);
++		return result.toString();
++	}
++	
++	protected Class findClass(String name) throws ClassNotFoundException {
++		if (debug) System.err.println("> URLClassLoader.findClass() name=" + name);
++		Class clazz = null;
++		try {
++			clazz = super.findClass(name);
++		}
++		catch (ClassNotFoundException ex) {
++			for (Iterator i = path.iterator(); clazz ==  null && i.hasNext();) {
++				byte[] classBytes = null;
++				try {
++					Object pathElement = i.next();
++					if (pathElement instanceof File) {
++						File dir = (File)pathElement;
++						String className = name.replace('.','/') + ".class";
++						File classFile = new File(dir,className);
++						if (debug) System.err.println("- URLClassLoader.findClass() classFile=" + classFile);
++						if (classFile.exists()) classBytes = loadClassFromFile(name,classFile);
++					}
++					else {
++						JarFile jar = (JarFile)pathElement;
++						String className = name.replace('.','/') + ".class";
++						ZipEntry entry = jar.getEntry(className);
++						if (entry != null) classBytes = loadBytesFromZipEntry(jar,entry);
++					}
++					
++					if (classBytes != null) {
++						clazz = defineClass(name,classBytes);
++					}
++				}
++				catch (IOException ioException) {
++					ex.printStackTrace();
++				}
++			}
++		}
++		
++		if (debug) System.err.println("< URLClassLoader.findClass() clazz=" + clazz);
++		if (clazz == null) throw new ClassNotFoundException(name);
++		return clazz;
++	}
++
++	protected URL findResource (String name) {
++		if (debug) System.err.println("> URLClassLoader.findResource() name=" + name);
++		URL url = null;
++
++		try {
++			Enumeration enu = findResources(name);
++			if (enu.hasMoreElements()) url = (URL)enu.nextElement();
++		}
++		catch (IOException ex) {
++			ex.printStackTrace();
++		}
++
++		if (debug) System.err.println("< URLClassLoader.findResource() url=" + url);
++		return url;
++	}
++	
++	
++	protected Enumeration findResources (String name) throws IOException {
++		if (debug) System.err.println("> URLClassLoader.findResources() name=" + name);
++		Vector urls = new Vector();
++		
++		for (Iterator i = path.iterator(); i.hasNext();) {
++			Object pathElement = i.next();
++			if (pathElement instanceof File) {
++				File dir = (File)pathElement;
++				File resourceFile = new File(dir,name);
++//				if (debug) System.err.println("- URLClassLoader.findResources() file=" + resourceFile);
++			}
++			else {
++				JarFile jar = (JarFile)pathElement;
++				ZipEntry entry = jar.getEntry(name);
++//				if (debug) System.err.println("- URLClassLoader.findResources() entry=" + entry);
++				if (entry != null) {
++					if (debug) System.err.println("- URLClassLoader.findResources() jar=" + jar.getName());
++
++					final byte[] bytes = loadBytesFromZipEntry(jar,entry);
++					URLStreamHandler streamHandler = new URLStreamHandler() {
++					
++						protected URLConnection openConnection(URL u) throws IOException {
++							URLConnection connection = new URLConnection(u) {
++								
++								public void connect() throws IOException {
++								}
++
++								public InputStream getInputStream() throws IOException {
++									return new ByteArrayInputStream(bytes);
++								}
++								
++							};
++							return connection;
++					    }
++					
++					};
++					URL url = new URL("file",null,0,jar.getName(),streamHandler);
++					urls.add(url);
++				}
++			}
++		}
++		
++		Enumeration enu = urls.elements();
++		
++		if (debug) System.err.println("< URLClassLoader.findResources() enu=" + enu);
++		return enu;
++	}
++	
++	private Class defineClass (String name, byte[] bytes) {
++		if (debug) System.err.println("> URLClassLoader.defineClass() name=" + name);
++//		try {
++			if (agent != null) bytes = agent.preProcess(name,bytes,this);
++//		}
++//		catch (IllegalAccessException iae) {
++//			iae.printStackTrace();
++//			throw new ClassFormatError(iae.getMessage());
++//		}
++//		catch (InvocationTargetException ite) {
++//			ite.printStackTrace();
++//			throw new ClassFormatError(ite.getTargetException().getMessage());
++//		}
++		if (debug) System.err.println("< URLClassLoader.defineClass() name=" + name);
++		return super.defineClass(name,bytes,0,bytes.length);
++	}
++	
++	private byte[] loadClassFromFile (String name, File file) throws IOException {
++		if (debug) System.err.println("> URLClassLoader.loadClassFromFile() file=" + file);
++
++		byte[] bytes;
++		bytes = new byte[(int)file.length()];
++		FileInputStream fis = null;
++		try {
++			fis = new FileInputStream(file);
++			bytes = readBytes(fis,bytes);
++		}
++		finally {
++			if (fis != null) fis.close();
++		}
++		
++		if (debug) System.err.println("< URLClassLoader.loadClassFromFile() bytes=b[" + bytes.length + "]");
++		return bytes;
++	}
++	
++	private byte[] loadBytesFromZipEntry (JarFile jar, ZipEntry entry) throws IOException {
++		if (debug) System.err.println("> URLClassLoader.loadBytesFromZipEntry() entry=" + entry);
++
++		byte[] bytes;
++		bytes = new byte[(int)entry.getSize()];
++		InputStream is = null;
++		try {
++			is = jar.getInputStream(entry);
++			bytes = readBytes(is,bytes);
++		}
++		finally {
++			if (is != null) is.close();
++		}
++		
++		if (debug) System.err.println("< URLClassLoader.loadBytesFromZipEntry() bytes=b[" + bytes.length + "]");
++		return bytes;
++	}
++	
++	private byte[] readBytes (InputStream is, byte[] bytes) throws IOException {
++		for (int offset = 0; offset < bytes.length;) {
++			int read = is.read(bytes,offset,bytes.length - offset);
++			offset += read;
++		}
++		return bytes;
++	}
++
++}
+@@ -129,6 +129,10 @@ public class Ajc153Tests extends org.aspectj.testing.XMLBasedAjcTestCase {
+ 					" but found " + ipe.getSourceSignature(), 
+ 					expected, ipe.getSourceSignature());
+   }
++
++  public void testNPEWithCustomAgent_pr158005() {
++	  runTest("NPE with custom agent");
++  }
+ 
+     /////////////////////////////////////////
+   public static Test suite() {
+@@ -493,4 +493,16 @@
+       <compile files="SampleTest.java"/>
+     </ajc-test>
+ 
++	<ajc-test dir="ltw" title="NPE with custom agent" keywords="ltw">
++        <compile files="java/net/URLClassLoader.java"/>
++        <compile files="HelloWorld.java" options="-outjar hello.jar"/>
++        <compile files="ExceptionHandler.aj" options="-outxml -outjar handler.jar"/>
++        <compile files="NullSecurityManager.java" options="-outjar security.jar"/>
++		<ant file="ant.xml" target="NPE with custom agent" verbose="true">
++        	<stdout>
++            	<line text="Hello World!"/>
++        	</stdout>
++        </ant>
++    </ajc-test>
++
+ </suite>
+\ No newline at end of file
+@@ -1,43 +0,0 @@
+-<!-- ajc-ant script, not to be used from Ant commant line - see AntSpec -->
+-<project name="pr120473">
+-
+-    <!-- using this we can debug the forked VM -->
+-    <property
+-        name="jdwp"
+-        value="-Xdebug -Xnoagent -Djava.compiler=NONE -Xrunjdwp:transport=dt_socket,server=y,suspend=y,address=5005"/>
+-
+-    <target name="compile:javac">
+-        <!-- compile only javac compilable stuff, exclude the one that needs other dependencies -->
+-        <javac destdir="${aj.sandbox}" classpathref="aj.path"
+-            srcdir="${basedir}"
+-            includes="ataspectj/*"
+-            excludes="ataspectj/UnweavableTest.java"
+-            debug="true">
+-        </javac>
+-    </target>
+-
+-    <target name="ltw">
+-        <java fork="yes" classname="ataspectj.AllLTWTests" failonerror="yes">
+-            <classpath refid="aj.path"/>
+-            <!-- use META-INF/aop.xml style -->
+-            <classpath path="ataspectj/pathentry"/>
+-            <jvmarg value="-javaagent:${aj.root}/lib/test/loadtime5.jar"/>
+-<!--            <jvmarg line="${jdwp}"/>-->
+-        </java>
+-    </target>
+-
+-    <target name="ConcreteAsepectTest">
+-    	<copy file="aop.xml" todir="${aj.sandbox}/META-INF">
+-    	</copy>
+-        <java fork="yes" classname="Hello" failonerror="yes">
+-            <classpath refid="aj.path"/>
+-            <jvmarg value="-javaagent:${aj.root}/lib/test/loadtime5.jar"/>
+-<!--        	
+-            <jvmarg value="-Daj5.def=aop.xml"/>
+-            <jvmarg value="-Daj.weaving.verbose=true"/>
+--->            
+-<!--            <jvmarg line="${jdwp}"/>            -->
+-        </java>
+-    </target>
+-
+-</project>
+@@ -6207,9 +6207,6 @@
+            <line text="around end!"/>
+        </stdout>
+      </run>
+-<!--     
+-     <ant file="ant.xml" target="ConcreteAsepectTest" verbose="true"/>
+--->
+    </ajc-test>
+ 
+ </suite>
+\ No newline at end of file
+@@ -179,7 +179,7 @@ public class ClassLoaderWeavingAdaptor extends WeavingAdaptor {
+             //TODO av underoptimized: we will parse each XML once per CL that see it
+ 
+             //TODO av dev mode needed ? TBD -Daj5.def=...
+-            if (ClassLoader.getSystemClassLoader().equals(loader)) {
++            if (loader.equals(ClassLoader.getSystemClassLoader())) {
+                 String file = System.getProperty("aj5.def", null);
+                 if (file != null) {
+                     info("using (-Daj5.def) " + file);

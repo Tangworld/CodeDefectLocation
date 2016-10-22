@@ -1,0 +1,2626 @@
+@@ -19,6 +19,7 @@ public class AllTestsAspectJ161 {
+ 		TestSuite suite = new TestSuite("AspectJ 1.6.1 tests");
+ 		//$JUnit-BEGIN$
+ 		suite.addTest(Ajc161Tests.suite());
++		suite.addTest(OptimizedAnnotationFieldBinding.suite());
+         //$JUnit-END$
+ 		return suite;
+ 	}
+@@ -0,0 +1,69 @@
++/* *******************************************************************
++ * Copyright (c) 2008 Contributors
++ * All rights reserved. 
++ * This program and the accompanying materials are made available 
++ * under the terms of the Eclipse Public License v1.0 
++ * which accompanies this distribution and is available at 
++ * http://www.eclipse.org/legal/epl-v10.html 
++ *  
++ *  Contributors
++ *  Andy Clement 
++ * ******************************************************************/
++package org.aspectj.systemtest.ajc161;
++ 
++import java.io.File;
++
++import junit.framework.Test;
++
++import org.aspectj.testing.XMLBasedAjcTestCase;
++
++/**
++ * Optimising Annotation Field Binding - better code gen for the cases where the user just wants a field from the
++ * annotation on a method but not the whole annotation.
++ * 
++ */
++public class OptimizedAnnotationFieldBinding extends XMLBasedAjcTestCase {
++	
++    public void testCaseOne_Syntax() {
++        runTest("case one - syntax");
++    }
++    public void testCaseTwo_NoSuchField() {
++        runTest("case two - no such field");
++    }
++    public void testCaseThree_Ambiguous() {
++        runTest("case three - ambiguous");
++    }
++    public void testCaseFour_DefaultValue() {
++        runTest("case four - default value");
++    }
++    public void testCaseFive_NotAnEnum_CompilerLimitation() {
++        runTest("case five - not an enum - compiler limitation");
++    }
++    public void testCaseSeven_AnnosInPackagesOne() {
++        runTest("case seven - annos in packages one");
++    }
++    public void testCaseEight_AnnosInPackagesTwo() {
++        runTest("case eight - annos in packages two");
++    }
++    public void testCaseNine_AllInDifferentPackages() {
++        runTest("case nine - everything in different packages");
++    }
++    public void testCaseTen_BindingMultipleThings() {
++        runTest("case ten - binding multiple things");
++    }
++    public void testCaseEleven_BindingMultipleAnnotationFields() {
++        runTest("case eleven - binding multiple annotation fields");
++    }
++    public void testCaseTwelve_BindingAnnoAndAnnoValue() {
++        runTest("case twelve - binding anno and anno value");
++    }
++    
++	/////////////////////////////////////////
++	public static Test suite() {
++	    return XMLBasedAjcTestCase.loadSuite(OptimizedAnnotationFieldBinding.class);
++	}
++
++	protected File getSpecFile() {
++	    return new File("../tests/src/org/aspectj/systemtest/ajc161/annotationFieldBinding.xml");
++	}
++}
+@@ -0,0 +1,118 @@
++<!DOCTYPE suite SYSTEM "../tests/ajcTestSuite.dtd"[]>
++
++<!-- AspectJ v1.6.1 Optimized Annotation Field Binding Tests -->
++<suite>
++
++   <ajc-test dir="features161/optimizedAnnotationBinding" title="case one - syntax">
++     <compile options="-1.5" files="CaseOne.java"/> 
++     <run class="CaseOne">
++       <stdout>
++         <line text="ONE"/>
++         <line text="TWO"/>
++         <line text="THREE"/>
++       </stdout>
++     </run>
++   </ajc-test>
++   
++   <ajc-test dir="features161/optimizedAnnotationBinding" title="case two - no such field">
++     <compile options="-1.5" files="CaseTwo.java">
++       <message kind="error" line="30" text="No field of type 'Level' exists on annotation type 'Anno'"/>
++     </compile>
++   </ajc-test>
++   
++   <ajc-test dir="features161/optimizedAnnotationBinding" title="case three - ambiguous">
++     <compile options="-1.5" files="CaseThree.java">
++       <message kind="error" line="31" text="The field type 'Level' is ambiguous for annotation type 'Anno'"/>
++     </compile>
++   </ajc-test>
++   
++   <ajc-test dir="features161/optimizedAnnotationBinding" title="case four - default value">
++     <compile options="-1.5" files="CaseFour.java"/> 
++     <run class="CaseFour">
++       <stdout>
++         <line text="ONE"/>
++         <line text="TWO"/>
++         <line text="ONE"/>
++       </stdout>
++     </run>
++   </ajc-test>
++   
++   <ajc-test dir="features161/optimizedAnnotationBinding" title="case five - not an enum - compiler limitation">
++     <compile options="-1.5" files="CaseFive.java">
++       <message kind="error" line="20" text="The field within the annotation must be an Enum. 'java.lang.String' is not an Enum"/>
++     </compile>
++   </ajc-test>
++   
++   <ajc-test dir="features161/optimizedAnnotationBinding" title="case six - not an execution join point - compiler limitation">
++     <compile options="-1.5" files="CaseSix.java">
++       <message kind="error" line="20" text="Annotation field binding is only supported at method-execution join points"/>
++     </compile>
++   </ajc-test>
++   
++   <ajc-test dir="features161/optimizedAnnotationBinding" title="case seven - annos in packages one">
++     <compile options="-1.5" files="CaseSeven.java"/> 
++     <run class="p.q.r.CaseSeven">
++       <stdout>
++         <line text="ONE"/>
++         <line text="TWO"/>
++         <line text="THREE"/>
++       </stdout>
++     </run>
++   </ajc-test>
++   
++   <ajc-test dir="features161/optimizedAnnotationBinding" title="case eight - annos in packages two">
++     <compile options="-1.5" files="CaseEight.java"/> 
++     <run class="p.q.r.CaseEight">
++       <stdout>
++         <line text="ONE"/>
++         <line text="TWO"/>
++         <line text="THREE"/>
++       </stdout>
++     </run>
++   </ajc-test>
++   
++   <ajc-test dir="features161/optimizedAnnotationBinding" title="case nine - everything in different packages">
++     <compile options="-1.5" files="CaseNine.java Level.java Anno.java"/> 
++     <run class="p.q.r.CaseNine">
++       <stdout>
++         <line text="ONE"/>
++         <line text="TWO"/>
++         <line text="THREE"/>
++       </stdout>
++     </run>
++   </ajc-test>
++   
++   <ajc-test dir="features161/optimizedAnnotationBinding" title="case ten - binding multiple things">
++     <compile options="-1.5" files="CaseTen.java"/> 
++     <run class="CaseTen">
++       <stdout>
++         <line text="ONE:3"/>
++         <line text="TWO:4"/>
++         <line text="THREE:5"/>
++       </stdout>
++     </run>
++   </ajc-test>
++   
++   <ajc-test dir="features161/optimizedAnnotationBinding" title="case eleven - binding multiple annotation fields">
++     <compile options="-1.5" files="CaseEleven.java"/> 
++     <run class="CaseEleven">
++       <stdout>
++         <line text="ONE:GREEN"/>
++         <line text="TWO:GREEN"/>
++         <line text="THREE:BLUE"/>
++       </stdout>
++     </run>
++   </ajc-test>
++   
++   <ajc-test dir="features161/optimizedAnnotationBinding" title="case twelve - binding anno and anno value">
++     <compile options="-1.5" files="CaseTwelve.java"/> 
++     <run class="CaseTwelve">
++       <stdout>
++         <line text="ONE:GREEN"/>
++         <line text="TWO:GREEN"/>
++         <line text="THREE:BLUE"/>
++       </stdout>
++     </run>
++   </ajc-test>
++   
++</suite>
+\ No newline at end of file
+@@ -221,10 +221,14 @@ public abstract class AjAttribute {
+ 		public static short WEAVER_VERSION_MAJOR_AJ160 = 4;
+ 		public static short WEAVER_VERSION_MINOR_AJ160 = 0;
+ 
++	      // These are the weaver major/minor numbers for AspectJ 1.6.1
++        public static short WEAVER_VERSION_MAJOR_AJ161 = 6; // annotation value binding
++        public static short WEAVER_VERSION_MINOR_AJ161 = 0;
++
+ 
+ 		// These are the weaver major/minor versions for *this* weaver
+-		private static short CURRENT_VERSION_MAJOR      = WEAVER_VERSION_MAJOR_AJ160M2;
+-		private static short CURRENT_VERSION_MINOR      = WEAVER_VERSION_MINOR_AJ160;
++		private static short CURRENT_VERSION_MAJOR = WEAVER_VERSION_MAJOR_AJ161;
++        private static short CURRENT_VERSION_MINOR = WEAVER_VERSION_MINOR_AJ161;
+ 
+ 		public static final WeaverVersionInfo UNKNOWN = 
+ 			new WeaverVersionInfo(WEAVER_VERSION_MAJOR_UNKNOWN,WEAVER_VERSION_MINOR_UNKNOWN);
+@@ -0,0 +1,158 @@
++/* *******************************************************************
++ * Copyright (c) 2008 Contributors
++ * All rights reserved. 
++ * This program and the accompanying materials are made available 
++ * under the terms of the Eclipse Public License v1.0 
++ * which accompanies this distribution and is available at 
++ * http://www.eclipse.org/legal/epl-v10.html 
++ *  
++ * Contributors: 
++ *     Andy Clement     initial implementation 
++ * ******************************************************************/
++package org.aspectj.weaver.bcel;
++
++import java.util.Iterator;
++import java.util.List;
++
++import org.aspectj.apache.bcel.classfile.annotation.AnnotationGen;
++import org.aspectj.apache.bcel.classfile.annotation.ElementNameValuePairGen;
++import org.aspectj.apache.bcel.classfile.annotation.EnumElementValueGen;
++import org.aspectj.apache.bcel.generic.Instruction;
++import org.aspectj.apache.bcel.generic.InstructionFactory;
++import org.aspectj.apache.bcel.generic.InstructionList;
++import org.aspectj.apache.bcel.generic.Type;
++import org.aspectj.weaver.AnnotationX;
++import org.aspectj.weaver.Member;
++import org.aspectj.weaver.ResolvedMember;
++import org.aspectj.weaver.ResolvedType;
++import org.aspectj.weaver.Shadow;
++import org.aspectj.weaver.UnresolvedType;
++
++/**
++ * For creating the code that accesses a field of an annotation.
++ * 
++ */
++ // TODO 2 tidy this code up, don't make it a delegator for AnnotationAccessVar - don't override irrelevant methods
++public class AnnotationAccessFieldVar extends BcelVar {
++
++    AnnotationAccessVar aav;
++    ResolvedType f;
++
++    public AnnotationAccessFieldVar(AnnotationAccessVar aav, ResolvedType field) {
++        super(field, 0);
++        this.aav = aav;
++        this.f = field;
++    }
++
++    void appendConvertableArrayLoad(InstructionList il, InstructionFactory fact, int index, ResolvedType convertTo) {
++        // TODO Auto-generated method stub
++        super.appendConvertableArrayLoad(il, fact, index, convertTo);
++    }
++
++    void appendConvertableArrayStore(InstructionList il, InstructionFactory fact, int index, BcelVar storee) {
++        // TODO Auto-generated method stub
++        super.appendConvertableArrayStore(il, fact, index, storee);
++    }
++
++    public void appendLoad(InstructionList il, InstructionFactory fact) {
++        // TODO Auto-generated method stub
++        super.appendLoad(il, fact);
++    }
++
++    public void appendLoadAndConvert(InstructionList il, InstructionFactory fact, ResolvedType toType) {
++        System.err.println("Loading " + toType);
++        if (aav.getKind() == Shadow.MethodExecution) {
++            // So we have an entity that has an annotation on and within it is the value we want
++            Member holder = aav.getMember();
++            AnnotationX[] annos = holder.getAnnotations();
++            for (int i = 0; i < annos.length; i++) {
++                AnnotationGen ag = annos[i].getBcelAnnotation();
++                List vals = ag.getValues();
++                boolean doneAndDusted = false;
++                for (Iterator iterator = vals.iterator(); iterator.hasNext();) {
++                    ElementNameValuePairGen object = (ElementNameValuePairGen) iterator.next();
++                    String name = object.getNameString();
++                    EnumElementValueGen v = (EnumElementValueGen) object.getValue();
++                    String s = v.getEnumTypeString();
++                    ResolvedType rt = toType.getWorld().resolve(UnresolvedType.forSignature(s));
++                    if (rt.equals(toType)) {
++                        il.append(fact.createGetStatic(rt.getName(), v.getEnumValueString(), Type.getType(rt.getSignature())));
++                        doneAndDusted = true;
++                    }
++                }
++                if (!doneAndDusted) {
++                    ResolvedMember[] annotationFields = toType.getWorld().resolve(UnresolvedType.forSignature(ag.getTypeSignature())).getDeclaredMethods();
++                
++                    // ResolvedMember[] fs = rt.getDeclaredFields();
++                     for (int ii = 0; ii < annotationFields.length; ii++) {
++                        if (annotationFields[ii].getType().equals(f)) {
++                            String dvalue = annotationFields[ii].getAnnotationDefaultValue();
++                            // form will be LBLAHBLAHBLAH;X where X is the field within X
++                            String typename = dvalue.substring(0, dvalue.lastIndexOf(';') + 1);
++                            String field = dvalue.substring(dvalue.lastIndexOf(';') + 1);
++                            ResolvedType rt = toType.getWorld().resolve(UnresolvedType.forSignature(typename));
++                            il.append(fact.createGetStatic(rt.getName(), field, Type.getType(rt.getSignature())));
++                        }
++                    }
++                }
++            }
++        } else {
++            throw new RuntimeException("You, sir, are having a laugh");
++        }
++    }
++
++    public void appendStore(InstructionList il, InstructionFactory fact) {
++        // TODO Auto-generated method stub
++        super.appendStore(il, fact);
++    }
++
++    InstructionList createConvertableArrayLoad(InstructionFactory fact, int index, ResolvedType convertTo) {
++        // TODO Auto-generated method stub
++        return super.createConvertableArrayLoad(fact, index, convertTo);
++    }
++
++    InstructionList createConvertableArrayStore(InstructionFactory fact, int index, BcelVar storee) {
++        // TODO Auto-generated method stub
++        return super.createConvertableArrayStore(fact, index, storee);
++    }
++
++    public InstructionList createCopyFrom(InstructionFactory fact, int oldSlot) {
++        // TODO Auto-generated method stub
++        return super.createCopyFrom(fact, oldSlot);
++    }
++
++    public Instruction createLoad(InstructionFactory fact) {
++        
++        return null;
++    }
++
++    public Instruction createStore(InstructionFactory fact) {
++        // TODO Auto-generated method stub
++        return super.createStore(fact);
++    }
++
++    public int getPositionInAroundState() {
++        // TODO Auto-generated method stub
++        return super.getPositionInAroundState();
++    }
++
++    public int getSlot() {
++        // TODO Auto-generated method stub
++        return super.getSlot();
++    }
++
++    public void insertLoad(InstructionList il, InstructionFactory fact) {
++        // TODO Auto-generated method stub
++        super.insertLoad(il, fact);
++    }
++
++    public void setPositionInAroundState(int positionInAroundState) {
++        // TODO Auto-generated method stub
++        super.setPositionInAroundState(positionInAroundState);
++    }
++
++    public String toString() {
++        // TODO Auto-generated method stub
++        return super.toString();
++    }
++}
+@@ -42,6 +42,10 @@ public class AnnotationAccessVar extends BcelVar {
+ 		this.containingType = theTargetIsStoredHere; 
+ 		this.member = sig;
+ 	}
++	
++	public Kind getKind() {
++        return kind;
++    }
+ 
+ 	public String toString() {
+ 		return "AnnotationAccessVar(" + getType() +")";
+@@ -157,4 +161,8 @@ public class AnnotationAccessVar extends BcelVar {
+ 		}
+ 	}
+ 
++    public Member getMember() {
++        return member;
++    }
++
+ }
+@@ -22,6 +22,7 @@ import org.aspectj.bridge.MessageUtil;
+ import org.aspectj.util.FuzzyBoolean;
+ import org.aspectj.weaver.AjcMemberMaker;
+ import org.aspectj.weaver.AnnotatedElement;
++import org.aspectj.weaver.BCException;
+ import org.aspectj.weaver.ISourceContext;
+ import org.aspectj.weaver.IntMap;
+ import org.aspectj.weaver.Member;
+@@ -38,6 +39,8 @@ import org.aspectj.weaver.World;
+ import org.aspectj.weaver.ast.Literal;
+ import org.aspectj.weaver.ast.Test;
+ import org.aspectj.weaver.ast.Var;
++import org.aspectj.weaver.bcel.AnnotationAccessFieldVar;
++import org.aspectj.weaver.bcel.AnnotationAccessVar;
+ import org.aspectj.weaver.bcel.BcelTypeMunger;
+ 
+ /**
+@@ -184,12 +187,25 @@ public class AnnotationPointcut extends NameBindingPointcut {
+         return ret;
+ 	}
+ 
+-	/* (non-Javadoc)
+-	 * @see org.aspectj.weaver.patterns.Pointcut#findResidue(org.aspectj.weaver.Shadow, org.aspectj.weaver.patterns.ExposedState)
+-	 */
+ 	protected Test findResidueInternal(Shadow shadow, ExposedState state) {
+-		
+-		if (annotationTypePattern instanceof BindingAnnotationTypePattern) {
++		if (annotationTypePattern instanceof BindingAnnotationFieldTypePattern) {
++		    if (shadow.getKind() != Shadow.MethodExecution) {
++                shadow.getIWorld().getMessageHandler().handleMessage(
++                    MessageUtil.error("Annotation field binding is only supported at method-execution join points (compiler limitation)",
++                        getSourceLocation()));
++                return Literal.TRUE; // exit quickly, error will prevent weaving
++            }
++            BindingAnnotationFieldTypePattern btp = (BindingAnnotationFieldTypePattern) annotationTypePattern;
++            UnresolvedType formalType = btp.getFormalType().resolve(shadow.getIWorld());
++            UnresolvedType annoType = btp.getAnnotationType();
++            // TODO 2 need to sort out appropriate creation of the AnnotationAccessFieldVar - what happens for
++            // reflective (ReflectionShadow) access to types?
++            AnnotationAccessVar var = (AnnotationAccessVar) shadow.getKindedAnnotationVar(annoType);
++            if (var == null) {
++                throw new BCException("Unexpected problem locating annotation at join point '" + shadow + "'");
++            }
++            state.set(btp.getFormalIndex(), new AnnotationAccessFieldVar(var, (ResolvedType) formalType));
++        } else if (annotationTypePattern instanceof BindingAnnotationTypePattern) {
+ 			BindingAnnotationTypePattern btp = (BindingAnnotationTypePattern)annotationTypePattern;
+ 			UnresolvedType annotationType = btp.getAnnotationType();
+ 			Var var = shadow.getKindedAnnotationVar(annotationType);
+@@ -213,6 +229,7 @@ public class AnnotationPointcut extends NameBindingPointcut {
+ 			}
+ 			state.set(btp.getFormalIndex(),var);
+ 		}
++		
+ 		if (matchInternal(shadow).alwaysTrue()) 
+ 			return Literal.TRUE;
+ 		else 
+@@ -223,7 +240,7 @@ public class AnnotationPointcut extends NameBindingPointcut {
+ 	 * @see org.aspectj.weaver.patterns.NameBindingPointcut#getBindingAnnotationTypePatterns()
+ 	 */
+ 	public List getBindingAnnotationTypePatterns() {
+-		if (annotationTypePattern instanceof BindingAnnotationTypePattern) {
++		if (annotationTypePattern instanceof BindingPattern) { // BindingAnnotationTypePattern) {
+ 			List l = new ArrayList();
+ 			l.add(annotationTypePattern);
+ 			return l;
+@@ -72,6 +72,8 @@ public abstract class AnnotationTypePattern extends PatternNode {
+ 	public static final byte ELLIPSIS_KEY = 6;
+ 	public static final byte ANY_KEY = 7;
+ 	public static final byte WILD = 8;
++    public static final byte EXACTFIELD = 9;
++    public static final byte BINDINGFIELD = 10;
+ 
+ 	public static AnnotationTypePattern read(VersionedDataInputStream s, ISourceContext context) throws IOException {
+ 		byte key = s.readByte();
+@@ -82,6 +84,10 @@ public abstract class AnnotationTypePattern extends PatternNode {
+ 			case OR: return OrAnnotationTypePattern.read(s, context);
+ 			case AND: return AndAnnotationTypePattern.read(s, context);
+ 			case WILD: return WildAnnotationTypePattern.read(s,context);
++            case EXACTFIELD:
++                return ExactAnnotationFieldTypePattern.read(s, context);
++            case BINDINGFIELD:
++                return BindingAnnotationFieldTypePattern.read(s, context);
+ 			case ELLIPSIS_KEY: return ELLIPSIS;
+ 			case ANY_KEY: return ANY;
+ 		}
+@@ -0,0 +1,171 @@
++/* *******************************************************************
++ * Copyright (c) 2008 Contributors
++ * All rights reserved. 
++ * This program and the accompanying materials are made available 
++ * under the terms of the Eclipse Public License v1.0 
++ * which accompanies this distribution and is available at 
++ * http://www.eclipse.org/legal/epl-v10.html 
++ *  
++ * Contributors: 
++ *     Andy Clement     initial implementation 
++ * ******************************************************************/
++package org.aspectj.weaver.patterns;
++
++import java.io.DataOutputStream;
++import java.io.IOException;
++import java.util.Map;
++
++import org.aspectj.bridge.IMessage;
++import org.aspectj.bridge.MessageUtil;
++import org.aspectj.util.FuzzyBoolean;
++import org.aspectj.weaver.AnnotatedElement;
++import org.aspectj.weaver.BCException;
++import org.aspectj.weaver.ISourceContext;
++import org.aspectj.weaver.IntMap;
++import org.aspectj.weaver.ReferenceType;
++import org.aspectj.weaver.ResolvedMember;
++import org.aspectj.weaver.ResolvedType;
++import org.aspectj.weaver.UnresolvedType;
++import org.aspectj.weaver.VersionedDataInputStream;
++import org.aspectj.weaver.WeaverMessages;
++import org.aspectj.weaver.World;
++
++/**
++ * Represents an attempt to bind the field of an annotation within a pointcut. For example:<br>
++ * <code><pre>
++ * before(Level lev): execution(* *(..)) &amp;&amp; @annotation(TraceAnnotation(lev))
++ * </pre></code><br>
++ * This binding annotation type pattern will be for 'lev'.
++ */
++public class BindingAnnotationFieldTypePattern extends ExactAnnotationTypePattern implements BindingPattern {
++
++    protected int formalIndex;
++    UnresolvedType formalType; // In this construct the formal type differs from the annotation type
++
++    public BindingAnnotationFieldTypePattern(UnresolvedType formalType, int formalIndex, UnresolvedType theAnnotationType) {
++        super(theAnnotationType, null);
++        this.formalIndex = formalIndex;
++        this.formalType = formalType;
++    }
++
++    public void resolveBinding(World world) {
++        if (resolved) return;
++        resolved = true;
++        formalType = world.resolve(formalType);
++        annotationType = world.resolve(annotationType);
++        ResolvedType annoType = (ResolvedType) annotationType;
++        if (!annoType.isAnnotation()) {
++            IMessage m = MessageUtil.error(WeaverMessages.format(WeaverMessages.REFERENCE_TO_NON_ANNOTATION_TYPE, annoType.getName()),
++                getSourceLocation());
++            world.getMessageHandler().handleMessage(m);
++            resolved = false;
++        }
++    }
++
++    public AnnotationTypePattern parameterizeWith(Map typeVariableMap, World w) {
++        throw new BCException("Parameterization not implemented for annotation field binding construct (compiler limitation)");
++        // UnresolvedType newAnnotationType = annotationType;
++        // if (annotationType.isTypeVariableReference()) {
++        // TypeVariableReference t = (TypeVariableReference) annotationType;
++        // String key = t.getTypeVariable().getName();
++        // if (typeVariableMap.containsKey(key)) {
++        // newAnnotationType = (UnresolvedType) typeVariableMap.get(key);
++        // }
++        // } else if (annotationType.isParameterizedType()) {
++        // newAnnotationType = annotationType.parameterize(typeVariableMap);
++        // }
++        // BindingAnnotationTypePattern ret = new BindingAnnotationTypePattern(newAnnotationType, this.formalIndex);
++        // if (newAnnotationType instanceof ResolvedType) {
++        // ResolvedType rat = (ResolvedType) newAnnotationType;
++        // verifyRuntimeRetention(rat.getWorld(), rat);
++        // }
++        // ret.copyLocationFrom(this);
++        // return ret;
++    }
++
++    public int getFormalIndex() {
++        return formalIndex;
++    }
++
++    public boolean equals(Object obj) {
++        if (!(obj instanceof BindingAnnotationFieldTypePattern)) return false;
++        BindingAnnotationFieldTypePattern btp = (BindingAnnotationFieldTypePattern) obj;
++        return (btp.formalIndex == formalIndex) && (annotationType.equals(btp.annotationType)) && (formalType.equals(btp.formalType));
++    }
++
++    public int hashCode() {
++        return (annotationType.hashCode() * 37 + formalIndex * 37) + formalType.hashCode();
++    }
++
++    public AnnotationTypePattern remapAdviceFormals(IntMap bindings) {
++        if (!bindings.hasKey(formalIndex)) {
++            throw new BCException("Annotation field binding reference must be bound (compiler limitation)");
++            // must be something like returning the unbound form: return new ExactAnnotationTypePattern(annotationType,
++            // null);
++        } else {
++            int newFormalIndex = bindings.get(formalIndex);
++            return new BindingAnnotationFieldTypePattern(formalType, newFormalIndex, annotationType);
++        }
++    }
++
++    public void write(DataOutputStream s) throws IOException {
++        s.writeByte(AnnotationTypePattern.BINDINGFIELD);
++        formalType.write(s); // the type of the field within the annotation
++        s.writeShort((short) formalIndex);
++        annotationType.write(s); // the annotation type
++        writeLocation(s);
++    }
++
++    public static AnnotationTypePattern read(VersionedDataInputStream s, ISourceContext context) throws IOException {
++        AnnotationTypePattern ret = new BindingAnnotationFieldTypePattern(UnresolvedType.read(s), s.readShort(), UnresolvedType.read(s));
++        ret.readLocation(context, s);
++        return ret;
++    }
++    
++
++    public FuzzyBoolean matches(AnnotatedElement annotated, ResolvedType[] parameterAnnotations) {        
++        // Inheritance irrelevant because @annotation(Anno(x)) only supported at method execution join points (compiler limitation)
++//      boolean checkSupers = false;
++//        if (getResolvedAnnotationType().hasAnnotation(UnresolvedType.AT_INHERITED)) {
++//            if (annotated instanceof ResolvedType) {
++//                checkSupers = true;
++//            }
++//        }
++//
++        if (annotated.hasAnnotation(annotationType)) {
++            if (annotationType instanceof ReferenceType) {
++                ReferenceType rt = (ReferenceType) annotationType;
++                if (rt.getRetentionPolicy() != null && rt.getRetentionPolicy().equals("SOURCE")) {
++                    rt.getWorld().getMessageHandler().handleMessage(
++                        MessageUtil.warn(WeaverMessages.format(WeaverMessages.NO_MATCH_BECAUSE_SOURCE_RETENTION, annotationType, annotated),
++                            getSourceLocation()));
++                    return FuzzyBoolean.NO;
++                }
++                ResolvedMember[] methods = rt.getDeclaredMethods();
++                boolean found = false;
++                for (int i = 0; i < methods.length && !found; i++) {
++                    if (methods[i].getReturnType().equals(formalType)) {
++                        found = true;
++                    }
++                }
++                return (found ? FuzzyBoolean.YES : FuzzyBoolean.NO);
++            }
++        }
++//         else if (checkSupers) {
++//            ResolvedType toMatchAgainst = ((ResolvedType) annotated).getSuperclass();
++//            while (toMatchAgainst != null) {
++//                if (toMatchAgainst.hasAnnotation(annotationType)) {
++//                    return FuzzyBoolean.YES;
++//                }
++//                toMatchAgainst = toMatchAgainst.getSuperclass();
++//            }
++//        }
++//
++        return FuzzyBoolean.NO;
++    }
++
++    public UnresolvedType getFormalType() {
++        return formalType;
++    }
++
++}
+@@ -0,0 +1,200 @@
++/* *******************************************************************
++ * Copyright (c) 2008 Contributors
++ * All rights reserved. 
++ * This program and the accompanying materials are made available 
++ * under the terms of the Eclipse Public License v1.0 
++ * which accompanies this distribution and is available at 
++ * http://www.eclipse.org/legal/epl-v10.html 
++ *  
++ * Contributors: 
++ *     Andy Clement     initial implementation 
++ * ******************************************************************/
++package org.aspectj.weaver.patterns;
++
++import java.io.DataOutputStream;
++import java.io.IOException;
++import java.util.Map;
++
++import org.aspectj.bridge.IMessage;
++import org.aspectj.util.FuzzyBoolean;
++import org.aspectj.weaver.AnnotatedElement;
++import org.aspectj.weaver.BCException;
++import org.aspectj.weaver.ISourceContext;
++import org.aspectj.weaver.ReferenceType;
++import org.aspectj.weaver.ResolvedMember;
++import org.aspectj.weaver.ResolvedType;
++import org.aspectj.weaver.UnresolvedType;
++import org.aspectj.weaver.VersionedDataInputStream;
++import org.aspectj.weaver.World;
++
++/**
++ * Represents an attempt to bind the field of an annotation within a pointcut. For example:<br>
++ * <code><pre>
++ * before(Level lev): execution(* *(..)) &amp;&amp; @annotation(TraceAnnotation(lev))
++ * </pre></code><br>
++ * This binding annotation type pattern will be for 'lev'.
++ */
++public class ExactAnnotationFieldTypePattern extends ExactAnnotationTypePattern {
++
++    UnresolvedType annotationType;
++    private ResolvedMember field;
++    
++    public ExactAnnotationFieldTypePattern(ExactAnnotationTypePattern p, String formalName) {
++        super(formalName);
++        this.annotationType = p.annotationType;
++        this.copyLocationFrom(p);
++    }
++
++    public ExactAnnotationFieldTypePattern(UnresolvedType annotationType, String formalName) {
++        super(formalName);
++        this.annotationType = annotationType;
++    }
++
++    /**
++     * resolve one of these funky things. Need to: <br>
++     * (a) Check the formal is bound <br>
++     * (b) Check the annotation type is valid
++     */
++    public AnnotationTypePattern resolveBindings(IScope scope, Bindings bindings, boolean allowBinding) {
++        if (resolved) return this;
++        resolved = true;
++        FormalBinding formalBinding = scope.lookupFormal(formalName);
++        if (formalBinding == null) {
++            scope.message(IMessage.ERROR, this, "when using @annotation(<annotationType>(<annotationField>)), <annotationField> must be bound");
++        }
++
++        annotationType = scope.getWorld().resolve(annotationType, true);
++
++        // May not be directly found if in a package, so go looking if that is the case:
++        if (ResolvedType.isMissing(annotationType)) {
++            String cleanname = annotationType.getName();
++            UnresolvedType type = null;
++            while (ResolvedType.isMissing(type = scope.lookupType(cleanname, this))) {
++                int lastDot = cleanname.lastIndexOf('.');
++                if (lastDot == -1) break;
++                cleanname = cleanname.substring(0, lastDot) + "$" + cleanname.substring(lastDot + 1);
++            }
++            annotationType = scope.getWorld().resolve(type, true);
++        }
++
++        verifyIsAnnotationType((ResolvedType) annotationType, scope);
++
++        if (!formalBinding.getType().resolve(scope.getWorld()).isEnum()) {
++            scope.message(IMessage.ERROR, this, "The field within the annotation must be an Enum. '" + formalBinding.getType()
++                + "' is not an Enum (compiler limitation)");
++        }
++        bindingPattern = true;
++
++        // Check that the formal is bound to a type that is represented by one field in the annotation type
++        ReferenceType theAnnotationType = (ReferenceType) annotationType;
++        ResolvedMember[] annotationFields = theAnnotationType.getDeclaredMethods();
++        field = null;
++        for (int i = 0; i < annotationFields.length; i++) {
++            ResolvedMember resolvedMember = annotationFields[i];
++            if (resolvedMember.getReturnType().equals(formalBinding.getType())) {
++                if (field != null) {
++                    scope.message(IMessage.ERROR, this, "The field type '" + formalBinding.getType() + "' is ambiguous for annotation type '"
++                        + theAnnotationType.getName() + "'");
++                }
++                field = resolvedMember;
++            }
++        }
++        if (field == null) {
++            scope.message(IMessage.ERROR, this, "No field of type '" + formalBinding.getType() + "' exists on annotation type '"
++                + theAnnotationType.getName() + "'");
++        }
++                
++        BindingAnnotationFieldTypePattern binding = new BindingAnnotationFieldTypePattern(formalBinding.getType(), formalBinding.getIndex(),
++            theAnnotationType);
++        binding.copyLocationFrom(this);
++        bindings.register(binding, scope);
++        binding.resolveBinding(scope.getWorld());
++        return binding;
++    }
++    
++    public void write(DataOutputStream s) throws IOException {
++        s.writeByte(AnnotationTypePattern.EXACTFIELD);
++        s.writeUTF(formalName);
++        annotationType.write(s);
++        writeLocation(s);
++    }
++
++    public static AnnotationTypePattern read(VersionedDataInputStream s, ISourceContext context) throws IOException {
++        ExactAnnotationFieldTypePattern ret;
++        String formalName = s.readUTF();
++        UnresolvedType annotationType = UnresolvedType.read(s);
++        ret = new ExactAnnotationFieldTypePattern(annotationType, formalName);
++        ret.readLocation(context, s);
++        return ret;
++    }
++
++    // ---
++    
++    public Object accept(PatternNodeVisitor visitor, Object data) {
++        return visitor.visit(this, data);
++    }
++
++    public boolean equals(Object obj) {
++        if (!(obj instanceof ExactAnnotationFieldTypePattern)) return false;
++        ExactAnnotationFieldTypePattern other = (ExactAnnotationFieldTypePattern) obj;
++        return 
++            (other.annotationType.equals(annotationType)) && 
++            (other.field.equals(field)) && (other.formalName.equals(this.formalName));
++    }
++
++    public int hashCode() {
++        int hashcode = annotationType.hashCode();
++        hashcode = hashcode * 37 + field.hashCode();
++        hashcode = hashcode * 37 + formalName.hashCode();
++        return hashcode;
++    }
++
++    // TODO these are currently unimplemented as I believe it resolves to a Binding form *always* and so they don't get
++    // called
++    
++    public FuzzyBoolean fastMatches(AnnotatedElement annotated) {
++        throw new BCException("unimplemented");
++    }
++
++    public UnresolvedType getAnnotationType() {
++        throw new BCException("unimplemented");
++    }
++
++    public Map getAnnotationValues() {
++        throw new BCException("unimplemented");
++    }
++
++    public ResolvedType getResolvedAnnotationType() {
++        throw new BCException("unimplemented");
++    }
++
++
++    public FuzzyBoolean matches(AnnotatedElement annotated, ResolvedType[] parameterAnnotations) {
++        throw new BCException("unimplemented");
++    }
++
++    public FuzzyBoolean matches(AnnotatedElement annotated) {
++        throw new BCException("unimplemented");
++    }
++
++    public FuzzyBoolean matchesRuntimeType(AnnotatedElement annotated) {
++        throw new BCException("unimplemented");
++    }
++
++    public AnnotationTypePattern parameterizeWith(Map typeVariableMap, World w) {
++        throw new BCException("unimplemented");
++    }
++
++    public void resolve(World world) {
++        throw new BCException("unimplemented");
++    }
++
++    public String toString() {
++        if (!resolved && formalName != null) return formalName;
++        StringBuffer ret = new StringBuffer();
++        ret.append("@").append(annotationType.toString());
++        ret.append("(").append(formalName).append(")");
++        return ret.toString();
++    }
++
++}
+@@ -24,8 +24,8 @@ import java.util.Map;
+ import java.util.Set;
+ 
+ import org.aspectj.weaver.ISourceContext;
+-import org.aspectj.weaver.MemberKind;
+ import org.aspectj.weaver.Member;
++import org.aspectj.weaver.MemberKind;
+ import org.aspectj.weaver.Shadow;
+ import org.aspectj.weaver.UnresolvedType;
+ import org.aspectj.weaver.internal.tools.PointcutDesignatorHandlerBasedPointcut;
+@@ -957,12 +957,17 @@ public class PatternParser {
+ 		p = parseSimpleAnnotationName();
+ 		int endPos = tokenSource.peek(-1).getEnd();
+ 		p.setLocation(sourceContext,startPos,endPos);
+-		return p;
+-	}
+-	
++		// For optimized syntax that allows binding directly to annotation values (pr234943)
++         if (maybeEat("(")) {
++            String formalName = parseIdentifier();
++            p = new ExactAnnotationFieldTypePattern(p, formalName);
++            eat(")");
++        }
++        return p;
++    }
+ 
+-	/**
+-	 * @return
++    /**
++     * @return
+ 	 */
+ 	private ExactAnnotationTypePattern parseSimpleAnnotationName() {
+ 		// the @ has already been eaten...
+@@ -80,7 +80,7 @@ import org.aspectj.weaver.WeaverMessages;
+ import org.aspectj.weaver.WeaverStateInfo;
+ import org.aspectj.weaver.World;
+ import org.aspectj.weaver.patterns.AndPointcut;
+-import org.aspectj.weaver.patterns.BindingAnnotationTypePattern;
++import org.aspectj.weaver.patterns.BindingPattern;
+ import org.aspectj.weaver.patterns.BindingTypePattern;
+ import org.aspectj.weaver.patterns.ConcreteCflowPointcut;
+ import org.aspectj.weaver.patterns.DeclareAnnotation;
+@@ -756,9 +756,9 @@ public class BcelWeaver implements IWeaver {
+ 					foundFormals[index] = true;
+ 				}
+ 			}
+-    		List/*BindingAnnotationTypePattern*/ baps = ((NameBindingPointcut)pc).getBindingAnnotationTypePatterns();
++    		List/* BindingPattern */baps = ((NameBindingPointcut) pc).getBindingAnnotationTypePatterns();
+     		for (Iterator iter = baps.iterator(); iter.hasNext();) {
+-				BindingAnnotationTypePattern bap = (BindingAnnotationTypePattern) iter.next();
++    		    BindingPattern bap = (BindingPattern) iter.next();
+ 				int index = bap.getFormalIndex();
+ 				bindings[index] = pc;
+ 				if (foundFormals[index]) {
+@@ -0,0 +1,8 @@
++package a.b.c;
++
++import java.lang.annotation.*;
++import x.y.z.Level;
++
++@Retention(RetentionPolicy.RUNTIME)
++public @interface Anno { Level value();}
++  
+@@ -0,0 +1,35 @@
++// CaseEight - annotations in packages two
++package p.q.r;
++
++import java.lang.annotation.*;
++
++public class CaseEight {
++
++  public static void main(String []argv) {
++      CaseEight o = new CaseEight();
++      o.a();
++      o.b();
++      o.c();
++      o.d();
++      o.e();
++    }
++
++                       public void a() {}
++    @Anno(Level.NONE)  public void b() {}
++    @Anno(Level.ONE)   public void c() {}
++    @Anno(Level.TWO)   public void d() {}
++    @Anno(Level.THREE) public void e() {}
++
++  }
++
++  enum Level { NONE, ONE, TWO, THREE; }
++
++  @Retention(RetentionPolicy.RUNTIME)
++  @interface Anno { Level value();}
++  
++aspect X {
++
++  before(p.q.r.Level l): execution(@Anno !@Anno(Level.NONE) * *(..)) && @annotation(Anno(l)) {
++    System.out.println(l);
++  }
++}
+@@ -0,0 +1,35 @@
++// CaseEleven - binding multiple annotation fields
++import java.lang.annotation.*;
++
++public class CaseEleven {
++
++  public static void main(String []argv) {
++   
++    CaseEleven o = new CaseEleven();
++    o.a();
++    o.b();
++    o.c();
++    o.d();
++    o.e();
++  }
++
++                     public void a() {}
++  @Anno(value=Level.NONE,c=Color.RED)  public void b() {}
++  @Anno(value=Level.ONE)   public void c() {}
++  @Anno(value=Level.TWO,c=Color.GREEN)   public void d() {}
++  @Anno(value=Level.THREE,c=Color.BLUE) public void e() {}
++
++}
++
++enum Level { NONE, ONE, TWO, THREE; }
++enum Color { RED, GREEN, BLUE; }
++
++@Retention(RetentionPolicy.RUNTIME)
++@interface Anno { Level value(); Color c() default Color.GREEN; }
++
++aspect X {
++
++  before(Level l,Color color): execution(@Anno !@Anno(Level.NONE) * *(..)) && @annotation(Anno(l)) && @annotation(Anno(color)) {
++    System.out.println(l+":"+color);
++  }
++}
+@@ -0,0 +1,23 @@
++// CaseFive - not an enum, compiler limitation
++import java.lang.annotation.*;
++
++public class CaseFive {
++
++  public static void main(String []argv) {
++    CaseFive o = new CaseFive();
++    o.a();
++  }
++
++  @Anno("hello") public void a() {}
++
++}
++
++@Retention(RetentionPolicy.RUNTIME)
++@interface Anno { String value(); }
++
++aspect X {
++
++  before(String l): execution(@Anno * *(..)) && @annotation(Anno(l)) {
++    System.out.println(l);
++  }
++}
+@@ -0,0 +1,29 @@
++// CaseFour - default value specified and should be extracted
++import java.lang.annotation.*;
++
++public class CaseFour {
++
++  public static void main(String []argv) {
++    CaseFour o = new CaseFour();
++    o.a();
++    o.b();
++    o.c();
++  }
++
++  @Anno public void a() {}
++  @Anno(Level.TWO) public void b() {}
++  @Anno public void c() {}
++
++}
++
++enum Level { NONE, ONE, TWO, THREE; }
++
++@Retention(RetentionPolicy.RUNTIME)
++@interface Anno { Level value() default Level.ONE;}
++
++aspect X {
++
++  before(Level l): execution(@Anno !@Anno(Level.NONE) * *(..)) && @annotation(Anno(l)) {
++    System.out.println(l);
++  }
++}
+@@ -0,0 +1,32 @@
++// CaseNine - everything in different packages
++package p.q.r;
++
++import java.lang.annotation.*;
++import a.b.c.Anno;
++import x.y.z.Level;
++
++public class CaseNine {
++
++  public static void main(String []argv) {
++      CaseNine o = new CaseNine();
++      o.a();
++      o.b();
++      o.c();
++      o.d();
++      o.e();
++    }
++
++                       public void a() {}
++    @Anno(Level.NONE)  public void b() {}
++    @Anno(Level.ONE)   public void c() {}
++    @Anno(Level.TWO)   public void d() {}
++    @Anno(Level.THREE) public void e() {}
++
++  }
++
++aspect X {
++
++  before(Level l): execution(@Anno !@Anno(Level.NONE) * *(..)) && @annotation(Anno(l)) {
++    System.out.println(l);
++  }
++}
+@@ -0,0 +1,34 @@
++// CaseOne - new syntax
++import java.lang.annotation.*;
++
++public class CaseOne {
++
++  public static void main(String []argv) {
++   
++    CaseOne o = new CaseOne();
++    o.a();
++    o.b();
++    o.c();
++    o.d();
++    o.e();
++  }
++
++                     public void a() {}
++  @Anno(Level.NONE)  public void b() {}
++  @Anno(Level.ONE)   public void c() {}
++  @Anno(Level.TWO)   public void d() {}
++  @Anno(Level.THREE) public void e() {}
++
++}
++
++enum Level { NONE, ONE, TWO, THREE; }
++
++@Retention(RetentionPolicy.RUNTIME)
++@interface Anno { Level value();}
++
++aspect X {
++
++  before(Level l): execution(@Anno !@Anno(Level.NONE) * *(..)) && @annotation(Anno(l)) {
++    System.out.println(l);
++  }
++}
+@@ -0,0 +1,35 @@
++// CaseSeven - annotations in packages
++package p.q.r;
++
++import java.lang.annotation.*;
++
++public class CaseSeven {
++
++  public static void main(String []argv) {
++      CaseSeven o = new CaseSeven();
++      o.a();
++      o.b();
++      o.c();
++      o.d();
++      o.e();
++    }
++
++                       public void a() {}
++    @Anno(Level.NONE)  public void b() {}
++    @Anno(Level.ONE)   public void c() {}
++    @Anno(Level.TWO)   public void d() {}
++    @Anno(Level.THREE) public void e() {}
++
++  }
++
++  enum Level { NONE, ONE, TWO, THREE; }
++
++  @Retention(RetentionPolicy.RUNTIME)
++  @interface Anno { Level value();}
++  
++aspect X {
++
++  before(Level l): execution(@Anno !@Anno(Level.NONE) * *(..)) && @annotation(p.q.r.Anno(l)) {
++    System.out.println(l);
++  }
++}
+@@ -0,0 +1,23 @@
++// CaseSix - not an execution join point - compiler limitation
++import java.lang.annotation.*;
++
++public class CaseSix {
++
++  @Anno static String s;
++
++  public static void main(String []argv) {
++    s = "hello";
++  }
++
++}
++enum Level { NONE; }
++
++@Retention(RetentionPolicy.RUNTIME)
++@interface Anno { Level value() default Level.NONE; }
++
++aspect X {
++
++  before(Level l): set(@Anno * *) && @annotation(Anno(l)) {
++    System.out.println(l);
++  }
++}
+@@ -0,0 +1,34 @@
++// CaseTen - binding multiple things
++import java.lang.annotation.*;
++
++public class CaseTen {
++
++  public static void main(String []argv) {
++   
++    CaseTen o = new CaseTen();
++    o.a(1);
++    o.b(2);
++    o.c(3);
++    o.d(4);
++    o.e(5);
++  }
++
++                     public void a(int i) {}
++  @Anno(Level.NONE)  public void b(int i) {}
++  @Anno(Level.ONE)   public void c(int i) {}
++  @Anno(Level.TWO)   public void d(int i) {}
++  @Anno(Level.THREE) public void e(int i) {}
++
++}
++
++enum Level { NONE, ONE, TWO, THREE; }
++
++@Retention(RetentionPolicy.RUNTIME)
++@interface Anno { Level value();}
++
++aspect X {
++
++  before(Level l,int i): execution(@Anno !@Anno(Level.NONE) * *(..)) && @annotation(Anno(l)) && args(i) {
++    System.out.println(l+":"+i);
++  }
++}
+@@ -0,0 +1,34 @@
++// CaseThree - ambiguous
++import java.lang.annotation.*;
++
++public class CaseThree {
++
++  public static void main(String []argv) {
++   
++    CaseThree o = new CaseThree();
++    o.a();
++    o.b();
++    o.c();
++    o.d();
++    o.e();
++  }
++
++                     public void a() {}
++  @Anno(Level.NONE)  public void b() {}
++  @Anno(Level.ONE)   public void c() {}
++  @Anno(Level.TWO)   public void d() {}
++  @Anno(Level.THREE) public void e() {}
++
++}
++
++enum Level { NONE, ONE, TWO, THREE; }
++
++@Retention(RetentionPolicy.RUNTIME)
++@interface Anno { Level value(); Level foo() default Level.ONE;}
++
++aspect X {
++
++  before(Level l): execution(@Anno !@Anno(Level.NONE) * *(..)) && @annotation(Anno(l)) {
++    System.out.println(l);
++  }
++}
+@@ -0,0 +1,35 @@
++// CaseTwelve - binding anno and anno value
++import java.lang.annotation.*;
++
++public class CaseTwelve {
++
++  public static void main(String []argv) {
++   
++    CaseTwelve o = new CaseTwelve();
++    o.a();
++    o.b();
++    o.c();
++    o.d();
++    o.e();
++  }
++
++                     public void a() {}
++  @Anno(value=Level.NONE,c=Color.RED)  public void b() {}
++  @Anno(value=Level.ONE)   public void c() {}
++  @Anno(value=Level.TWO,c=Color.GREEN)   public void d() {}
++  @Anno(value=Level.THREE,c=Color.BLUE) public void e() {}
++
++}
++
++enum Level { NONE, ONE, TWO, THREE; }
++enum Color { RED, GREEN, BLUE; }
++
++@Retention(RetentionPolicy.RUNTIME)
++@interface Anno { Level value(); Color c() default Color.GREEN; }
++
++aspect X {
++
++  before(Level l,Anno a): execution(@Anno !@Anno(Level.NONE) * *(..)) && @annotation(Anno(l)) && @annotation(a) {
++    System.out.println(l+":"+a.c());
++  }
++}
+@@ -0,0 +1,33 @@
++// CaseTwo - no such field in the annotation 
++import java.lang.annotation.*;
++
++public class CaseTwo {
++
++  public static void main(String []argv) {
++    CaseTwo o = new CaseTwo();
++    o.a();
++    o.b();
++    o.c();
++    o.d();
++    o.e();
++  }
++
++                     public void a() {}
++  @Anno("A")  public void b() {}
++  @Anno("B")   public void c() {}
++  @Anno("C")   public void d() {}
++  @Anno public void e() {}
++
++}
++
++enum Level { NONE, ONE, TWO, THREE; }
++
++@Retention(RetentionPolicy.RUNTIME)
++@interface Anno { String value() default "";}
++
++aspect X {
++
++  before(Level l): execution(@Anno !@Anno(Level.NONE) * *(..)) && @annotation(Anno(l)) {
++    System.out.println(l);
++  }
++}
+@@ -0,0 +1,3 @@
++package x.y.z;
++
++public enum Level { NONE, ONE, TWO, THREE; }
+@@ -19,6 +19,7 @@ public class AllTestsAspectJ161 {
+ 		TestSuite suite = new TestSuite("AspectJ 1.6.1 tests");
+ 		//$JUnit-BEGIN$
+ 		suite.addTest(Ajc161Tests.suite());
++		suite.addTest(OptimizedAnnotationFieldBinding.suite());
+         //$JUnit-END$
+ 		return suite;
+ 	}
+@@ -0,0 +1,69 @@
++/* *******************************************************************
++ * Copyright (c) 2008 Contributors
++ * All rights reserved. 
++ * This program and the accompanying materials are made available 
++ * under the terms of the Eclipse Public License v1.0 
++ * which accompanies this distribution and is available at 
++ * http://www.eclipse.org/legal/epl-v10.html 
++ *  
++ *  Contributors
++ *  Andy Clement 
++ * ******************************************************************/
++package org.aspectj.systemtest.ajc161;
++ 
++import java.io.File;
++
++import junit.framework.Test;
++
++import org.aspectj.testing.XMLBasedAjcTestCase;
++
++/**
++ * Optimising Annotation Field Binding - better code gen for the cases where the user just wants a field from the
++ * annotation on a method but not the whole annotation.
++ * 
++ */
++public class OptimizedAnnotationFieldBinding extends XMLBasedAjcTestCase {
++	
++    public void testCaseOne_Syntax() {
++        runTest("case one - syntax");
++    }
++    public void testCaseTwo_NoSuchField() {
++        runTest("case two - no such field");
++    }
++    public void testCaseThree_Ambiguous() {
++        runTest("case three - ambiguous");
++    }
++    public void testCaseFour_DefaultValue() {
++        runTest("case four - default value");
++    }
++    public void testCaseFive_NotAnEnum_CompilerLimitation() {
++        runTest("case five - not an enum - compiler limitation");
++    }
++    public void testCaseSeven_AnnosInPackagesOne() {
++        runTest("case seven - annos in packages one");
++    }
++    public void testCaseEight_AnnosInPackagesTwo() {
++        runTest("case eight - annos in packages two");
++    }
++    public void testCaseNine_AllInDifferentPackages() {
++        runTest("case nine - everything in different packages");
++    }
++    public void testCaseTen_BindingMultipleThings() {
++        runTest("case ten - binding multiple things");
++    }
++    public void testCaseEleven_BindingMultipleAnnotationFields() {
++        runTest("case eleven - binding multiple annotation fields");
++    }
++    public void testCaseTwelve_BindingAnnoAndAnnoValue() {
++        runTest("case twelve - binding anno and anno value");
++    }
++    
++	/////////////////////////////////////////
++	public static Test suite() {
++	    return XMLBasedAjcTestCase.loadSuite(OptimizedAnnotationFieldBinding.class);
++	}
++
++	protected File getSpecFile() {
++	    return new File("../tests/src/org/aspectj/systemtest/ajc161/annotationFieldBinding.xml");
++	}
++}
+@@ -0,0 +1,118 @@
++<!DOCTYPE suite SYSTEM "../tests/ajcTestSuite.dtd"[]>
++
++<!-- AspectJ v1.6.1 Optimized Annotation Field Binding Tests -->
++<suite>
++
++   <ajc-test dir="features161/optimizedAnnotationBinding" title="case one - syntax">
++     <compile options="-1.5" files="CaseOne.java"/> 
++     <run class="CaseOne">
++       <stdout>
++         <line text="ONE"/>
++         <line text="TWO"/>
++         <line text="THREE"/>
++       </stdout>
++     </run>
++   </ajc-test>
++   
++   <ajc-test dir="features161/optimizedAnnotationBinding" title="case two - no such field">
++     <compile options="-1.5" files="CaseTwo.java">
++       <message kind="error" line="30" text="No field of type 'Level' exists on annotation type 'Anno'"/>
++     </compile>
++   </ajc-test>
++   
++   <ajc-test dir="features161/optimizedAnnotationBinding" title="case three - ambiguous">
++     <compile options="-1.5" files="CaseThree.java">
++       <message kind="error" line="31" text="The field type 'Level' is ambiguous for annotation type 'Anno'"/>
++     </compile>
++   </ajc-test>
++   
++   <ajc-test dir="features161/optimizedAnnotationBinding" title="case four - default value">
++     <compile options="-1.5" files="CaseFour.java"/> 
++     <run class="CaseFour">
++       <stdout>
++         <line text="ONE"/>
++         <line text="TWO"/>
++         <line text="ONE"/>
++       </stdout>
++     </run>
++   </ajc-test>
++   
++   <ajc-test dir="features161/optimizedAnnotationBinding" title="case five - not an enum - compiler limitation">
++     <compile options="-1.5" files="CaseFive.java">
++       <message kind="error" line="20" text="The field within the annotation must be an Enum. 'java.lang.String' is not an Enum"/>
++     </compile>
++   </ajc-test>
++   
++   <ajc-test dir="features161/optimizedAnnotationBinding" title="case six - not an execution join point - compiler limitation">
++     <compile options="-1.5" files="CaseSix.java">
++       <message kind="error" line="20" text="Annotation field binding is only supported at method-execution join points"/>
++     </compile>
++   </ajc-test>
++   
++   <ajc-test dir="features161/optimizedAnnotationBinding" title="case seven - annos in packages one">
++     <compile options="-1.5" files="CaseSeven.java"/> 
++     <run class="p.q.r.CaseSeven">
++       <stdout>
++         <line text="ONE"/>
++         <line text="TWO"/>
++         <line text="THREE"/>
++       </stdout>
++     </run>
++   </ajc-test>
++   
++   <ajc-test dir="features161/optimizedAnnotationBinding" title="case eight - annos in packages two">
++     <compile options="-1.5" files="CaseEight.java"/> 
++     <run class="p.q.r.CaseEight">
++       <stdout>
++         <line text="ONE"/>
++         <line text="TWO"/>
++         <line text="THREE"/>
++       </stdout>
++     </run>
++   </ajc-test>
++   
++   <ajc-test dir="features161/optimizedAnnotationBinding" title="case nine - everything in different packages">
++     <compile options="-1.5" files="CaseNine.java Level.java Anno.java"/> 
++     <run class="p.q.r.CaseNine">
++       <stdout>
++         <line text="ONE"/>
++         <line text="TWO"/>
++         <line text="THREE"/>
++       </stdout>
++     </run>
++   </ajc-test>
++   
++   <ajc-test dir="features161/optimizedAnnotationBinding" title="case ten - binding multiple things">
++     <compile options="-1.5" files="CaseTen.java"/> 
++     <run class="CaseTen">
++       <stdout>
++         <line text="ONE:3"/>
++         <line text="TWO:4"/>
++         <line text="THREE:5"/>
++       </stdout>
++     </run>
++   </ajc-test>
++   
++   <ajc-test dir="features161/optimizedAnnotationBinding" title="case eleven - binding multiple annotation fields">
++     <compile options="-1.5" files="CaseEleven.java"/> 
++     <run class="CaseEleven">
++       <stdout>
++         <line text="ONE:GREEN"/>
++         <line text="TWO:GREEN"/>
++         <line text="THREE:BLUE"/>
++       </stdout>
++     </run>
++   </ajc-test>
++   
++   <ajc-test dir="features161/optimizedAnnotationBinding" title="case twelve - binding anno and anno value">
++     <compile options="-1.5" files="CaseTwelve.java"/> 
++     <run class="CaseTwelve">
++       <stdout>
++         <line text="ONE:GREEN"/>
++         <line text="TWO:GREEN"/>
++         <line text="THREE:BLUE"/>
++       </stdout>
++     </run>
++   </ajc-test>
++   
++</suite>
+\ No newline at end of file
+@@ -221,10 +221,14 @@ public abstract class AjAttribute {
+ 		public static short WEAVER_VERSION_MAJOR_AJ160 = 4;
+ 		public static short WEAVER_VERSION_MINOR_AJ160 = 0;
+ 
++	      // These are the weaver major/minor numbers for AspectJ 1.6.1
++        public static short WEAVER_VERSION_MAJOR_AJ161 = 6; // annotation value binding
++        public static short WEAVER_VERSION_MINOR_AJ161 = 0;
++
+ 
+ 		// These are the weaver major/minor versions for *this* weaver
+-		private static short CURRENT_VERSION_MAJOR      = WEAVER_VERSION_MAJOR_AJ160M2;
+-		private static short CURRENT_VERSION_MINOR      = WEAVER_VERSION_MINOR_AJ160;
++		private static short CURRENT_VERSION_MAJOR = WEAVER_VERSION_MAJOR_AJ161;
++        private static short CURRENT_VERSION_MINOR = WEAVER_VERSION_MINOR_AJ161;
+ 
+ 		public static final WeaverVersionInfo UNKNOWN = 
+ 			new WeaverVersionInfo(WEAVER_VERSION_MAJOR_UNKNOWN,WEAVER_VERSION_MINOR_UNKNOWN);
+@@ -0,0 +1,158 @@
++/* *******************************************************************
++ * Copyright (c) 2008 Contributors
++ * All rights reserved. 
++ * This program and the accompanying materials are made available 
++ * under the terms of the Eclipse Public License v1.0 
++ * which accompanies this distribution and is available at 
++ * http://www.eclipse.org/legal/epl-v10.html 
++ *  
++ * Contributors: 
++ *     Andy Clement     initial implementation 
++ * ******************************************************************/
++package org.aspectj.weaver.bcel;
++
++import java.util.Iterator;
++import java.util.List;
++
++import org.aspectj.apache.bcel.classfile.annotation.AnnotationGen;
++import org.aspectj.apache.bcel.classfile.annotation.ElementNameValuePairGen;
++import org.aspectj.apache.bcel.classfile.annotation.EnumElementValueGen;
++import org.aspectj.apache.bcel.generic.Instruction;
++import org.aspectj.apache.bcel.generic.InstructionFactory;
++import org.aspectj.apache.bcel.generic.InstructionList;
++import org.aspectj.apache.bcel.generic.Type;
++import org.aspectj.weaver.AnnotationX;
++import org.aspectj.weaver.Member;
++import org.aspectj.weaver.ResolvedMember;
++import org.aspectj.weaver.ResolvedType;
++import org.aspectj.weaver.Shadow;
++import org.aspectj.weaver.UnresolvedType;
++
++/**
++ * For creating the code that accesses a field of an annotation.
++ * 
++ */
++ // TODO 2 tidy this code up, don't make it a delegator for AnnotationAccessVar - don't override irrelevant methods
++public class AnnotationAccessFieldVar extends BcelVar {
++
++    AnnotationAccessVar aav;
++    ResolvedType f;
++
++    public AnnotationAccessFieldVar(AnnotationAccessVar aav, ResolvedType field) {
++        super(field, 0);
++        this.aav = aav;
++        this.f = field;
++    }
++
++    void appendConvertableArrayLoad(InstructionList il, InstructionFactory fact, int index, ResolvedType convertTo) {
++        // TODO Auto-generated method stub
++        super.appendConvertableArrayLoad(il, fact, index, convertTo);
++    }
++
++    void appendConvertableArrayStore(InstructionList il, InstructionFactory fact, int index, BcelVar storee) {
++        // TODO Auto-generated method stub
++        super.appendConvertableArrayStore(il, fact, index, storee);
++    }
++
++    public void appendLoad(InstructionList il, InstructionFactory fact) {
++        // TODO Auto-generated method stub
++        super.appendLoad(il, fact);
++    }
++
++    public void appendLoadAndConvert(InstructionList il, InstructionFactory fact, ResolvedType toType) {
++        System.err.println("Loading " + toType);
++        if (aav.getKind() == Shadow.MethodExecution) {
++            // So we have an entity that has an annotation on and within it is the value we want
++            Member holder = aav.getMember();
++            AnnotationX[] annos = holder.getAnnotations();
++            for (int i = 0; i < annos.length; i++) {
++                AnnotationGen ag = annos[i].getBcelAnnotation();
++                List vals = ag.getValues();
++                boolean doneAndDusted = false;
++                for (Iterator iterator = vals.iterator(); iterator.hasNext();) {
++                    ElementNameValuePairGen object = (ElementNameValuePairGen) iterator.next();
++                    String name = object.getNameString();
++                    EnumElementValueGen v = (EnumElementValueGen) object.getValue();
++                    String s = v.getEnumTypeString();
++                    ResolvedType rt = toType.getWorld().resolve(UnresolvedType.forSignature(s));
++                    if (rt.equals(toType)) {
++                        il.append(fact.createGetStatic(rt.getName(), v.getEnumValueString(), Type.getType(rt.getSignature())));
++                        doneAndDusted = true;
++                    }
++                }
++                if (!doneAndDusted) {
++                    ResolvedMember[] annotationFields = toType.getWorld().resolve(UnresolvedType.forSignature(ag.getTypeSignature())).getDeclaredMethods();
++                
++                    // ResolvedMember[] fs = rt.getDeclaredFields();
++                     for (int ii = 0; ii < annotationFields.length; ii++) {
++                        if (annotationFields[ii].getType().equals(f)) {
++                            String dvalue = annotationFields[ii].getAnnotationDefaultValue();
++                            // form will be LBLAHBLAHBLAH;X where X is the field within X
++                            String typename = dvalue.substring(0, dvalue.lastIndexOf(';') + 1);
++                            String field = dvalue.substring(dvalue.lastIndexOf(';') + 1);
++                            ResolvedType rt = toType.getWorld().resolve(UnresolvedType.forSignature(typename));
++                            il.append(fact.createGetStatic(rt.getName(), field, Type.getType(rt.getSignature())));
++                        }
++                    }
++                }
++            }
++        } else {
++            throw new RuntimeException("You, sir, are having a laugh");
++        }
++    }
++
++    public void appendStore(InstructionList il, InstructionFactory fact) {
++        // TODO Auto-generated method stub
++        super.appendStore(il, fact);
++    }
++
++    InstructionList createConvertableArrayLoad(InstructionFactory fact, int index, ResolvedType convertTo) {
++        // TODO Auto-generated method stub
++        return super.createConvertableArrayLoad(fact, index, convertTo);
++    }
++
++    InstructionList createConvertableArrayStore(InstructionFactory fact, int index, BcelVar storee) {
++        // TODO Auto-generated method stub
++        return super.createConvertableArrayStore(fact, index, storee);
++    }
++
++    public InstructionList createCopyFrom(InstructionFactory fact, int oldSlot) {
++        // TODO Auto-generated method stub
++        return super.createCopyFrom(fact, oldSlot);
++    }
++
++    public Instruction createLoad(InstructionFactory fact) {
++        
++        return null;
++    }
++
++    public Instruction createStore(InstructionFactory fact) {
++        // TODO Auto-generated method stub
++        return super.createStore(fact);
++    }
++
++    public int getPositionInAroundState() {
++        // TODO Auto-generated method stub
++        return super.getPositionInAroundState();
++    }
++
++    public int getSlot() {
++        // TODO Auto-generated method stub
++        return super.getSlot();
++    }
++
++    public void insertLoad(InstructionList il, InstructionFactory fact) {
++        // TODO Auto-generated method stub
++        super.insertLoad(il, fact);
++    }
++
++    public void setPositionInAroundState(int positionInAroundState) {
++        // TODO Auto-generated method stub
++        super.setPositionInAroundState(positionInAroundState);
++    }
++
++    public String toString() {
++        // TODO Auto-generated method stub
++        return super.toString();
++    }
++}
+@@ -42,6 +42,10 @@ public class AnnotationAccessVar extends BcelVar {
+ 		this.containingType = theTargetIsStoredHere; 
+ 		this.member = sig;
+ 	}
++	
++	public Kind getKind() {
++        return kind;
++    }
+ 
+ 	public String toString() {
+ 		return "AnnotationAccessVar(" + getType() +")";
+@@ -157,4 +161,8 @@ public class AnnotationAccessVar extends BcelVar {
+ 		}
+ 	}
+ 
++    public Member getMember() {
++        return member;
++    }
++
+ }
+@@ -22,6 +22,7 @@ import org.aspectj.bridge.MessageUtil;
+ import org.aspectj.util.FuzzyBoolean;
+ import org.aspectj.weaver.AjcMemberMaker;
+ import org.aspectj.weaver.AnnotatedElement;
++import org.aspectj.weaver.BCException;
+ import org.aspectj.weaver.ISourceContext;
+ import org.aspectj.weaver.IntMap;
+ import org.aspectj.weaver.Member;
+@@ -38,6 +39,8 @@ import org.aspectj.weaver.World;
+ import org.aspectj.weaver.ast.Literal;
+ import org.aspectj.weaver.ast.Test;
+ import org.aspectj.weaver.ast.Var;
++import org.aspectj.weaver.bcel.AnnotationAccessFieldVar;
++import org.aspectj.weaver.bcel.AnnotationAccessVar;
+ import org.aspectj.weaver.bcel.BcelTypeMunger;
+ 
+ /**
+@@ -184,12 +187,25 @@ public class AnnotationPointcut extends NameBindingPointcut {
+         return ret;
+ 	}
+ 
+-	/* (non-Javadoc)
+-	 * @see org.aspectj.weaver.patterns.Pointcut#findResidue(org.aspectj.weaver.Shadow, org.aspectj.weaver.patterns.ExposedState)
+-	 */
+ 	protected Test findResidueInternal(Shadow shadow, ExposedState state) {
+-		
+-		if (annotationTypePattern instanceof BindingAnnotationTypePattern) {
++		if (annotationTypePattern instanceof BindingAnnotationFieldTypePattern) {
++		    if (shadow.getKind() != Shadow.MethodExecution) {
++                shadow.getIWorld().getMessageHandler().handleMessage(
++                    MessageUtil.error("Annotation field binding is only supported at method-execution join points (compiler limitation)",
++                        getSourceLocation()));
++                return Literal.TRUE; // exit quickly, error will prevent weaving
++            }
++            BindingAnnotationFieldTypePattern btp = (BindingAnnotationFieldTypePattern) annotationTypePattern;
++            UnresolvedType formalType = btp.getFormalType().resolve(shadow.getIWorld());
++            UnresolvedType annoType = btp.getAnnotationType();
++            // TODO 2 need to sort out appropriate creation of the AnnotationAccessFieldVar - what happens for
++            // reflective (ReflectionShadow) access to types?
++            AnnotationAccessVar var = (AnnotationAccessVar) shadow.getKindedAnnotationVar(annoType);
++            if (var == null) {
++                throw new BCException("Unexpected problem locating annotation at join point '" + shadow + "'");
++            }
++            state.set(btp.getFormalIndex(), new AnnotationAccessFieldVar(var, (ResolvedType) formalType));
++        } else if (annotationTypePattern instanceof BindingAnnotationTypePattern) {
+ 			BindingAnnotationTypePattern btp = (BindingAnnotationTypePattern)annotationTypePattern;
+ 			UnresolvedType annotationType = btp.getAnnotationType();
+ 			Var var = shadow.getKindedAnnotationVar(annotationType);
+@@ -213,6 +229,7 @@ public class AnnotationPointcut extends NameBindingPointcut {
+ 			}
+ 			state.set(btp.getFormalIndex(),var);
+ 		}
++		
+ 		if (matchInternal(shadow).alwaysTrue()) 
+ 			return Literal.TRUE;
+ 		else 
+@@ -223,7 +240,7 @@ public class AnnotationPointcut extends NameBindingPointcut {
+ 	 * @see org.aspectj.weaver.patterns.NameBindingPointcut#getBindingAnnotationTypePatterns()
+ 	 */
+ 	public List getBindingAnnotationTypePatterns() {
+-		if (annotationTypePattern instanceof BindingAnnotationTypePattern) {
++		if (annotationTypePattern instanceof BindingPattern) { // BindingAnnotationTypePattern) {
+ 			List l = new ArrayList();
+ 			l.add(annotationTypePattern);
+ 			return l;
+@@ -72,6 +72,8 @@ public abstract class AnnotationTypePattern extends PatternNode {
+ 	public static final byte ELLIPSIS_KEY = 6;
+ 	public static final byte ANY_KEY = 7;
+ 	public static final byte WILD = 8;
++    public static final byte EXACTFIELD = 9;
++    public static final byte BINDINGFIELD = 10;
+ 
+ 	public static AnnotationTypePattern read(VersionedDataInputStream s, ISourceContext context) throws IOException {
+ 		byte key = s.readByte();
+@@ -82,6 +84,10 @@ public abstract class AnnotationTypePattern extends PatternNode {
+ 			case OR: return OrAnnotationTypePattern.read(s, context);
+ 			case AND: return AndAnnotationTypePattern.read(s, context);
+ 			case WILD: return WildAnnotationTypePattern.read(s,context);
++            case EXACTFIELD:
++                return ExactAnnotationFieldTypePattern.read(s, context);
++            case BINDINGFIELD:
++                return BindingAnnotationFieldTypePattern.read(s, context);
+ 			case ELLIPSIS_KEY: return ELLIPSIS;
+ 			case ANY_KEY: return ANY;
+ 		}
+@@ -0,0 +1,171 @@
++/* *******************************************************************
++ * Copyright (c) 2008 Contributors
++ * All rights reserved. 
++ * This program and the accompanying materials are made available 
++ * under the terms of the Eclipse Public License v1.0 
++ * which accompanies this distribution and is available at 
++ * http://www.eclipse.org/legal/epl-v10.html 
++ *  
++ * Contributors: 
++ *     Andy Clement     initial implementation 
++ * ******************************************************************/
++package org.aspectj.weaver.patterns;
++
++import java.io.DataOutputStream;
++import java.io.IOException;
++import java.util.Map;
++
++import org.aspectj.bridge.IMessage;
++import org.aspectj.bridge.MessageUtil;
++import org.aspectj.util.FuzzyBoolean;
++import org.aspectj.weaver.AnnotatedElement;
++import org.aspectj.weaver.BCException;
++import org.aspectj.weaver.ISourceContext;
++import org.aspectj.weaver.IntMap;
++import org.aspectj.weaver.ReferenceType;
++import org.aspectj.weaver.ResolvedMember;
++import org.aspectj.weaver.ResolvedType;
++import org.aspectj.weaver.UnresolvedType;
++import org.aspectj.weaver.VersionedDataInputStream;
++import org.aspectj.weaver.WeaverMessages;
++import org.aspectj.weaver.World;
++
++/**
++ * Represents an attempt to bind the field of an annotation within a pointcut. For example:<br>
++ * <code><pre>
++ * before(Level lev): execution(* *(..)) &amp;&amp; @annotation(TraceAnnotation(lev))
++ * </pre></code><br>
++ * This binding annotation type pattern will be for 'lev'.
++ */
++public class BindingAnnotationFieldTypePattern extends ExactAnnotationTypePattern implements BindingPattern {
++
++    protected int formalIndex;
++    UnresolvedType formalType; // In this construct the formal type differs from the annotation type
++
++    public BindingAnnotationFieldTypePattern(UnresolvedType formalType, int formalIndex, UnresolvedType theAnnotationType) {
++        super(theAnnotationType, null);
++        this.formalIndex = formalIndex;
++        this.formalType = formalType;
++    }
++
++    public void resolveBinding(World world) {
++        if (resolved) return;
++        resolved = true;
++        formalType = world.resolve(formalType);
++        annotationType = world.resolve(annotationType);
++        ResolvedType annoType = (ResolvedType) annotationType;
++        if (!annoType.isAnnotation()) {
++            IMessage m = MessageUtil.error(WeaverMessages.format(WeaverMessages.REFERENCE_TO_NON_ANNOTATION_TYPE, annoType.getName()),
++                getSourceLocation());
++            world.getMessageHandler().handleMessage(m);
++            resolved = false;
++        }
++    }
++
++    public AnnotationTypePattern parameterizeWith(Map typeVariableMap, World w) {
++        throw new BCException("Parameterization not implemented for annotation field binding construct (compiler limitation)");
++        // UnresolvedType newAnnotationType = annotationType;
++        // if (annotationType.isTypeVariableReference()) {
++        // TypeVariableReference t = (TypeVariableReference) annotationType;
++        // String key = t.getTypeVariable().getName();
++        // if (typeVariableMap.containsKey(key)) {
++        // newAnnotationType = (UnresolvedType) typeVariableMap.get(key);
++        // }
++        // } else if (annotationType.isParameterizedType()) {
++        // newAnnotationType = annotationType.parameterize(typeVariableMap);
++        // }
++        // BindingAnnotationTypePattern ret = new BindingAnnotationTypePattern(newAnnotationType, this.formalIndex);
++        // if (newAnnotationType instanceof ResolvedType) {
++        // ResolvedType rat = (ResolvedType) newAnnotationType;
++        // verifyRuntimeRetention(rat.getWorld(), rat);
++        // }
++        // ret.copyLocationFrom(this);
++        // return ret;
++    }
++
++    public int getFormalIndex() {
++        return formalIndex;
++    }
++
++    public boolean equals(Object obj) {
++        if (!(obj instanceof BindingAnnotationFieldTypePattern)) return false;
++        BindingAnnotationFieldTypePattern btp = (BindingAnnotationFieldTypePattern) obj;
++        return (btp.formalIndex == formalIndex) && (annotationType.equals(btp.annotationType)) && (formalType.equals(btp.formalType));
++    }
++
++    public int hashCode() {
++        return (annotationType.hashCode() * 37 + formalIndex * 37) + formalType.hashCode();
++    }
++
++    public AnnotationTypePattern remapAdviceFormals(IntMap bindings) {
++        if (!bindings.hasKey(formalIndex)) {
++            throw new BCException("Annotation field binding reference must be bound (compiler limitation)");
++            // must be something like returning the unbound form: return new ExactAnnotationTypePattern(annotationType,
++            // null);
++        } else {
++            int newFormalIndex = bindings.get(formalIndex);
++            return new BindingAnnotationFieldTypePattern(formalType, newFormalIndex, annotationType);
++        }
++    }
++
++    public void write(DataOutputStream s) throws IOException {
++        s.writeByte(AnnotationTypePattern.BINDINGFIELD);
++        formalType.write(s); // the type of the field within the annotation
++        s.writeShort((short) formalIndex);
++        annotationType.write(s); // the annotation type
++        writeLocation(s);
++    }
++
++    public static AnnotationTypePattern read(VersionedDataInputStream s, ISourceContext context) throws IOException {
++        AnnotationTypePattern ret = new BindingAnnotationFieldTypePattern(UnresolvedType.read(s), s.readShort(), UnresolvedType.read(s));
++        ret.readLocation(context, s);
++        return ret;
++    }
++    
++
++    public FuzzyBoolean matches(AnnotatedElement annotated, ResolvedType[] parameterAnnotations) {        
++        // Inheritance irrelevant because @annotation(Anno(x)) only supported at method execution join points (compiler limitation)
++//      boolean checkSupers = false;
++//        if (getResolvedAnnotationType().hasAnnotation(UnresolvedType.AT_INHERITED)) {
++//            if (annotated instanceof ResolvedType) {
++//                checkSupers = true;
++//            }
++//        }
++//
++        if (annotated.hasAnnotation(annotationType)) {
++            if (annotationType instanceof ReferenceType) {
++                ReferenceType rt = (ReferenceType) annotationType;
++                if (rt.getRetentionPolicy() != null && rt.getRetentionPolicy().equals("SOURCE")) {
++                    rt.getWorld().getMessageHandler().handleMessage(
++                        MessageUtil.warn(WeaverMessages.format(WeaverMessages.NO_MATCH_BECAUSE_SOURCE_RETENTION, annotationType, annotated),
++                            getSourceLocation()));
++                    return FuzzyBoolean.NO;
++                }
++                ResolvedMember[] methods = rt.getDeclaredMethods();
++                boolean found = false;
++                for (int i = 0; i < methods.length && !found; i++) {
++                    if (methods[i].getReturnType().equals(formalType)) {
++                        found = true;
++                    }
++                }
++                return (found ? FuzzyBoolean.YES : FuzzyBoolean.NO);
++            }
++        }
++//         else if (checkSupers) {
++//            ResolvedType toMatchAgainst = ((ResolvedType) annotated).getSuperclass();
++//            while (toMatchAgainst != null) {
++//                if (toMatchAgainst.hasAnnotation(annotationType)) {
++//                    return FuzzyBoolean.YES;
++//                }
++//                toMatchAgainst = toMatchAgainst.getSuperclass();
++//            }
++//        }
++//
++        return FuzzyBoolean.NO;
++    }
++
++    public UnresolvedType getFormalType() {
++        return formalType;
++    }
++
++}
+@@ -0,0 +1,200 @@
++/* *******************************************************************
++ * Copyright (c) 2008 Contributors
++ * All rights reserved. 
++ * This program and the accompanying materials are made available 
++ * under the terms of the Eclipse Public License v1.0 
++ * which accompanies this distribution and is available at 
++ * http://www.eclipse.org/legal/epl-v10.html 
++ *  
++ * Contributors: 
++ *     Andy Clement     initial implementation 
++ * ******************************************************************/
++package org.aspectj.weaver.patterns;
++
++import java.io.DataOutputStream;
++import java.io.IOException;
++import java.util.Map;
++
++import org.aspectj.bridge.IMessage;
++import org.aspectj.util.FuzzyBoolean;
++import org.aspectj.weaver.AnnotatedElement;
++import org.aspectj.weaver.BCException;
++import org.aspectj.weaver.ISourceContext;
++import org.aspectj.weaver.ReferenceType;
++import org.aspectj.weaver.ResolvedMember;
++import org.aspectj.weaver.ResolvedType;
++import org.aspectj.weaver.UnresolvedType;
++import org.aspectj.weaver.VersionedDataInputStream;
++import org.aspectj.weaver.World;
++
++/**
++ * Represents an attempt to bind the field of an annotation within a pointcut. For example:<br>
++ * <code><pre>
++ * before(Level lev): execution(* *(..)) &amp;&amp; @annotation(TraceAnnotation(lev))
++ * </pre></code><br>
++ * This binding annotation type pattern will be for 'lev'.
++ */
++public class ExactAnnotationFieldTypePattern extends ExactAnnotationTypePattern {
++
++    UnresolvedType annotationType;
++    private ResolvedMember field;
++    
++    public ExactAnnotationFieldTypePattern(ExactAnnotationTypePattern p, String formalName) {
++        super(formalName);
++        this.annotationType = p.annotationType;
++        this.copyLocationFrom(p);
++    }
++
++    public ExactAnnotationFieldTypePattern(UnresolvedType annotationType, String formalName) {
++        super(formalName);
++        this.annotationType = annotationType;
++    }
++
++    /**
++     * resolve one of these funky things. Need to: <br>
++     * (a) Check the formal is bound <br>
++     * (b) Check the annotation type is valid
++     */
++    public AnnotationTypePattern resolveBindings(IScope scope, Bindings bindings, boolean allowBinding) {
++        if (resolved) return this;
++        resolved = true;
++        FormalBinding formalBinding = scope.lookupFormal(formalName);
++        if (formalBinding == null) {
++            scope.message(IMessage.ERROR, this, "when using @annotation(<annotationType>(<annotationField>)), <annotationField> must be bound");
++        }
++
++        annotationType = scope.getWorld().resolve(annotationType, true);
++
++        // May not be directly found if in a package, so go looking if that is the case:
++        if (ResolvedType.isMissing(annotationType)) {
++            String cleanname = annotationType.getName();
++            UnresolvedType type = null;
++            while (ResolvedType.isMissing(type = scope.lookupType(cleanname, this))) {
++                int lastDot = cleanname.lastIndexOf('.');
++                if (lastDot == -1) break;
++                cleanname = cleanname.substring(0, lastDot) + "$" + cleanname.substring(lastDot + 1);
++            }
++            annotationType = scope.getWorld().resolve(type, true);
++        }
++
++        verifyIsAnnotationType((ResolvedType) annotationType, scope);
++
++        if (!formalBinding.getType().resolve(scope.getWorld()).isEnum()) {
++            scope.message(IMessage.ERROR, this, "The field within the annotation must be an Enum. '" + formalBinding.getType()
++                + "' is not an Enum (compiler limitation)");
++        }
++        bindingPattern = true;
++
++        // Check that the formal is bound to a type that is represented by one field in the annotation type
++        ReferenceType theAnnotationType = (ReferenceType) annotationType;
++        ResolvedMember[] annotationFields = theAnnotationType.getDeclaredMethods();
++        field = null;
++        for (int i = 0; i < annotationFields.length; i++) {
++            ResolvedMember resolvedMember = annotationFields[i];
++            if (resolvedMember.getReturnType().equals(formalBinding.getType())) {
++                if (field != null) {
++                    scope.message(IMessage.ERROR, this, "The field type '" + formalBinding.getType() + "' is ambiguous for annotation type '"
++                        + theAnnotationType.getName() + "'");
++                }
++                field = resolvedMember;
++            }
++        }
++        if (field == null) {
++            scope.message(IMessage.ERROR, this, "No field of type '" + formalBinding.getType() + "' exists on annotation type '"
++                + theAnnotationType.getName() + "'");
++        }
++                
++        BindingAnnotationFieldTypePattern binding = new BindingAnnotationFieldTypePattern(formalBinding.getType(), formalBinding.getIndex(),
++            theAnnotationType);
++        binding.copyLocationFrom(this);
++        bindings.register(binding, scope);
++        binding.resolveBinding(scope.getWorld());
++        return binding;
++    }
++    
++    public void write(DataOutputStream s) throws IOException {
++        s.writeByte(AnnotationTypePattern.EXACTFIELD);
++        s.writeUTF(formalName);
++        annotationType.write(s);
++        writeLocation(s);
++    }
++
++    public static AnnotationTypePattern read(VersionedDataInputStream s, ISourceContext context) throws IOException {
++        ExactAnnotationFieldTypePattern ret;
++        String formalName = s.readUTF();
++        UnresolvedType annotationType = UnresolvedType.read(s);
++        ret = new ExactAnnotationFieldTypePattern(annotationType, formalName);
++        ret.readLocation(context, s);
++        return ret;
++    }
++
++    // ---
++    
++    public Object accept(PatternNodeVisitor visitor, Object data) {
++        return visitor.visit(this, data);
++    }
++
++    public boolean equals(Object obj) {
++        if (!(obj instanceof ExactAnnotationFieldTypePattern)) return false;
++        ExactAnnotationFieldTypePattern other = (ExactAnnotationFieldTypePattern) obj;
++        return 
++            (other.annotationType.equals(annotationType)) && 
++            (other.field.equals(field)) && (other.formalName.equals(this.formalName));
++    }
++
++    public int hashCode() {
++        int hashcode = annotationType.hashCode();
++        hashcode = hashcode * 37 + field.hashCode();
++        hashcode = hashcode * 37 + formalName.hashCode();
++        return hashcode;
++    }
++
++    // TODO these are currently unimplemented as I believe it resolves to a Binding form *always* and so they don't get
++    // called
++    
++    public FuzzyBoolean fastMatches(AnnotatedElement annotated) {
++        throw new BCException("unimplemented");
++    }
++
++    public UnresolvedType getAnnotationType() {
++        throw new BCException("unimplemented");
++    }
++
++    public Map getAnnotationValues() {
++        throw new BCException("unimplemented");
++    }
++
++    public ResolvedType getResolvedAnnotationType() {
++        throw new BCException("unimplemented");
++    }
++
++
++    public FuzzyBoolean matches(AnnotatedElement annotated, ResolvedType[] parameterAnnotations) {
++        throw new BCException("unimplemented");
++    }
++
++    public FuzzyBoolean matches(AnnotatedElement annotated) {
++        throw new BCException("unimplemented");
++    }
++
++    public FuzzyBoolean matchesRuntimeType(AnnotatedElement annotated) {
++        throw new BCException("unimplemented");
++    }
++
++    public AnnotationTypePattern parameterizeWith(Map typeVariableMap, World w) {
++        throw new BCException("unimplemented");
++    }
++
++    public void resolve(World world) {
++        throw new BCException("unimplemented");
++    }
++
++    public String toString() {
++        if (!resolved && formalName != null) return formalName;
++        StringBuffer ret = new StringBuffer();
++        ret.append("@").append(annotationType.toString());
++        ret.append("(").append(formalName).append(")");
++        return ret.toString();
++    }
++
++}
+@@ -24,8 +24,8 @@ import java.util.Map;
+ import java.util.Set;
+ 
+ import org.aspectj.weaver.ISourceContext;
+-import org.aspectj.weaver.MemberKind;
+ import org.aspectj.weaver.Member;
++import org.aspectj.weaver.MemberKind;
+ import org.aspectj.weaver.Shadow;
+ import org.aspectj.weaver.UnresolvedType;
+ import org.aspectj.weaver.internal.tools.PointcutDesignatorHandlerBasedPointcut;
+@@ -957,12 +957,17 @@ public class PatternParser {
+ 		p = parseSimpleAnnotationName();
+ 		int endPos = tokenSource.peek(-1).getEnd();
+ 		p.setLocation(sourceContext,startPos,endPos);
+-		return p;
+-	}
+-	
++		// For optimized syntax that allows binding directly to annotation values (pr234943)
++         if (maybeEat("(")) {
++            String formalName = parseIdentifier();
++            p = new ExactAnnotationFieldTypePattern(p, formalName);
++            eat(")");
++        }
++        return p;
++    }
+ 
+-	/**
+-	 * @return
++    /**
++     * @return
+ 	 */
+ 	private ExactAnnotationTypePattern parseSimpleAnnotationName() {
+ 		// the @ has already been eaten...
+@@ -80,7 +80,7 @@ import org.aspectj.weaver.WeaverMessages;
+ import org.aspectj.weaver.WeaverStateInfo;
+ import org.aspectj.weaver.World;
+ import org.aspectj.weaver.patterns.AndPointcut;
+-import org.aspectj.weaver.patterns.BindingAnnotationTypePattern;
++import org.aspectj.weaver.patterns.BindingPattern;
+ import org.aspectj.weaver.patterns.BindingTypePattern;
+ import org.aspectj.weaver.patterns.ConcreteCflowPointcut;
+ import org.aspectj.weaver.patterns.DeclareAnnotation;
+@@ -756,9 +756,9 @@ public class BcelWeaver implements IWeaver {
+ 					foundFormals[index] = true;
+ 				}
+ 			}
+-    		List/*BindingAnnotationTypePattern*/ baps = ((NameBindingPointcut)pc).getBindingAnnotationTypePatterns();
++    		List/* BindingPattern */baps = ((NameBindingPointcut) pc).getBindingAnnotationTypePatterns();
+     		for (Iterator iter = baps.iterator(); iter.hasNext();) {
+-				BindingAnnotationTypePattern bap = (BindingAnnotationTypePattern) iter.next();
++    		    BindingPattern bap = (BindingPattern) iter.next();
+ 				int index = bap.getFormalIndex();
+ 				bindings[index] = pc;
+ 				if (foundFormals[index]) {
+@@ -0,0 +1,8 @@
++package a.b.c;
++
++import java.lang.annotation.*;
++import x.y.z.Level;
++
++@Retention(RetentionPolicy.RUNTIME)
++public @interface Anno { Level value();}
++  
+@@ -0,0 +1,35 @@
++// CaseEight - annotations in packages two
++package p.q.r;
++
++import java.lang.annotation.*;
++
++public class CaseEight {
++
++  public static void main(String []argv) {
++      CaseEight o = new CaseEight();
++      o.a();
++      o.b();
++      o.c();
++      o.d();
++      o.e();
++    }
++
++                       public void a() {}
++    @Anno(Level.NONE)  public void b() {}
++    @Anno(Level.ONE)   public void c() {}
++    @Anno(Level.TWO)   public void d() {}
++    @Anno(Level.THREE) public void e() {}
++
++  }
++
++  enum Level { NONE, ONE, TWO, THREE; }
++
++  @Retention(RetentionPolicy.RUNTIME)
++  @interface Anno { Level value();}
++  
++aspect X {
++
++  before(p.q.r.Level l): execution(@Anno !@Anno(Level.NONE) * *(..)) && @annotation(Anno(l)) {
++    System.out.println(l);
++  }
++}
+@@ -0,0 +1,35 @@
++// CaseEleven - binding multiple annotation fields
++import java.lang.annotation.*;
++
++public class CaseEleven {
++
++  public static void main(String []argv) {
++   
++    CaseEleven o = new CaseEleven();
++    o.a();
++    o.b();
++    o.c();
++    o.d();
++    o.e();
++  }
++
++                     public void a() {}
++  @Anno(value=Level.NONE,c=Color.RED)  public void b() {}
++  @Anno(value=Level.ONE)   public void c() {}
++  @Anno(value=Level.TWO,c=Color.GREEN)   public void d() {}
++  @Anno(value=Level.THREE,c=Color.BLUE) public void e() {}
++
++}
++
++enum Level { NONE, ONE, TWO, THREE; }
++enum Color { RED, GREEN, BLUE; }
++
++@Retention(RetentionPolicy.RUNTIME)
++@interface Anno { Level value(); Color c() default Color.GREEN; }
++
++aspect X {
++
++  before(Level l,Color color): execution(@Anno !@Anno(Level.NONE) * *(..)) && @annotation(Anno(l)) && @annotation(Anno(color)) {
++    System.out.println(l+":"+color);
++  }
++}
+@@ -0,0 +1,23 @@
++// CaseFive - not an enum, compiler limitation
++import java.lang.annotation.*;
++
++public class CaseFive {
++
++  public static void main(String []argv) {
++    CaseFive o = new CaseFive();
++    o.a();
++  }
++
++  @Anno("hello") public void a() {}
++
++}
++
++@Retention(RetentionPolicy.RUNTIME)
++@interface Anno { String value(); }
++
++aspect X {
++
++  before(String l): execution(@Anno * *(..)) && @annotation(Anno(l)) {
++    System.out.println(l);
++  }
++}
+@@ -0,0 +1,29 @@
++// CaseFour - default value specified and should be extracted
++import java.lang.annotation.*;
++
++public class CaseFour {
++
++  public static void main(String []argv) {
++    CaseFour o = new CaseFour();
++    o.a();
++    o.b();
++    o.c();
++  }
++
++  @Anno public void a() {}
++  @Anno(Level.TWO) public void b() {}
++  @Anno public void c() {}
++
++}
++
++enum Level { NONE, ONE, TWO, THREE; }
++
++@Retention(RetentionPolicy.RUNTIME)
++@interface Anno { Level value() default Level.ONE;}
++
++aspect X {
++
++  before(Level l): execution(@Anno !@Anno(Level.NONE) * *(..)) && @annotation(Anno(l)) {
++    System.out.println(l);
++  }
++}
+@@ -0,0 +1,32 @@
++// CaseNine - everything in different packages
++package p.q.r;
++
++import java.lang.annotation.*;
++import a.b.c.Anno;
++import x.y.z.Level;
++
++public class CaseNine {
++
++  public static void main(String []argv) {
++      CaseNine o = new CaseNine();
++      o.a();
++      o.b();
++      o.c();
++      o.d();
++      o.e();
++    }
++
++                       public void a() {}
++    @Anno(Level.NONE)  public void b() {}
++    @Anno(Level.ONE)   public void c() {}
++    @Anno(Level.TWO)   public void d() {}
++    @Anno(Level.THREE) public void e() {}
++
++  }
++
++aspect X {
++
++  before(Level l): execution(@Anno !@Anno(Level.NONE) * *(..)) && @annotation(Anno(l)) {
++    System.out.println(l);
++  }
++}
+@@ -0,0 +1,34 @@
++// CaseOne - new syntax
++import java.lang.annotation.*;
++
++public class CaseOne {
++
++  public static void main(String []argv) {
++   
++    CaseOne o = new CaseOne();
++    o.a();
++    o.b();
++    o.c();
++    o.d();
++    o.e();
++  }
++
++                     public void a() {}
++  @Anno(Level.NONE)  public void b() {}
++  @Anno(Level.ONE)   public void c() {}
++  @Anno(Level.TWO)   public void d() {}
++  @Anno(Level.THREE) public void e() {}
++
++}
++
++enum Level { NONE, ONE, TWO, THREE; }
++
++@Retention(RetentionPolicy.RUNTIME)
++@interface Anno { Level value();}
++
++aspect X {
++
++  before(Level l): execution(@Anno !@Anno(Level.NONE) * *(..)) && @annotation(Anno(l)) {
++    System.out.println(l);
++  }
++}
+@@ -0,0 +1,35 @@
++// CaseSeven - annotations in packages
++package p.q.r;
++
++import java.lang.annotation.*;
++
++public class CaseSeven {
++
++  public static void main(String []argv) {
++      CaseSeven o = new CaseSeven();
++      o.a();
++      o.b();
++      o.c();
++      o.d();
++      o.e();
++    }
++
++                       public void a() {}
++    @Anno(Level.NONE)  public void b() {}
++    @Anno(Level.ONE)   public void c() {}
++    @Anno(Level.TWO)   public void d() {}
++    @Anno(Level.THREE) public void e() {}
++
++  }
++
++  enum Level { NONE, ONE, TWO, THREE; }
++
++  @Retention(RetentionPolicy.RUNTIME)
++  @interface Anno { Level value();}
++  
++aspect X {
++
++  before(Level l): execution(@Anno !@Anno(Level.NONE) * *(..)) && @annotation(p.q.r.Anno(l)) {
++    System.out.println(l);
++  }
++}
+@@ -0,0 +1,23 @@
++// CaseSix - not an execution join point - compiler limitation
++import java.lang.annotation.*;
++
++public class CaseSix {
++
++  @Anno static String s;
++
++  public static void main(String []argv) {
++    s = "hello";
++  }
++
++}
++enum Level { NONE; }
++
++@Retention(RetentionPolicy.RUNTIME)
++@interface Anno { Level value() default Level.NONE; }
++
++aspect X {
++
++  before(Level l): set(@Anno * *) && @annotation(Anno(l)) {
++    System.out.println(l);
++  }
++}
+@@ -0,0 +1,34 @@
++// CaseTen - binding multiple things
++import java.lang.annotation.*;
++
++public class CaseTen {
++
++  public static void main(String []argv) {
++   
++    CaseTen o = new CaseTen();
++    o.a(1);
++    o.b(2);
++    o.c(3);
++    o.d(4);
++    o.e(5);
++  }
++
++                     public void a(int i) {}
++  @Anno(Level.NONE)  public void b(int i) {}
++  @Anno(Level.ONE)   public void c(int i) {}
++  @Anno(Level.TWO)   public void d(int i) {}
++  @Anno(Level.THREE) public void e(int i) {}
++
++}
++
++enum Level { NONE, ONE, TWO, THREE; }
++
++@Retention(RetentionPolicy.RUNTIME)
++@interface Anno { Level value();}
++
++aspect X {
++
++  before(Level l,int i): execution(@Anno !@Anno(Level.NONE) * *(..)) && @annotation(Anno(l)) && args(i) {
++    System.out.println(l+":"+i);
++  }
++}
+@@ -0,0 +1,34 @@
++// CaseThree - ambiguous
++import java.lang.annotation.*;
++
++public class CaseThree {
++
++  public static void main(String []argv) {
++   
++    CaseThree o = new CaseThree();
++    o.a();
++    o.b();
++    o.c();
++    o.d();
++    o.e();
++  }
++
++                     public void a() {}
++  @Anno(Level.NONE)  public void b() {}
++  @Anno(Level.ONE)   public void c() {}
++  @Anno(Level.TWO)   public void d() {}
++  @Anno(Level.THREE) public void e() {}
++
++}
++
++enum Level { NONE, ONE, TWO, THREE; }
++
++@Retention(RetentionPolicy.RUNTIME)
++@interface Anno { Level value(); Level foo() default Level.ONE;}
++
++aspect X {
++
++  before(Level l): execution(@Anno !@Anno(Level.NONE) * *(..)) && @annotation(Anno(l)) {
++    System.out.println(l);
++  }
++}
+@@ -0,0 +1,35 @@
++// CaseTwelve - binding anno and anno value
++import java.lang.annotation.*;
++
++public class CaseTwelve {
++
++  public static void main(String []argv) {
++   
++    CaseTwelve o = new CaseTwelve();
++    o.a();
++    o.b();
++    o.c();
++    o.d();
++    o.e();
++  }
++
++                     public void a() {}
++  @Anno(value=Level.NONE,c=Color.RED)  public void b() {}
++  @Anno(value=Level.ONE)   public void c() {}
++  @Anno(value=Level.TWO,c=Color.GREEN)   public void d() {}
++  @Anno(value=Level.THREE,c=Color.BLUE) public void e() {}
++
++}
++
++enum Level { NONE, ONE, TWO, THREE; }
++enum Color { RED, GREEN, BLUE; }
++
++@Retention(RetentionPolicy.RUNTIME)
++@interface Anno { Level value(); Color c() default Color.GREEN; }
++
++aspect X {
++
++  before(Level l,Anno a): execution(@Anno !@Anno(Level.NONE) * *(..)) && @annotation(Anno(l)) && @annotation(a) {
++    System.out.println(l+":"+a.c());
++  }
++}
+@@ -0,0 +1,33 @@
++// CaseTwo - no such field in the annotation 
++import java.lang.annotation.*;
++
++public class CaseTwo {
++
++  public static void main(String []argv) {
++    CaseTwo o = new CaseTwo();
++    o.a();
++    o.b();
++    o.c();
++    o.d();
++    o.e();
++  }
++
++                     public void a() {}
++  @Anno("A")  public void b() {}
++  @Anno("B")   public void c() {}
++  @Anno("C")   public void d() {}
++  @Anno public void e() {}
++
++}
++
++enum Level { NONE, ONE, TWO, THREE; }
++
++@Retention(RetentionPolicy.RUNTIME)
++@interface Anno { String value() default "";}
++
++aspect X {
++
++  before(Level l): execution(@Anno !@Anno(Level.NONE) * *(..)) && @annotation(Anno(l)) {
++    System.out.println(l);
++  }
++}
+@@ -0,0 +1,3 @@
++package x.y.z;
++
++public enum Level { NONE, ONE, TWO, THREE; }

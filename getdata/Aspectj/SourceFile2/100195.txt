@@ -1,0 +1,218 @@
+@@ -18,8 +18,9 @@ import org.aspectj.weaver.UnresolvedType;
+ public final class LocalVariableTag extends Tag {
+     private final UnresolvedType type;
+     private final String name;
+-    private final int slot;
++    private int slot;
+     private final int startPos;
++    boolean remapped = false;
+ 
+     // AMC - pr101047, two local vars with the same name can share the same slot, but must in that case
+     // have different start positions.
+@@ -40,6 +41,13 @@ public final class LocalVariableTag extends Tag {
+         return type;
+     }
+ 
++    public void updateSlot(int newSlot) {
++    	this.slot = newSlot;
++    	this.remapped = true;
++    }
++    
++    public boolean isRemapped() { return this.remapped; }
++    
+     // ---- from Object
+ 
+     public String toString() {
+@@ -175,6 +175,25 @@ final class ShadowRange extends Range {
+ //            System.err.println("JUST COPIED: " + oldIh.getInstruction().toString(freshMethod.getEnclosingClass().getConstantPoolGen().getConstantPool()) 
+ //            	+ " INTO " + freshIh.getInstruction().toString(freshMethod.getEnclosingClass().getConstantPoolGen().getConstantPool()));
+         }
++        
++        // now go through again and update variable slots that have been altered as a result
++        // of remapping...
++        for (InstructionHandle newIh = freshBody.getStart(); newIh != freshBody.getEnd(); newIh = newIh.getNext()) {
++            InstructionTargeter[] sources = newIh.getTargeters();
++            if (sources != null) {
++                for (int i = sources.length - 1; i >= 0; i--) {
++                    if (sources[i] instanceof LocalVariableTag) {
++                    	LocalVariableTag lvt = (LocalVariableTag) sources[i];
++                    	if (!lvt.isRemapped() && remap.hasKey(lvt.getSlot())) {
++                    		lvt.updateSlot(remap.get(lvt.getSlot()));                    		
++                    	}
++                    }
++                }
++            }
++        }
++       
++        
++        
+ 
+ 		// we've now copied out all the instructions.
+         // now delete the instructions... we've already taken care of the damn
+@@ -203,7 +203,7 @@ public abstract class FancyHelloWorld extends java.lang.Object:
+                     ASTORE_3   (line 9)
+     finally -> E1
+     | catch java.lang.Exception -> E0
+-    | |             ALOAD_3   (line 11)
++    | |             ALOAD_3     // java.io.PrintStream out   (line 11)
+     | |             LDC "bye"
+     | |             ASTORE 5
+     | |             ASTORE 7
+@@ -230,8 +230,8 @@ public abstract class FancyHelloWorld extends java.lang.Object:
+     | |             GOTO L0
+     | catch java.lang.Exception -> E0
+     |           E0: ASTORE 11   (line 12)
+-    |               ALOAD_3   (line 13)
+-    |               ALOAD 11
++    |               ALOAD_3     // java.io.PrintStream out   (line 13)
++    |               ALOAD 11     // java.lang.Exception e
+     |               ASTORE 13
+     |               ASTORE 15
+     | method-call(void java.io.PrintStream.println(java.lang.Object))
+@@ -263,7 +263,7 @@ public abstract class FancyHelloWorld extends java.lang.Object:
+                 L0: JSR L1
+                     GOTO L2
+                 L1: ASTORE 21
+-                    ALOAD_3   (line 15)
++                    ALOAD_3     // java.io.PrintStream out   (line 15)
+                     LDC "finally"
+                     ASTORE 23
+                     ASTORE 25
+@@ -101,7 +101,7 @@ public abstract class FancyHelloWorld extends java.lang.Object:
+                     ASTORE_3   (line 9)
+     finally -> E1
+     | catch java.lang.Exception -> E0
+-    | |             ALOAD_3   (line 11)
++    | |             ALOAD_3     // java.io.PrintStream out   (line 11)
+     | |             LDC "bye"
+     | |             ASTORE 5
+     | |             ASTORE 7
+@@ -127,8 +127,8 @@ public abstract class FancyHelloWorld extends java.lang.Object:
+     | |             GOTO L0
+     | catch java.lang.Exception -> E0
+     |           E0: ASTORE 11   (line 12)
+-    |               ALOAD_3   (line 13)
+-    |               ALOAD 11
++    |               ALOAD_3     // java.io.PrintStream out   (line 13)
++    |               ALOAD 11     // java.lang.Exception e
+     |               ASTORE 13
+     |               ASTORE 15
+     | method-call(void java.io.PrintStream.println(java.lang.Object))
+@@ -159,7 +159,7 @@ public abstract class FancyHelloWorld extends java.lang.Object:
+                 L0: JSR L1
+                     GOTO L2
+                 L1: ASTORE 21
+-                    ALOAD_3   (line 15)
++                    ALOAD_3     // java.io.PrintStream out   (line 15)
+                     LDC "finally"
+                     ASTORE 23
+                     ASTORE 25
+@@ -0,0 +1,62 @@
++import org.aspectj.testing.Tester;
++
++public class pr100195 {
++    public static void main(String[] args) {
++        new Foo().foo();
++        AroundCasting.main(new String[0]);
++    }	
++}
++
++class Foo {
++	
++    static int x;
++	
++    private String myString = "A String";
++ 
++    public static void main(String[] args) {
++        new Foo().foo();
++        AroundCasting.main(new String[0]);
++    }
++ 
++    public void foo() {
++      String myLocal = myString;
++      x = 5;
++      System.out.println(myLocal);   // breakpoint here
++      bar(x);
++    }
++    
++    public void bar(int y) {}
++}
++// Test.aj
++aspect Test {
++  void around() : ( execution(* Foo.foo(..) ) ) {
++	  int y = 4;
++      System.out.println("before");
++      proceed();
++      System.out.println("after");
++  }
++}
++
++class AroundCasting {
++    public static void main(String[] args) {
++    	bar(x);
++        //Tester.checkEqual(x, 1003);
++    }
++    static int x;
++    
++    static void bar(int y) {}
++}
++
++
++aspect A {
++    static boolean test() { return true; }
++
++    int around(): if (test()) && get(int AroundCasting.x) {
++        return proceed() + 1000;
++    }
++
++    void around(): execution(void AroundCasting.main(String[])) {
++        Tester.event("enter main");
++        proceed();
++    }
++}
+@@ -479,6 +479,10 @@ public class Ajc150Tests extends org.aspectj.testing.XMLBasedAjcTestCase {
+ 	  runTest("array clone call join points in 1.4 vs 1.3");
+   }
+ 
++  public void testDebugInfoForAroundAdvice() {
++	  runTest("debug info in around advice inlining");
++  }
++  
+   // helper methods.....
+ 
+   public SyntheticRepository createRepos(File cpentry) {
+@@ -638,6 +638,11 @@
+         </compile>   
+      </ajc-test> 
+ 
++    <ajc-test dir="bugs150" pr="100195" title="debug info in around advice inlining">
++        <compile files="pr100195.aj">
++        </compile>
++        <run class="pr100195"/>
++    </ajc-test> 
+     <!-- ============================================================================ -->
+     <!-- ============================================================================ -->
+ 
+@@ -127,8 +127,20 @@ final class ShadowRange extends Range {
+                 for (int j = sources.length - 1; j >= 0; j--) {
+                     InstructionTargeter source = sources[j];
+                     if (source instanceof LocalVariableTag) {
+-                        // XXX destroying local variable info
+-                        source.updateTarget(oldIh, null);
++                    	Shadow.Kind kind = getKind();
++                    	if (kind == Shadow.AdviceExecution ||
++                    		kind == Shadow.ConstructorExecution ||
++                    		kind == Shadow.MethodExecution ||
++                    		kind == Shadow.PreInitialization ||
++                    		kind == Shadow.Initialization ||
++                    		kind == Shadow.StaticInitialization) {
++                    		// if we're extracting a whole block we can do this...
++                    		source.updateTarget(oldIh, freshIh);
++                    	} else {
++                            // XXX destroying local variable info
++                    		// but only for a call or get join point, so no big deal
++                    		source.updateTarget(oldIh, null);
++                    	}
+                     } else if (source instanceof Range) {
+                         // exceptions and shadows are just moved
+                         ((Range)source).updateTarget(oldIh, freshIh, freshBody);

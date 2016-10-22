@@ -1,0 +1,133 @@
+@@ -1,13 +1,13 @@
+-Type 'Simple' (no debug info available) advised by before advice from 'AspectAdvice' (AspectAdvice.aj:8)
+-Type 'Simple' (no debug info available) advised by after advice from 'AspectAdvice' (AspectAdvice.aj:12)
+-Type 'Simple' (no debug info available) advised by afterReturning advice from 'AspectAdvice' (AspectAdvice.aj:16)
+-Type 'Simple' (no debug info available) advised by afterThrowing advice from 'AspectAdvice' (AspectAdvice.aj:20)
+-Type 'Simple' (no debug info available) advised by before advice from 'AspectAdvice' (AspectAdvice.aj:8)
+-Type 'Simple' (no debug info available) advised by after advice from 'AspectAdvice' (AspectAdvice.aj:12)
+-Type 'Simple' (no debug info available) advised by afterReturning advice from 'AspectAdvice' (AspectAdvice.aj:16)
+-Type 'Simple' (no debug info available) advised by afterThrowing advice from 'AspectAdvice' (AspectAdvice.aj:20)
+-Type 'Simple' (no debug info available) advised by around advice from 'AspectAdvice' (AspectAdvice.aj:24) [with runtime test]
+-Type 'Simple' (no debug info available) advised by before advice from 'AspectAdvice' (AspectAdvice.aj:8)
+-Type 'Simple' (no debug info available) advised by after advice from 'AspectAdvice' (AspectAdvice.aj:12)
+-Type 'Simple' (no debug info available) advised by afterReturning advice from 'AspectAdvice' (AspectAdvice.aj:16)
+-Type 'Simple' (no debug info available) advised by afterThrowing advice from 'AspectAdvice' (AspectAdvice.aj:20)
++Join point 'method-execution(void Simple.m1())' in Type 'Simple' (no debug info available) advised by before advice from 'AspectAdvice' (AspectAdvice.aj:8)
++Join point 'method-execution(void Simple.m1())' in Type 'Simple' (no debug info available) advised by after advice from 'AspectAdvice' (AspectAdvice.aj:12)
++Join point 'method-execution(void Simple.m1())' in Type 'Simple' (no debug info available) advised by afterReturning advice from 'AspectAdvice' (AspectAdvice.aj:16)
++Join point 'method-execution(void Simple.m1())' in Type 'Simple' (no debug info available) advised by afterThrowing advice from 'AspectAdvice' (AspectAdvice.aj:20)
++Join point 'method-execution(java.lang.String Simple.m2())' in Type 'Simple' (no debug info available) advised by before advice from 'AspectAdvice' (AspectAdvice.aj:8)
++Join point 'method-execution(java.lang.String Simple.m2())' in Type 'Simple' (no debug info available) advised by after advice from 'AspectAdvice' (AspectAdvice.aj:12)
++Join point 'method-execution(java.lang.String Simple.m2())' in Type 'Simple' (no debug info available) advised by afterReturning advice from 'AspectAdvice' (AspectAdvice.aj:16)
++Join point 'method-execution(java.lang.String Simple.m2())' in Type 'Simple' (no debug info available) advised by afterThrowing advice from 'AspectAdvice' (AspectAdvice.aj:20)
++Join point 'method-execution(void Simple.main(java.lang.String[]))' in Type 'Simple' (no debug info available) advised by around advice from 'AspectAdvice' (AspectAdvice.aj:24) [with runtime test]
++Join point 'method-execution(void Simple.mSecret())' in Type 'Simple' (no debug info available) advised by before advice from 'AspectAdvice' (AspectAdvice.aj:8)
++Join point 'method-execution(void Simple.mSecret())' in Type 'Simple' (no debug info available) advised by after advice from 'AspectAdvice' (AspectAdvice.aj:12)
++Join point 'method-execution(void Simple.mSecret())' in Type 'Simple' (no debug info available) advised by afterReturning advice from 'AspectAdvice' (AspectAdvice.aj:16)
++Join point 'method-execution(void Simple.mSecret())' in Type 'Simple' (no debug info available) advised by afterThrowing advice from 'AspectAdvice' (AspectAdvice.aj:20)
+@@ -1,13 +1,13 @@
+-Type 'Simple' (Simple.java:5) advised by before advice from 'AspectAdvice' (AspectAdvice.aj:8)
+-Type 'Simple' (Simple.java:5) advised by after advice from 'AspectAdvice' (AspectAdvice.aj:12)
+-Type 'Simple' (Simple.java:5) advised by afterReturning advice from 'AspectAdvice' (AspectAdvice.aj:16)
+-Type 'Simple' (Simple.java:5) advised by afterThrowing advice from 'AspectAdvice' (AspectAdvice.aj:20)
+-Type 'Simple' (Simple.java:9) advised by before advice from 'AspectAdvice' (AspectAdvice.aj:8)
+-Type 'Simple' (Simple.java:9) advised by after advice from 'AspectAdvice' (AspectAdvice.aj:12)
+-Type 'Simple' (Simple.java:9) advised by afterReturning advice from 'AspectAdvice' (AspectAdvice.aj:16)
+-Type 'Simple' (Simple.java:9) advised by afterThrowing advice from 'AspectAdvice' (AspectAdvice.aj:20)
+-Type 'Simple' (Simple.java:13) advised by around advice from 'AspectAdvice' (AspectAdvice.aj:24) [with runtime test]
+-Type 'Simple' (Simple.java:17) advised by before advice from 'AspectAdvice' (AspectAdvice.aj:8)
+-Type 'Simple' (Simple.java:17) advised by after advice from 'AspectAdvice' (AspectAdvice.aj:12)
+-Type 'Simple' (Simple.java:17) advised by afterReturning advice from 'AspectAdvice' (AspectAdvice.aj:16)
+-Type 'Simple' (Simple.java:17) advised by afterThrowing advice from 'AspectAdvice' (AspectAdvice.aj:20)
++Join point 'method-execution(void Simple.m1())' in Type 'Simple' (Simple.java:5) advised by before advice from 'AspectAdvice' (AspectAdvice.aj:8)
++Join point 'method-execution(void Simple.m1())' in Type 'Simple' (Simple.java:5) advised by after advice from 'AspectAdvice' (AspectAdvice.aj:12)
++Join point 'method-execution(void Simple.m1())' in Type 'Simple' (Simple.java:5) advised by afterReturning advice from 'AspectAdvice' (AspectAdvice.aj:16)
++Join point 'method-execution(void Simple.m1())' in Type 'Simple' (Simple.java:5) advised by afterThrowing advice from 'AspectAdvice' (AspectAdvice.aj:20)
++Join point 'method-execution(java.lang.String Simple.m2())' in Type 'Simple' (Simple.java:9) advised by before advice from 'AspectAdvice' (AspectAdvice.aj:8)
++Join point 'method-execution(java.lang.String Simple.m2())' in Type 'Simple' (Simple.java:9) advised by after advice from 'AspectAdvice' (AspectAdvice.aj:12)
++Join point 'method-execution(java.lang.String Simple.m2())' in Type 'Simple' (Simple.java:9) advised by afterReturning advice from 'AspectAdvice' (AspectAdvice.aj:16)
++Join point 'method-execution(java.lang.String Simple.m2())' in Type 'Simple' (Simple.java:9) advised by afterThrowing advice from 'AspectAdvice' (AspectAdvice.aj:20)
++Join point 'method-execution(void Simple.main(java.lang.String[]))' in Type 'Simple' (Simple.java:13) advised by around advice from 'AspectAdvice' (AspectAdvice.aj:24) [with runtime test]
++Join point 'method-execution(void Simple.mSecret())' in Type 'Simple' (Simple.java:17) advised by before advice from 'AspectAdvice' (AspectAdvice.aj:8)
++Join point 'method-execution(void Simple.mSecret())' in Type 'Simple' (Simple.java:17) advised by after advice from 'AspectAdvice' (AspectAdvice.aj:12)
++Join point 'method-execution(void Simple.mSecret())' in Type 'Simple' (Simple.java:17) advised by afterReturning advice from 'AspectAdvice' (AspectAdvice.aj:16)
++Join point 'method-execution(void Simple.mSecret())' in Type 'Simple' (Simple.java:17) advised by afterThrowing advice from 'AspectAdvice' (AspectAdvice.aj:20)
+@@ -1,13 +1,13 @@
+-Type 'Simple' (Simple.java:5) advised by before advice from 'AspectAdvice' (AspectAdvice.aj:8)
+-Type 'Simple' (Simple.java:5) advised by after advice from 'AspectAdvice' (AspectAdvice.aj:12)
+-Type 'Simple' (Simple.java:5) advised by afterReturning advice from 'AspectAdvice' (AspectAdvice.aj:16)
+-Type 'Simple' (Simple.java:5) advised by afterThrowing advice from 'AspectAdvice' (AspectAdvice.aj:20)
+-Type 'Simple' (Simple.java:9) advised by before advice from 'AspectAdvice' (AspectAdvice.aj:8)
+-Type 'Simple' (Simple.java:9) advised by after advice from 'AspectAdvice' (AspectAdvice.aj:12)
+-Type 'Simple' (Simple.java:9) advised by afterReturning advice from 'AspectAdvice' (AspectAdvice.aj:16)
+-Type 'Simple' (Simple.java:9) advised by afterThrowing advice from 'AspectAdvice' (AspectAdvice.aj:20)
+-Type 'Simple' (Simple.java:13) advised by around advice from 'AspectAdvice' (AspectAdvice.aj:24) [with runtime test]
+-Type 'Simple' (Simple.java:17) advised by before advice from 'AspectAdvice' (AspectAdvice.aj:8)
+-Type 'Simple' (Simple.java:17) advised by after advice from 'AspectAdvice' (AspectAdvice.aj:12)
+-Type 'Simple' (Simple.java:17) advised by afterReturning advice from 'AspectAdvice' (AspectAdvice.aj:16)
+-Type 'Simple' (Simple.java:17) advised by afterThrowing advice from 'AspectAdvice' (AspectAdvice.aj:20)
++Join point 'method-execution(void Simple.m1())' in Type 'Simple' (Simple.java:5) advised by before advice from 'AspectAdvice' (AspectAdvice.aj:8)
++Join point 'method-execution(void Simple.m1())' in Type 'Simple' (Simple.java:5) advised by after advice from 'AspectAdvice' (AspectAdvice.aj:12)
++Join point 'method-execution(void Simple.m1())' in Type 'Simple' (Simple.java:5) advised by afterReturning advice from 'AspectAdvice' (AspectAdvice.aj:16)
++Join point 'method-execution(void Simple.m1())' in Type 'Simple' (Simple.java:5) advised by afterThrowing advice from 'AspectAdvice' (AspectAdvice.aj:20)
++Join point 'method-execution(java.lang.String Simple.m2())' in Type 'Simple' (Simple.java:9) advised by before advice from 'AspectAdvice' (AspectAdvice.aj:8)
++Join point 'method-execution(java.lang.String Simple.m2())' in Type 'Simple' (Simple.java:9) advised by after advice from 'AspectAdvice' (AspectAdvice.aj:12)
++Join point 'method-execution(java.lang.String Simple.m2())' in Type 'Simple' (Simple.java:9) advised by afterReturning advice from 'AspectAdvice' (AspectAdvice.aj:16)
++Join point 'method-execution(java.lang.String Simple.m2())' in Type 'Simple' (Simple.java:9) advised by afterThrowing advice from 'AspectAdvice' (AspectAdvice.aj:20)
++Join point 'method-execution(void Simple.main(java.lang.String[]))' in Type 'Simple' (Simple.java:13) advised by around advice from 'AspectAdvice' (AspectAdvice.aj:24) [with runtime test]
++Join point 'method-execution(void Simple.mSecret())' in Type 'Simple' (Simple.java:17) advised by before advice from 'AspectAdvice' (AspectAdvice.aj:8)
++Join point 'method-execution(void Simple.mSecret())' in Type 'Simple' (Simple.java:17) advised by after advice from 'AspectAdvice' (AspectAdvice.aj:12)
++Join point 'method-execution(void Simple.mSecret())' in Type 'Simple' (Simple.java:17) advised by afterReturning advice from 'AspectAdvice' (AspectAdvice.aj:16)
++Join point 'method-execution(void Simple.mSecret())' in Type 'Simple' (Simple.java:17) advised by afterThrowing advice from 'AspectAdvice' (AspectAdvice.aj:20)
+@@ -1,2 +1,2 @@
+-Softening exceptions in type 'Simple' (no debug info available) as defined by aspect 'AspectDeclareSoft' (AspectDeclareSoft.aj:6)
+ Softening exceptions in type 'Simple' (no debug info available) as defined by aspect 'AspectDeclareSoft' (AspectDeclareSoft.aj:4)
++Softening exceptions in type 'Simple' (no debug info available) as defined by aspect 'AspectDeclareSoft' (AspectDeclareSoft.aj:6)
+@@ -1,4 +1,4 @@
+-Type 'Simple' (no debug info available) has intertyped method from 'AspectITD' (AspectITD.aj:'java.lang.String Simple.returnstring()')
+-Type 'Simple' (no debug info available) has intertyped method from 'AspectITD' (AspectITD.aj:'int Simple.returnint()')
+-Type 'Simple' (no debug info available) has intertyped field from 'AspectITD' (AspectITD.aj:'java.lang.String Simple.fieldstring')
+ Type 'Simple' (no debug info available) has intertyped field from 'AspectITD' (AspectITD.aj:'int Simple.fieldint')
++Type 'Simple' (no debug info available) has intertyped field from 'AspectITD' (AspectITD.aj:'java.lang.String Simple.fieldstring')
++Type 'Simple' (no debug info available) has intertyped method from 'AspectITD' (AspectITD.aj:'int Simple.returnint()')
++Type 'Simple' (no debug info available) has intertyped method from 'AspectITD' (AspectITD.aj:'java.lang.String Simple.returnstring()')
+@@ -1,4 +1,4 @@
+-Type 'Simple' (Simple.java) has intertyped method from 'AspectITD' (AspectITD.aj:'java.lang.String Simple.returnstring()')
+-Type 'Simple' (Simple.java) has intertyped method from 'AspectITD' (AspectITD.aj:'int Simple.returnint()')
+-Type 'Simple' (Simple.java) has intertyped field from 'AspectITD' (AspectITD.aj:'java.lang.String Simple.fieldstring')
+ Type 'Simple' (Simple.java) has intertyped field from 'AspectITD' (AspectITD.aj:'int Simple.fieldint')
++Type 'Simple' (Simple.java) has intertyped field from 'AspectITD' (AspectITD.aj:'java.lang.String Simple.fieldstring')
++Type 'Simple' (Simple.java) has intertyped method from 'AspectITD' (AspectITD.aj:'int Simple.returnint()')
++Type 'Simple' (Simple.java) has intertyped method from 'AspectITD' (AspectITD.aj:'java.lang.String Simple.returnstring()')
+@@ -22,9 +22,9 @@ public class WeaveMessage extends Message {
+ 	public static WeaveMessageKind WEAVEMESSAGE_ITD =
+ 	  new WeaveMessageKind(2,"Type '%1' (%2) has intertyped %3 from '%4' (%5)");
+ 
+-    // %6 is information like "[with runtime test]"
++    // %7 is information like "[with runtime test]"
+ 	public static WeaveMessageKind WEAVEMESSAGE_ADVISES = 
+-	  new WeaveMessageKind(3,"Type '%1' (%2) advised by %3 advice from '%4' (%5)%6");
++	  new WeaveMessageKind(3,"Join point '%1' in Type '%2' (%3) advised by %4 advice from '%5' (%6)%7");
+ 
+ 	public static WeaveMessageKind WEAVEMESSAGE_DECLAREPARENTSEXTENDS = 
+ 	  new WeaveMessageKind(4,"Setting superclass of type '%1' (%2) to '%3' (%4)");
+@@ -25,7 +25,7 @@ public class MainVerboseAndShow {
+         new MainVerboseAndShow().target();
+         if (!MessageHolder.startsAs(Arrays.asList(new String[]{
+                 "info weaving 'ataspectj/ltwlog/MainVerboseAndShow'",
+-                "weaveinfo Type 'ataspectj.ltwlog.MainVerboseAndShow' (MainVerboseAndShow.java:22) advised by before advice from 'ataspectj.ltwlog.Aspect1' (Aspect1.java)",
++                "weaveinfo Join point 'method-execution(void ataspectj.ltwlog.MainVerboseAndShow.target())' in Type 'ataspectj.ltwlog.MainVerboseAndShow' (MainVerboseAndShow.java:22) advised by before advice from 'ataspectj.ltwlog.Aspect1' (Aspect1.java)",
+                 "info weaving 'ataspectj/ltwlog/Aspect1'"}))) {
+             MessageHolder.dump();
+             throw new RuntimeException("failed");
+@@ -462,8 +462,9 @@ public abstract class Shadow {
+ 				advisingType);
+ 		} else {
+ 			boolean runtimeTest = ((BcelAdvice)advice).hasDynamicTests();
++			String joinPointDescription = this.toString();
+ 		    msg = WeaveMessage.constructWeavingMessage(WeaveMessage.WEAVEMESSAGE_ADVISES,
+-		    		new String[]{ advisedType, beautifyLocation(getSourceLocation()),
++		    		new String[]{ joinPointDescription, advisedType, beautifyLocation(getSourceLocation()),
+ 				            description,
+ 				            advisingType,beautifyLocation(munger.getSourceLocation()),
+ 				            (runtimeTest?" [with runtime test]":"")},

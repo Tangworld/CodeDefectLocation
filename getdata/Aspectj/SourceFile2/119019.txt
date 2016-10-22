@@ -1,0 +1,221 @@
+@@ -29,9 +29,11 @@ import org.aspectj.org.eclipse.jdt.internal.compiler.ast.Statement;
+ import org.aspectj.org.eclipse.jdt.internal.compiler.ast.TypeReference;
+ import org.aspectj.org.eclipse.jdt.internal.compiler.codegen.CodeStream;
+ import org.aspectj.org.eclipse.jdt.internal.compiler.lookup.ArrayBinding;
++import org.aspectj.org.eclipse.jdt.internal.compiler.lookup.BaseTypeBinding;
+ import org.aspectj.org.eclipse.jdt.internal.compiler.lookup.ClassScope;
+ import org.aspectj.org.eclipse.jdt.internal.compiler.lookup.FieldBinding;
+ import org.aspectj.org.eclipse.jdt.internal.compiler.lookup.MethodBinding;
++import org.aspectj.org.eclipse.jdt.internal.compiler.lookup.MethodScope;
+ import org.aspectj.org.eclipse.jdt.internal.compiler.lookup.TypeBinding;
+ import org.aspectj.org.eclipse.jdt.internal.compiler.parser.Parser;
+ import org.aspectj.weaver.AjAttribute;
+@@ -57,6 +59,7 @@ import org.aspectj.weaver.UnresolvedType;
+  */
+ public class InterTypeFieldDeclaration extends InterTypeDeclaration {
+ 	public Expression initialization;
++	private TypeBinding realFieldType;
+ 	//public InterTypeFieldBinding interBinding;
+ 
+ 	public InterTypeFieldDeclaration(CompilationResult result, TypeReference onType) {
+@@ -80,7 +83,6 @@ public class InterTypeFieldDeclaration extends InterTypeDeclaration {
+ 				"static inter-type field on interface not supported");
+ 			ignoreFurtherInvestigation = true;
+ 		}
+-		
+ 		if (Modifier.isStatic(declaredModifiers) && typeVariableAliases!=null && typeVariableAliases.size()>0 && onTypeBinding.isGenericType()) {
+ 			scope.problemReporter().signalError(sourceStart,sourceEnd,
+ 					"static intertype field declarations cannot refer to type variables from the target generic type");
+@@ -119,7 +121,58 @@ public class InterTypeFieldDeclaration extends InterTypeDeclaration {
+ 			aae.sourceEnd = initialization.sourceEnd;
+ 			aae.dimensions = new Expression[arrayType.dimensions];
+ 			initialization = aae;
++		} /*else if (initialization!=null) {
++			MethodScope initializationScope = this.scope;
++			TypeBinding fieldType = realFieldType;
++			TypeBinding initializationType;
++			this.initialization.setExpectedType(fieldType); // needed in case of generic method invocation
++			if (this.initialization instanceof ArrayInitializer) {
++		
++				if ((initializationType = this.initialization.resolveTypeExpecting(initializationScope, fieldType)) != null) {
++					((ArrayInitializer) this.initialization).binding = (ArrayBinding) initializationType;
++					this.initialization.computeConversion(initializationScope, fieldType, initializationType);
++				}
++			}
++//			System.err.println("i=>"+initialization);
++//			System.err.println("sasuages=>"+initialization.resolvedType);
++//			//initializationType = initialization.resolveType(initializationScope);
++//			System.err.println("scope=>"+initializationScope);
++
++			else if ((initializationType = this.initialization.resolveType(initializationScope)) != null) {
++		
++				if (fieldType != initializationType) // must call before computeConversion() and typeMismatchError()
++					initializationScope.compilationUnitScope().recordTypeConversion(fieldType, initializationType);
++				if (this.initialization.isConstantValueOfTypeAssignableToType(initializationType, fieldType)
++						|| (fieldType.isBaseType() && BaseTypeBinding.isWidening(fieldType.id, initializationType.id))
++						|| initializationType.isCompatibleWith(fieldType)) {
++					initialization.computeConversion(initializationScope, fieldType, initializationType);
++					if (initializationType.needsUncheckedConversion(fieldType)) {
++						    initializationScope.problemReporter().unsafeTypeConversion(this.initialization, initializationType, fieldType);
++					}									
++				} else if (initializationScope.isBoxingCompatibleWith(initializationType, fieldType) 
++									|| (initializationType.isBaseType()  // narrowing then boxing ?
++											&& initializationScope.compilerOptions().sourceLevel >= JDK1_5 // autoboxing
++											&& !fieldType.isBaseType()
++											&& initialization.isConstantValueOfTypeAssignableToType(initializationType, initializationScope.environment().computeBoxingType(fieldType)))) {
++					this.initialization.computeConversion(initializationScope, fieldType, initializationType);
++				} else {
++					initializationScope.problemReporter().typeMismatchError(initializationType, fieldType, this);
++				}
++		//			if (this.binding.isFinal()){ // cast from constant actual type to variable type
++		//				this.binding.setConstant(this.initialization.constant.castTo((this.binding.returnType.id << 4) + this.initialization.constant.typeID()));
++		//			}
++		//		} else {
++		//			this.binding.setConstant(NotAConstant);
++			}
++		//		
+ 		}
++		
++		*/
++		
++		
++		
++		
++		//////////////////////
+ 
+ 
+ 		if (initialization == null) {
+@@ -172,6 +225,55 @@ public class InterTypeFieldDeclaration extends InterTypeDeclaration {
+ 
+ 	}
+ 
++	/*
++	public void resolveStatements() {
++		super.resolveStatements();
++	
++//	if (initialization!=null) {
++//		MethodScope initializationScope = this.scope;
++//		TypeBinding fieldType = realFieldType;
++//		TypeBinding initializationType;
++//		this.initialization.setExpectedType(fieldType); // needed in case of generic method invocation
++//		if (this.initialization instanceof ArrayInitializer) {
++//	
++//			if ((initializationType = this.initialization.resolveTypeExpecting(initializationScope, fieldType)) != null) {
++//				((ArrayInitializer) this.initialization).binding = (ArrayBinding) initializationType;
++//				this.initialization.computeConversion(initializationScope, fieldType, initializationType);
++//			}
++//		}
++////		System.err.println("i=>"+initialization);
++////		System.err.println("sasuages=>"+initialization.resolvedType);
++////		//initializationType = initialization.resolveType(initializationScope);
++////		System.err.println("scope=>"+initializationScope);
++//
++//		else if ((initializationType = this.initialization.resolveType(initializationScope)) != null) {
++//	
++//			if (fieldType != initializationType) // must call before computeConversion() and typeMismatchError()
++//				initializationScope.compilationUnitScope().recordTypeConversion(fieldType, initializationType);
++//			if (this.initialization.isConstantValueOfTypeAssignableToType(initializationType, fieldType)
++//					|| (fieldType.isBaseType() && BaseTypeBinding.isWidening(fieldType.id, initializationType.id))
++//					|| initializationType.isCompatibleWith(fieldType)) {
++//				initialization.computeConversion(initializationScope, fieldType, initializationType);
++//				if (initializationType.needsUncheckedConversion(fieldType)) {
++//					    initializationScope.problemReporter().unsafeTypeConversion(this.initialization, initializationType, fieldType);
++//				}									
++//			} else if (initializationScope.isBoxingCompatibleWith(initializationType, fieldType) 
++//								|| (initializationType.isBaseType()  // narrowing then boxing ?
++//										&& initializationScope.compilerOptions().sourceLevel >= JDK1_5 // autoboxing
++//										&& !fieldType.isBaseType()
++//										&& initialization.isConstantValueOfTypeAssignableToType(initializationType, initializationScope.environment().computeBoxingType(fieldType)))) {
++//				this.initialization.computeConversion(initializationScope, fieldType, initializationType);
++//			} else {
++//				initializationScope.problemReporter().typeMismatchError(initializationType, fieldType, this);
++//			}
++//	//			if (this.binding.isFinal()){ // cast from constant actual type to variable type
++//	//				this.binding.setConstant(this.initialization.constant.castTo((this.binding.returnType.id << 4) + this.initialization.constant.typeID()));
++//	//			}
++//	//		} else {
++//	//			this.binding.setConstant(NotAConstant);
++//		}}
++		
++	}*/
+ 	public EclipseTypeMunger build(ClassScope classScope) {
+ 		EclipseFactory world = EclipseFactory.fromScopeLookupEnvironment(classScope);
+ 		resolveOnType(classScope);
+@@ -214,6 +316,7 @@ public class InterTypeFieldDeclaration extends InterTypeDeclaration {
+ 		ResolvedMember me = 
+ 			myMunger.getInitMethod(aspectType);
+ 		this.selector = binding.selector = me.getName().toCharArray();
++		this.realFieldType = this.binding.returnType;
+ 		this.binding.returnType = TypeBinding.VoidBinding;
+ 		//??? all other pieces should already match
+ 
+@@ -80,7 +80,7 @@ public class Ajc {
+ 	private int incrementalStage = 10;
+ 	private boolean shouldEmptySandbox = true;
+ 	private AjcCommandController controller;
+-	private static boolean verbose = System.getProperty("org.aspectj.tools.ajc.Ajc.verbose","false").equals("true");
++	private static boolean verbose = true;//System.getProperty("org.aspectj.tools.ajc.Ajc.verbose","false").equals("true");
+ 
+ 	/**
+ 	 * Constructs a new Ajc instance, with a new AspectJ compiler
+@@ -92,7 +92,7 @@ public class AjcTestCase extends TestCase {
+ 	public final static PrintStream out = System.out;
+ 	private final static DelegatingOutputStream delegatingErr;
+ 	private final static DelegatingOutputStream delegatingOut;
+-	public final static boolean DEFAULT_VERBOSE = getBoolean("org.aspectj.tools.ajc.AjcTestCase.verbose",false); 
++	public final static boolean DEFAULT_VERBOSE = true;//getBoolean("org.aspectj.tools.ajc.AjcTestCase.verbose",false); 
+ 	public final static boolean DEFAULT_ERR_VERBOSE = getBoolean("org.aspectj.tools.ajc.AjcTestCase.verbose.err",DEFAULT_VERBOSE); 
+ 	public final static boolean DEFAULT_OUT_VERBOSE = getBoolean("org.aspectj.tools.ajc.AjcTestCase.verbose.out",DEFAULT_VERBOSE); 
+ 
+Binary files differ
+Binary files differ
+@@ -789,6 +789,10 @@ public class Ajc150Tests extends org.aspectj.testing.XMLBasedAjcTestCase {
+ 	  assertNotNull("Should have some relationships but does not",l);
+   }
+ 
++  public void testNoNPEWhenInaccessibleMethodIsCalledWithinITD_pr119019() {
++	  runTest("no NPE when inaccessible method is called within itd");
++  }
++  
+ 
+   // helper methods.....
+ 
+@@ -1271,6 +1271,11 @@
+         </compile>
+     </ajc-test>
+ 
++	<ajc-test dir="bugs150/pr119019" title="no NPE when inaccessible method is called within itd">
++        <compile files="bar/TargetITDClass.java,foo/ITDWithACall.aj"/>
++        <run class="foo.ITDWithACall"/>
++    </ajc-test>
++
+     <!-- ============================================================================ -->
+     <!-- ============================================================================ -->
+ 
+@@ -0,0 +1,5 @@
++package bar;
++
++public class TargetITDClass {
++
++}
+@@ -0,0 +1,20 @@
++package foo;
++
++import bar.TargetITDClass;
++
++public aspect ITDWithACall {
++
++  public static void main(String []argv) {
++    new TargetITDClass().doSomething("hello");
++  }
++
++    public void TargetITDClass.doSomething(String param) {
++        String changedParam= changeParam(param);
++    }
++
++
++    protected static String changeParam(String param) { /// <= HERE
++        return param + "-modified";
++    }
++	
++}

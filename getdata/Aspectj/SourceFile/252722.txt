@@ -1,0 +1,1687 @@
+@@ -0,0 +1,24 @@
++import org.aspectj.lang.annotation.*;
++import org.aspectj.lang.*;
++
++
++abstract aspect Super {
++  void foo(String s) {}
++}
++
++@Aspect
++public class A extends Super {
++
++	@Around("execution(* m(..))")
++	public void invoke(ProceedingJoinPoint pjp) {
++		super.foo("hello");
++	}
++
++
++	public static void main(String []argv) {
++		new A().m();
++	}
++
++	public void m() {}
++}
++
+@@ -0,0 +1,21 @@
++import org.aspectj.lang.annotation.*;
++import org.aspectj.lang.*;
++
++
++abstract aspect Super {
++  void foo(String s,int i) {}
++}
++
++public aspect ACode extends Super {
++
++	void around(): execution(* m(..)) {
++		super.foo("hello",7);
++	}
++
++	public static void main(String []argv) {
++		ACode.m();
++	}
++
++	public static void m() {}
++}
++
+@@ -0,0 +1,28 @@
++import org.aspectj.lang.annotation.*;
++import org.aspectj.lang.*;
++
++// Now the joinpoint is in a different type, does the super call from advice still work OK?
++
++
++abstract aspect Super {
++  void foo(String s) {}
++}
++
++@Aspect
++public class B extends Super {
++
++	@Around("execution(* m(..))")
++	public void invoke(ProceedingJoinPoint pjp) {
++		super.foo("hello");
++	}
++
++	public static void main(String []argv) {
++		new C().m();
++	}
++}
++
++class C { 
++
++	public void m() {}
++}
++
+@@ -0,0 +1,24 @@
++import org.aspectj.lang.annotation.*;
++import org.aspectj.lang.*;
++
++
++abstract aspect Super {
++  void foo(String s) {}
++}
++
++public aspect BCode extends Super {
++
++	void around(): execution(* m(..)) {
++		super.foo("hello");
++	}
++
++	public static void main(String []argv) {
++		new C().m();
++	}
++}
++
++class C { 
++
++	public void m() {}
++}
++
+@@ -31,6 +31,22 @@ public class Ajc163Tests extends org.aspectj.testing.XMLBasedAjcTestCase {
+ 	// runTest("itd anonymous inner class in wrong package");
+ 	// }
+ 
++	public void testExtendingASI_pr252722() {
++		runTest("extending AbstractSecurityInterceptor");
++	}
++
++	public void testExtendingASI_pr252722_2() {
++		runTest("extending AbstractSecurityInterceptor - 2");
++	}
++
++	public void testExtendingASI_pr252722_3() {
++		runTest("extending AbstractSecurityInterceptor - 3");
++	}
++
++	public void testExtendingASI_pr252722_4() {
++		runTest("extending AbstractSecurityInterceptor - 4");
++	}
++
+ 	public void testGetNode_pr258653() {
+ 		runTest("getNode");
+ 	}
+@@ -5,6 +5,26 @@
+     <ajc-test dir="bugs163/pr258653" title="getNode">
+    	  <compile files="staticinit.java" options="-1.5 -emacssym"/>
+     </ajc-test>
++    
++    <ajc-test dir="bugs163/pr252722" title="extending AbstractSecurityInterceptor">
++   	  <compile files="A.java" options="-1.5"/>
++   	  <run class="A"/>
++    </ajc-test>
++    
++    <ajc-test dir="bugs163/pr252722" title="extending AbstractSecurityInterceptor - 2">
++   	  <compile files="ACode.java" options="-1.5"/>
++   	  <run class="ACode"/>
++    </ajc-test>
++    
++    <ajc-test dir="bugs163/pr252722" title="extending AbstractSecurityInterceptor - 3">
++   	  <compile files="B.java" options="-1.5"/>
++   	  <run class="B"/>
++    </ajc-test>
++    
++    <ajc-test dir="bugs163/pr252722" title="extending AbstractSecurityInterceptor - 4">
++   	  <compile files="BCode.java" options="-1.5"/>
++   	  <run class="BCode"/>
++    </ajc-test>
+ 
+     <ajc-test dir="bugs163/pr154427" title="getMethod returning null">
+    	  <compile files="AuthorizationImpl.java Authorization.java AuthorizationAdmin.java CallAndMethodSignatureAspect.java CallTest.java" options=""/>
+@@ -10,7 +10,6 @@
+  *     PARC     initial implementation 
+  * ******************************************************************/
+ 
+-
+ package org.aspectj.ajdt.internal.compiler.ast;
+ 
+ //import java.util.Arrays;
+@@ -21,10 +20,7 @@ import org.aspectj.ajdt.internal.compiler.lookup.InterTypeFieldBinding;
+ import org.aspectj.ajdt.internal.compiler.lookup.InterTypeMethodBinding;
+ import org.aspectj.ajdt.internal.compiler.lookup.PrivilegedFieldBinding;
+ import org.aspectj.ajdt.internal.compiler.lookup.PrivilegedHandler;
+-import org.aspectj.weaver.AjcMemberMaker;
+-import org.aspectj.weaver.ResolvedMember;
+ import org.aspectj.org.eclipse.jdt.internal.compiler.ASTVisitor;
+-//import org.aspectj.org.eclipse.jdt.internal.compiler.AbstractSyntaxTreeVisitorAdapter;
+ import org.aspectj.org.eclipse.jdt.internal.compiler.ast.AllocationExpression;
+ import org.aspectj.org.eclipse.jdt.internal.compiler.ast.AssertStatement;
+ import org.aspectj.org.eclipse.jdt.internal.compiler.ast.ClassLiteralAccess;
+@@ -45,18 +41,17 @@ import org.aspectj.org.eclipse.jdt.internal.compiler.lookup.ProblemFieldBinding;
+ import org.aspectj.org.eclipse.jdt.internal.compiler.lookup.ReferenceBinding;
+ import org.aspectj.org.eclipse.jdt.internal.compiler.lookup.TypeBinding;
+ import org.aspectj.org.eclipse.jdt.internal.compiler.lookup.VariableBinding;
++import org.aspectj.weaver.AjcMemberMaker;
++import org.aspectj.weaver.ResolvedMember;
+ 
+ /**
+  * Walks the body of around advice
+  * 
+- * Makes sure that all member accesses are to public members.  Will
+- * convert to use access methods when needed to ensure that.  This
+- * makes it much simpler (and more modular) to inline the body of
+- * an around.
++ * Makes sure that all member accesses are to public members. Will convert to use access methods when needed to ensure that. This
++ * makes it much simpler (and more modular) to inline the body of an around.
+  * 
+- * ??? constructors are handled different and require access to the
+- * target type.  changes to org.eclipse.jdt.internal.compiler.ast.AllocationExpression
+- * would be required to fix this issue.
++ * ??? constructors are handled different and require access to the target type. changes to
++ * org.eclipse.jdt.internal.compiler.ast.AllocationExpression would be required to fix this issue.
+  * 
+  * @author Jim Hugunin
+  */
+@@ -65,45 +60,45 @@ public class AccessForInlineVisitor extends ASTVisitor {
+ 	PrivilegedHandler handler;
+ 	AspectDeclaration inAspect;
+ 	EclipseFactory world; // alias for inAspect.world
+-	
+-	//	set to true for ClassLiteralAccess and AssertStatement
++
++	// set to true for ClassLiteralAccess and AssertStatement
+ 	// ??? A better answer would be to transform these into inlinable forms
+-	public boolean isInlinable = true;  
+-	
++	public boolean isInlinable = true;
++
+ 	public AccessForInlineVisitor(AspectDeclaration inAspect, PrivilegedHandler handler) {
+ 		this.inAspect = inAspect;
+ 		this.world = inAspect.factory;
+ 		this.handler = handler;
+ 	}
+-	
+-	
++
+ 	public void endVisit(SingleNameReference ref, BlockScope scope) {
+ 		if (ref.binding instanceof FieldBinding) {
+-			ref.binding = getAccessibleField((FieldBinding)ref.binding, ref.actualReceiverType);
++			ref.binding = getAccessibleField((FieldBinding) ref.binding, ref.actualReceiverType);
+ 		}
+ 	}
+ 
+ 	public void endVisit(QualifiedNameReference ref, BlockScope scope) {
+ 		if (ref.binding instanceof FieldBinding) {
+-			ref.binding = getAccessibleField((FieldBinding)ref.binding, ref.actualReceiverType);
++			ref.binding = getAccessibleField((FieldBinding) ref.binding, ref.actualReceiverType);
+ 		}
+ 		if (ref.otherBindings != null && ref.otherBindings.length > 0) {
+ 			TypeBinding receiverType;
+ 			if (ref.binding instanceof FieldBinding) {
+-				receiverType = ((FieldBinding)ref.binding).type;
++				receiverType = ((FieldBinding) ref.binding).type;
+ 			} else if (ref.binding instanceof VariableBinding) {
+-				receiverType = ((VariableBinding)ref.binding).type;
++				receiverType = ((VariableBinding) ref.binding).type;
+ 			} else {
+-				//!!! understand and fix this case later
++				// !!! understand and fix this case later
+ 				receiverType = ref.otherBindings[0].declaringClass;
+ 			}
+ 			boolean cont = true; // don't continue if we come across a problem
+-			for (int i=0, len=ref.otherBindings.length; i < len && cont; i++) {
++			for (int i = 0, len = ref.otherBindings.length; i < len && cont; i++) {
+ 				FieldBinding binding = ref.otherBindings[i];
+ 				ref.otherBindings[i] = getAccessibleField(binding, receiverType);
+-				if (!(binding instanceof ProblemFieldBinding)
+-						&& binding!=null) 	receiverType = binding.type; // TODO Why is this sometimes null?
+-				else                                                cont=false;
++				if (!(binding instanceof ProblemFieldBinding) && binding != null)
++					receiverType = binding.type; // TODO Why is this sometimes null?
++				else
++					cont = false;
+ 			}
+ 		}
+ 	}
+@@ -111,134 +106,150 @@ public class AccessForInlineVisitor extends ASTVisitor {
+ 	public void endVisit(FieldReference ref, BlockScope scope) {
+ 		ref.binding = getAccessibleField(ref.binding, ref.receiverType);
+ 	}
++
+ 	public void endVisit(MessageSend send, BlockScope scope) {
+-		if (send instanceof Proceed) return;
+-		if (send.binding == null || !send.binding.isValidBinding()) return;
+-		
++		if (send instanceof Proceed)
++			return;
++		if (send.binding == null || !send.binding.isValidBinding())
++			return;
++
+ 		if (send.isSuperAccess() && !send.binding.isStatic()) {
+ 			send.receiver = new ThisReference(send.sourceStart, send.sourceEnd);
++			// send.arguments = AstUtil.insert(new ThisReference(send.sourceStart, send.sourceEnd), send.arguments);
+ 			MethodBinding superAccessBinding = getSuperAccessMethod(send.binding);
+ 			AstUtil.replaceMethodBinding(send, superAccessBinding);
+ 		} else if (!isPublic(send.binding)) {
+ 			send.syntheticAccessor = getAccessibleMethod(send.binding, send.actualReceiverType);
+ 		}
++
+ 	}
++
+ 	public void endVisit(AllocationExpression send, BlockScope scope) {
+-		if (send.binding == null || !send.binding.isValidBinding()) return;
+-		//XXX TBD
+-		if (isPublic(send.binding)) return;
++		if (send.binding == null || !send.binding.isValidBinding())
++			return;
++		// XXX TBD
++		if (isPublic(send.binding))
++			return;
+ 		makePublic(send.binding.declaringClass);
+ 		send.binding = handler.getPrivilegedAccessMethod(send.binding, send);
+-	}	
+-	public void endVisit(
+-		QualifiedTypeReference ref,
+-		BlockScope scope)
+-	{
+-		makePublic(ref.resolvedType); //getTypeBinding(scope));   //??? might be trouble
+ 	}
+-	
+-	public void endVisit(
+-		SingleTypeReference ref,
+-		BlockScope scope)
+-	{
+-		makePublic(ref.resolvedType); //getTypeBinding(scope));  //??? might be trouble
++
++	public void endVisit(QualifiedTypeReference ref, BlockScope scope) {
++		makePublic(ref.resolvedType); // getTypeBinding(scope)); //??? might be trouble
++	}
++
++	public void endVisit(SingleTypeReference ref, BlockScope scope) {
++		makePublic(ref.resolvedType); // getTypeBinding(scope)); //??? might be trouble
+ 	}
+-	
++
+ 	private FieldBinding getAccessibleField(FieldBinding binding, TypeBinding receiverType) {
+-		//System.err.println("checking field: " + binding);
+-		if (binding == null || !binding.isValidBinding()) return binding;
+-		
++		// System.err.println("checking field: " + binding);
++		if (binding == null || !binding.isValidBinding())
++			return binding;
++
+ 		makePublic(receiverType);
+-		if (isPublic(binding)) return binding;
+-		if (binding instanceof PrivilegedFieldBinding) return binding;
+-		if (binding instanceof InterTypeFieldBinding) return binding;
++		if (isPublic(binding))
++			return binding;
++		if (binding instanceof PrivilegedFieldBinding)
++			return binding;
++		if (binding instanceof InterTypeFieldBinding)
++			return binding;
+ 
+-		if (binding.isPrivate() &&  binding.declaringClass != inAspect.binding) {
++		if (binding.isPrivate() && binding.declaringClass != inAspect.binding) {
+ 			binding.modifiers = AstUtil.makePackageVisible(binding.modifiers);
+ 		}
+-		
++
+ 		ResolvedMember m = world.makeResolvedMember(binding, receiverType);
+-		if (inAspect.accessForInline.containsKey(m)) return (FieldBinding)inAspect.accessForInline.get(m);
++		if (inAspect.accessForInline.containsKey(m))
++			return (FieldBinding) inAspect.accessForInline.get(m);
+ 		FieldBinding ret = new InlineAccessFieldBinding(inAspect, binding, m);
+-		
+-		//System.err.println("   made accessor: " + ret);
+-		
++
++		// System.err.println("   made accessor: " + ret);
++
+ 		inAspect.accessForInline.put(m, ret);
+ 		return ret;
+ 	}
+-	
++
+ 	private MethodBinding getAccessibleMethod(MethodBinding binding, TypeBinding receiverType) {
+-		if (!binding.isValidBinding()) return binding;
+-		
+-		makePublic(receiverType);  //???
+-		if (isPublic(binding)) return binding;
+-		if (binding instanceof InterTypeMethodBinding) return binding;
+-		
++		if (!binding.isValidBinding())
++			return binding;
++
++		makePublic(receiverType); // ???
++		if (isPublic(binding))
++			return binding;
++		if (binding instanceof InterTypeMethodBinding)
++			return binding;
++
+ 		if (binding instanceof ParameterizedMethodBinding) { // pr124999
+ 			binding = binding.original();
+ 		}
+-		
++
+ 		ResolvedMember m = null;
+-		if (binding.isPrivate() &&  binding.declaringClass != inAspect.binding) {
++		if (binding.isPrivate() && binding.declaringClass != inAspect.binding) {
+ 			// does this always mean that the aspect is an inner aspect of the bindings
+-			// declaring class?  After all, the field is private but we can see it from 
++			// declaring class? After all, the field is private but we can see it from
+ 			// where we are.
+ 			binding.modifiers = AstUtil.makePackageVisible(binding.modifiers);
+ 			m = world.makeResolvedMember(binding);
+ 		} else {
+ 			// Sometimes receiverType and binding.declaringClass are *not* the same.
+-			
+-			// Sometimes receiverType is a subclass of binding.declaringClass.  In these situations
++
++			// Sometimes receiverType is a subclass of binding.declaringClass. In these situations
+ 			// we want the generated inline accessor to call the method on the subclass (at
+ 			// runtime this will be satisfied by the super).
+ 			m = world.makeResolvedMember(binding, receiverType);
+ 		}
+-		if (inAspect.accessForInline.containsKey(m)) return (MethodBinding)inAspect.accessForInline.get(m);
+-		MethodBinding ret = world.makeMethodBinding(
+-			AjcMemberMaker.inlineAccessMethodForMethod(inAspect.typeX, m));
++		if (inAspect.accessForInline.containsKey(m))
++			return (MethodBinding) inAspect.accessForInline.get(m);
++		MethodBinding ret = world.makeMethodBinding(AjcMemberMaker.inlineAccessMethodForMethod(inAspect.typeX, m));
+ 		inAspect.accessForInline.put(m, ret);
+ 		return ret;
+ 	}
+-	
++
+ 	static class SuperAccessMethodPair {
+ 		public ResolvedMember originalMethod;
+ 		public MethodBinding accessMethod;
++
+ 		public SuperAccessMethodPair(ResolvedMember originalMethod, MethodBinding accessMethod) {
+ 			this.originalMethod = originalMethod;
+ 			this.accessMethod = accessMethod;
+ 		}
+ 	}
+-	
++
+ 	private MethodBinding getSuperAccessMethod(MethodBinding binding) {
+ 		ResolvedMember m = world.makeResolvedMember(binding);
+ 		ResolvedMember superAccessMember = AjcMemberMaker.superAccessMethod(inAspect.typeX, m);
+ 		if (inAspect.superAccessForInline.containsKey(superAccessMember)) {
+-			return ((SuperAccessMethodPair)inAspect.superAccessForInline.get(superAccessMember)).accessMethod;
+-		} 
++			return ((SuperAccessMethodPair) inAspect.superAccessForInline.get(superAccessMember)).accessMethod;
++		}
+ 		MethodBinding ret = world.makeMethodBinding(superAccessMember);
+ 		inAspect.superAccessForInline.put(superAccessMember, new SuperAccessMethodPair(m, ret));
+ 		return ret;
+ 	}
+-	
++
+ 	private boolean isPublic(FieldBinding fieldBinding) {
+ 		// these are always effectively public to the inliner
+-		if (fieldBinding instanceof InterTypeFieldBinding) return true;
++		if (fieldBinding instanceof InterTypeFieldBinding)
++			return true;
+ 		return fieldBinding.isPublic();
+ 	}
+ 
+ 	private boolean isPublic(MethodBinding methodBinding) {
+ 		// these are always effectively public to the inliner
+-		if (methodBinding instanceof InterTypeMethodBinding) return true;
++		if (methodBinding instanceof InterTypeMethodBinding)
++			return true;
+ 		return methodBinding.isPublic();
+ 	}
+ 
+ 	private void makePublic(TypeBinding binding) {
+-		if (binding == null || !binding.isValidBinding()) return;  // has already produced an error
++		if (binding == null || !binding.isValidBinding())
++			return; // has already produced an error
+ 		if (binding instanceof ReferenceBinding) {
+-			ReferenceBinding rb = (ReferenceBinding)binding;
+-			if (!rb.isPublic()) handler.notePrivilegedTypeAccess(rb, null); //???
++			ReferenceBinding rb = (ReferenceBinding) binding;
++			if (!rb.isPublic())
++				handler.notePrivilegedTypeAccess(rb, null); // ???
+ 		} else if (binding instanceof ArrayBinding) {
+-			makePublic( ((ArrayBinding)binding).leafComponentType );
++			makePublic(((ArrayBinding) binding).leafComponentType);
+ 		} else {
+ 			return;
+ 		}
+@@ -252,9 +263,7 @@ public class AccessForInlineVisitor extends ASTVisitor {
+ 		isInlinable = false;
+ 	}
+ 
+-	public boolean visit(
+-		TypeDeclaration localTypeDeclaration,
+-		BlockScope scope) {
++	public boolean visit(TypeDeclaration localTypeDeclaration, BlockScope scope) {
+ 		// we don't want to transform any local anonymous classes as they won't be inlined
+ 		return false;
+ 	}
+@@ -843,7 +843,7 @@ public class AspectDeclaration extends TypeDeclaration {
+ 			public void generate(CodeStream codeStream) {
+ 				// body starts here
+ 				codeStream.aload_0();
+-				AstUtil.generateParameterLoads(accessMethod.parameters, codeStream);
++				AstUtil.generateParameterLoads(accessMethod.parameters, codeStream, 1);
+ 				codeStream.invokespecial(factory.makeMethodBinding(method));
+ 				AstUtil.generateReturn(accessMethod.returnType, codeStream);
+ 				// body ends here
+@@ -10,18 +10,16 @@
+  *     PARC     initial implementation 
+  * ******************************************************************/
+ 
+-
+ package org.aspectj.ajdt.internal.compiler.ast;
+ 
+ import java.lang.reflect.Modifier;
+ import java.util.ArrayList;
+ import java.util.List;
+ 
+-import org.aspectj.weaver.AjAttribute;
+-import org.aspectj.weaver.patterns.WildTypePattern;
++import org.aspectj.org.eclipse.jdt.core.compiler.CharOperation;
++import org.aspectj.org.eclipse.jdt.internal.compiler.ast.ASTNode;
+ import org.aspectj.org.eclipse.jdt.internal.compiler.ast.AbstractMethodDeclaration;
+ import org.aspectj.org.eclipse.jdt.internal.compiler.ast.Argument;
+-import org.aspectj.org.eclipse.jdt.internal.compiler.ast.ASTNode;
+ import org.aspectj.org.eclipse.jdt.internal.compiler.ast.Expression;
+ import org.aspectj.org.eclipse.jdt.internal.compiler.ast.MessageSend;
+ import org.aspectj.org.eclipse.jdt.internal.compiler.ast.MethodDeclaration;
+@@ -45,11 +43,13 @@ import org.aspectj.org.eclipse.jdt.internal.compiler.lookup.Scope;
+ import org.aspectj.org.eclipse.jdt.internal.compiler.lookup.SourceTypeBinding;
+ import org.aspectj.org.eclipse.jdt.internal.compiler.lookup.TypeBinding;
+ import org.aspectj.org.eclipse.jdt.internal.compiler.lookup.TypeIds;
+-import org.aspectj.org.eclipse.jdt.core.compiler.CharOperation;
++import org.aspectj.weaver.AjAttribute;
++import org.aspectj.weaver.patterns.WildTypePattern;
+ 
+ public class AstUtil {
+ 
+-	private AstUtil() {}
++	private AstUtil() {
++	}
+ 
+ 	public static void addMethodBinding(SourceTypeBinding sourceType, MethodBinding method) {
+ 		int len = sourceType.methods.length;
+@@ -58,100 +58,81 @@ public class AstUtil {
+ 		temp[len] = method;
+ 		sourceType.methods = temp;
+ 	}
+-	
+-	
++
+ 	public static void addMethodDeclaration(TypeDeclaration typeDec, AbstractMethodDeclaration dec) {
+ 		AbstractMethodDeclaration[] methods = typeDec.methods;
+ 		int len = methods.length;
+-		AbstractMethodDeclaration[] newMethods = new AbstractMethodDeclaration[len+1];
++		AbstractMethodDeclaration[] newMethods = new AbstractMethodDeclaration[len + 1];
+ 		System.arraycopy(methods, 0, newMethods, 0, len);
+ 		newMethods[len] = dec;
+ 		typeDec.methods = newMethods;
+ 	}
+-	
+-	
++
+ 	public static Argument makeFinalArgument(char[] name, TypeBinding typeBinding) {
+-		long pos = 0; //XXX encode start and end location
+-		LocalVariableBinding binding =
+-			new LocalVariableBinding(name, typeBinding, Modifier.FINAL, true);
++		long pos = 0; // XXX encode start and end location
++		LocalVariableBinding binding = new LocalVariableBinding(name, typeBinding, Modifier.FINAL, true);
+ 		Argument ret = new Argument(name, pos, makeTypeReference(typeBinding), Modifier.FINAL);
+ 		ret.binding = binding;
+ 		return ret;
+ 	}
+-	
++
+ 	public static TypeReference makeTypeReference(TypeBinding binding) {
+-		// ??? does this work for primitives	
+-		QualifiedTypeReference ref =
+-			new QualifiedTypeReference(new char[][] {binding.sourceName()}, new long[] {0}); //???
++		// ??? does this work for primitives
++		QualifiedTypeReference ref = new QualifiedTypeReference(new char[][] { binding.sourceName() }, new long[] { 0 }); // ???
+ 		ref.resolvedType = binding;
+ 		ref.constant = Constant.NotAConstant;
+ 		return ref;
+ 	}
+-	
+-	
++
+ 	public static NameReference makeNameReference(TypeBinding binding) {
+-		
+-			char[][] name = new char[][] {binding.sourceName()};
+-			long[] dummyPositions = new long[name.length];
+-			QualifiedNameReference ref = 
+-			new QualifiedNameReference(name, dummyPositions, 0, 0);
+-		ref.binding = binding;		ref.constant = Constant.NotAConstant;
++
++		char[][] name = new char[][] { binding.sourceName() };
++		long[] dummyPositions = new long[name.length];
++		QualifiedNameReference ref = new QualifiedNameReference(name, dummyPositions, 0, 0);
++		ref.binding = binding;
++		ref.constant = Constant.NotAConstant;
+ 		return ref;
+ 	}
+-	
+-	
+ 
+-	
+-	
+ 	public static ReturnStatement makeReturnStatement(Expression expr) {
+ 		return new ReturnStatement(expr, 0, 0);
+ 	}
+-	
+-	public static MethodDeclaration makeMethodDeclaration(
+-			MethodBinding binding)
+-	{
++
++	public static MethodDeclaration makeMethodDeclaration(MethodBinding binding) {
+ 		MethodDeclaration ret = new MethodDeclaration(null);
+ 		ret.binding = binding;
+ 		int nargs = binding.parameters.length;
+ 		ret.arguments = new Argument[nargs];
+-		for (int i=0; i < nargs; i++) {
+-			ret.arguments[i] = makeFinalArgument(("arg"+i).toCharArray(),
+-								binding.parameters[i]);
++		for (int i = 0; i < nargs; i++) {
++			ret.arguments[i] = makeFinalArgument(("arg" + i).toCharArray(), binding.parameters[i]);
+ 		}
+ 		return ret;
+ 	}
+-	
+-	public static void setStatements(
+-			MethodDeclaration ret, List statements)
+-	{
+-		ret.statements =
+-			(Statement[])statements.toArray(new Statement[statements.size()]);
++
++	public static void setStatements(MethodDeclaration ret, List statements) {
++		ret.statements = (Statement[]) statements.toArray(new Statement[statements.size()]);
+ 	}
+-	
+-	public static SingleNameReference makeLocalVariableReference(
+-			LocalVariableBinding binding)
+-	{
++
++	public static SingleNameReference makeLocalVariableReference(LocalVariableBinding binding) {
+ 		SingleNameReference ret = new SingleNameReference(binding.name, 0);
+ 		ret.binding = binding;
+ 		ret.codegenBinding = binding;
+ 		ret.constant = Constant.NotAConstant;
+-		ret.bits &= ~ASTNode.RestrictiveFlagMASK;  // clear bits
+-		ret.bits |= Binding.VARIABLE; 
++		ret.bits &= ~ASTNode.RestrictiveFlagMASK; // clear bits
++		ret.bits |= Binding.VARIABLE;
+ 		return ret;
+ 	}
+-	
+-	public static SingleNameReference makeResolvedLocalVariableReference(
+-			LocalVariableBinding binding)
+-	{
++
++	public static SingleNameReference makeResolvedLocalVariableReference(LocalVariableBinding binding) {
+ 		SingleNameReference ret = new SingleNameReference(binding.name, 0);
+ 		ret.binding = binding;
+ 		ret.codegenBinding = binding;
+ 		ret.constant = Constant.NotAConstant;
+-		ret.bits &= ~ASTNode.RestrictiveFlagMASK;  // clear bits
+-		ret.bits |= Binding.LOCAL; 
++		ret.bits &= ~ASTNode.RestrictiveFlagMASK; // clear bits
++		ret.bits |= Binding.LOCAL;
+ 		return ret;
+ 	}
+-	
++
+ 	public static int makePublic(int modifiers) {
+ 		return makePackageVisible(modifiers) | ClassFileConstants.AccPublic;
+ 	}
+@@ -163,12 +144,11 @@ public class AstUtil {
+ 
+ 	public static CompilationUnitScope getCompilationUnitScope(Scope scope) {
+ 		if (scope instanceof CompilationUnitScope) {
+-			return (CompilationUnitScope)scope;
++			return (CompilationUnitScope) scope;
+ 		}
+ 		return getCompilationUnitScope(scope.parent);
+ 	}
+-	
+-	
++
+ 	public static void generateParameterLoads(TypeBinding[] parameters, CodeStream codeStream) {
+ 		int paramIndex = 0;
+ 		int varIndex = 0;
+@@ -179,54 +159,59 @@ public class AstUtil {
+ 		}
+ 	}
+ 
+-	
++	public static void generateParameterLoads(TypeBinding[] parameters, CodeStream codeStream, int offset) {
++		int paramIndex = 0;
++		int varIndex = offset;
++		while (paramIndex < parameters.length) {
++			TypeBinding param = parameters[paramIndex++];
++			codeStream.load(param, varIndex);
++			varIndex += slotsNeeded(param);
++		}
++	}
++
+ 	public static void generateReturn(TypeBinding returnType, CodeStream codeStream) {
+ 		if (returnType.id == TypeIds.T_void) {
+ 			codeStream.return_();
+ 		} else if (returnType.isBaseType()) {
+ 			switch (returnType.id) {
+-				case TypeIds.T_boolean :
+-				case TypeIds.T_int:
+-				case TypeIds.T_byte :
+-				case TypeIds.T_short :
+-				case TypeIds.T_char:
+-					codeStream.ireturn();
+-					break;
+-				case TypeIds.T_float :
+-					codeStream.freturn();
+-					break;
+-				case TypeIds.T_long:
+-					codeStream.lreturn();
+-					break;
+-				case TypeIds.T_double :
+-					codeStream.dreturn();
+-					break;
+-				default :
+-					throw new RuntimeException("huh");
++			case TypeIds.T_boolean:
++			case TypeIds.T_int:
++			case TypeIds.T_byte:
++			case TypeIds.T_short:
++			case TypeIds.T_char:
++				codeStream.ireturn();
++				break;
++			case TypeIds.T_float:
++				codeStream.freturn();
++				break;
++			case TypeIds.T_long:
++				codeStream.lreturn();
++				break;
++			case TypeIds.T_double:
++				codeStream.dreturn();
++				break;
++			default:
++				throw new RuntimeException("huh");
+ 			}
+ 		} else {
+ 			codeStream.areturn();
+ 		}
+ 	}
+-	
+-	//XXX this could be inconsistent for wierd case, i.e. a class named "java_lang_String"
++
++	// XXX this could be inconsistent for wierd case, i.e. a class named "java_lang_String"
+ 	public static char[] makeMangledName(ReferenceBinding type) {
+ 		return CharOperation.concatWith(type.compoundName, '_');
+ 	}
+-	
+-	
+ 
+ 	public static final char[] PREFIX = "ajc".toCharArray();
+ 
+-	//XXX not efficient
++	// XXX not efficient
+ 	public static char[] makeAjcMangledName(char[] kind, ReferenceBinding type, char[] name) {
+-		return CharOperation.concat(
+-			CharOperation.concat(PREFIX, new char[] {'$'}, kind), '$', makeMangledName(type), '$', name);
++		return CharOperation.concat(CharOperation.concat(PREFIX, new char[] { '$' }, kind), '$', makeMangledName(type), '$', name);
+ 	}
+ 
+ 	public static char[] makeAjcMangledName(char[] kind, char[] p, char[] name) {
+-		return CharOperation.concat(
+-			CharOperation.concat(PREFIX, new char[] {'$'}, kind), '$', p, '$', name);
++		return CharOperation.concat(CharOperation.concat(PREFIX, new char[] { '$' }, kind), '$', p, '$', name);
+ 	}
+ 
+ 	public static List getAjSyntheticAttribute() {
+@@ -236,72 +221,87 @@ public class AstUtil {
+ 	}
+ 
+ 	public static long makeLongPos(int start, int end) {
+-		return (long)end | ((long)start << 32);
++		return (long) end | ((long) start << 32);
+ 	}
++
+ 	public static char[][] getCompoundName(String string) {
+-		return WildTypePattern.splitNames(string,true);
++		return WildTypePattern.splitNames(string, true);
++	}
++
++	public static TypeBinding[] insert(TypeBinding first, TypeBinding[] rest) {
++		if (rest == null) {
++			return new TypeBinding[] { first };
++		}
++
++		int len = rest.length;
++		TypeBinding[] ret = new TypeBinding[len + 1];
++		ret[0] = first;
++		System.arraycopy(rest, 0, ret, 1, len);
++		return ret;
+ 	}
+ 
+-	public static TypeBinding[] insert(
+-		TypeBinding first,
+-		TypeBinding[] rest) {
++	public static Argument[] insert(Argument first, Argument[] rest) {
+ 		if (rest == null) {
+-			return new TypeBinding[] {first};
++			return new Argument[] { first };
+ 		}
+-		
++
+ 		int len = rest.length;
+-		TypeBinding[] ret = new TypeBinding[len+1];
++		Argument[] ret = new Argument[len + 1];
+ 		ret[0] = first;
+ 		System.arraycopy(rest, 0, ret, 1, len);
+ 		return ret;
+ 	}
+-	public static Argument[] insert(
+-		Argument first,
+-		Argument[] rest) {
++
++	public static Expression[] insert(Expression first, Expression[] rest) {
+ 		if (rest == null) {
+-			return new Argument[] {first};
++			return new Expression[] { first };
+ 		}
+-		
++
+ 		int len = rest.length;
+-		Argument[] ret = new Argument[len+1];
++		Expression[] ret = new Expression[len + 1];
+ 		ret[0] = first;
+ 		System.arraycopy(rest, 0, ret, 1, len);
+ 		return ret;
+ 	}
++
+ 	public static Argument[] copyArguments(Argument[] inArgs) {
+ 		// Lets do a proper copy
+-		if (inArgs == null) return new Argument[]{};
++		if (inArgs == null)
++			return new Argument[] {};
+ 		Argument[] outArgs = new Argument[inArgs.length];
+ 		for (int i = 0; i < inArgs.length; i++) {
+ 			Argument argument = inArgs[i];
+-			outArgs[i] = new Argument(argument.name,0,argument.type,argument.modifiers);			
++			outArgs[i] = new Argument(argument.name, 0, argument.type, argument.modifiers);
+ 		}
+ 		return outArgs;
+ 
+-//		if (inArgs == null) return new Argument[] {};
+-//		int len = inArgs.length;
+-//		Argument[] outArgs = new Argument[len];
+-//		//??? we're not sure whether or not copying these is okay
+-//		System.arraycopy(inArgs, 0, outArgs, 0, len);
+-//		return outArgs;
++		// if (inArgs == null) return new Argument[] {};
++		// int len = inArgs.length;
++		// Argument[] outArgs = new Argument[len];
++		// //??? we're not sure whether or not copying these is okay
++		// System.arraycopy(inArgs, 0, outArgs, 0, len);
++		// return outArgs;
+ 
+ 	}
+ 
+ 	public static Statement[] remove(int i, Statement[] statements) {
+ 		int len = statements.length;
+-		Statement[] ret = new Statement[len-1];
++		Statement[] ret = new Statement[len - 1];
+ 		System.arraycopy(statements, 0, ret, 0, i);
+-		System.arraycopy(statements, i+1, ret, i, len-i-1);
++		System.arraycopy(statements, i + 1, ret, i, len - i - 1);
+ 		return ret;
+ 	}
++
+ 	public static int slotsNeeded(TypeBinding type) {
+-		if (type == TypeBinding.DOUBLE || type == TypeBinding.LONG) return 2;
+-		else return 1;
++		if (type == TypeBinding.DOUBLE || type == TypeBinding.LONG)
++			return 2;
++		else
++			return 1;
+ 	}
+-	
++
+ 	public static void replaceMethodBinding(MessageSend send, MethodBinding newBinding) {
+ 		send.binding = send.codegenBinding = newBinding;
+ 		send.setActualReceiverType(newBinding.declaringClass);
+-		
++
+ 	}
+ }
+@@ -262,8 +262,12 @@ public class AjcMemberMaker {
+ 	// --- inline accessors
+ 	// ??? can eclipse handle a transform this weird without putting synthetics into the mix
+ 	public static ResolvedMember superAccessMethod(UnresolvedType baseType, ResolvedMember method) {
++		UnresolvedType[] paramTypes = method.getParameterTypes();
++		// if (!method.isStatic()) {
++		// paramTypes = UnresolvedType.insert(method.getDeclaringType(), paramTypes);
++		// }
+ 		return new ResolvedMemberImpl(Member.METHOD, baseType, Modifier.PUBLIC, method.getReturnType(), NameMangler
+-				.superDispatchMethod(baseType, method.getName()), method.getParameterTypes(), method.getExceptions());
++				.superDispatchMethod(baseType, method.getName()), paramTypes, method.getExceptions());
+ 	}
+ 
+ 	public static ResolvedMember inlineAccessMethodForMethod(UnresolvedType aspectType, ResolvedMember method) {
+@@ -11,6 +11,13 @@
+  *******************************************************************************/
+ package org.aspectj.weaver.bcel;
+ 
++import java.util.HashMap;
++import java.util.HashSet;
++import java.util.Iterator;
++import java.util.List;
++import java.util.Map;
++import java.util.Set;
++
+ import org.aspectj.apache.bcel.Constants;
+ import org.aspectj.apache.bcel.classfile.ConstantPool;
+ import org.aspectj.apache.bcel.generic.FieldInstruction;
+@@ -30,447 +37,351 @@ import org.aspectj.weaver.ResolvedType;
+ import org.aspectj.weaver.Shadow;
+ import org.aspectj.weaver.UnresolvedType;
+ 
+-import java.util.HashMap;
+-import java.util.HashSet;
+-import java.util.Iterator;
+-import java.util.Map;
+-import java.util.Set;
+-import java.util.List;
+-
+ /**
+- * Looks for all access to method or field that are not public within the body of the around advices and replace
+- * the invocations to a wrapper call so that the around advice can further be inlined.
++ * Looks for all access to method or field that are not public within the body of the around advices and replace the invocations to
++ * a wrapper call so that the around advice can further be inlined.
+  * <p/>
+  * This munger is used for @AJ aspects for which inlining wrapper is not done at compile time.
+  * <p/>
+- * Specific state and logic is kept in the munger ala ITD so that call/get/set pointcuts can still be matched
+- * on the wrapped member thanks to the EffectiveSignature attribute.
+- *
++ * Specific state and logic is kept in the munger ala ITD so that call/get/set pointcuts can still be matched on the wrapped member
++ * thanks to the EffectiveSignature attribute.
++ * 
+  * @author <a href="mailto:alex AT gnilux DOT com">Alexandre Vasseur</a>
+  */
+ public class BcelAccessForInlineMunger extends BcelTypeMunger {
+ 
+-    /**
+-     * Wrapper member cache, key is wrapper name.
+-     * This structure is queried when regular shadow matching in the advice body (call/get/set) occurs
+-     */
+-    private Map m_inlineAccessorBcelMethods;
+-
+-    /**
+-     * The aspect we act for
+-     */
+-    private LazyClassGen m_aspectGen;
+-
+-    /**
+-     * The wrapper method we need to add. Those are added at the end of the munging
+-     */
+-    private Set m_inlineAccessorMethodGens;
+-
+-    public BcelAccessForInlineMunger(ResolvedType aspectType) {
+-        super(null, aspectType);
+-        if (aspectType.getWorld().isXnoInline()) {
+-            throw new Error("This should not happen");
+-        }
+-    }
+-
+-    public boolean munge(BcelClassWeaver weaver) {
+-        m_aspectGen = weaver.getLazyClassGen();
+-        m_inlineAccessorBcelMethods = new HashMap(0);
+-        m_inlineAccessorMethodGens = new HashSet();
+-
+-        // look for all @Around advices
+-        for (Iterator iterator = m_aspectGen.getMethodGens().iterator(); iterator.hasNext();) {
+-            LazyMethodGen methodGen = (LazyMethodGen) iterator.next();
+-            if (methodGen.hasAnnotation(UnresolvedType.forName("org/aspectj/lang/annotation/Around"))) {
+-                openAroundAdvice(methodGen);
+-            }
+-        }
+-
+-        // add the accessors
+-        for (Iterator iterator = m_inlineAccessorMethodGens.iterator(); iterator.hasNext();) {
+-            LazyMethodGen lazyMethodGen = (LazyMethodGen) iterator.next();
+-            m_aspectGen.addMethodGen(lazyMethodGen);
+-        }
+-
+-        // flush some
+-        m_inlineAccessorMethodGens = null;
+-        // we keep m_inlineAccessorsResolvedMembers for shadow matching
+-
+-        return true;
+-    }
+-
+-    /**
+-     * Looks in the wrapper we have added so that we can find their effective signature if needed
+-     *
+-     * @param member
+-     * @return
+-     */
+-    public ResolvedMember getMatchingSyntheticMember(Member member) {
+-        return (ResolvedMember) m_inlineAccessorBcelMethods.get(member.getName());
+-    }
+-
+-    public ResolvedMember getSignature() {
+-        return null;
+-    }
+-
+-    /**
+-     * Match only the aspect for which we act
+-     *
+-     * @param onType
+-     * @return
+-     */
+-    public boolean matches(ResolvedType onType) {
+-        return aspectType.equals(onType);
+-    }
+-
+-    /**
+-     * Prepare the around advice, flag it as cannot be inlined if it can't be
+-     *
+-     * @param aroundAdvice
+-     */
+-    private void openAroundAdvice(LazyMethodGen aroundAdvice) {
+-        InstructionHandle curr = aroundAdvice.getBody().getStart();
+-        InstructionHandle end = aroundAdvice.getBody().getEnd();
+-        ConstantPool cpg = aroundAdvice.getEnclosingClass().getConstantPool();
+-        InstructionFactory factory = aroundAdvice.getEnclosingClass().getFactory();
+-
+-        boolean realizedCannotInline = false;
+-        while (curr != end) {
+-            if (realizedCannotInline) {
+-                // we know we cannot inline this advice so no need for futher handling
+-                break;
+-            }
+-            InstructionHandle next = curr.getNext();
+-            Instruction inst = curr.getInstruction();
+-
+-            // open-up method call
+-            if ((inst instanceof InvokeInstruction)) {
+-                InvokeInstruction invoke = (InvokeInstruction) inst;
+-                ResolvedType callee = m_aspectGen.getWorld().resolve(UnresolvedType.forName(invoke.getClassName(cpg)));
+-
+-                // look in the whole method list and not just declared for super calls and alike
+-                List methods = callee.getMethodsWithoutIterator(false,true);
+-                for (Iterator iter = methods.iterator(); iter.hasNext();) {
+-                    ResolvedMember resolvedMember = (ResolvedMember) iter.next();
+-                    if (invoke.getName(cpg).equals(resolvedMember.getName())
+-                            && invoke.getSignature(cpg).equals(resolvedMember.getSignature())
+-                            && !resolvedMember.isPublic()) {
+-                        if ("<init>".equals(invoke.getName(cpg))) {
+-                            // skipping open up for private constructor
+-                            // can occur when aspect new a private inner type
+-                            // too complex to handle new + dup + .. + invokespecial here.
+-                            aroundAdvice.setCanInline(false);
+-                            realizedCannotInline = true;
+-                        } else {
+-                            // specific handling for super.foo() calls, where foo is non public
+-                        	ResolvedType memberType = m_aspectGen.getWorld().resolve(resolvedMember.getDeclaringType());
+-                        	if (!aspectType.equals(memberType) &&
+-                        		memberType.isAssignableFrom(aspectType)) {
+-                        		// old test was...
+-  //                            if (aspectType.getSuperclass() != null
+-  //                                    && aspectType.getSuperclass().getName().equals(resolvedMember.getDeclaringType().getName())) {
+-                                ResolvedMember accessor = createOrGetInlineAccessorForSuperDispatch(resolvedMember);
+-                                InvokeInstruction newInst = factory.createInvoke(
+-                                        aspectType.getName(),
+-                                        accessor.getName(),
+-                                        BcelWorld.makeBcelType(accessor.getReturnType()),
+-                                        BcelWorld.makeBcelTypes(accessor.getParameterTypes()),
+-                                        Constants.INVOKEVIRTUAL
+-                                );
+-                                curr.setInstruction(newInst);
+-                            } else {
+-                                ResolvedMember accessor = createOrGetInlineAccessorForMethod(resolvedMember);
+-                                InvokeInstruction newInst = factory.createInvoke(
+-                                        aspectType.getName(),
+-                                        accessor.getName(),
+-                                        BcelWorld.makeBcelType(accessor.getReturnType()),
+-                                        BcelWorld.makeBcelTypes(accessor.getParameterTypes()),
+-                                        Constants.INVOKESTATIC
+-                                );
+-                                curr.setInstruction(newInst);
+-                            }
+-                        }
+-
+-                        break;//ok we found a matching callee member and swapped the instruction with the accessor
+-                    }
+-                }
+-            } else if (inst instanceof FieldInstruction) {
+-                FieldInstruction invoke = (FieldInstruction) inst;
+-                ResolvedType callee = m_aspectGen.getWorld().resolve(UnresolvedType.forName(invoke.getClassName(cpg)));
+-                for (int i = 0; i < callee.getDeclaredJavaFields().length; i++) {
+-                    ResolvedMember resolvedMember = callee.getDeclaredJavaFields()[i];
+-                    if (invoke.getName(cpg).equals(resolvedMember.getName())
+-                            && invoke.getSignature(cpg).equals(resolvedMember.getSignature())
+-                            && !resolvedMember.isPublic()) {
+-                        final ResolvedMember accessor;
+-                        if ((inst.opcode==Constants.GETFIELD) || (inst.opcode==Constants.GETSTATIC)) {
+-                            accessor = createOrGetInlineAccessorForFieldGet(resolvedMember);
+-                        } else {
+-                            accessor = createOrGetInlineAccessorForFieldSet(resolvedMember);
+-                        }
+-                        InvokeInstruction newInst = factory.createInvoke(
+-                                aspectType.getName(),
+-                                accessor.getName(),
+-                                BcelWorld.makeBcelType(accessor.getReturnType()),
+-                                BcelWorld.makeBcelTypes(accessor.getParameterTypes()),
+-                                Constants.INVOKESTATIC
+-                        );
+-                        curr.setInstruction(newInst);
+-
+-                        break;//ok we found a matching callee member and swapped the instruction with the accessor
+-                    }
+-                }
+-            }
+-
+-            curr = next;
+-        }
+-
+-        // no reason for not inlining this advice
+-        // since it is used for @AJ advice that cannot be inlined by defauilt
+-        // make sure we set inline to true since we have done this analysis
+-        if (!realizedCannotInline) {
+-            aroundAdvice.setCanInline(true);
+-        }
+-    }
+-
+-    /**
+-     * Add an inline wrapper for a non public method call
+-     *
+-     * @param resolvedMember
+-     * @return
+-     */
+-    private ResolvedMember createOrGetInlineAccessorForMethod(ResolvedMember resolvedMember) {
+-        String accessor = NameMangler.inlineAccessMethodForMethod(
+-                resolvedMember.getName(), resolvedMember.getDeclaringType(), aspectType
+-        );
+-        ResolvedMember inlineAccessor = (ResolvedMember) m_inlineAccessorBcelMethods.get(accessor);
+-        if (inlineAccessor == null) {
+-            // add static method to aspect
+-            inlineAccessor = AjcMemberMaker.inlineAccessMethodForMethod(
+-                    aspectType,
+-                    resolvedMember
+-            );
+-
+-            //add new accessor method to aspect bytecode
+-            InstructionFactory factory = m_aspectGen.getFactory();
+-            LazyMethodGen method = makeMethodGen(m_aspectGen, inlineAccessor);
+-            // flag it synthetic, AjSynthetic
+-            method.makeSynthetic();
+-            method.addAttribute(
+-                    Utility.bcelAttribute(new AjAttribute.AjSynthetic(), m_aspectGen.getConstantPool())
+-            );
+-            // flag the effective signature, so that we can deobfuscate the signature to apply method call pointcut
+-            method.addAttribute(
+-                    Utility.bcelAttribute(
+-                            new AjAttribute.EffectiveSignatureAttribute(resolvedMember, Shadow.MethodCall, false),
+-                            m_aspectGen.getConstantPool()
+-                    )
+-            );
+-
+-            m_inlineAccessorMethodGens.add(method);
+-
+-            InstructionList il = method.getBody();
+-            int register = 0;
+-            for (int i = 0; i < inlineAccessor.getParameterTypes().length; i++) {
+-                UnresolvedType typeX = inlineAccessor.getParameterTypes()[i];
+-                Type type = BcelWorld.makeBcelType(typeX);
+-                il.append(InstructionFactory.createLoad(type, register));
+-                register += type.getSize();
+-            }
+-            il.append(
+-                    Utility.createInvoke(
+-                            factory,
+-                            resolvedMember.isStatic() ? Constants.INVOKESTATIC : Constants.INVOKESPECIAL,
+-                            resolvedMember
+-                    )
+-            );
+-            il.append(InstructionFactory.createReturn(BcelWorld.makeBcelType(inlineAccessor.getReturnType())));
+-
+-            m_inlineAccessorBcelMethods.put(
+-                    accessor,
+-                    new BcelMethod(m_aspectGen.getBcelObjectType(), method.getMethod())
+-            );
+-        }
+-        return inlineAccessor;
+-    }
+-
+-    /**
+-     * Add an inline wrapper for a non public super.method call
+-     *
+-     * @param resolvedMember
+-     * @return
+-     */
+-    private ResolvedMember createOrGetInlineAccessorForSuperDispatch(ResolvedMember resolvedMember) {
+-        String accessor = NameMangler.superDispatchMethod(
+-                aspectType, resolvedMember.getName()
+-        );
+-        ResolvedMember inlineAccessor = (ResolvedMember) m_inlineAccessorBcelMethods.get(accessor);
+-        if (inlineAccessor == null) {
+-            // add static method to aspect
+-            inlineAccessor = AjcMemberMaker.superAccessMethod(
+-                    aspectType,
+-                    resolvedMember
+-            );
+-
+-            //add new accessor method to aspect bytecode
+-            InstructionFactory factory = m_aspectGen.getFactory();
+-            LazyMethodGen method = makeMethodGen(m_aspectGen, inlineAccessor);
+-            // flag it synthetic, AjSynthetic
+-            method.makeSynthetic();
+-            method.addAttribute(
+-                    Utility.bcelAttribute(new AjAttribute.AjSynthetic(), m_aspectGen.getConstantPool())
+-            );
+-            // flag the effective signature, so that we can deobfuscate the signature to apply method call pointcut
+-            method.addAttribute(
+-                    Utility.bcelAttribute(
+-                            new AjAttribute.EffectiveSignatureAttribute(resolvedMember, Shadow.MethodCall, false),
+-                            m_aspectGen.getConstantPool()
+-                    )
+-            );
+-
+-            m_inlineAccessorMethodGens.add(method);
+-
+-            InstructionList il = method.getBody();
+-            il.append(InstructionConstants.ALOAD_0);
+-            int register = 0;
+-            for (int i = 0; i < inlineAccessor.getParameterTypes().length; i++) {
+-                UnresolvedType typeX = inlineAccessor.getParameterTypes()[i];
+-                Type type = BcelWorld.makeBcelType(typeX);
+-                il.append(InstructionFactory.createLoad(type, register));
+-                register += type.getSize();
+-            }
+-            il.append(
+-                    Utility.createInvoke(
+-                            factory,
+-                            Constants.INVOKESPECIAL,
+-                            resolvedMember
+-                    )
+-            );
+-            il.append(InstructionFactory.createReturn(BcelWorld.makeBcelType(inlineAccessor.getReturnType())));
+-
+-            m_inlineAccessorBcelMethods.put(
+-                    accessor,
+-                    new BcelMethod(m_aspectGen.getBcelObjectType(), method.getMethod())
+-            );
+-        }
+-        return inlineAccessor;
+-    }
+-
+-    /**
+-     * Add an inline wrapper for a non public field get
+-     *
+-     * @param resolvedMember
+-     * @return
+-     */
+-    private ResolvedMember createOrGetInlineAccessorForFieldGet(ResolvedMember resolvedMember) {
+-        String accessor = NameMangler.inlineAccessMethodForFieldGet(
+-                resolvedMember.getName(), resolvedMember.getDeclaringType(), aspectType
+-        );
+-        ResolvedMember inlineAccessor = (ResolvedMember) m_inlineAccessorBcelMethods.get(accessor);
+-        if (inlineAccessor == null) {
+-            // add static method to aspect
+-            inlineAccessor = AjcMemberMaker.inlineAccessMethodForFieldGet(
+-                    aspectType,
+-                    resolvedMember
+-            );
+-
+-            //add new accessor method to aspect bytecode
+-            InstructionFactory factory = m_aspectGen.getFactory();
+-            LazyMethodGen method = makeMethodGen(m_aspectGen, inlineAccessor);
+-            // flag it synthetic, AjSynthetic
+-            method.makeSynthetic();
+-            method.addAttribute(
+-                    Utility.bcelAttribute(new AjAttribute.AjSynthetic(), m_aspectGen.getConstantPool())
+-            );
+-            // flag the effective signature, so that we can deobfuscate the signature to apply method call pointcut
+-            method.addAttribute(
+-                    Utility.bcelAttribute(
+-                            new AjAttribute.EffectiveSignatureAttribute(resolvedMember, Shadow.FieldGet, false),
+-                            m_aspectGen.getConstantPool()
+-                    )
+-            );
+-
+-            m_inlineAccessorMethodGens.add(method);
+-
+-            InstructionList il = method.getBody();
+-            if (resolvedMember.isStatic()) {
+-                // field accessed is static so no "this" as accessor sole parameter
+-            } else {
+-                il.append(InstructionConstants.ALOAD_0);
+-            }
+-            il.append(
+-                    Utility.createGet(
+-                            factory,
+-                            resolvedMember
+-                    )
+-            );
+-            il.append(InstructionFactory.createReturn(BcelWorld.makeBcelType(inlineAccessor.getReturnType())));
+-
+-            m_inlineAccessorBcelMethods.put(
+-                    accessor,
+-                    new BcelMethod(m_aspectGen.getBcelObjectType(), method.getMethod())
+-            );
+-        }
+-        return inlineAccessor;
+-    }
+-
+-    /**
+-     * Add an inline wrapper for a non public field set
+-     *
+-     * @param resolvedMember
+-     * @return
+-     */
+-    private ResolvedMember createOrGetInlineAccessorForFieldSet(ResolvedMember resolvedMember) {
+-        String accessor = NameMangler.inlineAccessMethodForFieldSet(
+-                resolvedMember.getName(), resolvedMember.getDeclaringType(), aspectType
+-        );
+-        ResolvedMember inlineAccessor = (ResolvedMember) m_inlineAccessorBcelMethods.get(accessor);
+-        if (inlineAccessor == null) {
+-            // add static method to aspect
+-            inlineAccessor = AjcMemberMaker.inlineAccessMethodForFieldSet(
+-                    aspectType,
+-                    resolvedMember
+-            );
+-
+-            //add new accessor method to aspect bytecode
+-            InstructionFactory factory = m_aspectGen.getFactory();
+-            LazyMethodGen method = makeMethodGen(m_aspectGen, inlineAccessor);
+-            // flag it synthetic, AjSynthetic
+-            method.makeSynthetic();
+-            method.addAttribute(
+-                    Utility.bcelAttribute(new AjAttribute.AjSynthetic(), m_aspectGen.getConstantPool())
+-            );
+-            // flag the effective signature, so that we can deobfuscate the signature to apply method call pointcut
+-            method.addAttribute(
+-                    Utility.bcelAttribute(
+-                            new AjAttribute.EffectiveSignatureAttribute(resolvedMember, Shadow.FieldSet, false),
+-                            m_aspectGen.getConstantPool()
+-                    )
+-            );
+-
+-            m_inlineAccessorMethodGens.add(method);
+-
+-            InstructionList il = method.getBody();
+-            if (resolvedMember.isStatic()) {
+-                // field accessed is static so sole parameter is field value to be set
+-                il.append(InstructionFactory.createLoad(BcelWorld.makeBcelType(resolvedMember.getReturnType()), 0));
+-            } else {
+-                il.append(InstructionConstants.ALOAD_0);
+-                il.append(InstructionFactory.createLoad(BcelWorld.makeBcelType(resolvedMember.getReturnType()), 1));
+-            }
+-            il.append(
+-                    Utility.createSet(
+-                            factory,
+-                            resolvedMember
+-                    )
+-            );
+-            il.append(InstructionConstants.RETURN);
+-
+-            m_inlineAccessorBcelMethods.put(
+-                    accessor,
+-                    new BcelMethod(m_aspectGen.getBcelObjectType(), method.getMethod())
+-            );
+-        }
+-        return inlineAccessor;
+-    }
++	/**
++	 * Wrapper member cache, key is wrapper name. This structure is queried when regular shadow matching in the advice body
++	 * (call/get/set) occurs
++	 */
++	private Map m_inlineAccessorBcelMethods;
++
++	/**
++	 * The aspect we act for
++	 */
++	private LazyClassGen m_aspectGen;
++
++	/**
++	 * The wrapper method we need to add. Those are added at the end of the munging
++	 */
++	private Set m_inlineAccessorMethodGens;
++
++	public BcelAccessForInlineMunger(ResolvedType aspectType) {
++		super(null, aspectType);
++		if (aspectType.getWorld().isXnoInline()) {
++			throw new Error("This should not happen");
++		}
++	}
++
++	public boolean munge(BcelClassWeaver weaver) {
++		m_aspectGen = weaver.getLazyClassGen();
++		m_inlineAccessorBcelMethods = new HashMap(0);
++		m_inlineAccessorMethodGens = new HashSet();
++
++		// look for all @Around advices
++		for (Iterator iterator = m_aspectGen.getMethodGens().iterator(); iterator.hasNext();) {
++			LazyMethodGen methodGen = (LazyMethodGen) iterator.next();
++			if (methodGen.hasAnnotation(UnresolvedType.forName("org/aspectj/lang/annotation/Around"))) {
++				openAroundAdvice(methodGen);
++			}
++		}
++
++		// add the accessors
++		for (Iterator iterator = m_inlineAccessorMethodGens.iterator(); iterator.hasNext();) {
++			LazyMethodGen lazyMethodGen = (LazyMethodGen) iterator.next();
++			m_aspectGen.addMethodGen(lazyMethodGen);
++		}
++
++		// flush some
++		m_inlineAccessorMethodGens = null;
++		// we keep m_inlineAccessorsResolvedMembers for shadow matching
++
++		return true;
++	}
++
++	/**
++	 * Looks in the wrapper we have added so that we can find their effective signature if needed
++	 * 
++	 * @param member
++	 * @return
++	 */
++	public ResolvedMember getMatchingSyntheticMember(Member member) {
++		return (ResolvedMember) m_inlineAccessorBcelMethods.get(member.getName());
++	}
++
++	public ResolvedMember getSignature() {
++		return null;
++	}
++
++	/**
++	 * Match only the aspect for which we act
++	 * 
++	 * @param onType
++	 * @return
++	 */
++	public boolean matches(ResolvedType onType) {
++		return aspectType.equals(onType);
++	}
++
++	/**
++	 * Prepare the around advice, flag it as cannot be inlined if it can't be
++	 * 
++	 * @param aroundAdvice
++	 */
++	private void openAroundAdvice(LazyMethodGen aroundAdvice) {
++		InstructionHandle curr = aroundAdvice.getBody().getStart();
++		InstructionHandle end = aroundAdvice.getBody().getEnd();
++		ConstantPool cpg = aroundAdvice.getEnclosingClass().getConstantPool();
++		InstructionFactory factory = aroundAdvice.getEnclosingClass().getFactory();
++
++		boolean realizedCannotInline = false;
++		while (curr != end) {
++			if (realizedCannotInline) {
++				// we know we cannot inline this advice so no need for futher handling
++				break;
++			}
++			InstructionHandle next = curr.getNext();
++			Instruction inst = curr.getInstruction();
++
++			// open-up method call
++			if ((inst instanceof InvokeInstruction)) {
++				InvokeInstruction invoke = (InvokeInstruction) inst;
++				ResolvedType callee = m_aspectGen.getWorld().resolve(UnresolvedType.forName(invoke.getClassName(cpg)));
++
++				// look in the whole method list and not just declared for super calls and alike
++				List methods = callee.getMethodsWithoutIterator(false, true);
++				for (Iterator iter = methods.iterator(); iter.hasNext();) {
++					ResolvedMember resolvedMember = (ResolvedMember) iter.next();
++					if (invoke.getName(cpg).equals(resolvedMember.getName())
++							&& invoke.getSignature(cpg).equals(resolvedMember.getSignature()) && !resolvedMember.isPublic()) {
++						if ("<init>".equals(invoke.getName(cpg))) {
++							// skipping open up for private constructor
++							// can occur when aspect new a private inner type
++							// too complex to handle new + dup + .. + invokespecial here.
++							aroundAdvice.setCanInline(false);
++							realizedCannotInline = true;
++						} else {
++							// specific handling for super.foo() calls, where foo is non public
++							ResolvedType memberType = m_aspectGen.getWorld().resolve(resolvedMember.getDeclaringType());
++							if (!aspectType.equals(memberType) && memberType.isAssignableFrom(aspectType)) {
++								// old test was...
++								// if (aspectType.getSuperclass() != null
++								// && aspectType.getSuperclass().getName().equals(resolvedMember.getDeclaringType().getName())) {
++								ResolvedMember accessor = createOrGetInlineAccessorForSuperDispatch(resolvedMember);
++								InvokeInstruction newInst = factory.createInvoke(aspectType.getName(), accessor.getName(),
++										BcelWorld.makeBcelType(accessor.getReturnType()), BcelWorld.makeBcelTypes(accessor
++												.getParameterTypes()), Constants.INVOKEVIRTUAL);
++								curr.setInstruction(newInst);
++							} else {
++								ResolvedMember accessor = createOrGetInlineAccessorForMethod(resolvedMember);
++								InvokeInstruction newInst = factory.createInvoke(aspectType.getName(), accessor.getName(),
++										BcelWorld.makeBcelType(accessor.getReturnType()), BcelWorld.makeBcelTypes(accessor
++												.getParameterTypes()), Constants.INVOKESTATIC);
++								curr.setInstruction(newInst);
++							}
++						}
++
++						break;// ok we found a matching callee member and swapped the instruction with the accessor
++					}
++				}
++			} else if (inst instanceof FieldInstruction) {
++				FieldInstruction invoke = (FieldInstruction) inst;
++				ResolvedType callee = m_aspectGen.getWorld().resolve(UnresolvedType.forName(invoke.getClassName(cpg)));
++				for (int i = 0; i < callee.getDeclaredJavaFields().length; i++) {
++					ResolvedMember resolvedMember = callee.getDeclaredJavaFields()[i];
++					if (invoke.getName(cpg).equals(resolvedMember.getName())
++							&& invoke.getSignature(cpg).equals(resolvedMember.getSignature()) && !resolvedMember.isPublic()) {
++						final ResolvedMember accessor;
++						if ((inst.opcode == Constants.GETFIELD) || (inst.opcode == Constants.GETSTATIC)) {
++							accessor = createOrGetInlineAccessorForFieldGet(resolvedMember);
++						} else {
++							accessor = createOrGetInlineAccessorForFieldSet(resolvedMember);
++						}
++						InvokeInstruction newInst = factory.createInvoke(aspectType.getName(), accessor.getName(), BcelWorld
++								.makeBcelType(accessor.getReturnType()), BcelWorld.makeBcelTypes(accessor.getParameterTypes()),
++								Constants.INVOKESTATIC);
++						curr.setInstruction(newInst);
++
++						break;// ok we found a matching callee member and swapped the instruction with the accessor
++					}
++				}
++			}
++
++			curr = next;
++		}
++
++		// no reason for not inlining this advice
++		// since it is used for @AJ advice that cannot be inlined by defauilt
++		// make sure we set inline to true since we have done this analysis
++		if (!realizedCannotInline) {
++			aroundAdvice.setCanInline(true);
++		}
++	}
++
++	/**
++	 * Add an inline wrapper for a non public method call
++	 * 
++	 * @param resolvedMember
++	 * @return
++	 */
++	private ResolvedMember createOrGetInlineAccessorForMethod(ResolvedMember resolvedMember) {
++		String accessor = NameMangler.inlineAccessMethodForMethod(resolvedMember.getName(), resolvedMember.getDeclaringType(),
++				aspectType);
++		ResolvedMember inlineAccessor = (ResolvedMember) m_inlineAccessorBcelMethods.get(accessor);
++		if (inlineAccessor == null) {
++			// add static method to aspect
++			inlineAccessor = AjcMemberMaker.inlineAccessMethodForMethod(aspectType, resolvedMember);
++
++			// add new accessor method to aspect bytecode
++			InstructionFactory factory = m_aspectGen.getFactory();
++			LazyMethodGen method = makeMethodGen(m_aspectGen, inlineAccessor);
++			// flag it synthetic, AjSynthetic
++			method.makeSynthetic();
++			method.addAttribute(Utility.bcelAttribute(new AjAttribute.AjSynthetic(), m_aspectGen.getConstantPool()));
++			// flag the effective signature, so that we can deobfuscate the signature to apply method call pointcut
++			method.addAttribute(Utility.bcelAttribute(new AjAttribute.EffectiveSignatureAttribute(resolvedMember,
++					Shadow.MethodCall, false), m_aspectGen.getConstantPool()));
++
++			m_inlineAccessorMethodGens.add(method);
++
++			InstructionList il = method.getBody();
++			int register = 0;
++			for (int i = 0; i < inlineAccessor.getParameterTypes().length; i++) {
++				UnresolvedType typeX = inlineAccessor.getParameterTypes()[i];
++				Type type = BcelWorld.makeBcelType(typeX);
++				il.append(InstructionFactory.createLoad(type, register));
++				register += type.getSize();
++			}
++			il.append(Utility.createInvoke(factory, resolvedMember.isStatic() ? Constants.INVOKESTATIC : Constants.INVOKESPECIAL,
++					resolvedMember));
++			il.append(InstructionFactory.createReturn(BcelWorld.makeBcelType(inlineAccessor.getReturnType())));
++
++			m_inlineAccessorBcelMethods.put(accessor, new BcelMethod(m_aspectGen.getBcelObjectType(), method.getMethod()));
++		}
++		return inlineAccessor;
++	}
++
++	/**
++	 * Add an inline wrapper for a non public super.method call
++	 * 
++	 * @param resolvedMember
++	 * @return
++	 */
++	private ResolvedMember createOrGetInlineAccessorForSuperDispatch(ResolvedMember resolvedMember) {
++		String accessor = NameMangler.superDispatchMethod(aspectType, resolvedMember.getName());
++		ResolvedMember inlineAccessor = (ResolvedMember) m_inlineAccessorBcelMethods.get(accessor);
++		if (inlineAccessor == null) {
++			// add super accessor method to class:
++			inlineAccessor = AjcMemberMaker.superAccessMethod(aspectType, resolvedMember);
++
++			// add new accessor method to aspect bytecode
++			InstructionFactory factory = m_aspectGen.getFactory();
++			LazyMethodGen method = makeMethodGen(m_aspectGen, inlineAccessor);
++			// flag it synthetic, AjSynthetic
++			method.makeSynthetic();
++			method.addAttribute(Utility.bcelAttribute(new AjAttribute.AjSynthetic(), m_aspectGen.getConstantPool()));
++			// flag the effective signature, so that we can deobfuscate the signature to apply method call pointcut
++			method.addAttribute(Utility.bcelAttribute(new AjAttribute.EffectiveSignatureAttribute(resolvedMember,
++					Shadow.MethodCall, false), m_aspectGen.getConstantPool()));
++
++			m_inlineAccessorMethodGens.add(method);
++
++			InstructionList il = method.getBody();
++			il.append(InstructionConstants.ALOAD_0);
++			int register = 1;
++			for (int i = 0; i < inlineAccessor.getParameterTypes().length; i++) {
++				UnresolvedType typeX = inlineAccessor.getParameterTypes()[i];
++				Type type = BcelWorld.makeBcelType(typeX);
++				il.append(InstructionFactory.createLoad(type, register));
++				register += type.getSize();
++			}
++			il.append(Utility.createInvoke(factory, Constants.INVOKESPECIAL, resolvedMember));
++			il.append(InstructionFactory.createReturn(BcelWorld.makeBcelType(inlineAccessor.getReturnType())));
++
++			m_inlineAccessorBcelMethods.put(accessor, new BcelMethod(m_aspectGen.getBcelObjectType(), method.getMethod()));
++		}
++		return inlineAccessor;
++	}
++
++	/**
++	 * Add an inline wrapper for a non public field get
++	 * 
++	 * @param resolvedMember
++	 * @return
++	 */
++	private ResolvedMember createOrGetInlineAccessorForFieldGet(ResolvedMember resolvedMember) {
++		String accessor = NameMangler.inlineAccessMethodForFieldGet(resolvedMember.getName(), resolvedMember.getDeclaringType(),
++				aspectType);
++		ResolvedMember inlineAccessor = (ResolvedMember) m_inlineAccessorBcelMethods.get(accessor);
++		if (inlineAccessor == null) {
++			// add static method to aspect
++			inlineAccessor = AjcMemberMaker.inlineAccessMethodForFieldGet(aspectType, resolvedMember);
++
++			// add new accessor method to aspect bytecode
++			InstructionFactory factory = m_aspectGen.getFactory();
++			LazyMethodGen method = makeMethodGen(m_aspectGen, inlineAccessor);
++			// flag it synthetic, AjSynthetic
++			method.makeSynthetic();
++			method.addAttribute(Utility.bcelAttribute(new AjAttribute.AjSynthetic(), m_aspectGen.getConstantPool()));
++			// flag the effective signature, so that we can deobfuscate the signature to apply method call pointcut
++			method.addAttribute(Utility.bcelAttribute(new AjAttribute.EffectiveSignatureAttribute(resolvedMember, Shadow.FieldGet,
++					false), m_aspectGen.getConstantPool()));
++
++			m_inlineAccessorMethodGens.add(method);
++
++			InstructionList il = method.getBody();
++			if (resolvedMember.isStatic()) {
++				// field accessed is static so no "this" as accessor sole parameter
++			} else {
++				il.append(InstructionConstants.ALOAD_0);
++			}
++			il.append(Utility.createGet(factory, resolvedMember));
++			il.append(InstructionFactory.createReturn(BcelWorld.makeBcelType(inlineAccessor.getReturnType())));
++
++			m_inlineAccessorBcelMethods.put(accessor, new BcelMethod(m_aspectGen.getBcelObjectType(), method.getMethod()));
++		}
++		return inlineAccessor;
++	}
++
++	/**
++	 * Add an inline wrapper for a non public field set
++	 * 
++	 * @param resolvedMember
++	 * @return
++	 */
++	private ResolvedMember createOrGetInlineAccessorForFieldSet(ResolvedMember resolvedMember) {
++		String accessor = NameMangler.inlineAccessMethodForFieldSet(resolvedMember.getName(), resolvedMember.getDeclaringType(),
++				aspectType);
++		ResolvedMember inlineAccessor = (ResolvedMember) m_inlineAccessorBcelMethods.get(accessor);
++		if (inlineAccessor == null) {
++			// add static method to aspect
++			inlineAccessor = AjcMemberMaker.inlineAccessMethodForFieldSet(aspectType, resolvedMember);
++
++			// add new accessor method to aspect bytecode
++			InstructionFactory factory = m_aspectGen.getFactory();
++			LazyMethodGen method = makeMethodGen(m_aspectGen, inlineAccessor);
++			// flag it synthetic, AjSynthetic
++			method.makeSynthetic();
++			method.addAttribute(Utility.bcelAttribute(new AjAttribute.AjSynthetic(), m_aspectGen.getConstantPool()));
++			// flag the effective signature, so that we can deobfuscate the signature to apply method call pointcut
++			method.addAttribute(Utility.bcelAttribute(new AjAttribute.EffectiveSignatureAttribute(resolvedMember, Shadow.FieldSet,
++					false), m_aspectGen.getConstantPool()));
++
++			m_inlineAccessorMethodGens.add(method);
++
++			InstructionList il = method.getBody();
++			if (resolvedMember.isStatic()) {
++				// field accessed is static so sole parameter is field value to be set
++				il.append(InstructionFactory.createLoad(BcelWorld.makeBcelType(resolvedMember.getReturnType()), 0));
++			} else {
++				il.append(InstructionConstants.ALOAD_0);
++				il.append(InstructionFactory.createLoad(BcelWorld.makeBcelType(resolvedMember.getReturnType()), 1));
++			}
++			il.append(Utility.createSet(factory, resolvedMember));
++			il.append(InstructionConstants.RETURN);
++
++			m_inlineAccessorBcelMethods.put(accessor, new BcelMethod(m_aspectGen.getBcelObjectType(), method.getMethod()));
++		}
++		return inlineAccessor;
++	}
+ }

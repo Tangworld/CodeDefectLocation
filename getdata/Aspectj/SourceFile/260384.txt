@@ -1,0 +1,370 @@
+@@ -0,0 +1,12 @@
++public class D {
++	public void m() throws Exception {
++		clone();
++	}
++}
++
++class E {}
++
++aspect X {
++  before(): target(E) { }
++}
++
+@@ -30,6 +30,10 @@ public class Ajc164Tests extends org.aspectj.testing.XMLBasedAjcTestCase {
+ 		runTest("compiling spring - 3");
+ 	}
+ 
++	public void testCompilingSpring_pr260384_4() {
++		runTest("compiling spring - 4");
++	}
++	
+ 	public void testAtAspectJDecp_pr164016() {
+ 		runTest("ataspectj decp 164016");
+ 	}
+@@ -2,10 +2,6 @@
+ 
+ <suite>
+ 
+-    <ajc-test dir="bugs164/pr260384" title="compiling spring - 3">
+-      <compile files="C.java" options="-1.5 -emacssym"/>
+-    </ajc-test>    
+-    
+     <ajc-test dir="bugs164/pr260384" title="compiling spring">
+       <compile files="Broken.java" options="-1.5">
+       </compile>
+@@ -16,6 +12,15 @@
+       </compile>
+     </ajc-test>    
+ 
++    <ajc-test dir="bugs164/pr260384" title="compiling spring - 3">
++      <compile files="C.java" options="-1.5 -emacssym"/>
++    </ajc-test>    
++    
++    <ajc-test dir="bugs164/pr260384" title="compiling spring - 4">
++      <compile files="D.java" options="-1.5">
++      </compile>
++    </ajc-test>    
++    
+     <ajc-test dir="bugs164/pr164016" title="ataspectj decp 164016">
+       <compile files="Code.aj" options="-1.5"/>
+       <run class="test.Code"/>
+@@ -41,6 +41,7 @@ import org.aspectj.weaver.ShadowMunger;
+ import org.aspectj.weaver.UnresolvedType;
+ import org.aspectj.weaver.WeaverMessages;
+ import org.aspectj.weaver.World;
++import org.aspectj.weaver.Shadow.Kind;
+ import org.aspectj.weaver.ast.Literal;
+ import org.aspectj.weaver.ast.Test;
+ import org.aspectj.weaver.patterns.ExactTypePattern;
+@@ -264,7 +265,14 @@ class BcelAdvice extends Advice {
+ 		// PerObjectInterfaceTypeMunger.registerAsAdvisedBy(s.getTargetVar().getType(), getConcreteAspect());
+ 		// }
+ 		// }
+-
++		if (pointcutTest == Literal.FALSE) { // not usually allowed, except in one case (260384)
++			Member sig = shadow.getSignature();
++			if (sig.getArity() == 0 && shadow.getKind() == Shadow.MethodCall && sig.getName().charAt(0) == 'c' 
++				&& sig.getReturnType().equals(ResolvedType.OBJECT) && sig.getName().equals("clone")) {
++				return false;
++			}
++		}
++		
+ 		if (getKind() == AdviceKind.Before) {
+ 			shadow.weaveBefore(this);
+ 		} else if (getKind() == AdviceKind.AfterReturning) {
+@@ -0,0 +1,50 @@
++public class C {
++	SessionFactory sf;
++	HT ht;
++	
++          public void m() {
++        	  LocalSessionFactoryBean lsfb = new LocalSessionFactoryBean() {
++        		  protected SessionFactory newSessionFactory(Configuration config) throws Exception {
++        			  return sf;
++        		  }
++        	  };
++              final TT tt = new TT();
++              tt.execute(new TransactionCallback() {
++            	   public Object doInTransaction(TransactionStatus status) {
++            		   System.out.println("X");
++            		   ht.execute(new HibernateCallback() {
++            			   public Object doInHibernate(Session session) {
++            				   return null;
++            			   }
++            		   });
++            		   tt.execute(new TransactionCallback() {
++                    	   public Object doInTransaction(TransactionStatus status) {
++                    		   System.out.println("X");
++                    		   ht.execute(new HibernateCallback() {
++                    			   public Object doInHibernate(Session session) {
++                    				   return null;
++                    			   }
++                    		   });
++                    		   return null;
++                    	   }
++            		   });
++            		   return null;
++            	   }
++              });
++          }
++}
++
++class TT { public void execute(Object o) {}}
++class LocalSessionFactoryBean {}
++class HT  { public void execute(Object o) {}}
++class Session {}
++class TransactionStatus {}
++class SessionFactory {}
++class Configuration {}
++class TransactionCallback {}
++class HibernateCallback {}
++
++
++aspect X {
++	before(): within(*) {}
++}
+@@ -26,6 +26,10 @@ public class Ajc164Tests extends org.aspectj.testing.XMLBasedAjcTestCase {
+ 		runTest("compiling spring - 2");
+ 	}
+ 
++	public void testCompilingSpring_pr260384_3() {
++		runTest("compiling spring - 3");
++	}
++	
+ 	public void testAtAspectJDecp_pr164016() {
+ 		runTest("ataspectj decp 164016");
+ 	}
+@@ -2,9 +2,8 @@
+ 
+ <suite>
+ 
+-    <ajc-test dir="bugs164/pr164016" title="ataspectj decp 164016">
+-      <compile files="Code.aj" options="-1.5"/>
+-      <run class="test.Code"/>
++    <ajc-test dir="bugs164/pr260384" title="compiling spring - 3">
++      <compile files="C.java" options="-1.5 -emacssym"/>
+     </ajc-test>    
+ 
+     <ajc-test dir="bugs164/pr260384" title="compiling spring">
+@@ -17,6 +16,12 @@
+       </compile>
+     </ajc-test>    
+ 
++    <ajc-test dir="bugs164/pr164016" title="ataspectj decp 164016">
++      <compile files="Code.aj" options="-1.5"/>
++      <run class="test.Code"/>
++    </ajc-test>    
++    
++    
+     <ajc-test dir="bugs164/pr164016" title="ataspectj decp 164016 - 2">
+       <compile files="Code.java TargetBad.java TargetGood.java" aspectpath="code.jar" options="-1.5"/>
+       <run class="test.Code"/>
+@@ -202,8 +202,9 @@ public class JDTLikeHandleProvider implements IElementHandleProvider {
+ 					if (object.getKind() == ipe.getKind()) {
+ 						if (object.getName().endsWith("{..}")) {
+ 							String existingHandle = object.getHandleIdentifier();
+-							int suffixPosition = existingHandle.indexOf('!');
+-							if (suffixPosition != -1) {
++							int suffixPosition = existingHandle.lastIndexOf('!');
++							int lastSquareBracket = existingHandle.lastIndexOf('['); // type delimiter
++							if (suffixPosition != -1 && lastSquareBracket<suffixPosition) { // pr260384
+ 								count = new Integer(existingHandle.substring(suffixPosition + 1)).intValue() + 1;
+ 							} else {
+ 								if (count == 1) {
+@@ -222,8 +223,9 @@ public class JDTLikeHandleProvider implements IElementHandleProvider {
+ 					if (object.getKind() == ipe.getKind()) {
+ 						if (object.getName().equals(ipe.getName())) {
+ 							String existingHandle = object.getHandleIdentifier();
+-							int suffixPosition = existingHandle.indexOf('!');
+-							if (suffixPosition != -1) {
++							int suffixPosition = existingHandle.lastIndexOf('!');
++							int lastSquareBracket = existingHandle.lastIndexOf('['); // type delimiter
++							if (suffixPosition != -1 && lastSquareBracket<suffixPosition) { // pr260384
+ 								count = new Integer(existingHandle.substring(suffixPosition + 1)).intValue() + 1;
+ 							} else {
+ 								if (count == 1) {
+@@ -333,9 +333,50 @@ public abstract class ResolvedType extends UnresolvedType implements AnnotatedEl
+ 
+ 	/**
+ 	 * described in JVM spec 2ed 5.4.3.3. Doesnt check ITDs.
++	 * 
++	 * <p>
++	 * Check the current type for the method.  If it is not found, check the super class and any super interfaces.  Taking
++	 * care not to process interfaces multiple times.
+ 	 */
+ 	public ResolvedMember lookupMethod(Member m) {
+-		return lookupMember(m, getMethods());
++		List typesTolookat = new ArrayList();
++		typesTolookat.add(this);
++		int pos = 0;
++		while (pos<typesTolookat.size()) {
++			ResolvedType type = (ResolvedType)typesTolookat.get(pos++);
++			if (!type.isMissing()) {
++				ResolvedMember[] methods = type.getDeclaredMethods();
++				if (methods!=null) {
++					for (int i=0;i<methods.length;i++) {
++						ResolvedMember method = methods[i];
++						if (matches(method, m)) {
++							return method;
++						}
++						// might be worth checking the method behind the parameterized method (137496)
++						if (method.hasBackingGenericMember() && m.getName().equals(method.getName())) { 
++							if (matches(method.getBackingGenericMember(), m))
++								return method;
++						}					
++					}
++				}
++			}
++			// Queue the superclass:
++			ResolvedType superclass = type.getSuperclass();
++			if (superclass!=null) {
++				typesTolookat.add(superclass);
++			}
++			// Queue any interfaces not already checked:
++			ResolvedType[] superinterfaces = type.getDeclaredInterfaces();
++			if (superinterfaces!=null) {
++				for (int i = 0; i < superinterfaces.length; i++) {
++					ResolvedType interf = superinterfaces[i];
++					if (!typesTolookat.contains(interf)) {
++						typesTolookat.add(interf);
++					}
++				}
++			}
++		}
++		return null;
+ 	}
+ 
+ 	public ResolvedMember lookupMethodInITDs(Member m) {
+@@ -350,6 +391,7 @@ public abstract class ResolvedType extends UnresolvedType implements AnnotatedEl
+ 		return null;
+ 	}
+ 
++	
+ 	/**
+ 	 * return null if not found
+ 	 */
+@@ -18,6 +18,14 @@ import org.aspectj.testing.XMLBasedAjcTestCase;
+ 
+ public class Ajc164Tests extends org.aspectj.testing.XMLBasedAjcTestCase {
+ 
++	public void testCompilingSpring_pr260384() {
++		runTest("compiling spring");
++	}
++
++	public void testCompilingSpring_pr260384_2() {
++		runTest("compiling spring - 2");
++	}
++	
+ 	public void testAtAspectJDecp_pr164016() {
+ 		runTest("ataspectj decp 164016");
+ 	}
+@@ -7,6 +7,16 @@
+       <run class="test.Code"/>
+     </ajc-test>    
+ 
++    <ajc-test dir="bugs164/pr260384" title="compiling spring">
++      <compile files="Broken.java" options="-1.5">
++      </compile>
++    </ajc-test>    
++
++    <ajc-test dir="bugs164/pr260384" title="compiling spring - 2">
++      <compile files="Broken2.java" options="-1.5">
++      </compile>
++    </ajc-test>    
++    
+     <ajc-test dir="bugs164/pr164016" title="ataspectj decp 164016 - 2">
+       <compile files="Code.java TargetBad.java TargetGood.java" aspectpath="code.jar" options="-1.5"/>
+       <run class="test.Code"/>
+@@ -0,0 +1,18 @@
++
++interface I {
++	void getCode();
++}
++
++abstract class C1 implements I {
++}
++
++abstract class C2 extends C1 {
++  public void m() {
++	  getCode();
++  }
++}
++
++
++aspect X {
++	before(int i): args(i) { }// call(* *(..))  && args(i) {}
++}
+@@ -0,0 +1,18 @@
++
++interface I {
++	void getCode();
++}
++
++abstract class C1 implements I {
++}
++
++abstract class C2 extends C1 {
++  public void m() {
++	  getCode();
++  }
++}
++
++
++aspect X {
++	before(): call(* g*(..)) {}
++}
+@@ -217,6 +217,10 @@ public class PointcutDeclaration extends AjMethodDeclaration {
+ 	public ResolvedPointcutDefinition makeResolvedPointcutDefinition(EclipseFactory inWorld) {
+ 		if (resolvedPointcutDeclaration != null)
+ 			return resolvedPointcutDeclaration;
++		if (binding == null) {
++		    // other errors exist that will be reported separately
++			return null;  
++		}
+ 		// System.out.println("pc: " + getPointcut() + ", " + getPointcut().state);
+ 		ReferenceBinding declaringClass = binding.declaringClass;
+ 		TypeBinding[] parameters = binding.parameters;
+@@ -397,6 +397,10 @@ public class EclipseSourceType extends AbstractReferenceTypeDelegate {
+ 		ResolvedMember[] pointcuts = getDeclaredPointcuts();
+ 		boolean sawError = false;
+ 		for (int i = 0, len = pointcuts.length; i < len; i++) {
++			if (pointcuts[i]==null) {
++				// Something else is broken in this file and will be reported separately
++				continue; 
++			}
+ 			if (pointcuts[i].isAbstract()) {
+ 				if (!this.isAspect()) {
+ 					eclipseWorld().showMessage(IMessage.ERROR, "abstract pointcut only allowed in aspect" + pointcuts[i].getName(),
+@@ -410,6 +414,10 @@ public class EclipseSourceType extends AbstractReferenceTypeDelegate {
+ 			}
+ 
+ 			for (int j = i + 1; j < len; j++) {
++				if (pointcuts[j]==null) {
++					// Something else is broken in this file and will be reported separately
++					continue; 
++				}
+ 				if (pointcuts[i].getName().equals(pointcuts[j].getName())) {
+ 					eclipseWorld().showMessage(IMessage.ERROR, "duplicate pointcut name: " + pointcuts[j].getName(),
+ 							pointcuts[i].getSourceLocation(), pointcuts[j].getSourceLocation());
+@@ -506,8 +506,9 @@ public abstract class ResolvedType extends UnresolvedType implements AnnotatedEl
+ 		// System.err.println("looking for pointcuts " + this);
+ 		for (Iterator i = getPointcuts(); i.hasNext();) {
+ 			ResolvedPointcutDefinition f = (ResolvedPointcutDefinition) i.next();
+-			// System.err.println(f);
+-			if (name.equals(f.getName())) {
++			// the resolvedpointcutdefinition can be null if there are other problems that
++			// prevented its resolution
++			if (f!=null && name.equals(f.getName())) {
+ 				return f;
+ 			}
+ 		}
+@@ -1832,7 +1833,7 @@ public abstract class ResolvedType extends UnresolvedType implements AnnotatedEl
+ 			// System.err.println("looking at: " + inherited + " in " + this);
+ 			// System.err.println("            " + inherited.isAbstract() +
+ 			// " in " + this.isAbstract());
+-			if (inherited.isAbstract()) {
++			if (inherited!=null && inherited.isAbstract()) {
+ 				if (!this.isAbstract()) {
+ 					getWorld().showMessage(IMessage.ERROR,
+ 							WeaverMessages.format(WeaverMessages.POINCUT_NOT_CONCRETE, inherited, this.getName()),

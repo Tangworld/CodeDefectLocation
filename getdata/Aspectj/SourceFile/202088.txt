@@ -1,0 +1,98 @@
+@@ -1176,11 +1176,15 @@ public class AtAjAttributes {
+             // this/target/args binding
+             final IScope binding;
+             try {
+-                binding = new BindingScope(
++            	if (struct.method.isAbstract()) {
++            	    binding = null;
++            	} else {
++                    binding = new BindingScope(
+                         struct.enclosingType,
+                         struct.context,
+                         extractBindings(struct)
+-                );
++                    );
++            	}
+             } catch (UnreadableDebugInfoException e) {
+                 return;
+             }
+@@ -1226,7 +1230,7 @@ public class AtAjAttributes {
+                                     argumentTypes,
+                                     UnresolvedType.forSignature(struct.method.getReturnType().getSignature()),
+                                     pc,//can be null for abstract pointcut
+-                                    binding
++                                    binding // can be null for abstract pointcut
+                             )
+                     )
+             );
+@@ -0,0 +1,8 @@
++package tracing;
++import org.aspectj.lang.annotation.*;
++
++@Aspect
++public abstract class Bug {
++	@Pointcut
++	public abstract void traced(Object thiz);
++}
+\ No newline at end of file
+@@ -0,0 +1,33 @@
++package tracing;
++import org.aspectj.lang.annotation.*;
++
++@Aspect abstract class Bug {
++	@Pointcut
++	public abstract void traced(Object thiz);
++	
++	@Before("traced(o) && execution(* m(..))")
++	public void b1(Object o) {
++		System.out.println("o is '"+o+"'");
++	}
++	
++}
++
++public @Aspect class Bug2 extends Bug {
++	@Pointcut("this(thiz)")
++	public void traced(Object thiz) {}
++	
++	public static void main(String []argv) {
++		C.main(argv);
++	}
++}
++
++class C {
++	public static void main(String []argv) {
++		new C().m();
++	}
++	public void m() {
++		
++	}
++	
++	public String toString() { return "instance of C";}
++}
+\ No newline at end of file
+@@ -45,6 +45,7 @@ public class Ajc154Tests extends org.aspectj.testing.XMLBasedAjcTestCase {
+ //		runTest("new pointcut designators in a reference pointcut");
+ //	}
+ 
++	public void testAbstractAnnotationStylePointcutWithContext_pr202088() { runTest("abstract annotation style pointcut with context");}
+ 	public void testNoErrorForAtDecpInNormalClass_pr169428() { runTest( "no error for atDecp in normal class");}
+ 
+ 	public void testJarsZipsNonStandardSuffix_pr186673() { runTest("jars and zips with non-standard suffix");}
+@@ -2,7 +2,16 @@
+ 
+ <!-- AspectJ v1.6.0 Tests -->
+ <suite>
+-
++ <ajc-test dir="bugs154/pr202088" title="abstract annotation style pointcut with context">
++     <compile options="-1.5" files="Bug.java"/>
++     <compile options="-1.5" files="Bug2.java">
++     </compile>
++     <run class="tracing.Bug2">
++       <stdout>
++         <line text="o is 'instance of C'"/>
++       </stdout>
++     </run>
++   </ajc-test>
+ 
+    <ajc-test dir="bugs154/pr169428" title="no error for atDecp in normal class">
+      <compile options="-1.5" files="CorrectError.java">

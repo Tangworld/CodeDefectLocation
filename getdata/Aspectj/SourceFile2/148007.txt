@@ -1,0 +1,2560 @@
+@@ -0,0 +1,71 @@
++package test;
++
++/**
++ * Understands . . .
++ *
++ * @author Randy Stearns
++ */
++public class BooleanUnitTest  {
++
++	public static void main(String[] args) {
++		new BooleanUnitTest().test1();
++	}
++	
++    public void test1() {
++        assertEquals("1a WRONG!", false, invert1a());
++        assertEquals("1b WRONG!", true, invert1b());
++        assertEquals("2 WRONG!", false, invert2());
++        assertEquals("3 WRONG!", true, invert3());
++        assertEquals("4 WRONG!", true, invert4());
++        assertEquals("5 WRONG!", false, invert5());
++    }
++    
++    private void assertEquals(String msg, boolean a, boolean b) {
++    	if (a != b) {
++    		throw new RuntimeException(msg);
++    	}
++    }
++
++    private boolean invert1a() {
++        return ! true;
++    }
++
++    private boolean invert1b() {
++        return ! false;
++    }
++
++    private boolean invert2() {
++    	boolean ret = false;
++    	try {
++	        ret = ! isTrue();
++    	}
++    	catch (RuntimeException t) {
++	   		LoggingAspect.aspectOf().ajc$afterReturning$test_LoggingAspect$1$188fbb36();
++	   		throw t;
++    	}
++   		LoggingAspect.aspectOf().ajc$afterReturning$test_LoggingAspect$1$188fbb36();
++   		return ret;
++    }
++
++    private boolean invert3() {
++        return ! isFalse();
++    }
++
++    private boolean invert4() {
++        boolean temp = isFalse();
++        return ! temp;
++    }
++
++    private boolean invert5() {
++        boolean temp = isTrue();
++        return ! temp;
++    }
++
++    private boolean isTrue() {
++        return true;
++    }
++
++    private boolean isFalse() {
++        return false;
++    }
++}
+@@ -0,0 +1,32 @@
++package test;
++
++import org.aspectj.lang.NoAspectBoundException;
++
++public class LoggingAspect {
++	
++	private static LoggingAspect ajc$perSingletonInstance;
++	private static Throwable ajc$initFailureCause;
++	
++	static {
++		try {
++			ajc$postClinit();
++		}
++		catch (Throwable t) {
++			ajc$initFailureCause = t;
++		}
++	}
++	
++	public static LoggingAspect aspectOf() {
++		if (ajc$perSingletonInstance == null) {
++			throw new NoAspectBoundException("test_LoggingAspect",ajc$initFailureCause);
++		}
++		return ajc$perSingletonInstance;
++	}
++	
++    public void ajc$afterReturning$test_LoggingAspect$1$188fbb36()  {
++    }
++    
++    private static void ajc$postClinit() {
++    	ajc$perSingletonInstance = new LoggingAspect();
++    }
++}
+@@ -0,0 +1,62 @@
++package test;
++
++/**
++ * Understands . . .
++ *
++ * @author Randy Stearns
++ */
++public class BooleanUnitTest  {
++
++	public static void main(String[] args) {
++		new BooleanUnitTest().test1();
++	}
++	
++    public void test1() {
++        assertEquals("1a WRONG!", false, invert1a());
++        assertEquals("1b WRONG!", true, invert1b());
++        assertEquals("2 WRONG!", false, invert2());
++        assertEquals("3 WRONG!", true, invert3());
++        assertEquals("4 WRONG!", true, invert4());
++        assertEquals("5 WRONG!", false, invert5());
++    }
++    
++    private void assertEquals(String msg, boolean a, boolean b) {
++    	if (a != b) {
++    		throw new RuntimeException(msg);
++    	}
++    }
++
++    private boolean invert1a() {
++        return ! true;
++    }
++
++    private boolean invert1b() {
++        return ! false;
++    }
++
++    private boolean invert2() {
++        return ! isTrue();
++    }
++
++    private boolean invert3() {
++        return ! isFalse();
++    }
++
++    private boolean invert4() {
++        boolean temp = isFalse();
++        return ! temp;
++    }
++
++    private boolean invert5() {
++        boolean temp = isTrue();
++        return ! temp;
++    }
++
++    private boolean isTrue() {
++        return true;
++    }
++
++    private boolean isFalse() {
++        return false;
++    }
++}
+@@ -0,0 +1,17 @@
++package test;
++
++public aspect LoggingAspect {
++	
++	pointcut logPointcut() :
++		execution (* *(..))
++        && within (test..*)
++		&& !within(LoggingAspect);
++	
++	before() : logPointcut() {
++			System.out.println("entering");
++	}
++
++    after() : logPointcut() {
++            System.out.println("exiting");
++    }
++}
+@@ -0,0 +1,69 @@
++package test;
++
++import javax.servlet.ServletException;
++import javax.servlet.http.HttpServlet;
++import javax.servlet.http.HttpServletRequest;
++import javax.servlet.http.HttpServletResponse;
++import java.io.IOException;
++import java.io.PrintWriter;
++
++/**
++ * Hello world!
++ */
++public class TestServlet extends HttpServlet {
++
++    protected void service(HttpServletRequest request, HttpServletResponse response)
++            throws ServletException, IOException {
++        booleanTest(response);
++    }
++
++    private void booleanTest(HttpServletResponse response) throws ServletException {
++        PrintWriter out = null;
++        try {
++            out = response.getWriter();
++        } catch (IOException ioe) {
++            throw new ServletException("Could not get writer.");
++        }
++
++        out.println("Test 1a. Should be false. Was: " + invert1a());
++        out.println("Test 1b. Should be true. Was: " + invert1b());
++        out.println("Test 2. Should be false. Was: " + invert2());
++        out.println("Test 3. Should be true. Was: " + invert3());
++        out.println("Test 4. Should be true. Was: " + invert4());
++        out.println("Test 5. Should be false. Was: " + invert5());
++    }
++
++    private boolean invert1a() {
++        return ! true;
++    }
++
++    private boolean invert1b() {
++        return ! false;
++    }
++
++    private Boolean invert2() {
++        return new Boolean(! isTrue());
++    }
++
++    private Boolean invert3() {
++        return new Boolean(! isFalse());
++    }
++
++    private boolean invert4() {
++        boolean temp = isFalse();
++        return ! temp;
++    }
++
++    private Boolean invert5() {
++        boolean temp = isTrue();
++        return new Boolean(! temp);
++    }
++
++    private boolean isTrue() {
++        return true;
++    }
++
++    private boolean isFalse() {
++        return false;
++    }
++}
+@@ -20,4 +20,5 @@
+                 L0: INVOKESTATIC Four.aspectOf ()LFour;
+                     INVOKEVIRTUAL Four.ajc$afterReturning$Four$1$c2776aed ()V
+                     RETURN
++                    RETURN
+   end public void m()
+@@ -20,4 +20,5 @@
+                 L0: INVOKESTATIC Three.aspectOf ()LThree;
+                     INVOKEVIRTUAL Three.ajc$afterReturning$Three$1$3f09355c ()V
+                     RETURN
++                    RETURN
+   end public void m3()
+@@ -17,8 +17,9 @@
+     |               MONITOREXIT
+     finally -> E1
+                     ATHROW
+-                L0: GOTO L1   (line 33)
+-                L1: INVOKESTATIC Three.aspectOf ()LThree;
++                L0: NOP   (line 33)
++                    INVOKESTATIC Three.aspectOf ()LThree;
+                     INVOKEVIRTUAL Three.ajc$afterReturning$Three$3$b48e4ae1 ()V
+                     RETURN
++                    RETURN
+   end public void m33()
+@@ -99,6 +99,8 @@ public class Ajc152Tests extends org.aspectj.testing.XMLBasedAjcTestCase {
+   public void testSuperCallsInAtAspectJAdvice_pr139749() { runTest("Super calls in @AspectJ advice");}
+   public void testNoClassCastExceptionWithPerThis_pr138286() { runTest("No ClassCastException with perThis");}
+   public void testGenericAspectHierarchyWithBounds_pr147845() { runTest("Generic abstract aspect hierarchy with bounds"); }
++  public void testJRockitBooleanReturn_pr148007() { runTest("jrockit boolean fun");}
++  public void testJRockitBooleanReturn2_pr148007() { runTest("jrockit boolean fun (no aspects)");}
+ 
+   public void testDeclareAtMethodRelationship_pr143924() {
+ 	  //AsmManager.setReporting("c:/debug.txt",true,true,true,true);
+@@ -729,5 +729,14 @@
+         </stderr>
+       </run>
+     </ajc-test>
+-    
++	
++	<ajc-test dir="bugs152/pr148007" title="jrockit boolean fun">
++		<compile files="test/BooleanUnitTest.java, test/LoggingAspect.aj"/>
++		<run class="test.BooleanUnitTest"/>
++    </ajc-test>
++
++	<ajc-test dir="bugs152/pr148007/purejava" title="jrockit boolean fun (no aspects)">
++		<compile files="test/BooleanUnitTest.java, test/LoggingAspect.java" options="-inlineJSR"/>
++		<run class="test.BooleanUnitTest"/>
++    </ajc-test>    
+ </suite>
+\ No newline at end of file
+@@ -1741,8 +1741,17 @@ public class BcelShadow extends Shadow {
+         }
+         InstructionList retList;
+         InstructionHandle afterAdvice;
++        BcelVar returnValueVar = null;
++        
+         if (ret != null) {
+-            retList = new InstructionList(ret);
++        	if (this.getReturnType() != ResolvedType.VOID) {
++	        	returnValueVar = genTempVar(this.getReturnType());
++	            retList = new InstructionList();
++	            returnValueVar.appendLoad(retList,getFactory());
++        	} else {
++        		retList = new InstructionList(ret);
++        	}
++            retList.append(ret);
+             afterAdvice = retList.getStart();
+         } else /* if (munger.hasDynamicTests()) */ {
+         	/*
+@@ -1765,6 +1774,7 @@ public class BcelShadow extends Shadow {
+         }
+ 
+         InstructionList advice = new InstructionList();
++        
+         BcelVar tempVar = null;
+         if (munger.hasExtraParameter()) {
+             UnresolvedType tempVarType = getReturnType();
+@@ -1779,17 +1789,32 @@ public class BcelShadow extends Shadow {
+             }
+         }
+         advice.append(munger.getAdviceInstructions(this, tempVar, afterAdvice));            
+-
++        
+         if (ret != null) {
+             InstructionHandle gotoTarget = advice.getStart();           
+ 			for (Iterator i = returns.iterator(); i.hasNext();) {
+ 				InstructionHandle ih = (InstructionHandle) i.next();
+-				Utility.replaceInstruction(
+-					ih,
+-					InstructionFactory.createBranchInstruction(
+-						Constants.GOTO,
+-						gotoTarget),
+-					enclosingMethod);
++				// pr148007, work around JRockit bug
++				// replace ret with store into returnValueVar, followed by goto if not
++				// at the end of the instruction list...
++				InstructionList newInstructions = new InstructionList();
++				if (returnValueVar != null) {
++		            if (munger.hasExtraParameter()) {
++		            	// we have to dup the return val before consuming it...
++		            	newInstructions.append(InstructionFactory.createDup(this.getReturnType().getSize()));
++		            }
++					// store the return value into this var
++					returnValueVar.appendStore(newInstructions,getFactory());
++				}
++				if (!isLastInstructionInRange(ih,range)) {
++					newInstructions.append(InstructionFactory.createBranchInstruction(
++							Constants.GOTO,
++							gotoTarget));
++				}
++				if (newInstructions.isEmpty()) {
++					newInstructions.append(InstructionConstants.NOP);
++				}
++				Utility.replaceInstruction(ih,newInstructions,enclosingMethod);
+ 			}
+             range.append(advice);
+             range.append(retList);
+@@ -1799,6 +1824,10 @@ public class BcelShadow extends Shadow {
+         }
+     }
+ 
++    private boolean isLastInstructionInRange(InstructionHandle ih, ShadowRange aRange) {
++    	return ih.getNext() == aRange.getEnd();
++    }
++    
+     public void weaveAfterThrowing(BcelAdvice munger, UnresolvedType catchType) {
+     	// a good optimization would be not to generate anything here
+     	// if the shadow is GUARANTEED empty (i.e., there's NOTHING, not even
+@@ -562,6 +562,15 @@ public class Utility {
+ 		deleteInstruction(ih, fresh, enclosingMethod);
+     }
+ 
++    public static void replaceInstruction(
++    	InstructionHandle ih,
++    	InstructionList replacementInstructions,
++    	LazyMethodGen enclosingMethod) {
++    	InstructionList il = enclosingMethod.getBody();
++    	InstructionHandle fresh = il.append(ih, replacementInstructions);
++    	deleteInstruction(ih,fresh,enclosingMethod);
++    }
++       
+ 	/** delete an instruction handle and retarget all targeters of the deleted instruction
+ 	 * to the next instruction.  Obviously, this should not be used to delete
+ 	 * a control transfer instruction unless you know what you're doing.
+@@ -1,6 +1,6 @@
+ public abstract class FancyHelloWorld extends java.lang.Object:
+   public void <init>():
+-                    ALOAD_0     // FancyHelloWorld this   (line 7)
++                    ALOAD_0     // LFancyHelloWorld; this   (line 7)
+                     INVOKESPECIAL java.lang.Object.<init> ()V
+     constructor-execution(void FancyHelloWorld.<init>())
+     | catch java.lang.Throwable -> E0
+@@ -12,6 +12,7 @@ public abstract class FancyHelloWorld extends java.lang.Object:
+     |               ATHROW
+     |           L0: INVOKESTATIC Aspect.ajc_after_constructor_execution ()V
+     |               RETURN
++    |               RETURN
+     constructor-execution(void FancyHelloWorld.<init>())
+   end public void <init>()
+ 
+@@ -34,7 +35,7 @@ public abstract class FancyHelloWorld extends java.lang.Object:
+     | |             ASTORE_1
+     | | finally -> E5
+     | | | catch java.lang.Exception -> E4
+-    | | | |         ALOAD_1     // java.io.PrintStream out   (line 11)
++    | | | |         ALOAD_1     // Ljava/io/PrintStream; out   (line 11)
+     | | | |         LDC "bye"
+     | | | | method-call(void java.io.PrintStream.println(java.lang.String))
+     | | | | | catch java.lang.Throwable -> E2
+@@ -52,8 +53,8 @@ public abstract class FancyHelloWorld extends java.lang.Object:
+     | | | |         GOTO L3
+     | | | catch java.lang.Exception -> E4
+     | | |       E4: ASTORE_2   (line 12)
+-    | | |           ALOAD_1     // java.io.PrintStream out   (line 13)
+-    | | |           ALOAD_2     // java.lang.Exception e
++    | | |           ALOAD_1     // Ljava/io/PrintStream; out   (line 13)
++    | | |           ALOAD_2     // Ljava/lang/Exception; e
+     | | | method-call(void java.io.PrintStream.println(java.lang.Object))
+     | | | | catch java.lang.Throwable -> E1
+     | | | | |       INVOKEVIRTUAL java.io.PrintStream.println (Ljava/lang/Object;)V
+@@ -76,7 +77,7 @@ public abstract class FancyHelloWorld extends java.lang.Object:
+     | |         L3: JSR L4
+     | |             GOTO L6
+     | |         L4: ASTORE_3
+-    | |             ALOAD_1     // java.io.PrintStream out   (line 15)
++    | |             ALOAD_1     // Ljava/io/PrintStream; out   (line 15)
+     | |             LDC "finally"
+     | | method-call(void java.io.PrintStream.println(java.lang.String))
+     | | | catch java.lang.Throwable -> E0
+@@ -100,6 +101,7 @@ public abstract class FancyHelloWorld extends java.lang.Object:
+     |               ATHROW
+     |           L7: INVOKESTATIC Aspect.ajc_after_method_execution ()V
+     |               RETURN
++    |               RETURN
+     method-execution(void FancyHelloWorld.main(java.lang.String[]))
+   end public static void main(String[])
+ 
+@@ -108,7 +110,7 @@ public abstract class FancyHelloWorld extends java.lang.Object:
+     | catch java.lang.Throwable -> E4
+     | |             ICONST_0   (line 20)
+     | |             ISTORE_0
+-    | |             ILOAD_0     // int x   (line 21)
++    | |             ILOAD_0     // I x   (line 21)
+     | |             LDC "name"
+     | | method-call(int java.lang.String.hashCode())
+     | | | catch java.lang.Throwable -> E3
+@@ -124,7 +126,7 @@ public abstract class FancyHelloWorld extends java.lang.Object:
+     | | |           NOP
+     | | method-call(int java.lang.String.hashCode())
+     | |             IADD
+-    | |             ISTORE_0     // int x
++    | |             ISTORE_0     // I x
+     | |             LDC "name"   (line 22)
+     | |             ASTORE_2
+     | | constructor-call(void java.lang.StringBuffer.<init>(java.lang.String))
+@@ -143,7 +145,7 @@ public abstract class FancyHelloWorld extends java.lang.Object:
+     | | |           INVOKESTATIC Aspect.ajc_after_constructor_call ()V
+     | | |           NOP
+     | | constructor-call(void java.lang.StringBuffer.<init>(java.lang.String))
+-    | |             ILOAD_0     // int x
++    | |             ILOAD_0     // I x
+     | | method-call(java.lang.StringBuffer java.lang.StringBuffer.append(int))
+     | | | catch java.lang.Throwable -> E1
+     | | | |         INVOKEVIRTUAL java.lang.StringBuffer.append (I)Ljava/lang/StringBuffer;
+@@ -170,6 +172,7 @@ public abstract class FancyHelloWorld extends java.lang.Object:
+     | | |           INVOKESTATIC Aspect.ajc_after_method_call ()V
+     | | |           NOP
+     | | method-call(java.lang.String java.lang.StringBuffer.toString())
++    | |             ASTORE 7
+     | |             GOTO L4
+     | catch java.lang.Throwable -> E4
+     |           E4: ASTORE 6
+@@ -177,6 +180,7 @@ public abstract class FancyHelloWorld extends java.lang.Object:
+     |               ALOAD 6
+     |               ATHROW
+     |           L4: INVOKESTATIC Aspect.ajc_after_method_execution ()V
++    |               ALOAD 7
+     |               ARETURN
+     method-execution(java.lang.String FancyHelloWorld.getName())
+   end public static String getName()
+@@ -1,6 +1,6 @@
+ public class HelloWorld extends java.lang.Object:
+   public void <init>():
+-                    ALOAD_0     // HelloWorld this   (line 5)
++                    ALOAD_0     // LHelloWorld; this   (line 5)
+                     INVOKESPECIAL java.lang.Object.<init> ()V
+     constructor-execution(void HelloWorld.<init>())
+     | catch java.lang.Throwable -> E0
+@@ -12,6 +12,7 @@ public class HelloWorld extends java.lang.Object:
+     |               ATHROW
+     |           L0: INVOKESTATIC Aspect.ajc_after_constructor_execution ()V
+     |               RETURN
++    |               RETURN
+     constructor-execution(void HelloWorld.<init>())
+   end public void <init>()
+ 
+@@ -53,6 +54,7 @@ public class HelloWorld extends java.lang.Object:
+     |               ATHROW
+     |           L2: INVOKESTATIC Aspect.ajc_after_method_execution ()V
+     |               RETURN
++    |               RETURN
+     method-execution(void HelloWorld.main(java.lang.String[]))
+   end public static void main(String[])
+ 
+@@ -1,6 +1,6 @@
+ public abstract class FancyHelloWorld extends java.lang.Object:
+   public void <init>():
+-                    ALOAD_0     // FancyHelloWorld this   (line 7)
++                    ALOAD_0     // LFancyHelloWorld; this   (line 7)
+                     INVOKESPECIAL java.lang.Object.<init> ()V
+     constructor-execution(void FancyHelloWorld.<init>())
+     |               RETURN
+@@ -24,14 +24,14 @@ public abstract class FancyHelloWorld extends java.lang.Object:
+     |               ASTORE_1
+     | finally -> E1
+     | | catch java.lang.Exception -> E0
+-    | | |           ALOAD_1     // java.io.PrintStream out   (line 11)
++    | | |           ALOAD_1     // Ljava/io/PrintStream; out   (line 11)
+     | | |           LDC "bye"
+     | | |           INVOKEVIRTUAL java.io.PrintStream.println (Ljava/lang/String;)V
+     | | |           GOTO L1
+     | | catch java.lang.Exception -> E0
+     | |         E0: ASTORE_2   (line 12)
+-    | |             ALOAD_1     // java.io.PrintStream out   (line 13)
+-    | |             ALOAD_2     // java.lang.Exception e
++    | |             ALOAD_1     // Ljava/io/PrintStream; out   (line 13)
++    | |             ALOAD_2     // Ljava/lang/Exception; e
+     | |             INVOKEVIRTUAL java.io.PrintStream.println (Ljava/lang/Object;)V
+     | finally -> E1
+     |               GOTO L1
+@@ -42,7 +42,7 @@ public abstract class FancyHelloWorld extends java.lang.Object:
+     |           L1: JSR L2
+     |               GOTO L3
+     |           L2: ASTORE_3
+-    |               ALOAD_1     // java.io.PrintStream out   (line 15)
++    |               ALOAD_1     // Ljava/io/PrintStream; out   (line 15)
+     |               LDC "finally"
+     |               INVOKEVIRTUAL java.io.PrintStream.println (Ljava/lang/String;)V
+     |               RET 3   (line 10)
+@@ -54,16 +54,16 @@ public abstract class FancyHelloWorld extends java.lang.Object:
+     method-execution(java.lang.String FancyHelloWorld.getName())
+     |               ICONST_0   (line 20)
+     |               ISTORE_0
+-    |               ILOAD_0     // int x   (line 21)
++    |               ILOAD_0     // I x   (line 21)
+     |               LDC "name"
+     |               INVOKEVIRTUAL java.lang.String.hashCode ()I
+     |               IADD
+-    |               ISTORE_0     // int x
++    |               ISTORE_0     // I x
+     |               NEW java.lang.StringBuffer   (line 22)
+     |               DUP
+     |               LDC "name"
+     |               INVOKESPECIAL java.lang.StringBuffer.<init> (Ljava/lang/String;)V
+-    |               ILOAD_0     // int x
++    |               ILOAD_0     // I x
+     |               INVOKEVIRTUAL java.lang.StringBuffer.append (I)Ljava/lang/StringBuffer;
+     |               INVOKEVIRTUAL java.lang.StringBuffer.toString ()Ljava/lang/String;
+     |               ARETURN
+@@ -1,6 +1,6 @@
+ public class HelloWorld extends java.lang.Object:
+   public void <init>():
+-                    ALOAD_0     // HelloWorld this   (line 5)
++                    ALOAD_0     // LHelloWorld; this   (line 5)
+                     INVOKESPECIAL java.lang.Object.<init> ()V
+     constructor-execution(void HelloWorld.<init>())
+     |               RETURN
+@@ -1,6 +1,6 @@
+ public abstract class FancyHelloWorld extends java.lang.Object:
+   public void <init>():
+-                    ALOAD_0     // FancyHelloWorld this   (line 7)
++                    ALOAD_0     // LFancyHelloWorld; this   (line 7)
+                     INVOKESPECIAL java.lang.Object.<init> ()V
+     constructor-execution(void FancyHelloWorld.<init>())
+     |               RETURN
+@@ -13,7 +13,7 @@ public abstract class FancyHelloWorld extends java.lang.Object:
+     |               ASTORE_1
+     | finally -> E1
+     | | catch java.lang.Exception -> E0
+-    | | |           ALOAD_1     // java.io.PrintStream out   (line 11)
++    | | |           ALOAD_1     // Ljava/io/PrintStream; out   (line 11)
+     | | |           LDC "bye"
+     | | | method-call(void java.io.PrintStream.println(java.lang.String))
+     | | | |         INVOKEVIRTUAL java.io.PrintStream.println (Ljava/lang/String;)V
+@@ -21,8 +21,8 @@ public abstract class FancyHelloWorld extends java.lang.Object:
+     | | |           GOTO L0
+     | | catch java.lang.Exception -> E0
+     | |         E0: ASTORE_2   (line 12)
+-    | |             ALOAD_1     // java.io.PrintStream out   (line 13)
+-    | |             ALOAD_2     // java.lang.Exception e
++    | |             ALOAD_1     // Ljava/io/PrintStream; out   (line 13)
++    | |             ALOAD_2     // Ljava/lang/Exception; e
+     | | method-call(void java.io.PrintStream.println(java.lang.Object))
+     | | |           INVOKEVIRTUAL java.io.PrintStream.println (Ljava/lang/Object;)V
+     | | method-call(void java.io.PrintStream.println(java.lang.Object))
+@@ -35,7 +35,7 @@ public abstract class FancyHelloWorld extends java.lang.Object:
+     |           L0: JSR L1
+     |               GOTO L2
+     |           L1: ASTORE_3
+-    |               ALOAD_1     // java.io.PrintStream out   (line 15)
++    |               ALOAD_1     // Ljava/io/PrintStream; out   (line 15)
+     |               LDC "finally"
+     | method-call(void java.io.PrintStream.println(java.lang.String))
+     | |             INVOKEVIRTUAL java.io.PrintStream.println (Ljava/lang/String;)V
+@@ -49,7 +49,7 @@ public abstract class FancyHelloWorld extends java.lang.Object:
+     method-execution(java.lang.String FancyHelloWorld.getName())
+     |               ICONST_0   (line 20)
+     |               ISTORE_0
+-    |               ILOAD_0     // int x   (line 21)
++    |               ILOAD_0     // I x   (line 21)
+     |               LDC "name"
+     | method-call(int java.lang.String.hashCode())
+     | |             INVOKEVIRTUAL java.lang.String.hashCode ()I
+@@ -61,12 +61,12 @@ public abstract class FancyHelloWorld extends java.lang.Object:
+     | |             NOP
+     | method-call(int java.lang.String.hashCode())
+     |               IADD
+-    |               ISTORE_0     // int x
++    |               ISTORE_0     // I x
+     |               NEW java.lang.StringBuffer   (line 22)
+     |               DUP
+     |               LDC "name"
+     |               INVOKESPECIAL java.lang.StringBuffer.<init> (Ljava/lang/String;)V
+-    |               ILOAD_0     // int x
++    |               ILOAD_0     // I x
+     | method-call(java.lang.StringBuffer java.lang.StringBuffer.append(int))
+     | |             INVOKEVIRTUAL java.lang.StringBuffer.append (I)Ljava/lang/StringBuffer;
+     | method-call(java.lang.StringBuffer java.lang.StringBuffer.append(int))
+@@ -1,10 +1,11 @@
+ public abstract class FancyHelloWorld extends java.lang.Object:
+   public void <init>():
+-                    ALOAD_0     // FancyHelloWorld this   (line 7)
++                    ALOAD_0     // LFancyHelloWorld; this   (line 7)
+                     INVOKESPECIAL java.lang.Object.<init> ()V
+     constructor-execution(void FancyHelloWorld.<init>())
+-    |               GOTO L0
+-    |           L0: INVOKESTATIC Aspect.ajc_afterReturning_constructor_execution ()V
++    |               NOP
++    |               INVOKESTATIC Aspect.ajc_afterReturning_constructor_execution ()V
++    |               RETURN
+     |               RETURN
+     constructor-execution(void FancyHelloWorld.<init>())
+   end public void <init>()
+@@ -19,7 +20,7 @@ public abstract class FancyHelloWorld extends java.lang.Object:
+     |               ASTORE_1
+     | finally -> E1
+     | | catch java.lang.Exception -> E0
+-    | | |           ALOAD_1     // java.io.PrintStream out   (line 11)
++    | | |           ALOAD_1     // Ljava/io/PrintStream; out   (line 11)
+     | | |           LDC "bye"
+     | | | method-call(void java.io.PrintStream.println(java.lang.String))
+     | | | |         INVOKEVIRTUAL java.io.PrintStream.println (Ljava/lang/String;)V
+@@ -29,8 +30,8 @@ public abstract class FancyHelloWorld extends java.lang.Object:
+     | | |           GOTO L0
+     | | catch java.lang.Exception -> E0
+     | |         E0: ASTORE_2   (line 12)
+-    | |             ALOAD_1     // java.io.PrintStream out   (line 13)
+-    | |             ALOAD_2     // java.lang.Exception e
++    | |             ALOAD_1     // Ljava/io/PrintStream; out   (line 13)
++    | |             ALOAD_2     // Ljava/lang/Exception; e
+     | | method-call(void java.io.PrintStream.println(java.lang.Object))
+     | | |           INVOKEVIRTUAL java.io.PrintStream.println (Ljava/lang/Object;)V
+     | | |           INVOKESTATIC Aspect.ajc_afterReturning_method_call ()V
+@@ -45,7 +46,7 @@ public abstract class FancyHelloWorld extends java.lang.Object:
+     |           L0: JSR L1
+     |               GOTO L2
+     |           L1: ASTORE_3
+-    |               ALOAD_1     // java.io.PrintStream out   (line 15)
++    |               ALOAD_1     // Ljava/io/PrintStream; out   (line 15)
+     |               LDC "finally"
+     | method-call(void java.io.PrintStream.println(java.lang.String))
+     | |             INVOKEVIRTUAL java.io.PrintStream.println (Ljava/lang/String;)V
+@@ -53,8 +54,9 @@ public abstract class FancyHelloWorld extends java.lang.Object:
+     | |             NOP
+     | method-call(void java.io.PrintStream.println(java.lang.String))
+     |               RET 3   (line 10)
+-    |           L2: GOTO L3   (line 17)
+-    |           L3: INVOKESTATIC Aspect.ajc_afterReturning_method_execution ()V
++    |           L2: NOP   (line 17)
++    |               INVOKESTATIC Aspect.ajc_afterReturning_method_execution ()V
++    |               RETURN
+     |               RETURN
+     method-execution(void FancyHelloWorld.main(java.lang.String[]))
+   end public static void main(String[])
+@@ -63,7 +65,7 @@ public abstract class FancyHelloWorld extends java.lang.Object:
+     method-execution(java.lang.String FancyHelloWorld.getName())
+     |               ICONST_0   (line 20)
+     |               ISTORE_0
+-    |               ILOAD_0     // int x   (line 21)
++    |               ILOAD_0     // I x   (line 21)
+     |               LDC "name"
+     | method-call(int java.lang.String.hashCode())
+     | |             INVOKEVIRTUAL java.lang.String.hashCode ()I
+@@ -71,7 +73,7 @@ public abstract class FancyHelloWorld extends java.lang.Object:
+     | |             NOP
+     | method-call(int java.lang.String.hashCode())
+     |               IADD
+-    |               ISTORE_0     // int x
++    |               ISTORE_0     // I x
+     |               LDC "name"   (line 22)
+     |               ASTORE_1
+     | constructor-call(void java.lang.StringBuffer.<init>(java.lang.String))
+@@ -82,7 +84,7 @@ public abstract class FancyHelloWorld extends java.lang.Object:
+     | |             INVOKESTATIC Aspect.ajc_afterReturning_constructor_call ()V
+     | |             NOP
+     | constructor-call(void java.lang.StringBuffer.<init>(java.lang.String))
+-    |               ILOAD_0     // int x
++    |               ILOAD_0     // I x
+     | method-call(java.lang.StringBuffer java.lang.StringBuffer.append(int))
+     | |             INVOKEVIRTUAL java.lang.StringBuffer.append (I)Ljava/lang/StringBuffer;
+     | |             INVOKESTATIC Aspect.ajc_afterReturning_method_call ()V
+@@ -93,8 +95,9 @@ public abstract class FancyHelloWorld extends java.lang.Object:
+     | |             INVOKESTATIC Aspect.ajc_afterReturning_method_call ()V
+     | |             NOP
+     | method-call(java.lang.String java.lang.StringBuffer.toString())
+-    |               GOTO L0
+-    |           L0: INVOKESTATIC Aspect.ajc_afterReturning_method_execution ()V
++    |               ASTORE_2
++    |               INVOKESTATIC Aspect.ajc_afterReturning_method_execution ()V
++    |               ALOAD_2
+     |               ARETURN
+     method-execution(java.lang.String FancyHelloWorld.getName())
+   end public static String getName()
+@@ -1,10 +1,11 @@
+ public class HelloWorld extends java.lang.Object:
+   public void <init>():
+-                    ALOAD_0     // HelloWorld this   (line 5)
++                    ALOAD_0     // LHelloWorld; this   (line 5)
+                     INVOKESPECIAL java.lang.Object.<init> ()V
+     constructor-execution(void HelloWorld.<init>())
+-    |               GOTO L0
+-    |           L0: INVOKESTATIC Aspect.ajc_afterReturning_constructor_execution ()V
++    |               NOP
++    |               INVOKESTATIC Aspect.ajc_afterReturning_constructor_execution ()V
++    |               RETURN
+     |               RETURN
+     constructor-execution(void HelloWorld.<init>())
+   end public void <init>()
+@@ -22,8 +23,9 @@ public class HelloWorld extends java.lang.Object:
+     | |             INVOKESTATIC Aspect.ajc_afterReturning_method_call ()V
+     | |             NOP
+     | method-call(void java.io.PrintStream.println(java.lang.String))
+-    |               GOTO L0   (line 11)
+-    |           L0: INVOKESTATIC Aspect.ajc_afterReturning_method_execution ()V
++    |               NOP   (line 11)
++    |               INVOKESTATIC Aspect.ajc_afterReturning_method_execution ()V
++    |               RETURN
+     |               RETURN
+     method-execution(void HelloWorld.main(java.lang.String[]))
+   end public static void main(String[])
+@@ -1,6 +1,6 @@
+ public abstract class FancyHelloWorld extends java.lang.Object:
+   public void <init>():
+-                    ALOAD_0     // FancyHelloWorld this   (line 7)
++                    ALOAD_0     // LFancyHelloWorld; this   (line 7)
+                     INVOKESPECIAL java.lang.Object.<init> ()V
+     constructor-execution(void FancyHelloWorld.<init>())
+     |               RETURN
+@@ -20,14 +20,14 @@ public abstract class FancyHelloWorld extends java.lang.Object:
+     |               ASTORE_1
+     | finally -> E1
+     | | catch java.lang.Exception -> E0
+-    | | |           ALOAD_1     // java.io.PrintStream out   (line 11)
++    | | |           ALOAD_1     // Ljava/io/PrintStream; out   (line 11)
+     | | |           LDC "bye"
+     | | |           INVOKEVIRTUAL java.io.PrintStream.println (Ljava/lang/String;)V
+     | | |           GOTO L0
+     | | catch java.lang.Exception -> E0
+     | |         E0: ASTORE_2   (line 12)
+-    | |             ALOAD_1     // java.io.PrintStream out   (line 13)
+-    | |             ALOAD_2     // java.lang.Exception e
++    | |             ALOAD_1     // Ljava/io/PrintStream; out   (line 13)
++    | |             ALOAD_2     // Ljava/lang/Exception; e
+     | |             INVOKEVIRTUAL java.io.PrintStream.println (Ljava/lang/Object;)V
+     | finally -> E1
+     |               GOTO L0
+@@ -38,7 +38,7 @@ public abstract class FancyHelloWorld extends java.lang.Object:
+     |           L0: JSR L1
+     |               GOTO L2
+     |           L1: ASTORE_3
+-    |               ALOAD_1     // java.io.PrintStream out   (line 15)
++    |               ALOAD_1     // Ljava/io/PrintStream; out   (line 15)
+     |               LDC "finally"
+     |               INVOKEVIRTUAL java.io.PrintStream.println (Ljava/lang/String;)V
+     |               RET 3   (line 10)
+@@ -50,16 +50,16 @@ public abstract class FancyHelloWorld extends java.lang.Object:
+     method-execution(java.lang.String FancyHelloWorld.getName())
+     |               ICONST_0   (line 20)
+     |               ISTORE_0
+-    |               ILOAD_0     // int x   (line 21)
++    |               ILOAD_0     // I x   (line 21)
+     |               LDC "name"
+     |               INVOKEVIRTUAL java.lang.String.hashCode ()I
+     |               IADD
+-    |               ISTORE_0     // int x
++    |               ISTORE_0     // I x
+     |               NEW java.lang.StringBuffer   (line 22)
+     |               DUP
+     |               LDC "name"
+     |               INVOKESPECIAL java.lang.StringBuffer.<init> (Ljava/lang/String;)V
+-    |               ILOAD_0     // int x
++    |               ILOAD_0     // I x
+     |               INVOKEVIRTUAL java.lang.StringBuffer.append (I)Ljava/lang/StringBuffer;
+     |               INVOKEVIRTUAL java.lang.StringBuffer.toString ()Ljava/lang/String;
+     |               ARETURN
+@@ -1,6 +1,6 @@
+ public class HelloWorld extends java.lang.Object:
+   public void <init>():
+-                    ALOAD_0     // HelloWorld this   (line 5)
++                    ALOAD_0     // LHelloWorld; this   (line 5)
+                     INVOKESPECIAL java.lang.Object.<init> ()V
+     constructor-execution(void HelloWorld.<init>())
+     |               RETURN
+@@ -1,6 +1,6 @@
+ public abstract class FancyHelloWorld extends java.lang.Object:
+   public void <init>():
+-                    ALOAD_0     // FancyHelloWorld this   (line 7)
++                    ALOAD_0     // LFancyHelloWorld; this   (line 7)
+                     INVOKESPECIAL java.lang.Object.<init> ()V
+     constructor-execution(void FancyHelloWorld.<init>())
+     |               RETURN
+@@ -15,7 +15,7 @@ public abstract class FancyHelloWorld extends java.lang.Object:
+     |               ASTORE_1
+     | finally -> E1
+     | | catch java.lang.Exception -> E0
+-    | | |           ALOAD_1     // java.io.PrintStream out   (line 11)
++    | | |           ALOAD_1     // Ljava/io/PrintStream; out   (line 11)
+     | | |           LDC "bye"
+     | | |           ASTORE 5
+     | | | method-call(void java.io.PrintStream.println(java.lang.String))
+@@ -28,8 +28,8 @@ public abstract class FancyHelloWorld extends java.lang.Object:
+     | | |           GOTO L0
+     | | catch java.lang.Exception -> E0
+     | |         E0: ASTORE_2   (line 12)
+-    | |             ALOAD_1     // java.io.PrintStream out   (line 13)
+-    | |             ALOAD_2     // java.lang.Exception e
++    | |             ALOAD_1     // Ljava/io/PrintStream; out   (line 13)
++    | |             ALOAD_2     // Ljava/lang/Exception; e
+     | |             ASTORE 6
+     | | method-call(void java.io.PrintStream.println(java.lang.Object))
+     | | |           ALOAD 6
+@@ -47,7 +47,7 @@ public abstract class FancyHelloWorld extends java.lang.Object:
+     |           L0: JSR L1
+     |               GOTO L2
+     |           L1: ASTORE_3
+-    |               ALOAD_1     // java.io.PrintStream out   (line 15)
++    |               ALOAD_1     // Ljava/io/PrintStream; out   (line 15)
+     |               LDC "finally"
+     |               ASTORE 7
+     | method-call(void java.io.PrintStream.println(java.lang.String))
+@@ -58,10 +58,11 @@ public abstract class FancyHelloWorld extends java.lang.Object:
+     | |             NOP
+     | method-call(void java.io.PrintStream.println(java.lang.String))
+     |               RET 3   (line 10)
+-    |           L2: GOTO L3   (line 17)
+-    |           L3: ALOAD 8
++    |           L2: NOP   (line 17)
++    |               ALOAD 8
+     |               INVOKESTATIC Aspect.ajc_afterReturning_method_execution (Ljava/lang/Object;)V
+     |               RETURN
++    |               RETURN
+     method-execution(void FancyHelloWorld.main(java.lang.String[]))
+   end public static void main(String[])
+ 
+@@ -69,13 +70,13 @@ public abstract class FancyHelloWorld extends java.lang.Object:
+     method-execution(java.lang.String FancyHelloWorld.getName())
+     |               ICONST_0   (line 20)
+     |               ISTORE_0
+-    |               ILOAD_0     // int x   (line 21)
++    |               ILOAD_0     // I x   (line 21)
+     |               LDC "name"
+     | method-call(int java.lang.String.hashCode())
+     | |             INVOKEVIRTUAL java.lang.String.hashCode ()I
+     | method-call(int java.lang.String.hashCode())
+     |               IADD
+-    |               ISTORE_0     // int x
++    |               ISTORE_0     // I x
+     |               LDC "name"   (line 22)
+     |               ASTORE_1
+     | constructor-call(void java.lang.StringBuffer.<init>(java.lang.String))
+@@ -87,7 +88,7 @@ public abstract class FancyHelloWorld extends java.lang.Object:
+     | |             INVOKESTATIC Aspect.ajc_afterReturning_constructor_call (Ljava/lang/Object;)V
+     | |             NOP
+     | constructor-call(void java.lang.StringBuffer.<init>(java.lang.String))
+-    |               ILOAD_0     // int x
++    |               ILOAD_0     // I x
+     |               ISTORE_2
+     | method-call(java.lang.StringBuffer java.lang.StringBuffer.append(int))
+     | |             ILOAD_2
+@@ -1,6 +1,6 @@
+ public class HelloWorld extends java.lang.Object:
+   public void <init>():
+-                    ALOAD_0     // HelloWorld this   (line 5)
++                    ALOAD_0     // LHelloWorld; this   (line 5)
+                     INVOKESPECIAL java.lang.Object.<init> ()V
+     constructor-execution(void HelloWorld.<init>())
+     |               RETURN
+@@ -21,10 +21,11 @@ public class HelloWorld extends java.lang.Object:
+     | |             INVOKESTATIC Aspect.ajc_afterReturning_method_call (Ljava/lang/Object;)V
+     | |             NOP
+     | method-call(void java.io.PrintStream.println(java.lang.String))
+-    |               GOTO L0   (line 11)
+-    |           L0: ALOAD_2
++    |               NOP   (line 11)
++    |               ALOAD_2
+     |               INVOKESTATIC Aspect.ajc_afterReturning_method_execution (Ljava/lang/Object;)V
+     |               RETURN
++    |               RETURN
+     method-execution(void HelloWorld.main(java.lang.String[]))
+   end public static void main(String[])
+ 
+@@ -1,6 +1,6 @@
+ public class HelloWorld extends java.lang.Object:
+   public void <init>():
+-                    ALOAD_0     // HelloWorld this   (line 5)
++                    ALOAD_0     // LHelloWorld; this   (line 5)
+                     INVOKESPECIAL java.lang.Object.<init> ()V
+     constructor-execution(void HelloWorld.<init>())
+     |               RETURN
+@@ -1,6 +1,6 @@
+ public class HelloWorld extends java.lang.Object:
+   public void <init>():
+-                    ALOAD_0     // HelloWorld this   (line 5)
++                    ALOAD_0     // LHelloWorld; this   (line 5)
+                     INVOKESPECIAL java.lang.Object.<init> ()V
+     constructor-execution(void HelloWorld.<init>())
+     |               RETURN
+@@ -45,6 +45,7 @@ public class HelloWorld extends java.lang.Object:
+     |           L1: ALOAD_3
+     |               INVOKESTATIC Aspect.ajc_afterReturning_method_execution (Ljava/lang/Object;)V
+     |               RETURN
++    |               RETURN
+     method-execution(void HelloWorld.main(java.lang.String[]))
+   end public static void main(String[])
+ 
+@@ -1,6 +1,6 @@
+ public abstract class FancyHelloWorld extends java.lang.Object:
+   public void <init>():
+-                    ALOAD_0     // FancyHelloWorld this   (line 7)
++                    ALOAD_0     // LFancyHelloWorld; this   (line 7)
+                     INVOKESPECIAL java.lang.Object.<init> ()V
+     constructor-execution(void FancyHelloWorld.<init>())
+     |               RETURN
+@@ -21,14 +21,14 @@ public abstract class FancyHelloWorld extends java.lang.Object:
+     | |             ASTORE_1
+     | | finally -> E1
+     | | | catch java.lang.Exception -> E0
+-    | | | |         ALOAD_1     // java.io.PrintStream out   (line 11)
++    | | | |         ALOAD_1     // Ljava/io/PrintStream; out   (line 11)
+     | | | |         LDC "bye"
+     | | | |         INVOKEVIRTUAL java.io.PrintStream.println (Ljava/lang/String;)V
+     | | | |         GOTO L1
+     | | | catch java.lang.Exception -> E0
+     | | |       E0: ASTORE_2   (line 12)
+-    | | |           ALOAD_1     // java.io.PrintStream out   (line 13)
+-    | | |           ALOAD_2     // java.lang.Exception e
++    | | |           ALOAD_1     // Ljava/io/PrintStream; out   (line 13)
++    | | |           ALOAD_2     // Ljava/lang/Exception; e
+     | | |           INVOKEVIRTUAL java.io.PrintStream.println (Ljava/lang/Object;)V
+     | | finally -> E1
+     | |             GOTO L1
+@@ -39,7 +39,7 @@ public abstract class FancyHelloWorld extends java.lang.Object:
+     | |         L1: JSR L2
+     | |             GOTO L3
+     | |         L2: ASTORE_3
+-    | |             ALOAD_1     // java.io.PrintStream out   (line 15)
++    | |             ALOAD_1     // Ljava/io/PrintStream; out   (line 15)
+     | |             LDC "finally"
+     | |             INVOKEVIRTUAL java.io.PrintStream.println (Ljava/lang/String;)V
+     | |             RET 3   (line 10)
+@@ -53,6 +53,7 @@ public abstract class FancyHelloWorld extends java.lang.Object:
+     |           L4: GETSTATIC Aspect.ajc$perCflowStack Lorg/aspectj/runtime/internal/CFlowStack;
+     |               INVOKEVIRTUAL org.aspectj.runtime.internal.CFlowStack.pop ()V
+     |               RETURN
++    |               RETURN
+     method-execution(void FancyHelloWorld.main(java.lang.String[]))
+   end public static void main(String[])
+ 
+@@ -60,16 +61,16 @@ public abstract class FancyHelloWorld extends java.lang.Object:
+     method-execution(java.lang.String FancyHelloWorld.getName())
+     |               ICONST_0   (line 20)
+     |               ISTORE_0
+-    |               ILOAD_0     // int x   (line 21)
++    |               ILOAD_0     // I x   (line 21)
+     |               LDC "name"
+     |               INVOKEVIRTUAL java.lang.String.hashCode ()I
+     |               IADD
+-    |               ISTORE_0     // int x
++    |               ISTORE_0     // I x
+     |               NEW java.lang.StringBuffer   (line 22)
+     |               DUP
+     |               LDC "name"
+     |               INVOKESPECIAL java.lang.StringBuffer.<init> (Ljava/lang/String;)V
+-    |               ILOAD_0     // int x
++    |               ILOAD_0     // I x
+     |               INVOKEVIRTUAL java.lang.StringBuffer.append (I)Ljava/lang/StringBuffer;
+     |               INVOKEVIRTUAL java.lang.StringBuffer.toString ()Ljava/lang/String;
+     |               ARETURN
+@@ -1,6 +1,6 @@
+ public class HelloWorld extends java.lang.Object:
+   public void <init>():
+-                    ALOAD_0     // HelloWorld this   (line 5)
++                    ALOAD_0     // LHelloWorld; this   (line 5)
+                     INVOKESPECIAL java.lang.Object.<init> ()V
+     constructor-execution(void HelloWorld.<init>())
+     |               RETURN
+@@ -30,6 +30,7 @@ public class HelloWorld extends java.lang.Object:
+     |           L1: GETSTATIC Aspect.ajc$perCflowStack Lorg/aspectj/runtime/internal/CFlowStack;
+     |               INVOKEVIRTUAL org.aspectj.runtime.internal.CFlowStack.pop ()V
+     |               RETURN
++    |               RETURN
+     method-execution(void HelloWorld.main(java.lang.String[]))
+   end public static void main(String[])
+ 
+@@ -1,6 +1,6 @@
+ public abstract class FancyHelloWorld extends java.lang.Object:
+   public void <init>():
+-                    ALOAD_0     // FancyHelloWorld this   (line 7)
++                    ALOAD_0     // LFancyHelloWorld; this   (line 7)
+                     INVOKESPECIAL java.lang.Object.<init> ()V
+     constructor-execution(void FancyHelloWorld.<init>())
+     |               ALOAD_0
+@@ -63,7 +63,7 @@ public abstract class FancyHelloWorld extends java.lang.Object:
+                     ASTORE_1   (line 9)
+     finally -> E1
+     | catch java.lang.Exception -> E0
+-    | |             ALOAD_1     // java.io.PrintStream out   (line 11)
++    | |             ALOAD_1     // Ljava/io/PrintStream; out   (line 11)
+     | |             LDC "bye"
+     | |             ASTORE_3
+     | |             ASTORE 5
+@@ -75,8 +75,8 @@ public abstract class FancyHelloWorld extends java.lang.Object:
+     | |             GOTO L0
+     | catch java.lang.Exception -> E0
+     |           E0: ASTORE 7   (line 12)
+-    |               ALOAD_1     // java.io.PrintStream out   (line 13)
+-    |               ALOAD 7
++    |               ALOAD_1     // Ljava/io/PrintStream; out   (line 13)
++    |               ALOAD 7     // Ljava/lang/Exception; e
+     |               ASTORE 9
+     |               ASTORE 11
+     | method-call(void java.io.PrintStream.println(java.lang.Object))
+@@ -93,7 +93,7 @@ public abstract class FancyHelloWorld extends java.lang.Object:
+                 L0: JSR L1
+                     GOTO L2
+                 L1: ASTORE 15
+-                    ALOAD_1     // java.io.PrintStream out   (line 15)
++                    ALOAD_1     // Ljava/io/PrintStream; out   (line 15)
+                     LDC "finally"
+                     ASTORE 17
+                     ASTORE 19
+@@ -136,7 +136,7 @@ public abstract class FancyHelloWorld extends java.lang.Object:
+   static final String getName_extracted10():
+                     ICONST_0   (line 20)
+                     ISTORE_0
+-                    ILOAD_0     // int x   (line 21)
++                    ILOAD_0     // I x   (line 21)
+                     LDC "name"
+                     ASTORE_2
+     method-call(int java.lang.String.hashCode())
+@@ -144,14 +144,14 @@ public abstract class FancyHelloWorld extends java.lang.Object:
+     |               INVOKESTATIC FancyHelloWorld.hashCode_extracted6 (Ljava/lang/String;)I
+     method-call(int java.lang.String.hashCode())
+                     IADD
+-                    ISTORE_0     // int x
++                    ISTORE_0     // I x
+                     LDC "name"   (line 22)
+                     ASTORE 4
+     constructor-call(void java.lang.StringBuffer.<init>(java.lang.String))
+     |               ALOAD 4
+     |               INVOKESTATIC FancyHelloWorld.init$_extracted7 (Ljava/lang/String;)Ljava/lang/StringBuffer;
+     constructor-call(void java.lang.StringBuffer.<init>(java.lang.String))
+-                    ILOAD_0     // int x
++                    ILOAD_0     // I x
+                     ISTORE 6
+                     ASTORE 8
+     method-call(java.lang.StringBuffer java.lang.StringBuffer.append(int))
+@@ -1,6 +1,6 @@
+ public class HelloWorld extends java.lang.Object:
+   public void <init>():
+-                    ALOAD_0     // HelloWorld this   (line 5)
++                    ALOAD_0     // LHelloWorld; this   (line 5)
+                     INVOKESPECIAL java.lang.Object.<init> ()V
+     constructor-execution(void HelloWorld.<init>())
+     |               ALOAD_0
+@@ -1,6 +1,6 @@
+ public abstract class FancyHelloWorld extends java.lang.Object:
+   public void <init>():
+-                    ALOAD_0     // FancyHelloWorld this   (line 7)
++                    ALOAD_0     // LFancyHelloWorld; this   (line 7)
+                     INVOKESPECIAL java.lang.Object.<init> ()V
+     constructor-execution(void FancyHelloWorld.<init>())
+     |               RETURN
+@@ -17,14 +17,14 @@ public abstract class FancyHelloWorld extends java.lang.Object:
+     |               ASTORE_1
+     | finally -> E1
+     | | catch java.lang.Exception -> E0
+-    | | |           ALOAD_1     // java.io.PrintStream out   (line 11)
++    | | |           ALOAD_1     // Ljava/io/PrintStream; out   (line 11)
+     | | |           LDC "bye"
+     | | |           INVOKEVIRTUAL java.io.PrintStream.println (Ljava/lang/String;)V
+     | | |           GOTO L0
+     | | catch java.lang.Exception -> E0
+     | |         E0: ASTORE_2   (line 12)
+-    | |             ALOAD_1     // java.io.PrintStream out   (line 13)
+-    | |             ALOAD_2     // java.lang.Exception e
++    | |             ALOAD_1     // Ljava/io/PrintStream; out   (line 13)
++    | |             ALOAD_2     // Ljava/lang/Exception; e
+     | |             INVOKEVIRTUAL java.io.PrintStream.println (Ljava/lang/Object;)V
+     | finally -> E1
+     |               GOTO L0
+@@ -35,7 +35,7 @@ public abstract class FancyHelloWorld extends java.lang.Object:
+     |           L0: JSR L1
+     |               GOTO L2
+     |           L1: ASTORE_3
+-    |               ALOAD_1     // java.io.PrintStream out   (line 15)
++    |               ALOAD_1     // Ljava/io/PrintStream; out   (line 15)
+     |               LDC "finally"
+     |               INVOKEVIRTUAL java.io.PrintStream.println (Ljava/lang/String;)V
+     |               RET 3   (line 10)
+@@ -47,16 +47,16 @@ public abstract class FancyHelloWorld extends java.lang.Object:
+     method-execution(java.lang.String FancyHelloWorld.getName())
+     |               ICONST_0   (line 20)
+     |               ISTORE_0
+-    |               ILOAD_0     // int x   (line 21)
++    |               ILOAD_0     // I x   (line 21)
+     |               LDC "name"
+     |               INVOKEVIRTUAL java.lang.String.hashCode ()I
+     |               IADD
+-    |               ISTORE_0     // int x
++    |               ISTORE_0     // I x
+     |               NEW java.lang.StringBuffer   (line 22)
+     |               DUP
+     |               LDC "name"
+     |               INVOKESPECIAL java.lang.StringBuffer.<init> (Ljava/lang/String;)V
+-    |               ILOAD_0     // int x
++    |               ILOAD_0     // I x
+     |               INVOKEVIRTUAL java.lang.StringBuffer.append (I)Ljava/lang/StringBuffer;
+     |               INVOKEVIRTUAL java.lang.StringBuffer.toString ()Ljava/lang/String;
+     |               ARETURN
+@@ -1,6 +1,6 @@
+ public class HelloWorld extends java.lang.Object:
+   public void <init>():
+-                    ALOAD_0     // HelloWorld this   (line 5)
++                    ALOAD_0     // LHelloWorld; this   (line 5)
+                     INVOKESPECIAL java.lang.Object.<init> ()V
+     constructor-execution(void HelloWorld.<init>())
+     |               RETURN
+@@ -1,6 +1,6 @@
+ public abstract class FancyHelloWorld extends java.lang.Object:
+   public void <init>():
+-                    ALOAD_0     // FancyHelloWorld this   (line 7)
++                    ALOAD_0     // LFancyHelloWorld; this   (line 7)
+                     INVOKESPECIAL java.lang.Object.<init> ()V
+     constructor-execution(void FancyHelloWorld.<init>())
+     |               RETURN
+@@ -13,7 +13,7 @@ public abstract class FancyHelloWorld extends java.lang.Object:
+     |               ASTORE_1
+     | finally -> E1
+     | | catch java.lang.Exception -> E0
+-    | | |           ALOAD_1     // java.io.PrintStream out   (line 11)
++    | | |           ALOAD_1     // Ljava/io/PrintStream; out   (line 11)
+     | | |           LDC "bye"
+     | | |           ASTORE 5
+     | | |           ASTORE 6
+@@ -33,8 +33,8 @@ public abstract class FancyHelloWorld extends java.lang.Object:
+     | | |           GOTO L2
+     | | catch java.lang.Exception -> E0
+     | |         E0: ASTORE_2   (line 12)
+-    | |             ALOAD_1     // java.io.PrintStream out   (line 13)
+-    | |             ALOAD_2     // java.lang.Exception e
++    | |             ALOAD_1     // Ljava/io/PrintStream; out   (line 13)
++    | |             ALOAD_2     // Ljava/lang/Exception; e
+     | |             ASTORE 7
+     | |             ASTORE 8
+     | | method-call(void java.io.PrintStream.println(java.lang.Object))
+@@ -59,7 +59,7 @@ public abstract class FancyHelloWorld extends java.lang.Object:
+     |           L2: JSR L3
+     |               GOTO L5
+     |           L3: ASTORE_3
+-    |               ALOAD_1     // java.io.PrintStream out   (line 15)
++    |               ALOAD_1     // Ljava/io/PrintStream; out   (line 15)
+     |               LDC "finally"
+     |               ASTORE 9
+     |               ASTORE 10
+@@ -85,18 +85,18 @@ public abstract class FancyHelloWorld extends java.lang.Object:
+     method-execution(java.lang.String FancyHelloWorld.getName())
+     |               ICONST_0   (line 20)
+     |               ISTORE_0
+-    |               ILOAD_0     // int x   (line 21)
++    |               ILOAD_0     // I x   (line 21)
+     |               LDC "name"
+     | method-call(int java.lang.String.hashCode())
+     | |             INVOKEVIRTUAL java.lang.String.hashCode ()I
+     | method-call(int java.lang.String.hashCode())
+     |               IADD
+-    |               ISTORE_0     // int x
++    |               ISTORE_0     // I x
+     |               NEW java.lang.StringBuffer   (line 22)
+     |               DUP
+     |               LDC "name"
+     |               INVOKESPECIAL java.lang.StringBuffer.<init> (Ljava/lang/String;)V
+-    |               ILOAD_0     // int x
++    |               ILOAD_0     // I x
+     | method-call(java.lang.StringBuffer java.lang.StringBuffer.append(int))
+     | |             INVOKEVIRTUAL java.lang.StringBuffer.append (I)Ljava/lang/StringBuffer;
+     | method-call(java.lang.StringBuffer java.lang.StringBuffer.append(int))
+@@ -1,6 +1,6 @@
+ public class HelloWorld extends java.lang.Object:
+   public void <init>():
+-                    ALOAD_0     // HelloWorld this   (line 5)
++                    ALOAD_0     // LHelloWorld; this   (line 5)
+                     INVOKESPECIAL java.lang.Object.<init> ()V
+     constructor-execution(void HelloWorld.<init>())
+     |               RETURN
+@@ -1,6 +1,6 @@
+ public class DynamicHelloWorld extends java.lang.Object implements java.io.Serializable:
+   public void <init>():
+-                    ALOAD_0     // DynamicHelloWorld this   (line 8)
++                    ALOAD_0     // LDynamicHelloWorld; this   (line 8)
+                     INVOKESPECIAL java.lang.Object.<init> ()V
+     constructor-execution(void DynamicHelloWorld.<init>())
+     |               RETURN
+@@ -24,7 +24,7 @@ public class DynamicHelloWorld extends java.lang.Object implements java.io.Seria
+                     DUP
+                     LDC "expected and caught: "
+                     INVOKESPECIAL java.lang.StringBuffer.<init> (Ljava/lang/String;)V
+-                    ALOAD_1     // java.lang.UnsupportedOperationException t
++                    ALOAD_1     // Ljava/lang/UnsupportedOperationException; t
+                     INVOKEVIRTUAL java.lang.StringBuffer.append (Ljava/lang/Object;)Ljava/lang/StringBuffer;
+                     INVOKEVIRTUAL java.lang.StringBuffer.toString ()Ljava/lang/String;
+                     INVOKEVIRTUAL java.io.PrintStream.println (Ljava/lang/String;)V
+@@ -67,23 +67,25 @@ public class DynamicHelloWorld extends java.lang.Object implements java.io.Seria
+     |               INVOKESPECIAL DynamicHelloWorld$AjcClosure3.<init> ([Ljava/lang/Object;)V
+     |               INVOKEVIRTUAL Trace.ajc$around$Trace$2$a986034c (Lorg/aspectj/runtime/internal/AroundClosure;)Ljava/lang/Object;
+     |               CHECKCAST java.lang.String
+-    |               GOTO L0
+-    |           L0: DUP
++    |               DUP
+     |               ASTORE 7
++    |               DUP
++    |               ASTORE 8
+     |               INVOKESTATIC MyTrace.aspectOf ()LMyTrace;
+     |               ALOAD_0
+-    |               ALOAD 7
++    |               ALOAD 8
+     |               INVOKEVIRTUAL MyTrace.ajc$afterReturning$MyTrace$1$2b31dfa3 (Ljava/lang/Object;Ljava/lang/Object;)V
++    |               ALOAD 7
+     |               ARETURN
+     method-execution(java.lang.String DynamicHelloWorld.doit(java.lang.String, java.util.List))
+   end String doit(String, java.util.List)
+ 
+   static final String doit_aroundBody0(DynamicHelloWorld, String, java.util.List):
+-                    ALOAD_2     // java.util.List l   (line 21)
+-                    ALOAD_1     // java.lang.String s
++                    ALOAD_2     // Ljava/util/List; l   (line 21)
++                    ALOAD_1     // Ljava/lang/String; s
+                     INVOKEINTERFACE java.util.List.add (Ljava/lang/Object;)Z
+                     POP
+-                    ALOAD_2     // java.util.List l   (line 22)
++                    ALOAD_2     // Ljava/util/List; l   (line 22)
+                     INVOKEVIRTUAL java.lang.Object.toString ()Ljava/lang/String;
+                     ARETURN
+   end static final String doit_aroundBody0(DynamicHelloWorld, String, java.util.List)
+@@ -0,0 +1,71 @@
++package test;
++
++/**
++ * Understands . . .
++ *
++ * @author Randy Stearns
++ */
++public class BooleanUnitTest  {
++
++	public static void main(String[] args) {
++		new BooleanUnitTest().test1();
++	}
++	
++    public void test1() {
++        assertEquals("1a WRONG!", false, invert1a());
++        assertEquals("1b WRONG!", true, invert1b());
++        assertEquals("2 WRONG!", false, invert2());
++        assertEquals("3 WRONG!", true, invert3());
++        assertEquals("4 WRONG!", true, invert4());
++        assertEquals("5 WRONG!", false, invert5());
++    }
++    
++    private void assertEquals(String msg, boolean a, boolean b) {
++    	if (a != b) {
++    		throw new RuntimeException(msg);
++    	}
++    }
++
++    private boolean invert1a() {
++        return ! true;
++    }
++
++    private boolean invert1b() {
++        return ! false;
++    }
++
++    private boolean invert2() {
++    	boolean ret = false;
++    	try {
++	        ret = ! isTrue();
++    	}
++    	catch (RuntimeException t) {
++	   		LoggingAspect.aspectOf().ajc$afterReturning$test_LoggingAspect$1$188fbb36();
++	   		throw t;
++    	}
++   		LoggingAspect.aspectOf().ajc$afterReturning$test_LoggingAspect$1$188fbb36();
++   		return ret;
++    }
++
++    private boolean invert3() {
++        return ! isFalse();
++    }
++
++    private boolean invert4() {
++        boolean temp = isFalse();
++        return ! temp;
++    }
++
++    private boolean invert5() {
++        boolean temp = isTrue();
++        return ! temp;
++    }
++
++    private boolean isTrue() {
++        return true;
++    }
++
++    private boolean isFalse() {
++        return false;
++    }
++}
+@@ -0,0 +1,32 @@
++package test;
++
++import org.aspectj.lang.NoAspectBoundException;
++
++public class LoggingAspect {
++	
++	private static LoggingAspect ajc$perSingletonInstance;
++	private static Throwable ajc$initFailureCause;
++	
++	static {
++		try {
++			ajc$postClinit();
++		}
++		catch (Throwable t) {
++			ajc$initFailureCause = t;
++		}
++	}
++	
++	public static LoggingAspect aspectOf() {
++		if (ajc$perSingletonInstance == null) {
++			throw new NoAspectBoundException("test_LoggingAspect",ajc$initFailureCause);
++		}
++		return ajc$perSingletonInstance;
++	}
++	
++    public void ajc$afterReturning$test_LoggingAspect$1$188fbb36()  {
++    }
++    
++    private static void ajc$postClinit() {
++    	ajc$perSingletonInstance = new LoggingAspect();
++    }
++}
+@@ -0,0 +1,62 @@
++package test;
++
++/**
++ * Understands . . .
++ *
++ * @author Randy Stearns
++ */
++public class BooleanUnitTest  {
++
++	public static void main(String[] args) {
++		new BooleanUnitTest().test1();
++	}
++	
++    public void test1() {
++        assertEquals("1a WRONG!", false, invert1a());
++        assertEquals("1b WRONG!", true, invert1b());
++        assertEquals("2 WRONG!", false, invert2());
++        assertEquals("3 WRONG!", true, invert3());
++        assertEquals("4 WRONG!", true, invert4());
++        assertEquals("5 WRONG!", false, invert5());
++    }
++    
++    private void assertEquals(String msg, boolean a, boolean b) {
++    	if (a != b) {
++    		throw new RuntimeException(msg);
++    	}
++    }
++
++    private boolean invert1a() {
++        return ! true;
++    }
++
++    private boolean invert1b() {
++        return ! false;
++    }
++
++    private boolean invert2() {
++        return ! isTrue();
++    }
++
++    private boolean invert3() {
++        return ! isFalse();
++    }
++
++    private boolean invert4() {
++        boolean temp = isFalse();
++        return ! temp;
++    }
++
++    private boolean invert5() {
++        boolean temp = isTrue();
++        return ! temp;
++    }
++
++    private boolean isTrue() {
++        return true;
++    }
++
++    private boolean isFalse() {
++        return false;
++    }
++}
+@@ -0,0 +1,17 @@
++package test;
++
++public aspect LoggingAspect {
++	
++	pointcut logPointcut() :
++		execution (* *(..))
++        && within (test..*)
++		&& !within(LoggingAspect);
++	
++	before() : logPointcut() {
++			System.out.println("entering");
++	}
++
++    after() : logPointcut() {
++            System.out.println("exiting");
++    }
++}
+@@ -0,0 +1,69 @@
++package test;
++
++import javax.servlet.ServletException;
++import javax.servlet.http.HttpServlet;
++import javax.servlet.http.HttpServletRequest;
++import javax.servlet.http.HttpServletResponse;
++import java.io.IOException;
++import java.io.PrintWriter;
++
++/**
++ * Hello world!
++ */
++public class TestServlet extends HttpServlet {
++
++    protected void service(HttpServletRequest request, HttpServletResponse response)
++            throws ServletException, IOException {
++        booleanTest(response);
++    }
++
++    private void booleanTest(HttpServletResponse response) throws ServletException {
++        PrintWriter out = null;
++        try {
++            out = response.getWriter();
++        } catch (IOException ioe) {
++            throw new ServletException("Could not get writer.");
++        }
++
++        out.println("Test 1a. Should be false. Was: " + invert1a());
++        out.println("Test 1b. Should be true. Was: " + invert1b());
++        out.println("Test 2. Should be false. Was: " + invert2());
++        out.println("Test 3. Should be true. Was: " + invert3());
++        out.println("Test 4. Should be true. Was: " + invert4());
++        out.println("Test 5. Should be false. Was: " + invert5());
++    }
++
++    private boolean invert1a() {
++        return ! true;
++    }
++
++    private boolean invert1b() {
++        return ! false;
++    }
++
++    private Boolean invert2() {
++        return new Boolean(! isTrue());
++    }
++
++    private Boolean invert3() {
++        return new Boolean(! isFalse());
++    }
++
++    private boolean invert4() {
++        boolean temp = isFalse();
++        return ! temp;
++    }
++
++    private Boolean invert5() {
++        boolean temp = isTrue();
++        return new Boolean(! temp);
++    }
++
++    private boolean isTrue() {
++        return true;
++    }
++
++    private boolean isFalse() {
++        return false;
++    }
++}
+@@ -20,4 +20,5 @@
+                 L0: INVOKESTATIC Four.aspectOf ()LFour;
+                     INVOKEVIRTUAL Four.ajc$afterReturning$Four$1$c2776aed ()V
+                     RETURN
++                    RETURN
+   end public void m()
+@@ -20,4 +20,5 @@
+                 L0: INVOKESTATIC Three.aspectOf ()LThree;
+                     INVOKEVIRTUAL Three.ajc$afterReturning$Three$1$3f09355c ()V
+                     RETURN
++                    RETURN
+   end public void m3()
+@@ -17,8 +17,9 @@
+     |               MONITOREXIT
+     finally -> E1
+                     ATHROW
+-                L0: GOTO L1   (line 33)
+-                L1: INVOKESTATIC Three.aspectOf ()LThree;
++                L0: NOP   (line 33)
++                    INVOKESTATIC Three.aspectOf ()LThree;
+                     INVOKEVIRTUAL Three.ajc$afterReturning$Three$3$b48e4ae1 ()V
+                     RETURN
++                    RETURN
+   end public void m33()
+@@ -99,6 +99,8 @@ public class Ajc152Tests extends org.aspectj.testing.XMLBasedAjcTestCase {
+   public void testSuperCallsInAtAspectJAdvice_pr139749() { runTest("Super calls in @AspectJ advice");}
+   public void testNoClassCastExceptionWithPerThis_pr138286() { runTest("No ClassCastException with perThis");}
+   public void testGenericAspectHierarchyWithBounds_pr147845() { runTest("Generic abstract aspect hierarchy with bounds"); }
++  public void testJRockitBooleanReturn_pr148007() { runTest("jrockit boolean fun");}
++  public void testJRockitBooleanReturn2_pr148007() { runTest("jrockit boolean fun (no aspects)");}
+ 
+   public void testDeclareAtMethodRelationship_pr143924() {
+ 	  //AsmManager.setReporting("c:/debug.txt",true,true,true,true);
+@@ -729,5 +729,14 @@
+         </stderr>
+       </run>
+     </ajc-test>
+-    
++	
++	<ajc-test dir="bugs152/pr148007" title="jrockit boolean fun">
++		<compile files="test/BooleanUnitTest.java, test/LoggingAspect.aj"/>
++		<run class="test.BooleanUnitTest"/>
++    </ajc-test>
++
++	<ajc-test dir="bugs152/pr148007/purejava" title="jrockit boolean fun (no aspects)">
++		<compile files="test/BooleanUnitTest.java, test/LoggingAspect.java" options="-inlineJSR"/>
++		<run class="test.BooleanUnitTest"/>
++    </ajc-test>    
+ </suite>
+\ No newline at end of file
+@@ -1741,8 +1741,17 @@ public class BcelShadow extends Shadow {
+         }
+         InstructionList retList;
+         InstructionHandle afterAdvice;
++        BcelVar returnValueVar = null;
++        
+         if (ret != null) {
+-            retList = new InstructionList(ret);
++        	if (this.getReturnType() != ResolvedType.VOID) {
++	        	returnValueVar = genTempVar(this.getReturnType());
++	            retList = new InstructionList();
++	            returnValueVar.appendLoad(retList,getFactory());
++        	} else {
++        		retList = new InstructionList(ret);
++        	}
++            retList.append(ret);
+             afterAdvice = retList.getStart();
+         } else /* if (munger.hasDynamicTests()) */ {
+         	/*
+@@ -1765,6 +1774,7 @@ public class BcelShadow extends Shadow {
+         }
+ 
+         InstructionList advice = new InstructionList();
++        
+         BcelVar tempVar = null;
+         if (munger.hasExtraParameter()) {
+             UnresolvedType tempVarType = getReturnType();
+@@ -1779,17 +1789,32 @@ public class BcelShadow extends Shadow {
+             }
+         }
+         advice.append(munger.getAdviceInstructions(this, tempVar, afterAdvice));            
+-
++        
+         if (ret != null) {
+             InstructionHandle gotoTarget = advice.getStart();           
+ 			for (Iterator i = returns.iterator(); i.hasNext();) {
+ 				InstructionHandle ih = (InstructionHandle) i.next();
+-				Utility.replaceInstruction(
+-					ih,
+-					InstructionFactory.createBranchInstruction(
+-						Constants.GOTO,
+-						gotoTarget),
+-					enclosingMethod);
++				// pr148007, work around JRockit bug
++				// replace ret with store into returnValueVar, followed by goto if not
++				// at the end of the instruction list...
++				InstructionList newInstructions = new InstructionList();
++				if (returnValueVar != null) {
++		            if (munger.hasExtraParameter()) {
++		            	// we have to dup the return val before consuming it...
++		            	newInstructions.append(InstructionFactory.createDup(this.getReturnType().getSize()));
++		            }
++					// store the return value into this var
++					returnValueVar.appendStore(newInstructions,getFactory());
++				}
++				if (!isLastInstructionInRange(ih,range)) {
++					newInstructions.append(InstructionFactory.createBranchInstruction(
++							Constants.GOTO,
++							gotoTarget));
++				}
++				if (newInstructions.isEmpty()) {
++					newInstructions.append(InstructionConstants.NOP);
++				}
++				Utility.replaceInstruction(ih,newInstructions,enclosingMethod);
+ 			}
+             range.append(advice);
+             range.append(retList);
+@@ -1799,6 +1824,10 @@ public class BcelShadow extends Shadow {
+         }
+     }
+ 
++    private boolean isLastInstructionInRange(InstructionHandle ih, ShadowRange aRange) {
++    	return ih.getNext() == aRange.getEnd();
++    }
++    
+     public void weaveAfterThrowing(BcelAdvice munger, UnresolvedType catchType) {
+     	// a good optimization would be not to generate anything here
+     	// if the shadow is GUARANTEED empty (i.e., there's NOTHING, not even
+@@ -562,6 +562,15 @@ public class Utility {
+ 		deleteInstruction(ih, fresh, enclosingMethod);
+     }
+ 
++    public static void replaceInstruction(
++    	InstructionHandle ih,
++    	InstructionList replacementInstructions,
++    	LazyMethodGen enclosingMethod) {
++    	InstructionList il = enclosingMethod.getBody();
++    	InstructionHandle fresh = il.append(ih, replacementInstructions);
++    	deleteInstruction(ih,fresh,enclosingMethod);
++    }
++       
+ 	/** delete an instruction handle and retarget all targeters of the deleted instruction
+ 	 * to the next instruction.  Obviously, this should not be used to delete
+ 	 * a control transfer instruction unless you know what you're doing.
+@@ -1,6 +1,6 @@
+ public abstract class FancyHelloWorld extends java.lang.Object:
+   public void <init>():
+-                    ALOAD_0     // FancyHelloWorld this   (line 7)
++                    ALOAD_0     // LFancyHelloWorld; this   (line 7)
+                     INVOKESPECIAL java.lang.Object.<init> ()V
+     constructor-execution(void FancyHelloWorld.<init>())
+     | catch java.lang.Throwable -> E0
+@@ -12,6 +12,7 @@ public abstract class FancyHelloWorld extends java.lang.Object:
+     |               ATHROW
+     |           L0: INVOKESTATIC Aspect.ajc_after_constructor_execution ()V
+     |               RETURN
++    |               RETURN
+     constructor-execution(void FancyHelloWorld.<init>())
+   end public void <init>()
+ 
+@@ -34,7 +35,7 @@ public abstract class FancyHelloWorld extends java.lang.Object:
+     | |             ASTORE_1
+     | | finally -> E5
+     | | | catch java.lang.Exception -> E4
+-    | | | |         ALOAD_1     // java.io.PrintStream out   (line 11)
++    | | | |         ALOAD_1     // Ljava/io/PrintStream; out   (line 11)
+     | | | |         LDC "bye"
+     | | | | method-call(void java.io.PrintStream.println(java.lang.String))
+     | | | | | catch java.lang.Throwable -> E2
+@@ -52,8 +53,8 @@ public abstract class FancyHelloWorld extends java.lang.Object:
+     | | | |         GOTO L3
+     | | | catch java.lang.Exception -> E4
+     | | |       E4: ASTORE_2   (line 12)
+-    | | |           ALOAD_1     // java.io.PrintStream out   (line 13)
+-    | | |           ALOAD_2     // java.lang.Exception e
++    | | |           ALOAD_1     // Ljava/io/PrintStream; out   (line 13)
++    | | |           ALOAD_2     // Ljava/lang/Exception; e
+     | | | method-call(void java.io.PrintStream.println(java.lang.Object))
+     | | | | catch java.lang.Throwable -> E1
+     | | | | |       INVOKEVIRTUAL java.io.PrintStream.println (Ljava/lang/Object;)V
+@@ -76,7 +77,7 @@ public abstract class FancyHelloWorld extends java.lang.Object:
+     | |         L3: JSR L4
+     | |             GOTO L6
+     | |         L4: ASTORE_3
+-    | |             ALOAD_1     // java.io.PrintStream out   (line 15)
++    | |             ALOAD_1     // Ljava/io/PrintStream; out   (line 15)
+     | |             LDC "finally"
+     | | method-call(void java.io.PrintStream.println(java.lang.String))
+     | | | catch java.lang.Throwable -> E0
+@@ -100,6 +101,7 @@ public abstract class FancyHelloWorld extends java.lang.Object:
+     |               ATHROW
+     |           L7: INVOKESTATIC Aspect.ajc_after_method_execution ()V
+     |               RETURN
++    |               RETURN
+     method-execution(void FancyHelloWorld.main(java.lang.String[]))
+   end public static void main(String[])
+ 
+@@ -108,7 +110,7 @@ public abstract class FancyHelloWorld extends java.lang.Object:
+     | catch java.lang.Throwable -> E4
+     | |             ICONST_0   (line 20)
+     | |             ISTORE_0
+-    | |             ILOAD_0     // int x   (line 21)
++    | |             ILOAD_0     // I x   (line 21)
+     | |             LDC "name"
+     | | method-call(int java.lang.String.hashCode())
+     | | | catch java.lang.Throwable -> E3
+@@ -124,7 +126,7 @@ public abstract class FancyHelloWorld extends java.lang.Object:
+     | | |           NOP
+     | | method-call(int java.lang.String.hashCode())
+     | |             IADD
+-    | |             ISTORE_0     // int x
++    | |             ISTORE_0     // I x
+     | |             LDC "name"   (line 22)
+     | |             ASTORE_2
+     | | constructor-call(void java.lang.StringBuffer.<init>(java.lang.String))
+@@ -143,7 +145,7 @@ public abstract class FancyHelloWorld extends java.lang.Object:
+     | | |           INVOKESTATIC Aspect.ajc_after_constructor_call ()V
+     | | |           NOP
+     | | constructor-call(void java.lang.StringBuffer.<init>(java.lang.String))
+-    | |             ILOAD_0     // int x
++    | |             ILOAD_0     // I x
+     | | method-call(java.lang.StringBuffer java.lang.StringBuffer.append(int))
+     | | | catch java.lang.Throwable -> E1
+     | | | |         INVOKEVIRTUAL java.lang.StringBuffer.append (I)Ljava/lang/StringBuffer;
+@@ -170,6 +172,7 @@ public abstract class FancyHelloWorld extends java.lang.Object:
+     | | |           INVOKESTATIC Aspect.ajc_after_method_call ()V
+     | | |           NOP
+     | | method-call(java.lang.String java.lang.StringBuffer.toString())
++    | |             ASTORE 7
+     | |             GOTO L4
+     | catch java.lang.Throwable -> E4
+     |           E4: ASTORE 6
+@@ -177,6 +180,7 @@ public abstract class FancyHelloWorld extends java.lang.Object:
+     |               ALOAD 6
+     |               ATHROW
+     |           L4: INVOKESTATIC Aspect.ajc_after_method_execution ()V
++    |               ALOAD 7
+     |               ARETURN
+     method-execution(java.lang.String FancyHelloWorld.getName())
+   end public static String getName()
+@@ -1,6 +1,6 @@
+ public class HelloWorld extends java.lang.Object:
+   public void <init>():
+-                    ALOAD_0     // HelloWorld this   (line 5)
++                    ALOAD_0     // LHelloWorld; this   (line 5)
+                     INVOKESPECIAL java.lang.Object.<init> ()V
+     constructor-execution(void HelloWorld.<init>())
+     | catch java.lang.Throwable -> E0
+@@ -12,6 +12,7 @@ public class HelloWorld extends java.lang.Object:
+     |               ATHROW
+     |           L0: INVOKESTATIC Aspect.ajc_after_constructor_execution ()V
+     |               RETURN
++    |               RETURN
+     constructor-execution(void HelloWorld.<init>())
+   end public void <init>()
+ 
+@@ -53,6 +54,7 @@ public class HelloWorld extends java.lang.Object:
+     |               ATHROW
+     |           L2: INVOKESTATIC Aspect.ajc_after_method_execution ()V
+     |               RETURN
++    |               RETURN
+     method-execution(void HelloWorld.main(java.lang.String[]))
+   end public static void main(String[])
+ 
+@@ -1,6 +1,6 @@
+ public abstract class FancyHelloWorld extends java.lang.Object:
+   public void <init>():
+-                    ALOAD_0     // FancyHelloWorld this   (line 7)
++                    ALOAD_0     // LFancyHelloWorld; this   (line 7)
+                     INVOKESPECIAL java.lang.Object.<init> ()V
+     constructor-execution(void FancyHelloWorld.<init>())
+     |               RETURN
+@@ -24,14 +24,14 @@ public abstract class FancyHelloWorld extends java.lang.Object:
+     |               ASTORE_1
+     | finally -> E1
+     | | catch java.lang.Exception -> E0
+-    | | |           ALOAD_1     // java.io.PrintStream out   (line 11)
++    | | |           ALOAD_1     // Ljava/io/PrintStream; out   (line 11)
+     | | |           LDC "bye"
+     | | |           INVOKEVIRTUAL java.io.PrintStream.println (Ljava/lang/String;)V
+     | | |           GOTO L1
+     | | catch java.lang.Exception -> E0
+     | |         E0: ASTORE_2   (line 12)
+-    | |             ALOAD_1     // java.io.PrintStream out   (line 13)
+-    | |             ALOAD_2     // java.lang.Exception e
++    | |             ALOAD_1     // Ljava/io/PrintStream; out   (line 13)
++    | |             ALOAD_2     // Ljava/lang/Exception; e
+     | |             INVOKEVIRTUAL java.io.PrintStream.println (Ljava/lang/Object;)V
+     | finally -> E1
+     |               GOTO L1
+@@ -42,7 +42,7 @@ public abstract class FancyHelloWorld extends java.lang.Object:
+     |           L1: JSR L2
+     |               GOTO L3
+     |           L2: ASTORE_3
+-    |               ALOAD_1     // java.io.PrintStream out   (line 15)
++    |               ALOAD_1     // Ljava/io/PrintStream; out   (line 15)
+     |               LDC "finally"
+     |               INVOKEVIRTUAL java.io.PrintStream.println (Ljava/lang/String;)V
+     |               RET 3   (line 10)
+@@ -54,16 +54,16 @@ public abstract class FancyHelloWorld extends java.lang.Object:
+     method-execution(java.lang.String FancyHelloWorld.getName())
+     |               ICONST_0   (line 20)
+     |               ISTORE_0
+-    |               ILOAD_0     // int x   (line 21)
++    |               ILOAD_0     // I x   (line 21)
+     |               LDC "name"
+     |               INVOKEVIRTUAL java.lang.String.hashCode ()I
+     |               IADD
+-    |               ISTORE_0     // int x
++    |               ISTORE_0     // I x
+     |               NEW java.lang.StringBuffer   (line 22)
+     |               DUP
+     |               LDC "name"
+     |               INVOKESPECIAL java.lang.StringBuffer.<init> (Ljava/lang/String;)V
+-    |               ILOAD_0     // int x
++    |               ILOAD_0     // I x
+     |               INVOKEVIRTUAL java.lang.StringBuffer.append (I)Ljava/lang/StringBuffer;
+     |               INVOKEVIRTUAL java.lang.StringBuffer.toString ()Ljava/lang/String;
+     |               ARETURN
+@@ -1,6 +1,6 @@
+ public class HelloWorld extends java.lang.Object:
+   public void <init>():
+-                    ALOAD_0     // HelloWorld this   (line 5)
++                    ALOAD_0     // LHelloWorld; this   (line 5)
+                     INVOKESPECIAL java.lang.Object.<init> ()V
+     constructor-execution(void HelloWorld.<init>())
+     |               RETURN
+@@ -1,6 +1,6 @@
+ public abstract class FancyHelloWorld extends java.lang.Object:
+   public void <init>():
+-                    ALOAD_0     // FancyHelloWorld this   (line 7)
++                    ALOAD_0     // LFancyHelloWorld; this   (line 7)
+                     INVOKESPECIAL java.lang.Object.<init> ()V
+     constructor-execution(void FancyHelloWorld.<init>())
+     |               RETURN
+@@ -13,7 +13,7 @@ public abstract class FancyHelloWorld extends java.lang.Object:
+     |               ASTORE_1
+     | finally -> E1
+     | | catch java.lang.Exception -> E0
+-    | | |           ALOAD_1     // java.io.PrintStream out   (line 11)
++    | | |           ALOAD_1     // Ljava/io/PrintStream; out   (line 11)
+     | | |           LDC "bye"
+     | | | method-call(void java.io.PrintStream.println(java.lang.String))
+     | | | |         INVOKEVIRTUAL java.io.PrintStream.println (Ljava/lang/String;)V
+@@ -21,8 +21,8 @@ public abstract class FancyHelloWorld extends java.lang.Object:
+     | | |           GOTO L0
+     | | catch java.lang.Exception -> E0
+     | |         E0: ASTORE_2   (line 12)
+-    | |             ALOAD_1     // java.io.PrintStream out   (line 13)
+-    | |             ALOAD_2     // java.lang.Exception e
++    | |             ALOAD_1     // Ljava/io/PrintStream; out   (line 13)
++    | |             ALOAD_2     // Ljava/lang/Exception; e
+     | | method-call(void java.io.PrintStream.println(java.lang.Object))
+     | | |           INVOKEVIRTUAL java.io.PrintStream.println (Ljava/lang/Object;)V
+     | | method-call(void java.io.PrintStream.println(java.lang.Object))
+@@ -35,7 +35,7 @@ public abstract class FancyHelloWorld extends java.lang.Object:
+     |           L0: JSR L1
+     |               GOTO L2
+     |           L1: ASTORE_3
+-    |               ALOAD_1     // java.io.PrintStream out   (line 15)
++    |               ALOAD_1     // Ljava/io/PrintStream; out   (line 15)
+     |               LDC "finally"
+     | method-call(void java.io.PrintStream.println(java.lang.String))
+     | |             INVOKEVIRTUAL java.io.PrintStream.println (Ljava/lang/String;)V
+@@ -49,7 +49,7 @@ public abstract class FancyHelloWorld extends java.lang.Object:
+     method-execution(java.lang.String FancyHelloWorld.getName())
+     |               ICONST_0   (line 20)
+     |               ISTORE_0
+-    |               ILOAD_0     // int x   (line 21)
++    |               ILOAD_0     // I x   (line 21)
+     |               LDC "name"
+     | method-call(int java.lang.String.hashCode())
+     | |             INVOKEVIRTUAL java.lang.String.hashCode ()I
+@@ -61,12 +61,12 @@ public abstract class FancyHelloWorld extends java.lang.Object:
+     | |             NOP
+     | method-call(int java.lang.String.hashCode())
+     |               IADD
+-    |               ISTORE_0     // int x
++    |               ISTORE_0     // I x
+     |               NEW java.lang.StringBuffer   (line 22)
+     |               DUP
+     |               LDC "name"
+     |               INVOKESPECIAL java.lang.StringBuffer.<init> (Ljava/lang/String;)V
+-    |               ILOAD_0     // int x
++    |               ILOAD_0     // I x
+     | method-call(java.lang.StringBuffer java.lang.StringBuffer.append(int))
+     | |             INVOKEVIRTUAL java.lang.StringBuffer.append (I)Ljava/lang/StringBuffer;
+     | method-call(java.lang.StringBuffer java.lang.StringBuffer.append(int))
+@@ -1,10 +1,11 @@
+ public abstract class FancyHelloWorld extends java.lang.Object:
+   public void <init>():
+-                    ALOAD_0     // FancyHelloWorld this   (line 7)
++                    ALOAD_0     // LFancyHelloWorld; this   (line 7)
+                     INVOKESPECIAL java.lang.Object.<init> ()V
+     constructor-execution(void FancyHelloWorld.<init>())
+-    |               GOTO L0
+-    |           L0: INVOKESTATIC Aspect.ajc_afterReturning_constructor_execution ()V
++    |               NOP
++    |               INVOKESTATIC Aspect.ajc_afterReturning_constructor_execution ()V
++    |               RETURN
+     |               RETURN
+     constructor-execution(void FancyHelloWorld.<init>())
+   end public void <init>()
+@@ -19,7 +20,7 @@ public abstract class FancyHelloWorld extends java.lang.Object:
+     |               ASTORE_1
+     | finally -> E1
+     | | catch java.lang.Exception -> E0
+-    | | |           ALOAD_1     // java.io.PrintStream out   (line 11)
++    | | |           ALOAD_1     // Ljava/io/PrintStream; out   (line 11)
+     | | |           LDC "bye"
+     | | | method-call(void java.io.PrintStream.println(java.lang.String))
+     | | | |         INVOKEVIRTUAL java.io.PrintStream.println (Ljava/lang/String;)V
+@@ -29,8 +30,8 @@ public abstract class FancyHelloWorld extends java.lang.Object:
+     | | |           GOTO L0
+     | | catch java.lang.Exception -> E0
+     | |         E0: ASTORE_2   (line 12)
+-    | |             ALOAD_1     // java.io.PrintStream out   (line 13)
+-    | |             ALOAD_2     // java.lang.Exception e
++    | |             ALOAD_1     // Ljava/io/PrintStream; out   (line 13)
++    | |             ALOAD_2     // Ljava/lang/Exception; e
+     | | method-call(void java.io.PrintStream.println(java.lang.Object))
+     | | |           INVOKEVIRTUAL java.io.PrintStream.println (Ljava/lang/Object;)V
+     | | |           INVOKESTATIC Aspect.ajc_afterReturning_method_call ()V
+@@ -45,7 +46,7 @@ public abstract class FancyHelloWorld extends java.lang.Object:
+     |           L0: JSR L1
+     |               GOTO L2
+     |           L1: ASTORE_3
+-    |               ALOAD_1     // java.io.PrintStream out   (line 15)
++    |               ALOAD_1     // Ljava/io/PrintStream; out   (line 15)
+     |               LDC "finally"
+     | method-call(void java.io.PrintStream.println(java.lang.String))
+     | |             INVOKEVIRTUAL java.io.PrintStream.println (Ljava/lang/String;)V
+@@ -53,8 +54,9 @@ public abstract class FancyHelloWorld extends java.lang.Object:
+     | |             NOP
+     | method-call(void java.io.PrintStream.println(java.lang.String))
+     |               RET 3   (line 10)
+-    |           L2: GOTO L3   (line 17)
+-    |           L3: INVOKESTATIC Aspect.ajc_afterReturning_method_execution ()V
++    |           L2: NOP   (line 17)
++    |               INVOKESTATIC Aspect.ajc_afterReturning_method_execution ()V
++    |               RETURN
+     |               RETURN
+     method-execution(void FancyHelloWorld.main(java.lang.String[]))
+   end public static void main(String[])
+@@ -63,7 +65,7 @@ public abstract class FancyHelloWorld extends java.lang.Object:
+     method-execution(java.lang.String FancyHelloWorld.getName())
+     |               ICONST_0   (line 20)
+     |               ISTORE_0
+-    |               ILOAD_0     // int x   (line 21)
++    |               ILOAD_0     // I x   (line 21)
+     |               LDC "name"
+     | method-call(int java.lang.String.hashCode())
+     | |             INVOKEVIRTUAL java.lang.String.hashCode ()I
+@@ -71,7 +73,7 @@ public abstract class FancyHelloWorld extends java.lang.Object:
+     | |             NOP
+     | method-call(int java.lang.String.hashCode())
+     |               IADD
+-    |               ISTORE_0     // int x
++    |               ISTORE_0     // I x
+     |               LDC "name"   (line 22)
+     |               ASTORE_1
+     | constructor-call(void java.lang.StringBuffer.<init>(java.lang.String))
+@@ -82,7 +84,7 @@ public abstract class FancyHelloWorld extends java.lang.Object:
+     | |             INVOKESTATIC Aspect.ajc_afterReturning_constructor_call ()V
+     | |             NOP
+     | constructor-call(void java.lang.StringBuffer.<init>(java.lang.String))
+-    |               ILOAD_0     // int x
++    |               ILOAD_0     // I x
+     | method-call(java.lang.StringBuffer java.lang.StringBuffer.append(int))
+     | |             INVOKEVIRTUAL java.lang.StringBuffer.append (I)Ljava/lang/StringBuffer;
+     | |             INVOKESTATIC Aspect.ajc_afterReturning_method_call ()V
+@@ -93,8 +95,9 @@ public abstract class FancyHelloWorld extends java.lang.Object:
+     | |             INVOKESTATIC Aspect.ajc_afterReturning_method_call ()V
+     | |             NOP
+     | method-call(java.lang.String java.lang.StringBuffer.toString())
+-    |               GOTO L0
+-    |           L0: INVOKESTATIC Aspect.ajc_afterReturning_method_execution ()V
++    |               ASTORE_2
++    |               INVOKESTATIC Aspect.ajc_afterReturning_method_execution ()V
++    |               ALOAD_2
+     |               ARETURN
+     method-execution(java.lang.String FancyHelloWorld.getName())
+   end public static String getName()
+@@ -1,10 +1,11 @@
+ public class HelloWorld extends java.lang.Object:
+   public void <init>():
+-                    ALOAD_0     // HelloWorld this   (line 5)
++                    ALOAD_0     // LHelloWorld; this   (line 5)
+                     INVOKESPECIAL java.lang.Object.<init> ()V
+     constructor-execution(void HelloWorld.<init>())
+-    |               GOTO L0
+-    |           L0: INVOKESTATIC Aspect.ajc_afterReturning_constructor_execution ()V
++    |               NOP
++    |               INVOKESTATIC Aspect.ajc_afterReturning_constructor_execution ()V
++    |               RETURN
+     |               RETURN
+     constructor-execution(void HelloWorld.<init>())
+   end public void <init>()
+@@ -22,8 +23,9 @@ public class HelloWorld extends java.lang.Object:
+     | |             INVOKESTATIC Aspect.ajc_afterReturning_method_call ()V
+     | |             NOP
+     | method-call(void java.io.PrintStream.println(java.lang.String))
+-    |               GOTO L0   (line 11)
+-    |           L0: INVOKESTATIC Aspect.ajc_afterReturning_method_execution ()V
++    |               NOP   (line 11)
++    |               INVOKESTATIC Aspect.ajc_afterReturning_method_execution ()V
++    |               RETURN
+     |               RETURN
+     method-execution(void HelloWorld.main(java.lang.String[]))
+   end public static void main(String[])
+@@ -1,6 +1,6 @@
+ public abstract class FancyHelloWorld extends java.lang.Object:
+   public void <init>():
+-                    ALOAD_0     // FancyHelloWorld this   (line 7)
++                    ALOAD_0     // LFancyHelloWorld; this   (line 7)
+                     INVOKESPECIAL java.lang.Object.<init> ()V
+     constructor-execution(void FancyHelloWorld.<init>())
+     |               RETURN
+@@ -20,14 +20,14 @@ public abstract class FancyHelloWorld extends java.lang.Object:
+     |               ASTORE_1
+     | finally -> E1
+     | | catch java.lang.Exception -> E0
+-    | | |           ALOAD_1     // java.io.PrintStream out   (line 11)
++    | | |           ALOAD_1     // Ljava/io/PrintStream; out   (line 11)
+     | | |           LDC "bye"
+     | | |           INVOKEVIRTUAL java.io.PrintStream.println (Ljava/lang/String;)V
+     | | |           GOTO L0
+     | | catch java.lang.Exception -> E0
+     | |         E0: ASTORE_2   (line 12)
+-    | |             ALOAD_1     // java.io.PrintStream out   (line 13)
+-    | |             ALOAD_2     // java.lang.Exception e
++    | |             ALOAD_1     // Ljava/io/PrintStream; out   (line 13)
++    | |             ALOAD_2     // Ljava/lang/Exception; e
+     | |             INVOKEVIRTUAL java.io.PrintStream.println (Ljava/lang/Object;)V
+     | finally -> E1
+     |               GOTO L0
+@@ -38,7 +38,7 @@ public abstract class FancyHelloWorld extends java.lang.Object:
+     |           L0: JSR L1
+     |               GOTO L2
+     |           L1: ASTORE_3
+-    |               ALOAD_1     // java.io.PrintStream out   (line 15)
++    |               ALOAD_1     // Ljava/io/PrintStream; out   (line 15)
+     |               LDC "finally"
+     |               INVOKEVIRTUAL java.io.PrintStream.println (Ljava/lang/String;)V
+     |               RET 3   (line 10)
+@@ -50,16 +50,16 @@ public abstract class FancyHelloWorld extends java.lang.Object:
+     method-execution(java.lang.String FancyHelloWorld.getName())
+     |               ICONST_0   (line 20)
+     |               ISTORE_0
+-    |               ILOAD_0     // int x   (line 21)
++    |               ILOAD_0     // I x   (line 21)
+     |               LDC "name"
+     |               INVOKEVIRTUAL java.lang.String.hashCode ()I
+     |               IADD
+-    |               ISTORE_0     // int x
++    |               ISTORE_0     // I x
+     |               NEW java.lang.StringBuffer   (line 22)
+     |               DUP
+     |               LDC "name"
+     |               INVOKESPECIAL java.lang.StringBuffer.<init> (Ljava/lang/String;)V
+-    |               ILOAD_0     // int x
++    |               ILOAD_0     // I x
+     |               INVOKEVIRTUAL java.lang.StringBuffer.append (I)Ljava/lang/StringBuffer;
+     |               INVOKEVIRTUAL java.lang.StringBuffer.toString ()Ljava/lang/String;
+     |               ARETURN
+@@ -1,6 +1,6 @@
+ public class HelloWorld extends java.lang.Object:
+   public void <init>():
+-                    ALOAD_0     // HelloWorld this   (line 5)
++                    ALOAD_0     // LHelloWorld; this   (line 5)
+                     INVOKESPECIAL java.lang.Object.<init> ()V
+     constructor-execution(void HelloWorld.<init>())
+     |               RETURN
+@@ -1,6 +1,6 @@
+ public abstract class FancyHelloWorld extends java.lang.Object:
+   public void <init>():
+-                    ALOAD_0     // FancyHelloWorld this   (line 7)
++                    ALOAD_0     // LFancyHelloWorld; this   (line 7)
+                     INVOKESPECIAL java.lang.Object.<init> ()V
+     constructor-execution(void FancyHelloWorld.<init>())
+     |               RETURN
+@@ -15,7 +15,7 @@ public abstract class FancyHelloWorld extends java.lang.Object:
+     |               ASTORE_1
+     | finally -> E1
+     | | catch java.lang.Exception -> E0
+-    | | |           ALOAD_1     // java.io.PrintStream out   (line 11)
++    | | |           ALOAD_1     // Ljava/io/PrintStream; out   (line 11)
+     | | |           LDC "bye"
+     | | |           ASTORE 5
+     | | | method-call(void java.io.PrintStream.println(java.lang.String))
+@@ -28,8 +28,8 @@ public abstract class FancyHelloWorld extends java.lang.Object:
+     | | |           GOTO L0
+     | | catch java.lang.Exception -> E0
+     | |         E0: ASTORE_2   (line 12)
+-    | |             ALOAD_1     // java.io.PrintStream out   (line 13)
+-    | |             ALOAD_2     // java.lang.Exception e
++    | |             ALOAD_1     // Ljava/io/PrintStream; out   (line 13)
++    | |             ALOAD_2     // Ljava/lang/Exception; e
+     | |             ASTORE 6
+     | | method-call(void java.io.PrintStream.println(java.lang.Object))
+     | | |           ALOAD 6
+@@ -47,7 +47,7 @@ public abstract class FancyHelloWorld extends java.lang.Object:
+     |           L0: JSR L1
+     |               GOTO L2
+     |           L1: ASTORE_3
+-    |               ALOAD_1     // java.io.PrintStream out   (line 15)
++    |               ALOAD_1     // Ljava/io/PrintStream; out   (line 15)
+     |               LDC "finally"
+     |               ASTORE 7
+     | method-call(void java.io.PrintStream.println(java.lang.String))
+@@ -58,10 +58,11 @@ public abstract class FancyHelloWorld extends java.lang.Object:
+     | |             NOP
+     | method-call(void java.io.PrintStream.println(java.lang.String))
+     |               RET 3   (line 10)
+-    |           L2: GOTO L3   (line 17)
+-    |           L3: ALOAD 8
++    |           L2: NOP   (line 17)
++    |               ALOAD 8
+     |               INVOKESTATIC Aspect.ajc_afterReturning_method_execution (Ljava/lang/Object;)V
+     |               RETURN
++    |               RETURN
+     method-execution(void FancyHelloWorld.main(java.lang.String[]))
+   end public static void main(String[])
+ 
+@@ -69,13 +70,13 @@ public abstract class FancyHelloWorld extends java.lang.Object:
+     method-execution(java.lang.String FancyHelloWorld.getName())
+     |               ICONST_0   (line 20)
+     |               ISTORE_0
+-    |               ILOAD_0     // int x   (line 21)
++    |               ILOAD_0     // I x   (line 21)
+     |               LDC "name"
+     | method-call(int java.lang.String.hashCode())
+     | |             INVOKEVIRTUAL java.lang.String.hashCode ()I
+     | method-call(int java.lang.String.hashCode())
+     |               IADD
+-    |               ISTORE_0     // int x
++    |               ISTORE_0     // I x
+     |               LDC "name"   (line 22)
+     |               ASTORE_1
+     | constructor-call(void java.lang.StringBuffer.<init>(java.lang.String))
+@@ -87,7 +88,7 @@ public abstract class FancyHelloWorld extends java.lang.Object:
+     | |             INVOKESTATIC Aspect.ajc_afterReturning_constructor_call (Ljava/lang/Object;)V
+     | |             NOP
+     | constructor-call(void java.lang.StringBuffer.<init>(java.lang.String))
+-    |               ILOAD_0     // int x
++    |               ILOAD_0     // I x
+     |               ISTORE_2
+     | method-call(java.lang.StringBuffer java.lang.StringBuffer.append(int))
+     | |             ILOAD_2
+@@ -1,6 +1,6 @@
+ public class HelloWorld extends java.lang.Object:
+   public void <init>():
+-                    ALOAD_0     // HelloWorld this   (line 5)
++                    ALOAD_0     // LHelloWorld; this   (line 5)
+                     INVOKESPECIAL java.lang.Object.<init> ()V
+     constructor-execution(void HelloWorld.<init>())
+     |               RETURN
+@@ -21,10 +21,11 @@ public class HelloWorld extends java.lang.Object:
+     | |             INVOKESTATIC Aspect.ajc_afterReturning_method_call (Ljava/lang/Object;)V
+     | |             NOP
+     | method-call(void java.io.PrintStream.println(java.lang.String))
+-    |               GOTO L0   (line 11)
+-    |           L0: ALOAD_2
++    |               NOP   (line 11)
++    |               ALOAD_2
+     |               INVOKESTATIC Aspect.ajc_afterReturning_method_execution (Ljava/lang/Object;)V
+     |               RETURN
++    |               RETURN
+     method-execution(void HelloWorld.main(java.lang.String[]))
+   end public static void main(String[])
+ 
+@@ -1,6 +1,6 @@
+ public class HelloWorld extends java.lang.Object:
+   public void <init>():
+-                    ALOAD_0     // HelloWorld this   (line 5)
++                    ALOAD_0     // LHelloWorld; this   (line 5)
+                     INVOKESPECIAL java.lang.Object.<init> ()V
+     constructor-execution(void HelloWorld.<init>())
+     |               RETURN
+@@ -1,6 +1,6 @@
+ public class HelloWorld extends java.lang.Object:
+   public void <init>():
+-                    ALOAD_0     // HelloWorld this   (line 5)
++                    ALOAD_0     // LHelloWorld; this   (line 5)
+                     INVOKESPECIAL java.lang.Object.<init> ()V
+     constructor-execution(void HelloWorld.<init>())
+     |               RETURN
+@@ -45,6 +45,7 @@ public class HelloWorld extends java.lang.Object:
+     |           L1: ALOAD_3
+     |               INVOKESTATIC Aspect.ajc_afterReturning_method_execution (Ljava/lang/Object;)V
+     |               RETURN
++    |               RETURN
+     method-execution(void HelloWorld.main(java.lang.String[]))
+   end public static void main(String[])
+ 
+@@ -1,6 +1,6 @@
+ public abstract class FancyHelloWorld extends java.lang.Object:
+   public void <init>():
+-                    ALOAD_0     // FancyHelloWorld this   (line 7)
++                    ALOAD_0     // LFancyHelloWorld; this   (line 7)
+                     INVOKESPECIAL java.lang.Object.<init> ()V
+     constructor-execution(void FancyHelloWorld.<init>())
+     |               RETURN
+@@ -21,14 +21,14 @@ public abstract class FancyHelloWorld extends java.lang.Object:
+     | |             ASTORE_1
+     | | finally -> E1
+     | | | catch java.lang.Exception -> E0
+-    | | | |         ALOAD_1     // java.io.PrintStream out   (line 11)
++    | | | |         ALOAD_1     // Ljava/io/PrintStream; out   (line 11)
+     | | | |         LDC "bye"
+     | | | |         INVOKEVIRTUAL java.io.PrintStream.println (Ljava/lang/String;)V
+     | | | |         GOTO L1
+     | | | catch java.lang.Exception -> E0
+     | | |       E0: ASTORE_2   (line 12)
+-    | | |           ALOAD_1     // java.io.PrintStream out   (line 13)
+-    | | |           ALOAD_2     // java.lang.Exception e
++    | | |           ALOAD_1     // Ljava/io/PrintStream; out   (line 13)
++    | | |           ALOAD_2     // Ljava/lang/Exception; e
+     | | |           INVOKEVIRTUAL java.io.PrintStream.println (Ljava/lang/Object;)V
+     | | finally -> E1
+     | |             GOTO L1
+@@ -39,7 +39,7 @@ public abstract class FancyHelloWorld extends java.lang.Object:
+     | |         L1: JSR L2
+     | |             GOTO L3
+     | |         L2: ASTORE_3
+-    | |             ALOAD_1     // java.io.PrintStream out   (line 15)
++    | |             ALOAD_1     // Ljava/io/PrintStream; out   (line 15)
+     | |             LDC "finally"
+     | |             INVOKEVIRTUAL java.io.PrintStream.println (Ljava/lang/String;)V
+     | |             RET 3   (line 10)
+@@ -53,6 +53,7 @@ public abstract class FancyHelloWorld extends java.lang.Object:
+     |           L4: GETSTATIC Aspect.ajc$perCflowStack Lorg/aspectj/runtime/internal/CFlowStack;
+     |               INVOKEVIRTUAL org.aspectj.runtime.internal.CFlowStack.pop ()V
+     |               RETURN
++    |               RETURN
+     method-execution(void FancyHelloWorld.main(java.lang.String[]))
+   end public static void main(String[])
+ 
+@@ -60,16 +61,16 @@ public abstract class FancyHelloWorld extends java.lang.Object:
+     method-execution(java.lang.String FancyHelloWorld.getName())
+     |               ICONST_0   (line 20)
+     |               ISTORE_0
+-    |               ILOAD_0     // int x   (line 21)
++    |               ILOAD_0     // I x   (line 21)
+     |               LDC "name"
+     |               INVOKEVIRTUAL java.lang.String.hashCode ()I
+     |               IADD
+-    |               ISTORE_0     // int x
++    |               ISTORE_0     // I x
+     |               NEW java.lang.StringBuffer   (line 22)
+     |               DUP
+     |               LDC "name"
+     |               INVOKESPECIAL java.lang.StringBuffer.<init> (Ljava/lang/String;)V
+-    |               ILOAD_0     // int x
++    |               ILOAD_0     // I x
+     |               INVOKEVIRTUAL java.lang.StringBuffer.append (I)Ljava/lang/StringBuffer;
+     |               INVOKEVIRTUAL java.lang.StringBuffer.toString ()Ljava/lang/String;
+     |               ARETURN
+@@ -1,6 +1,6 @@
+ public class HelloWorld extends java.lang.Object:
+   public void <init>():
+-                    ALOAD_0     // HelloWorld this   (line 5)
++                    ALOAD_0     // LHelloWorld; this   (line 5)
+                     INVOKESPECIAL java.lang.Object.<init> ()V
+     constructor-execution(void HelloWorld.<init>())
+     |               RETURN
+@@ -30,6 +30,7 @@ public class HelloWorld extends java.lang.Object:
+     |           L1: GETSTATIC Aspect.ajc$perCflowStack Lorg/aspectj/runtime/internal/CFlowStack;
+     |               INVOKEVIRTUAL org.aspectj.runtime.internal.CFlowStack.pop ()V
+     |               RETURN
++    |               RETURN
+     method-execution(void HelloWorld.main(java.lang.String[]))
+   end public static void main(String[])
+ 
+@@ -1,6 +1,6 @@
+ public abstract class FancyHelloWorld extends java.lang.Object:
+   public void <init>():
+-                    ALOAD_0     // FancyHelloWorld this   (line 7)
++                    ALOAD_0     // LFancyHelloWorld; this   (line 7)
+                     INVOKESPECIAL java.lang.Object.<init> ()V
+     constructor-execution(void FancyHelloWorld.<init>())
+     |               ALOAD_0
+@@ -63,7 +63,7 @@ public abstract class FancyHelloWorld extends java.lang.Object:
+                     ASTORE_1   (line 9)
+     finally -> E1
+     | catch java.lang.Exception -> E0
+-    | |             ALOAD_1     // java.io.PrintStream out   (line 11)
++    | |             ALOAD_1     // Ljava/io/PrintStream; out   (line 11)
+     | |             LDC "bye"
+     | |             ASTORE_3
+     | |             ASTORE 5
+@@ -75,8 +75,8 @@ public abstract class FancyHelloWorld extends java.lang.Object:
+     | |             GOTO L0
+     | catch java.lang.Exception -> E0
+     |           E0: ASTORE 7   (line 12)
+-    |               ALOAD_1     // java.io.PrintStream out   (line 13)
+-    |               ALOAD 7
++    |               ALOAD_1     // Ljava/io/PrintStream; out   (line 13)
++    |               ALOAD 7     // Ljava/lang/Exception; e
+     |               ASTORE 9
+     |               ASTORE 11
+     | method-call(void java.io.PrintStream.println(java.lang.Object))
+@@ -93,7 +93,7 @@ public abstract class FancyHelloWorld extends java.lang.Object:
+                 L0: JSR L1
+                     GOTO L2
+                 L1: ASTORE 15
+-                    ALOAD_1     // java.io.PrintStream out   (line 15)
++                    ALOAD_1     // Ljava/io/PrintStream; out   (line 15)
+                     LDC "finally"
+                     ASTORE 17
+                     ASTORE 19
+@@ -136,7 +136,7 @@ public abstract class FancyHelloWorld extends java.lang.Object:
+   static final String getName_extracted10():
+                     ICONST_0   (line 20)
+                     ISTORE_0
+-                    ILOAD_0     // int x   (line 21)
++                    ILOAD_0     // I x   (line 21)
+                     LDC "name"
+                     ASTORE_2
+     method-call(int java.lang.String.hashCode())
+@@ -144,14 +144,14 @@ public abstract class FancyHelloWorld extends java.lang.Object:
+     |               INVOKESTATIC FancyHelloWorld.hashCode_extracted6 (Ljava/lang/String;)I
+     method-call(int java.lang.String.hashCode())
+                     IADD
+-                    ISTORE_0     // int x
++                    ISTORE_0     // I x
+                     LDC "name"   (line 22)
+                     ASTORE 4
+     constructor-call(void java.lang.StringBuffer.<init>(java.lang.String))
+     |               ALOAD 4
+     |               INVOKESTATIC FancyHelloWorld.init$_extracted7 (Ljava/lang/String;)Ljava/lang/StringBuffer;
+     constructor-call(void java.lang.StringBuffer.<init>(java.lang.String))
+-                    ILOAD_0     // int x
++                    ILOAD_0     // I x
+                     ISTORE 6
+                     ASTORE 8
+     method-call(java.lang.StringBuffer java.lang.StringBuffer.append(int))
+@@ -1,6 +1,6 @@
+ public class HelloWorld extends java.lang.Object:
+   public void <init>():
+-                    ALOAD_0     // HelloWorld this   (line 5)
++                    ALOAD_0     // LHelloWorld; this   (line 5)
+                     INVOKESPECIAL java.lang.Object.<init> ()V
+     constructor-execution(void HelloWorld.<init>())
+     |               ALOAD_0
+@@ -1,6 +1,6 @@
+ public abstract class FancyHelloWorld extends java.lang.Object:
+   public void <init>():
+-                    ALOAD_0     // FancyHelloWorld this   (line 7)
++                    ALOAD_0     // LFancyHelloWorld; this   (line 7)
+                     INVOKESPECIAL java.lang.Object.<init> ()V
+     constructor-execution(void FancyHelloWorld.<init>())
+     |               RETURN
+@@ -17,14 +17,14 @@ public abstract class FancyHelloWorld extends java.lang.Object:
+     |               ASTORE_1
+     | finally -> E1
+     | | catch java.lang.Exception -> E0
+-    | | |           ALOAD_1     // java.io.PrintStream out   (line 11)
++    | | |           ALOAD_1     // Ljava/io/PrintStream; out   (line 11)
+     | | |           LDC "bye"
+     | | |           INVOKEVIRTUAL java.io.PrintStream.println (Ljava/lang/String;)V
+     | | |           GOTO L0
+     | | catch java.lang.Exception -> E0
+     | |         E0: ASTORE_2   (line 12)
+-    | |             ALOAD_1     // java.io.PrintStream out   (line 13)
+-    | |             ALOAD_2     // java.lang.Exception e
++    | |             ALOAD_1     // Ljava/io/PrintStream; out   (line 13)
++    | |             ALOAD_2     // Ljava/lang/Exception; e
+     | |             INVOKEVIRTUAL java.io.PrintStream.println (Ljava/lang/Object;)V
+     | finally -> E1
+     |               GOTO L0
+@@ -35,7 +35,7 @@ public abstract class FancyHelloWorld extends java.lang.Object:
+     |           L0: JSR L1
+     |               GOTO L2
+     |           L1: ASTORE_3
+-    |               ALOAD_1     // java.io.PrintStream out   (line 15)
++    |               ALOAD_1     // Ljava/io/PrintStream; out   (line 15)
+     |               LDC "finally"
+     |               INVOKEVIRTUAL java.io.PrintStream.println (Ljava/lang/String;)V
+     |               RET 3   (line 10)
+@@ -47,16 +47,16 @@ public abstract class FancyHelloWorld extends java.lang.Object:
+     method-execution(java.lang.String FancyHelloWorld.getName())
+     |               ICONST_0   (line 20)
+     |               ISTORE_0
+-    |               ILOAD_0     // int x   (line 21)
++    |               ILOAD_0     // I x   (line 21)
+     |               LDC "name"
+     |               INVOKEVIRTUAL java.lang.String.hashCode ()I
+     |               IADD
+-    |               ISTORE_0     // int x
++    |               ISTORE_0     // I x
+     |               NEW java.lang.StringBuffer   (line 22)
+     |               DUP
+     |               LDC "name"
+     |               INVOKESPECIAL java.lang.StringBuffer.<init> (Ljava/lang/String;)V
+-    |               ILOAD_0     // int x
++    |               ILOAD_0     // I x
+     |               INVOKEVIRTUAL java.lang.StringBuffer.append (I)Ljava/lang/StringBuffer;
+     |               INVOKEVIRTUAL java.lang.StringBuffer.toString ()Ljava/lang/String;
+     |               ARETURN
+@@ -1,6 +1,6 @@
+ public class HelloWorld extends java.lang.Object:
+   public void <init>():
+-                    ALOAD_0     // HelloWorld this   (line 5)
++                    ALOAD_0     // LHelloWorld; this   (line 5)
+                     INVOKESPECIAL java.lang.Object.<init> ()V
+     constructor-execution(void HelloWorld.<init>())
+     |               RETURN
+@@ -1,6 +1,6 @@
+ public abstract class FancyHelloWorld extends java.lang.Object:
+   public void <init>():
+-                    ALOAD_0     // FancyHelloWorld this   (line 7)
++                    ALOAD_0     // LFancyHelloWorld; this   (line 7)
+                     INVOKESPECIAL java.lang.Object.<init> ()V
+     constructor-execution(void FancyHelloWorld.<init>())
+     |               RETURN
+@@ -13,7 +13,7 @@ public abstract class FancyHelloWorld extends java.lang.Object:
+     |               ASTORE_1
+     | finally -> E1
+     | | catch java.lang.Exception -> E0
+-    | | |           ALOAD_1     // java.io.PrintStream out   (line 11)
++    | | |           ALOAD_1     // Ljava/io/PrintStream; out   (line 11)
+     | | |           LDC "bye"
+     | | |           ASTORE 5
+     | | |           ASTORE 6
+@@ -33,8 +33,8 @@ public abstract class FancyHelloWorld extends java.lang.Object:
+     | | |           GOTO L2
+     | | catch java.lang.Exception -> E0
+     | |         E0: ASTORE_2   (line 12)
+-    | |             ALOAD_1     // java.io.PrintStream out   (line 13)
+-    | |             ALOAD_2     // java.lang.Exception e
++    | |             ALOAD_1     // Ljava/io/PrintStream; out   (line 13)
++    | |             ALOAD_2     // Ljava/lang/Exception; e
+     | |             ASTORE 7
+     | |             ASTORE 8
+     | | method-call(void java.io.PrintStream.println(java.lang.Object))
+@@ -59,7 +59,7 @@ public abstract class FancyHelloWorld extends java.lang.Object:
+     |           L2: JSR L3
+     |               GOTO L5
+     |           L3: ASTORE_3
+-    |               ALOAD_1     // java.io.PrintStream out   (line 15)
++    |               ALOAD_1     // Ljava/io/PrintStream; out   (line 15)
+     |               LDC "finally"
+     |               ASTORE 9
+     |               ASTORE 10
+@@ -85,18 +85,18 @@ public abstract class FancyHelloWorld extends java.lang.Object:
+     method-execution(java.lang.String FancyHelloWorld.getName())
+     |               ICONST_0   (line 20)
+     |               ISTORE_0
+-    |               ILOAD_0     // int x   (line 21)
++    |               ILOAD_0     // I x   (line 21)
+     |               LDC "name"
+     | method-call(int java.lang.String.hashCode())
+     | |             INVOKEVIRTUAL java.lang.String.hashCode ()I
+     | method-call(int java.lang.String.hashCode())
+     |               IADD
+-    |               ISTORE_0     // int x
++    |               ISTORE_0     // I x
+     |               NEW java.lang.StringBuffer   (line 22)
+     |               DUP
+     |               LDC "name"
+     |               INVOKESPECIAL java.lang.StringBuffer.<init> (Ljava/lang/String;)V
+-    |               ILOAD_0     // int x
++    |               ILOAD_0     // I x
+     | method-call(java.lang.StringBuffer java.lang.StringBuffer.append(int))
+     | |             INVOKEVIRTUAL java.lang.StringBuffer.append (I)Ljava/lang/StringBuffer;
+     | method-call(java.lang.StringBuffer java.lang.StringBuffer.append(int))
+@@ -1,6 +1,6 @@
+ public class HelloWorld extends java.lang.Object:
+   public void <init>():
+-                    ALOAD_0     // HelloWorld this   (line 5)
++                    ALOAD_0     // LHelloWorld; this   (line 5)
+                     INVOKESPECIAL java.lang.Object.<init> ()V
+     constructor-execution(void HelloWorld.<init>())
+     |               RETURN
+@@ -1,6 +1,6 @@
+ public class DynamicHelloWorld extends java.lang.Object implements java.io.Serializable:
+   public void <init>():
+-                    ALOAD_0     // DynamicHelloWorld this   (line 8)
++                    ALOAD_0     // LDynamicHelloWorld; this   (line 8)
+                     INVOKESPECIAL java.lang.Object.<init> ()V
+     constructor-execution(void DynamicHelloWorld.<init>())
+     |               RETURN
+@@ -24,7 +24,7 @@ public class DynamicHelloWorld extends java.lang.Object implements java.io.Seria
+                     DUP
+                     LDC "expected and caught: "
+                     INVOKESPECIAL java.lang.StringBuffer.<init> (Ljava/lang/String;)V
+-                    ALOAD_1     // java.lang.UnsupportedOperationException t
++                    ALOAD_1     // Ljava/lang/UnsupportedOperationException; t
+                     INVOKEVIRTUAL java.lang.StringBuffer.append (Ljava/lang/Object;)Ljava/lang/StringBuffer;
+                     INVOKEVIRTUAL java.lang.StringBuffer.toString ()Ljava/lang/String;
+                     INVOKEVIRTUAL java.io.PrintStream.println (Ljava/lang/String;)V
+@@ -67,23 +67,25 @@ public class DynamicHelloWorld extends java.lang.Object implements java.io.Seria
+     |               INVOKESPECIAL DynamicHelloWorld$AjcClosure3.<init> ([Ljava/lang/Object;)V
+     |               INVOKEVIRTUAL Trace.ajc$around$Trace$2$a986034c (Lorg/aspectj/runtime/internal/AroundClosure;)Ljava/lang/Object;
+     |               CHECKCAST java.lang.String
+-    |               GOTO L0
+-    |           L0: DUP
++    |               DUP
+     |               ASTORE 7
++    |               DUP
++    |               ASTORE 8
+     |               INVOKESTATIC MyTrace.aspectOf ()LMyTrace;
+     |               ALOAD_0
+-    |               ALOAD 7
++    |               ALOAD 8
+     |               INVOKEVIRTUAL MyTrace.ajc$afterReturning$MyTrace$1$2b31dfa3 (Ljava/lang/Object;Ljava/lang/Object;)V
++    |               ALOAD 7
+     |               ARETURN
+     method-execution(java.lang.String DynamicHelloWorld.doit(java.lang.String, java.util.List))
+   end String doit(String, java.util.List)
+ 
+   static final String doit_aroundBody0(DynamicHelloWorld, String, java.util.List):
+-                    ALOAD_2     // java.util.List l   (line 21)
+-                    ALOAD_1     // java.lang.String s
++                    ALOAD_2     // Ljava/util/List; l   (line 21)
++                    ALOAD_1     // Ljava/lang/String; s
+                     INVOKEINTERFACE java.util.List.add (Ljava/lang/Object;)Z
+                     POP
+-                    ALOAD_2     // java.util.List l   (line 22)
++                    ALOAD_2     // Ljava/util/List; l   (line 22)
+                     INVOKEVIRTUAL java.lang.Object.toString ()Ljava/lang/String;
+                     ARETURN
+   end static final String doit_aroundBody0(DynamicHelloWorld, String, java.util.List)

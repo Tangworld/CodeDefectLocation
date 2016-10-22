@@ -1,0 +1,69 @@
+@@ -40,6 +40,7 @@ import org.aspectj.org.eclipse.jdt.internal.compiler.lookup.ArrayBinding;
+ import org.aspectj.org.eclipse.jdt.internal.compiler.lookup.BlockScope;
+ import org.aspectj.org.eclipse.jdt.internal.compiler.lookup.FieldBinding;
+ import org.aspectj.org.eclipse.jdt.internal.compiler.lookup.MethodBinding;
++import org.aspectj.org.eclipse.jdt.internal.compiler.lookup.ParameterizedMethodBinding;
+ import org.aspectj.org.eclipse.jdt.internal.compiler.lookup.ReferenceBinding;
+ import org.aspectj.org.eclipse.jdt.internal.compiler.lookup.TypeBinding;
+ import org.aspectj.org.eclipse.jdt.internal.compiler.lookup.VariableBinding;
+@@ -169,7 +170,11 @@ public class AccessForInlineVisitor extends ASTVisitor {
+ 		makePublic(receiverType);  //???
+ 		if (isPublic(binding)) return binding;
+ 		if (binding instanceof InterTypeMethodBinding) return binding;
+-
++		
++		if (binding instanceof ParameterizedMethodBinding) { // pr124999
++			binding = binding.original();
++		}
++		
+ 		ResolvedMember m = null;
+ 		if (binding.isPrivate() &&  binding.declaringClass != inAspect.binding) {
+ 			// does this always mean that the aspect is an inner aspect of the bindings
+@@ -0,0 +1,27 @@
++abstract aspect GenericInheritedMethod<T> {
++
++   protected  T getSomething() {
++       return null;
++   }
++
++}
++
++
++aspect pr124999 extends GenericInheritedMethod<Integer> {
++
++   // Runtime Error
++   void around() : execution(void someMethod()) {
++       System.out.println(getSomething());
++   }
++
++   public static void main(String[] args) {
++     new C().someMethod();
++   }
++   
++
++}
++
++
++class C {
++   public void someMethod() { }
++}
+@@ -26,6 +26,7 @@ public class Ajc151Tests extends org.aspectj.testing.XMLBasedAjcTestCase {
+   public void testDifferentNumbersofTVars_pr124803_2() { runTest("generics and different numbers of type variables - classes");}
+   public void testParameterizedCollectionFieldMatching_pr124808() { runTest("parameterized collection fields matched via pointcut");}
+   public void testGenericAspectsAndAnnotations_pr124654() { runTest("generic aspects and annotations");}
++  public void testCallInheritedGenericMethod_pr124999() { runTest("calling inherited generic method from around advice");}
+ 
+   /////////////////////////////////////////
+   public static Test suite() {
+@@ -54,6 +54,11 @@
+         </run>
+     </ajc-test>
+ 
++    <ajc-test dir="bugs151" title="calling inherited generic method from around advice">
++        <compile files="pr124999.aj" options="-1.5"/>
++        <run class="pr124999"/>
++    </ajc-test>
++    
+     <ajc-test dir="bugs151/pr124654" title="generic aspects and annotations">
+         <compile files="GenericAnnotation.java,TestSubAspect.java" options="-1.5"/>
+         <run class="TestSubAspect">

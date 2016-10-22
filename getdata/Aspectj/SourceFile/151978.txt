@@ -1,0 +1,53 @@
+@@ -0,0 +1,27 @@
++public interface IMessage {
++  void publish();
++}
++
++
++interface IErrorMessage extends IMessage{
++  StackTraceElement[] getStackTrace();
++}
++
++interface IObjectFactory<E> {
++  public <T extends E> T create(Class<T> theObjectType, Object[]
++theParameters);
++}
++
++class MessageFactory implements IObjectFactory<IMessage>{
++  public <T extends IMessage> T create(Class<T> theObjectType, Object[]
++theParameters) {
++    return null;
++  }
++}
++
++class Main {
++  public static void main(String[] args) {
++    IErrorMessage message = new MessageFactory().create(IErrorMessage.class,
++new Object[]{"Foo","Bar"});
++  }
++}
+@@ -19,9 +19,10 @@ import org.aspectj.testing.XMLBasedAjcTestCase;
+ 
+ public class Ajc153Tests extends org.aspectj.testing.XMLBasedAjcTestCase {
+ 
+-   public void testMissingLineNumbersInStacktraceBefore_pr145442() { runTest("missing line numbers in stacktrace before");}
+-   public void testMissingLineNumbersInStacktraceAfter_pr145442() { runTest("missing line numbers in stacktrace after");}
+-   public void testMissingLineNumbersInStacktraceAround_pr145442() { runTest("missing line numbers in stacktrace around");}
++  //public void testGenericsProblem_pr151978() { runTest("generics problem");}
++  public void testMissingLineNumbersInStacktraceBefore_pr145442() { runTest("missing line numbers in stacktrace before");}
++  public void testMissingLineNumbersInStacktraceAfter_pr145442() { runTest("missing line numbers in stacktrace after");}
++  public void testMissingLineNumbersInStacktraceAround_pr145442() { runTest("missing line numbers in stacktrace around");}
+   // public void testArgnamesAndJavac_pr148381() { runTest("argNames and javac");}
+   // public void testCFlowXMLAspectLTW_pr149096() { runTest("cflow xml concrete aspect"); }
+   // public void testAmbiguousBinding_pr121805() { runTest("ambiguous binding");}
+@@ -245,4 +245,9 @@
+       </compile>
+     </ajc-test>
+ 
++    <ajc-test dir="bugs153/pr151978" title="generics problem">
++      <compile files="IMessage.java" options="-1.5">
++      </compile>
++    </ajc-test>
++    
+ </suite>
+\ No newline at end of file

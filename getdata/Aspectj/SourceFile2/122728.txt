@@ -1,0 +1,149 @@
+@@ -121,7 +121,9 @@ class StubFileGenerator{
+ 		    	    && !member.getKind().equals(IProgramElement.Kind.ADVICE)) {
+ 					signature = member.getSourceSignature();//StructureUtil.genSignature(member);
+ 					if (member.getKind().equals(IProgramElement.Kind.ENUM_VALUE)){
+-						if (((IProgramElement)members.get(members.indexOf(member)+1)).getKind().equals(IProgramElement.Kind.ENUM_VALUE)){
++						int index = members.indexOf(member);
++						if ((index + 1 < members.size()) &&
++								((IProgramElement)members.get(index+1)).getKind().equals(IProgramElement.Kind.ENUM_VALUE)){
+ 							// if the next member is also an ENUM_VALUE:
+ 							signature = signature + ",";
+ 						} else {
+@@ -0,0 +1,10 @@
++package pack;
++
++public class ClassWithInnerEnum {
++	
++	public static enum E {A};
++	
++	public void somemethod() {
++	}
++	
++}
+@@ -0,0 +1,11 @@
++package pack;
++
++public enum EnumWithMethods {
++	
++	A;
++	
++	EnumWithMethods() {
++		
++	}
++	
++}
+@@ -0,0 +1,7 @@
++package pack;
++
++public enum MyEnum {
++	
++	A;
++	
++}
+@@ -42,6 +42,7 @@ public class AjdocTests extends TestCase {
+         suite.addTestSuite(CoverageTestCase.class); 
+         suite.addTestSuite(ITDTest.class);
+         suite.addTestSuite(FullyQualifiedArgumentTest.class);
++        suite.addTestSuite(EnumTest.class);
+         suite.addTestSuite(ExecutionTestCase.class);// !!! must be last because it exists
+         //$JUnit-END$
+         return suite;
+@@ -0,0 +1,98 @@
++/********************************************************************
++ * Copyright (c) 2005 Contributors. All rights reserved. 
++ * This program and the accompanying materials are made available 
++ * under the terms of the Eclipse Public License v1.0 
++ * which accompanies this distribution and is available at 
++ * http://eclipse.org/legal/epl-v10.html 
++ *  
++ * Contributors: IBM Corporation - initial API and implementation 
++ * 				 Helen Hawkins   - iniital version
++ *******************************************************************/
++package org.aspectj.tools.ajdoc;
++
++import java.io.File;
++
++import org.aspectj.util.FileUtil;
++
++import junit.framework.TestCase;
++
++
++public class EnumTest extends TestCase {
++
++	private File outdir;
++	
++	protected void setUp() throws Exception {
++		super.setUp();
++		outdir = new File("../ajdoc/testdata/pr119453/doc");
++	}
++	
++	protected void tearDown() throws Exception {
++		super.tearDown();
++		
++		FileUtil.deleteContents(new File("ajdocworkingdir"));
++		(new File("ajdocworkingdir")).delete();
++		
++		FileUtil.deleteContents(new File("testdata/pr119453/doc"));
++		(new File("testdata/pr119453/doc")).delete();
++	}
++	
++	/**
++	 * Test for pr122728 - no StringOutOfBoundsException
++	 * when processing an Enum
++	 */
++    public void testEnum() throws Exception {
++        outdir.delete();
++		File f = new File("../ajdoc/testdata/pr122728/src/pack/MyEnum.java");
++    	
++        String[] args = { 
++              "-XajdocDebug",
++              "-private",
++              "-source", 
++              "1.5",
++            "-d", 
++            outdir.getAbsolutePath(),
++            f.getAbsolutePath()
++        };
++        org.aspectj.tools.ajdoc.Main.main(args);
++    }
++
++	/**
++	 * Test for pr122728 - no StringOutOfBoundsException
++	 * when processing an Enum 
++	 */
++    public void testInlinedEnum() throws Exception {
++    	outdir.delete();
++		File f = new File("../ajdoc/testdata/pr122728/src/pack/ClassWithInnerEnum.java");
++    	
++        String[] args = { 
++              "-XajdocDebug",
++              "-private",
++              "-source", 
++              "1.5",
++            "-d", 
++            outdir.getAbsolutePath(),
++            f.getAbsolutePath()
++        };
++        org.aspectj.tools.ajdoc.Main.main(args);
++    }
++    
++	/**
++	 * Test for pr122728 - no StringOutOfBoundsException
++	 * when processing an Enum
++	 */
++    public void testEnumWithMethods() throws Exception {
++    	outdir.delete();
++		File f = new File("../ajdoc/testdata/pr122728/src/pack/EnumWithMethods.java");
++    	
++        String[] args = { 
++              "-XajdocDebug",
++              "-private",
++              "-source", 
++              "1.5",
++            "-d", 
++            outdir.getAbsolutePath(),
++            f.getAbsolutePath()
++        };
++        org.aspectj.tools.ajdoc.Main.main(args);
++    }
++}

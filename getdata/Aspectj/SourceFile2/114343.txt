@@ -1,0 +1,116 @@
+@@ -0,0 +1 @@
++public class Test {}
+@@ -0,0 +1,10 @@
++import java.util.*;
++
++public class Test1 extends Test {
++  Set<Integer> intsSet;
++
++  public Set<Integer> foo() {
++    return intsSet;
++  }
++}
++
+@@ -0,0 +1,11 @@
++import java.util.*;
++
++public class Test2 extends Test {
++  Set<Double> doubSet;
++
++
++  public Set<Double> foo() {
++    return doubSet;
++  }
++}
++
+@@ -0,0 +1,21 @@
++import java.util.*;
++
++public privileged aspect TestAspect {
++
++  pointcut p(Test t):
++    target(t) &&
++    get(!public Set<Number+> *Set) &&
++    !within(TestAspect);
++
++  Set around(Test t):p(t) {
++    Set s = proceed(t);
++    return s;
++  }
++
++  public static void main(String []argv) {
++
++    Set<Integer> si = new Test1().foo();
++    Set<Double>  sd = new Test2().foo();
++  }
++
++}
+@@ -51,11 +51,11 @@ public class Ajc150Tests extends org.aspectj.testing.XMLBasedAjcTestCase {
+   public void testITDCtor_pr112783()       { runTest("Problem with constructor ITDs");}
+   */
+ 
+-  public void testUnboundFormal_pr112027() { runTest("unexpected error unboundFormalInPC");}
+-  public void testCCEGenerics_pr113445()       { runTest("Generics ClassCastException");}
++  public void testUnboundFormal_pr112027()    { runTest("unexpected error unboundFormalInPC");}
++  public void testCCEGenerics_pr113445()      { runTest("Generics ClassCastException");}
+   public void testMatthewsAspect_pr113947_1() { runTest("maws generic aspect - 1");}
+   public void testMatthewsAspect_pr113947_2() { runTest("maws generic aspect - 2");}
+-  
++  public void testFieldGet_pr114343()         { runTest("field-get, generics and around advice");}
+ 
+   public void testBadDecp_pr110788_1() { runTest("bad generic decp - 1");}
+   public void testBadDecp_pr110788_2() { runTest("bad generic decp - 2");}
+@@ -16,6 +16,14 @@
+       </compile>
+     </ajc-test>
+ 
++    <ajc-test dir="bugs150/pr114343" title="field-get, generics and around advice">
++      <compile files="Test.java,Test1.java,Test2.java,TestAspect.aj" options="-1.5">
++          <message kind="warning" line="7" text="unchecked conversion when advice applied at shadow field-get(java.util.Set Test1.intsSet), expected java.util.Set&lt;java.lang.Integer&gt; but advice uses java.util.Set"/>
++          <message kind="warning" line="8" text="unchecked conversion when advice applied at shadow field-get(java.util.Set Test2.doubSet), expected java.util.Set&lt;java.lang.Double&gt; but advice uses java.util.Set"/>
++      </compile>
++      <run class="TestAspect"/>
++    </ajc-test>
++    
+     <ajc-test dir="bugs150/pr113947/case1" title="maws generic aspect - 1">
+         <compile files="AbstractListSupport.java,AnotherItem.java,Item.java,LinkedList.java,LinkedListItem.java,ListItem.java,StringList.java" options="-1.5">
+           <!-- the 'static ref' messages are a bit poor and ought to be eliminated... -->
+@@ -161,7 +161,18 @@ public abstract class Advice extends ShadowMunger {
+     				} else {
+     					ResolvedType shadowReturnType = shadow.getReturnType().resolve(world);
+     					ResolvedType adviceReturnType = getSignature().getGenericReturnType().resolve(world);
+-    					if(!shadowReturnType.isAssignableFrom(adviceReturnType)) {
++    					
++    					if (shadowReturnType.isParameterizedType() && adviceReturnType.isRawType()) { // Set<Integer> and Set
++    						ResolvedType shadowReturnGenericType = shadowReturnType.getGenericType(); // Set
++    						ResolvedType adviceReturnGenericType = adviceReturnType.getGenericType(); // Set
++    						if (shadowReturnGenericType.isAssignableFrom(adviceReturnGenericType) && 
++    								world.getLint().uncheckedAdviceConversion.isEnabled()) {
++    							world.getLint().uncheckedAdviceConversion.signal(
++    								new String[]{shadow.toString(),shadowReturnType.getName(),adviceReturnType.getName()},
++    								shadow.getSourceLocation(),
++    								new ISourceLocation[]{getSourceLocation()});
++    						}
++    					} else if(!shadowReturnType.isAssignableFrom(adviceReturnType)) {
+ 	    					//System.err.println(this + ", " + sourceContext + ", " + start);
+ 							world.showMessage(IMessage.ERROR,
+ 									WeaverMessages.format(WeaverMessages.INCOMPATIBLE_RETURN_TYPE,shadow),
+@@ -90,6 +90,9 @@ public class Lint {
+ 	public final Kind uncheckedArgument =
+ 		new Kind("uncheckedArgument","unchecked match of {0} with {1} when argument is an instance of {2} at join point {3}");
+ 
++	public final Kind uncheckedAdviceConversion =
++		new Kind("uncheckedAdviceConversion","unchecked conversion when advice applied at shadow {0}, expected {1} but advice uses {2}");
++	
+     public Lint(World world) {
+ 		this.world = world;
+ 	}
+@@ -11,6 +11,8 @@ unmatchedSuperTypeInCall = warning
+ 
+ canNotImplementLazyTjp = warning
+ 
++uncheckedAdviceConversion = warning
++
+ needsSerialVersionUIDField = ignore
+ brokeSerialVersionCompatibility = ignore
+ 

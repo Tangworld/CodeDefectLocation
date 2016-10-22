@@ -1,0 +1,75 @@
+@@ -65,6 +65,11 @@ public class Ajc152Tests extends org.aspectj.testing.XMLBasedAjcTestCase {
+   public void testJarChecking_pr137235_1() { runTest("directory with .jar extension: source and outjar"); }	    
+   public void testJarChecking_pr137235_2() { runTest("directory with .jar extension"); }
+   public void testMakePreMethodNPE_pr136393() { runTest("NPE in makePreMethod");}
++
++  // tests that can't be included for some reason
++
++  // Not valid whilst the ajc compiler forces debug on (ignores -g:none) - it will be green but is invalid, trust me
++  // public void testLongWindedMessages_pr129408() { runTest("long winded ataj messages");}
+   /////////////////////////////////////////
+   public static Test suite() {
+     return XMLBasedAjcTestCase.loadSuite(Ajc152Tests.class);
+@@ -404,4 +404,13 @@
+       <run class="Derived"/>
+     </ajc-test>
+ 
++    <!-- wont work whilst the compiler BuildArgParser.setDebugOptions is always switching debug on -->
++    <ajc-test dir="bugs152/pr129408" title="long winded ataj messages">
++      <compile files="AtAj.java" options="-XterminateAfterCompilation -g:none -1.5"/>
++      <compile files="C.java" options="-g:none -1.5"/>
++      <run class="C" ltw="aop.xml">
++         <!-- should check for expected stderr output here -->
++      </run>
++    </ajc-test>
++    
+ </suite>
+\ No newline at end of file
+@@ -27,6 +27,7 @@ import java.util.Properties;
+ import java.util.StringTokenizer;
+ 
+ import org.aspectj.asm.IRelationship;
++import org.aspectj.bridge.AbortException;
+ import org.aspectj.bridge.ISourceLocation;
+ import org.aspectj.util.LangUtil;
+ import org.aspectj.weaver.ICrossReferenceHandler;
+@@ -183,7 +184,7 @@ public class ClassLoaderWeavingAdaptor extends WeavingAdaptor {
+             registerDump(weaver, loader, definitions);
+         } catch (Exception e) {
+             enabled = false;// will allow very fast skip in shouldWeave()
+-            warn("register definition failed",e);
++            warn("register definition failed",(e instanceof AbortException)?null:e);
+         }
+     }
+ 
+@@ -0,0 +1,13 @@
++import org.aspectj.lang.annotation.*;
++
++@Aspect
++public class AtAj {
++	
++	@Pointcut("call(* println(..)) && within(C*) && args(s)")
++	public void p(String s) {}
++	
++	@Before("p(s)")
++	public void m(String s) {
++		System.err.println("a");
++	}
++}
+@@ -0,0 +1,9 @@
++public class C {
++	public void sayBar() {
++		System.err.println("bar");
++	}
++
++  public static void main(String[]argv) {
++    new C().sayBar();
++  }
++}
+@@ -0,0 +1,6 @@
++<aspectj>
++ <weaver options=""/>
++    <aspects>
++      <aspect name="AtAj"/>
++    </aspects>
++</aspectj>

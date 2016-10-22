@@ -1,0 +1,2090 @@
+@@ -561,47 +561,69 @@ public class AsmRelationshipProvider {
+ 
+ 	/**
+ 	 * Half baked implementation - will need completing if we go down this route
+-	 * rather than replacing it all for binary aspects
++	 * rather than replacing it all for binary aspects. Doesn't attempt to get
++	 * parameter names correct - they may have been lost during
++	 * (de)serialization of the munger, but the member could still be located so
++	 * they might be retrievable.
+ 	 */
+ 	private static IProgramElement createIntertypeDeclaredChild(AsmManager model, ResolvedType aspect, BcelTypeMunger itd) {
+ 		ResolvedTypeMunger rtMunger = itd.getMunger();
+-		if (rtMunger.getKind() == ResolvedTypeMunger.Field) {
+-			String name = rtMunger.getSignature().toString();
++
++		ResolvedMember sig = rtMunger.getSignature();
++		if (rtMunger.getKind() == ResolvedTypeMunger.Field) { // ITD FIELD
++			// String name = rtMunger.getSignature().toString();
++			String name = sig.getDeclaringType().getClassName() + "." + sig.getName();
++			if (name.indexOf("$") != -1) {
++				name = name.substring(name.indexOf("$") + 1);
++			}
+ 			IProgramElement pe = new ProgramElement(model, name, IProgramElement.Kind.INTER_TYPE_FIELD, getBinarySourceLocation(
+ 					aspect, itd.getSourceLocation()), rtMunger.getSignature().getModifiers(), null, Collections.EMPTY_LIST);
+-			ResolvedMember sig = rtMunger.getSignature();
+ 			pe.setCorrespondingType(sig.getReturnType().getName());
+ 			return pe;
+-		} else if (rtMunger.getKind() == ResolvedTypeMunger.Method) {
+-			ResolvedMember sig = rtMunger.getSignature();
+-			String name = sig.getDeclaringType() + "." + sig.getName();
++		} else if (rtMunger.getKind() == ResolvedTypeMunger.Method) { // ITD
++			// METHOD
++			String name = sig.getDeclaringType().getClassName() + "." + sig.getName();
+ 			if (name.indexOf("$") != -1) {
+ 				name = name.substring(name.indexOf("$") + 1);
+ 			}
+ 			IProgramElement pe = new ProgramElement(model, name, IProgramElement.Kind.INTER_TYPE_METHOD, getBinarySourceLocation(
+ 					aspect, itd.getSourceLocation()), rtMunger.getSignature().getModifiers(), null, Collections.EMPTY_LIST);
+-			UnresolvedType[] ts = sig.getParameterTypes();
+-			// String[] pnames = sig.getParameterNames();
+-			pe.setParameterNames(Collections.EMPTY_LIST);
+-			if (ts == null) {
+-				pe.setParameterSignatures(Collections.EMPTY_LIST);
+-			} else {
+-				List paramSigs = new ArrayList();
+-				List paramNames = new ArrayList();
+-				for (int i = 0; i < ts.length; i++) {
+-					paramSigs.add(ts[i].getSignature().toCharArray());
+-					// paramNames.add(pnames[i]);
+-				}
+-				pe.setParameterSignatures(paramSigs);
+-				// pe.setParameterNames(paramNames);
++			setParams(pe, sig);
++			return pe;
++		} else if (rtMunger.getKind() == ResolvedTypeMunger.Constructor) {
++			String name = sig.getDeclaringType().getClassName() + "." + sig.getDeclaringType().getClassName();
++			if (name.indexOf("$") != -1) {
++				name = name.substring(name.indexOf("$") + 1);
+ 			}
+-			pe.setCorrespondingType(sig.getReturnType().getName());
++			IProgramElement pe = new ProgramElement(model, name, IProgramElement.Kind.INTER_TYPE_CONSTRUCTOR,
++					getBinarySourceLocation(aspect, itd.getSourceLocation()), rtMunger.getSignature().getModifiers(), null,
++					Collections.EMPTY_LIST);
++			setParams(pe, sig);
+ 			return pe;
+ 		}
+ 		// other cases ignored for now
+ 		return null;
+ 	}
+ 
++	private static void setParams(IProgramElement pe, ResolvedMember sig) {
++		UnresolvedType[] ts = sig.getParameterTypes();
++		pe.setParameterNames(Collections.EMPTY_LIST);
++		String[] pnames = sig.getParameterNames();
++		if (ts == null) {
++			pe.setParameterSignatures(Collections.EMPTY_LIST);
++		} else {
++			List paramSigs = new ArrayList();
++			List paramNames = new ArrayList();
++			for (int i = 0; i < ts.length; i++) {
++				paramSigs.add(ts[i].getSignature().toCharArray());
++				// paramNames.add(pnames[i]);
++			}
++			pe.setParameterSignatures(paramSigs);
++			// pe.setParameterNames(paramNames);
++		}
++		pe.setCorrespondingType(sig.getReturnType().getName());
++	}
++
+ 	private static IProgramElement createDeclareParentsChild(AsmManager model, DeclareParents decp) {
+ 		IProgramElement decpElement = new ProgramElement(model, "declare parents", IProgramElement.Kind.DECLARE_PARENTS,
+ 				getBinarySourceLocation(decp.getDeclaringType(), decp.getSourceLocation()), Modifier.PUBLIC, null,
+@@ -29,9 +29,11 @@ public class HandleProviderDelimiter {
+ 	public static final HandleProviderDelimiter IMPORTDECLARATION = new HandleProviderDelimiter('#');
+ 	public static final HandleProviderDelimiter COUNT = new HandleProviderDelimiter('!');
+ 	public static final HandleProviderDelimiter ESCAPE = new HandleProviderDelimiter('\\');
+-	// these below are not currently used because no iprogramelement.kind equivalent
++	// these below are not currently used because no iprogramelement.kind
++	// equivalent
+ 	public static final HandleProviderDelimiter PACKAGEFRAGMENTROOT = new HandleProviderDelimiter('/');
+-	public static final HandleProviderDelimiter PACKAGEDECLARATION = new HandleProviderDelimiter('%'); // now used
++	public static final HandleProviderDelimiter PACKAGEDECLARATION = new HandleProviderDelimiter('%'); // now
++																										// used
+ 	public static final HandleProviderDelimiter LOCALVARIABLE = new HandleProviderDelimiter('@');
+ 	public static final HandleProviderDelimiter TYPE_PARAMETER = new HandleProviderDelimiter(']');
+ 
+@@ -52,15 +54,17 @@ public class HandleProviderDelimiter {
+ 	}
+ 
+ 	/**
+-	 * Returns the delimiter for the HandleProviderDelimiter, for example ASPECT returns '*' and METHOD returns '~'
++	 * Returns the delimiter for the HandleProviderDelimiter, for example ASPECT
++	 * returns '*' and METHOD returns '~'
+ 	 */
+ 	public char getDelimiter() {
+ 		return delim;
+ 	}
+ 
+ 	/**
+-	 * Returns the delimiter for the given IProgramElement for example if the IProgramElement is an aspect returns '*' and if the
+-	 * IProgramElement is a method returns '~'
++	 * Returns the delimiter for the given IProgramElement for example if the
++	 * IProgramElement is an aspect returns '*' and if the IProgramElement is a
++	 * method returns '~'
+ 	 */
+ 	public static char getDelimiter(IProgramElement ipe) {
+ 		IProgramElement.Kind kind = ipe.getKind();
+@@ -113,6 +117,8 @@ public class HandleProviderDelimiter {
+ 				return CLASSFILE.getDelimiter();
+ 			} else if (ipe.getName().endsWith(".aj")) {
+ 				return ASPECT_CU.getDelimiter();
++			} else if (ipe.getName().endsWith(".java")) {
++				return COMPILATIONUNIT.getDelimiter();
+ 			} else {
+ 				return empty;
+ 			}
+@@ -0,0 +1,8 @@
++import java.awt.*;
++import demo.*;
++
++public aspect Aspect {
++  public Color Orange.getColor() { return Color.orange; }
++  public Color Strawberry.color = Color.red;
++  public Fruit.new(Color c,String name) {this();}
++}
+@@ -0,0 +1,3 @@
++package demo;
++public class Fruit {
++}
+@@ -0,0 +1,4 @@
++package demo;
++
++public class Orange {
++}
+@@ -0,0 +1,4 @@
++package demo;
++
++public class Strawberry {
++}
+@@ -11,6 +11,7 @@
+ package org.aspectj.systemtest.ajc164;
+ 
+ import java.io.File;
++import java.io.PrintWriter;
+ import java.util.ArrayList;
+ import java.util.Collections;
+ import java.util.Comparator;
+@@ -28,10 +29,75 @@ import org.aspectj.apache.bcel.util.SyntheticRepository;
+ import org.aspectj.asm.AsmManager;
+ import org.aspectj.asm.IHierarchy;
+ import org.aspectj.asm.IProgramElement;
++import org.aspectj.asm.IRelationship;
+ import org.aspectj.testing.XMLBasedAjcTestCase;
+ 
+ public class Ajc164Tests extends org.aspectj.testing.XMLBasedAjcTestCase {
+ 
++	/**
++	 * This test program can be used to compare handles for faulted in binary
++	 * aspects with handles that would be used if the aspect was available as
++	 * source. There are two compile steps in the xml for the test - commenting
++	 * out the first will allow the source handles to be seen, leaving it in
++	 * will switch to binary. Effectively the only difference should be that in
++	 * the binary case the handles are prefixed 'binaries'.
++	 */
++	public void testItdsAspectPathModel_pr265729_1() {
++		runTest("aspectpath model");
++		AsmManager model = AsmManager.lastActiveStructureModel;
++		IHierarchy top = model.getHierarchy();
++		printModel(model);
++		IProgramElement ipe = null;
++
++		// ITD METHOD
++		// should be the ITD method from the binary aspect:
++		// public Color Orange.getColor() { return Color.orange; }
++		ipe = top.findElementForType("demo", "Orange");
++		assertNotNull(ipe);
++		assertEquals("<demo{Orange.java[Orange", ipe.getHandleIdentifier());
++		IRelationship ir = (IRelationship) model.getRelationshipMap().get(ipe).get(0);
++		String itdMethodHandle = (String) ir.getTargets().get(0);
++		// handle when all source: <{Aspect.java}Aspect)Orange.getColor
++		assertEquals("/binaries<{Aspect.java}Aspect)Orange.getColor", itdMethodHandle);
++		IProgramElement itdpe = model.getHierarchy().findElementForHandle(itdMethodHandle);
++		assertEquals("java.awt.Color", itdpe.getCorrespondingType(true));
++
++		// ITD FIELD
++		// should be the ITD field from the binary aspect:
++		// public Color Strawberry.color
++		ipe = top.findElementForType("demo", "Strawberry");
++		assertNotNull(ipe);
++		assertEquals("<demo{Strawberry.java[Strawberry", ipe.getHandleIdentifier());
++		ir = (IRelationship) model.getRelationshipMap().get(ipe).get(0);
++		String itdFieldHandle = (String) ir.getTargets().get(0);
++		// source handle <{Aspect.java}Aspect)Strawberry.color
++		assertEquals("/binaries<{Aspect.java}Aspect)Strawberry.color", itdFieldHandle);
++		IProgramElement itdfpe = model.getHierarchy().findElementForHandle(itdMethodHandle);
++		assertEquals("java.awt.Color", itdfpe.getCorrespondingType(true));
++
++		// ITD CONSTRUCTOR
++		// /binaries< Aspect.java}Aspect)java.awt.Color demo.Strawberry.color
++		ipe = top.findElementForType("demo", "Fruit");
++		assertNotNull(ipe);
++		assertEquals("<demo{Fruit.java[Fruit", ipe.getHandleIdentifier());
++		ir = (IRelationship) model.getRelationshipMap().get(ipe).get(0);
++		String itdCtorHandle = (String) ir.getTargets().get(0);
++		// source handle <{Aspect.java}Aspect)Fruit.Fruit_new)QColor;)QString;
++		assertEquals("/binaries<{Aspect.java}Aspect)Fruit.Fruit_new)QColor;)QString;", itdCtorHandle);
++		IProgramElement itdcpe = model.getHierarchy().findElementForHandle(itdCtorHandle);
++		List ptypes = itdcpe.getParameterTypes();
++		assertEquals("java.awt.Color", new String((char[]) ptypes.get(0)));
++		assertEquals("java.lang.String", new String((char[]) ptypes.get(1)));
++	}
++
++	private void printModel(AsmManager model) {
++		try {
++			model.dumptree(model.getHierarchy().getRoot(), 0);
++			model.dumprels(new PrintWriter(System.out));
++		} catch (Exception e) {
++		}
++	}
++
+ 	public void testGenericsAopXml_pr266220() {
+ 		runTest("generics and aop.xml");
+ 	}
+@@ -2,6 +2,12 @@
+ 
+ <suite>
+ 
++   <ajc-test dir="bugs164/pr265729" title="aspectpath model">
++    <compile files="Aspect.java Orange.java Strawberry.java Fruit.java" outjar="library.jar" options="-emacssym"/>
++    <compile files="Orange.java Strawberry.java Fruit.java" aspectpath="library.jar" options="-emacssym"/>
++    <!--
++    -->
++   </ajc-test>
+ 
+     <ajc-test dir="bugs164/pr266220" title="generics and aop.xml">
+         <compile files="Code.java"/>
+@@ -7,7 +7,7 @@ public class App {
+ 		// System.out.println( "Hello World!" ); //should throw compiler error,
+ 		// OK
+ 		App app = new App();
+-		app.foo(42);
++		app.foo(42,null,null);
+ 
+ 	}
+ }
+@@ -9,7 +9,7 @@ public class App
+     {
+         //System.out.println( "Hello World!" ); //should throw compiler error, OK
+ 	App app = new App();
+-	app.foo(42);
++	app.foo(42,null,null);
+ 
+ 
+     }
+@@ -1,7 +1,7 @@
+ package be.cronos.aop.aspects;
+-
++import java.io.*;
+ import be.cronos.aop.InterTypeAspectSupport;
+-
++import java.util.List;
+ public aspect InterTypeAspect {
+ 
+     public interface InterTypeAspectInterface {
+@@ -9,7 +9,7 @@ public aspect InterTypeAspect {
+ 
+     declare parents : (@InterTypeAspectSupport *) implements InterTypeAspectInterface;
+ 
+-    public String InterTypeAspectInterface.foo(int i) {
++    public String InterTypeAspectInterface.foo(int i,List list,Serializable a) {
+     	return "bar";
+     }
+ 
+@@ -66,7 +66,7 @@ public class MultiProjectIncrementalTests extends AbstractMultiProjectIncrementa
+ 		String cli = "pr265729_client";
+ 		initialiseProject(cli);
+ 
+-		addClasspathEntry(cli, new File("../lib/junit/junit.jar"));
++		// addClasspathEntry(cli, new File("../lib/junit/junit.jar"));
+ 		configureAspectPath(cli, getProjectRelativePath(lib, "bin"));
+ 		build(cli);
+ 		checkWasFullBuild();
+@@ -91,17 +91,35 @@ public class MultiProjectIncrementalTests extends AbstractMultiProjectIncrementa
+ 		// Node in tree: I.g(java.lang.String) [inter-type method]
+ 		// Handle: =pr265729_client<be.cronos.aop{App.java}X)I.g)QString;
+ 
+-		if (h1.endsWith("parents")) {
+-			assertEquals("=pr265729_client/binaries<be.cronos.aop.aspects*InterTypeAspect.aj}InterTypeAspect`declare parents", h1);
+-			assertEquals(
+-					"=pr265729_client/binaries<be.cronos.aop.aspects*InterTypeAspect.aj}InterTypeAspect)InterTypeAspectInterface.foo)I",
+-					h2);
+-		} else {
+-			assertEquals("=pr265729_client/binaries<be.cronos.aop.aspects*InterTypeAspect.aj}InterTypeAspect`declare parents", h2);
+-			assertEquals(
+-					"=pr265729_client/binaries<be.cronos.aop.aspects*InterTypeAspect.aj}InterTypeAspect)InterTypeAspectInterface.foo)I",
+-					h1);
++		if (!h1.endsWith("parents")) {
++			String h3 = h1;
++			h1 = h2;
++			h2 = h3;
+ 		}
++		// ITD from the test program:
++		// public String InterTypeAspectInterface.foo(int i,List list,App a) {
++		assertEquals("=pr265729_client/binaries<be.cronos.aop.aspects*InterTypeAspect.aj}InterTypeAspect`declare parents", h1);
++		assertEquals(
++				"=pr265729_client/binaries<be.cronos.aop.aspects*InterTypeAspect.aj}InterTypeAspect)InterTypeAspectInterface.foo)I)QList;)QSerializable;",
++				h2);
++		IProgramElement binaryDecp = getModelFor(cli).getHierarchy().getElement(h1);
++		assertNotNull(binaryDecp);
++		IProgramElement binaryITDM = getModelFor(cli).getHierarchy().getElement(h2);
++		assertNotNull(binaryITDM);
++
++		// @see AsmRelationshipProvider.createIntertypeDeclaredChild()
++		List ptypes = binaryITDM.getParameterTypes();
++		assertEquals("int", new String((char[]) ptypes.get(0)));
++		assertEquals("java.util.List", new String((char[]) ptypes.get(1)));
++		assertEquals("java.io.Serializable", new String((char[]) ptypes.get(2)));
++
++		// param names not set
++		// List pnames = binaryITDM.getParameterNames();
++		// assertEquals("i", new String((char[]) pnames.get(0)));
++		// assertEquals("list", new String((char[]) pnames.get(1)));
++		// assertEquals("b", new String((char[]) pnames.get(2)));
++
++		assertEquals("java.lang.String", binaryITDM.getCorrespondingType(true));
+ 	}
+ 
+ 	public void testXmlConfiguredProject() {
+@@ -108,7 +108,8 @@ public class AsmRelationshipProvider {
+ 	}
+ 
+ 	/**
+-	 * Add a relationship for a type transformation (declare parents, intertype method declaration, declare annotation on type).
++	 * Add a relationship for a type transformation (declare parents, intertype
++	 * method declaration, declare annotation on type).
+ 	 */
+ 	public static void addRelationship(AsmManager model, ResolvedType onType, ResolvedTypeMunger typeTransformer,
+ 			ResolvedType originatingAspect) {
+@@ -135,13 +136,20 @@ public class AsmRelationshipProvider {
+ 			} else {
+ 				sourceNode = model.getHierarchy().findElementForType(originatingAspect.getPackageName(),
+ 						originatingAspect.getClassName());
+-				// sourceNode = asm.getHierarchy().findElementForSourceLine(originatingAspect.getSourceLocation());
++				// sourceNode =
++				// asm.getHierarchy().findElementForSourceLine(originatingAspect
++				// .getSourceLocation());
+ 				sourceHandle = model.getHandleProvider().createHandleIdentifier(sourceNode);
+ 			}
+-			// sourceNode = asm.getHierarchy().findElementForType(originatingAspect.getPackageName(),
++			// sourceNode =
++			// asm.getHierarchy().findElementForType(originatingAspect
++			// .getPackageName(),
+ 			// originatingAspect.getClassName());
+-			// // sourceNode = asm.getHierarchy().findElementForSourceLine(munger.getSourceLocation());
+-			// sourceHandle = asm.getHandleProvider().createHandleIdentifier(sourceNode);
++			// // sourceNode =
++			// asm.getHierarchy().findElementForSourceLine(munger
++			// .getSourceLocation());
++			// sourceHandle =
++			// asm.getHandleProvider().createHandleIdentifier(sourceNode);
+ 			if (sourceHandle == null)
+ 				return;
+ 			IProgramElement targetNode = model.getHierarchy().findElementForSourceLine(onType.getSourceLocation());
+@@ -166,9 +174,10 @@ public class AsmRelationshipProvider {
+ 	}
+ 
+ 	/**
+-	 * Returns the binarySourceLocation for the given sourcelocation. This isn't cached because it's used when faulting in the
+-	 * binary nodes and is called with ISourceLocations for all advice, pointcuts and deows contained within the
+-	 * resolvedDeclaringAspect.
++	 * Returns the binarySourceLocation for the given sourcelocation. This isn't
++	 * cached because it's used when faulting in the binary nodes and is called
++	 * with ISourceLocations for all advice, pointcuts and deows contained
++	 * within the resolvedDeclaringAspect.
+ 	 */
+ 	private static ISourceLocation getBinarySourceLocation(ResolvedType aspect, ISourceLocation sl) {
+ 		if (sl == null) {
+@@ -210,9 +219,12 @@ public class AsmRelationshipProvider {
+ 	}
+ 
+ 	/**
+-	 * Returns the File with pathname to the class file, for example either C:\temp
+-	 * \ajcSandbox\workspace\ajcTest16957.tmp\simple.jar!pkg\BinaryAspect.class if the class file is in a jar file, or
+-	 * C:\temp\ajcSandbox\workspace\ajcTest16957.tmp!pkg\BinaryAspect.class if the class file is in a directory
++	 * Returns the File with pathname to the class file, for example either
++	 * C:\temp
++	 * \ajcSandbox\workspace\ajcTest16957.tmp\simple.jar!pkg\BinaryAspect.class
++	 * if the class file is in a jar file, or
++	 * C:\temp\ajcSandbox\workspace\ajcTest16957.tmp!pkg\BinaryAspect.class if
++	 * the class file is in a directory
+ 	 */
+ 	private static File getBinaryFile(ResolvedType aspect) {
+ 		String s = aspect.getBinaryPath();
+@@ -229,13 +241,16 @@ public class AsmRelationshipProvider {
+ 	}
+ 
+ 	/**
+-	 * Create a basic hierarchy to represent an aspect only available in binary (from the aspectpath).
++	 * Create a basic hierarchy to represent an aspect only available in binary
++	 * (from the aspectpath).
+ 	 */
+ 	private static void createHierarchy(AsmManager model, ResolvedTypeMunger typeTransformer, ResolvedType aspect) {
+ 		assert aspect != null;
+ 
+ 		// Check if already defined in the model
+-		// IProgramElement filenode = model.getHierarchy().findElementForType(aspect.getPackageName(), aspect.getClassName());
++		// IProgramElement filenode =
++		// model.getHierarchy().findElementForType(aspect.getPackageName(),
++		// aspect.getClassName());
+ 		// SourceLine(typeTransformer.getSourceLocation());
+ 		IProgramElement filenode = model.getHierarchy().findElementForSourceLine(typeTransformer.getSourceLocation());
+ 		// the call to findElementForSourceLine(ISourceLocation) returns a file
+@@ -289,9 +304,12 @@ public class AsmRelationshipProvider {
+ 		// // may not be generated correctly if it uses information from
+ 		// // it's parent node
+ 		// root.addChild(classFileNode);
+-		// for (Iterator iter = root.getChildren().iterator(); iter.hasNext();) {
++		// for (Iterator iter = root.getChildren().iterator(); iter.hasNext();)
++		// {
+ 		// IProgramElement element = (IProgramElement) iter.next();
+-		// if (!element.equals(classFileNode) && element.getHandleIdentifier().equals(classFileNode.getHandleIdentifier())) {
++		// if (!element.equals(classFileNode) &&
++		// element.getHandleIdentifier().equals
++		// (classFileNode.getHandleIdentifier())) {
+ 		// // already added the sourcefile so have already
+ 		// // added the structure for this aspect
+ 		// root.removeChild(classFileNode);
+@@ -317,8 +335,9 @@ public class AsmRelationshipProvider {
+ 	}
+ 
+ 	/**
+-	 * Adds a declare annotation relationship, sometimes entities don't have source locs (methods/fields) so use other variants of
+-	 * this method if that is the case as they will look the entities up in the structure model.
++	 * Adds a declare annotation relationship, sometimes entities don't have
++	 * source locs (methods/fields) so use other variants of this method if that
++	 * is the case as they will look the entities up in the structure model.
+ 	 */
+ 	public static void addDeclareAnnotationRelationship(AsmManager model, ISourceLocation declareAnnotationLocation,
+ 			ISourceLocation annotatedLocation) {
+@@ -410,9 +429,12 @@ public class AsmRelationshipProvider {
+ 		// // may not be generated correctly if it uses information from
+ 		// // it's parent node
+ 		// root.addChild(classFileNode);
+-		// for (Iterator iter = root.getChildren().iterator(); iter.hasNext();) {
++		// for (Iterator iter = root.getChildren().iterator(); iter.hasNext();)
++		// {
+ 		// IProgramElement element = (IProgramElement) iter.next();
+-		// if (!element.equals(classFileNode) && element.getHandleIdentifier().equals(classFileNode.getHandleIdentifier())) {
++		// if (!element.equals(classFileNode) &&
++		// element.getHandleIdentifier().equals
++		// (classFileNode.getHandleIdentifier())) {
+ 		// // already added the sourcefile so have already
+ 		// // added the structure for this aspect
+ 		// root.removeChild(classFileNode);
+@@ -500,12 +522,16 @@ public class AsmRelationshipProvider {
+ 		}
+ 	}
+ 
+-	// private static IProgramElement createDeclareErrorOrWarningChild(AsmManager asm, ShadowMunger munger,
++	// private static IProgramElement
++	// createDeclareErrorOrWarningChild(AsmManager asm, ShadowMunger munger,
+ 	// DeclareErrorOrWarning decl, int count) {
+-	// IProgramElement deowNode = new ProgramElement(asm, decl.getName(), decl.isError() ? IProgramElement.Kind.DECLARE_ERROR
+-	// : IProgramElement.Kind.DECLARE_WARNING, munger.getBinarySourceLocation(decl.getSourceLocation()), decl
++	// IProgramElement deowNode = new ProgramElement(asm, decl.getName(),
++	// decl.isError() ? IProgramElement.Kind.DECLARE_ERROR
++	// : IProgramElement.Kind.DECLARE_WARNING,
++	// munger.getBinarySourceLocation(decl.getSourceLocation()), decl
+ 	// .getDeclaringType().getModifiers(), null, null);
+-	// deowNode.setDetails("\"" + AsmRelationshipUtils.genDeclareMessage(decl.getMessage()) + "\"");
++	// deowNode.setDetails("\"" +
++	// AsmRelationshipUtils.genDeclareMessage(decl.getMessage()) + "\"");
+ 	// if (count != -1) {
+ 	// deowNode.setBytecodeName(decl.getName() + "_" + count);
+ 	// }
+@@ -534,16 +560,18 @@ public class AsmRelationshipProvider {
+ 	}
+ 
+ 	/**
+-	 * Half baked implementation - will need completing if we go down this route rather than replacing it all for binary aspects
++	 * Half baked implementation - will need completing if we go down this route
++	 * rather than replacing it all for binary aspects
+ 	 */
+ 	private static IProgramElement createIntertypeDeclaredChild(AsmManager model, ResolvedType aspect, BcelTypeMunger itd) {
+ 		ResolvedTypeMunger rtMunger = itd.getMunger();
+ 		if (rtMunger.getKind() == ResolvedTypeMunger.Field) {
+ 			String name = rtMunger.getSignature().toString();
+-			IProgramElement newElement = new ProgramElement(model, name, IProgramElement.Kind.INTER_TYPE_FIELD,
+-					getBinarySourceLocation(aspect, itd.getSourceLocation()), rtMunger.getSignature().getModifiers(), null,
+-					Collections.EMPTY_LIST);
+-			return newElement;
++			IProgramElement pe = new ProgramElement(model, name, IProgramElement.Kind.INTER_TYPE_FIELD, getBinarySourceLocation(
++					aspect, itd.getSourceLocation()), rtMunger.getSignature().getModifiers(), null, Collections.EMPTY_LIST);
++			ResolvedMember sig = rtMunger.getSignature();
++			pe.setCorrespondingType(sig.getReturnType().getName());
++			return pe;
+ 		} else if (rtMunger.getKind() == ResolvedTypeMunger.Method) {
+ 			ResolvedMember sig = rtMunger.getSignature();
+ 			String name = sig.getDeclaringType() + "." + sig.getName();
+@@ -553,16 +581,21 @@ public class AsmRelationshipProvider {
+ 			IProgramElement pe = new ProgramElement(model, name, IProgramElement.Kind.INTER_TYPE_METHOD, getBinarySourceLocation(
+ 					aspect, itd.getSourceLocation()), rtMunger.getSignature().getModifiers(), null, Collections.EMPTY_LIST);
+ 			UnresolvedType[] ts = sig.getParameterTypes();
++			// String[] pnames = sig.getParameterNames();
++			pe.setParameterNames(Collections.EMPTY_LIST);
+ 			if (ts == null) {
+-				pe.setParameterNames(Collections.EMPTY_LIST);
+ 				pe.setParameterSignatures(Collections.EMPTY_LIST);
+ 			} else {
+ 				List paramSigs = new ArrayList();
++				List paramNames = new ArrayList();
+ 				for (int i = 0; i < ts.length; i++) {
+ 					paramSigs.add(ts[i].getSignature().toCharArray());
++					// paramNames.add(pnames[i]);
+ 				}
+ 				pe.setParameterSignatures(paramSigs);
++				// pe.setParameterNames(paramNames);
+ 			}
++			pe.setCorrespondingType(sig.getReturnType().getName());
+ 			return pe;
+ 		}
+ 		// other cases ignored for now
+@@ -653,14 +686,21 @@ public class AsmRelationshipProvider {
+ 
+ 	protected static IProgramElement getNode(AsmManager model, Shadow shadow) {
+ 		Member enclosingMember = shadow.getEnclosingCodeSignature();
+-		// This variant will not be tricked by ITDs that would report they are in the target type already.
+-		// This enables us to discover the ITD declaration (in the aspect) and advise it appropriately.
+-
+-		// Have to be smart here, for a code node within an ITD we want to lookup the declaration of the
+-		// ITD in the aspect in order to add the code node at the right place - and not lookup the
+-		// ITD as it applies in some target type. Due to the use of effectiveSignature we will find
+-		// that shadow.getEnclosingCodeSignature() will return a member representing the ITD as it will
+-		// appear in the target type. So here, we do an extra bit of analysis to make sure we
++		// This variant will not be tricked by ITDs that would report they are
++		// in the target type already.
++		// This enables us to discover the ITD declaration (in the aspect) and
++		// advise it appropriately.
++
++		// Have to be smart here, for a code node within an ITD we want to
++		// lookup the declaration of the
++		// ITD in the aspect in order to add the code node at the right place -
++		// and not lookup the
++		// ITD as it applies in some target type. Due to the use of
++		// effectiveSignature we will find
++		// that shadow.getEnclosingCodeSignature() will return a member
++		// representing the ITD as it will
++		// appear in the target type. So here, we do an extra bit of analysis to
++		// make sure we
+ 		// do the right thing in the ITD case.
+ 		IProgramElement enclosingNode = null;
+ 		if (shadow instanceof BcelShadow) {
+@@ -672,7 +712,8 @@ public class AsmRelationshipProvider {
+ 				UnresolvedType type = enclosingMember.getDeclaringType();
+ 				UnresolvedType actualType = actualEnclosingMember.getDeclaringType();
+ 
+-				// if these are not the same, it is an ITD and we need to use the latter to lookup
++				// if these are not the same, it is an ITD and we need to use
++				// the latter to lookup
+ 				if (type.equals(actualType)) {
+ 					enclosingNode = lookupMember(model.getHierarchy(), shadow.getEnclosingType(), enclosingMember);
+ 				} else {
+@@ -709,14 +750,19 @@ public class AsmRelationshipProvider {
+ 	/**
+ 	 * Finds or creates a code IProgramElement for the given shadow.
+ 	 * 
+-	 * The byteCodeName of the created node is set to 'shadowSig.getName() + "!" + counter', eg "println!3". The counter is the
+-	 * occurence count of children within the enclosingNode which have the same name. So, for example, if a method contains two
+-	 * System.out.println statements, the first one will have byteCodeName 'println!1' and the second will have byteCodeName
+-	 * 'println!2'. This is to ensure the two nodes have unique handles when the handles do not depend on sourcelocations.
++	 * The byteCodeName of the created node is set to 'shadowSig.getName() + "!"
++	 * + counter', eg "println!3". The counter is the occurence count of
++	 * children within the enclosingNode which have the same name. So, for
++	 * example, if a method contains two System.out.println statements, the
++	 * first one will have byteCodeName 'println!1' and the second will have
++	 * byteCodeName 'println!2'. This is to ensure the two nodes have unique
++	 * handles when the handles do not depend on sourcelocations.
+ 	 * 
+-	 * Currently the shadows are examined in the sequence they appear in the source file. This means that the counters are
+-	 * consistent over incremental builds. All aspects are compiled up front and any new aspect created will force a full build.
+-	 * Moreover, if the body of the enclosingShadow is changed, then the model for this is rebuilt from scratch.
++	 * Currently the shadows are examined in the sequence they appear in the
++	 * source file. This means that the counters are consistent over incremental
++	 * builds. All aspects are compiled up front and any new aspect created will
++	 * force a full build. Moreover, if the body of the enclosingShadow is
++	 * changed, then the model for this is rebuilt from scratch.
+ 	 */
+ 	private static IProgramElement findOrCreateCodeNode(AsmManager asm, IProgramElement enclosingNode, Member shadowSig,
+ 			Shadow shadow) {
+@@ -772,8 +818,10 @@ public class AsmRelationshipProvider {
+ 	}
+ 
+ 	/**
+-	 * Add a relationship for a matching declare annotation method or declare annotation constructor. Locating the method is a messy
+-	 * (for messy read 'fragile') bit of code that could break at any moment but it's working for my simple testcase.
++	 * Add a relationship for a matching declare annotation method or declare
++	 * annotation constructor. Locating the method is a messy (for messy read
++	 * 'fragile') bit of code that could break at any moment but it's working
++	 * for my simple testcase.
+ 	 */
+ 	public static void addDeclareAnnotationMethodRelationship(ISourceLocation sourceLocation, String affectedTypeName,
+ 			ResolvedMember affectedMethod, AsmManager model) {
+@@ -846,8 +894,10 @@ public class AsmRelationshipProvider {
+ 	}
+ 
+ 	/**
+-	 * Add a relationship for a matching declare ATfield. Locating the field is trickier than it might seem since we have no line
+-	 * number info for it, we have to dig through the structure model under the fields' type in order to locate it.
++	 * Add a relationship for a matching declare ATfield. Locating the field is
++	 * trickier than it might seem since we have no line number info for it, we
++	 * have to dig through the structure model under the fields' type in order
++	 * to locate it.
+ 	 */
+ 	public static void addDeclareAnnotationFieldRelationship(AsmManager model, ISourceLocation declareLocation,
+ 			String affectedTypeName, ResolvedMember affectedFieldName) {
+@@ -0,0 +1,13 @@
++package be.cronos.aop;
++
++
++@InterTypeAspectSupport
++public class App {
++	public static void main(String[] args) {
++		// System.out.println( "Hello World!" ); //should throw compiler error,
++		// OK
++		App app = new App();
++		app.foo(42);
++
++	}
++}
+@@ -0,0 +1,38 @@
++//package be.cronos.experiment;
++//
++//import junit.framework.Test;
++//import junit.framework.TestCase;
++//import junit.framework.TestSuite;
++//
++///**
++// * Unit test for simple App.
++// */
++//public class AppTest 
++//    extends TestCase
++//{
++//    /**
++//     * Create the test case
++//     *
++//     * @param testName name of the test case
++//     */
++//    public AppTest( String testName )
++//    {
++//        super( testName );
++//    }
++//
++//    /**
++//     * @return the suite of tests being tested
++//     */
++//    public static Test suite()
++//    {
++//        return new TestSuite( AppTest.class );
++//    }
++//
++//    /**
++//     * Rigourous Test :-)
++//     */
++//    public void testApp()
++//    {
++//        assertTrue( true );
++//    }
++//}
+@@ -0,0 +1,16 @@
++package be.cronos.aop;
++
++import be.cronos.aop.InterTypeAspectSupport;
++
++@InterTypeAspectSupport
++public class App 
++{
++    public static void main( String[] args )
++    {
++        //System.out.println( "Hello World!" ); //should throw compiler error, OK
++	App app = new App();
++	app.foo(42);
++
++	
++    }
++}
+@@ -0,0 +1,12 @@
++package be.cronos.aop;
++
++import java.lang.annotation.ElementType;
++import java.lang.annotation.Retention;
++import java.lang.annotation.RetentionPolicy;
++import java.lang.annotation.Target;
++
++@Retention(RetentionPolicy.RUNTIME)
++@Target(ElementType.TYPE)
++public @interface InterTypeAspectSupport {
++
++}
+@@ -0,0 +1,16 @@
++package be.cronos.aop.aspects;
++
++//import junit.framework.TestCase;
++
++public aspect EnforceLogging {
++    pointcut scope():
++	!within(*TestCase+);
++
++    pointcut printing(): 
++	get(* System.out) || get(* System.err) || call(* printStackTrace());
++
++    declare error
++	: scope() && printing()
++	: "Don't print to Console, use logger";
++
++}
+@@ -0,0 +1,16 @@
++package be.cronos.aop.aspects;
++
++import be.cronos.aop.InterTypeAspectSupport;
++
++public aspect InterTypeAspect {
++
++    public interface InterTypeAspectInterface {
++    }
++    
++    declare parents : (@InterTypeAspectSupport *) implements InterTypeAspectInterface;
++    
++    public String InterTypeAspectInterface.foo(int i) {
++    	return "bar";
++    }
++
++}
+@@ -32,13 +32,17 @@ import org.aspectj.testing.XMLBasedAjcTestCase;
+ 
+ public class Ajc164Tests extends org.aspectj.testing.XMLBasedAjcTestCase {
+ 
+-	public void testAnnoInherited_pr265695() {
+-		runTest("anno inherited");
+-	}
+-
++	// public void testAnnoInherited_pr265695() {
++	// runTest("anno inherited");
++	// }
++	//
+ 	// public void testAnnoInherited_pr265695_2() {
+ 	// runTest("new syntax for inherited anno - 1");
+ 	// }
++	//
++	// public void testAnnoInherited_pr265695_3() {
++	// runTest("new syntax for inherited anno - 3");
++	// }
+ 
+ 	public void testParserProblemSubArrayPatterns_pr148508() {
+ 		runTest("parser problem for array subtypes");
+@@ -12,7 +12,13 @@
+ 
+    <ajc-test dir="bugs164/pr265695" title="new syntax for inherited anno - 1">
+      <compile files="AspNew.aj" options="-1.5 -showWeaveInfo">
+-       <message kind="weave" line="22" text="foo"/>
++       <message kind="weave" text="Join point"/>
++     </compile>
++   </ajc-test>
++   
++   <ajc-test dir="bugs164/pr265695" title="new syntax for inherited anno - 3">
++     <compile files="AspNew2.aj" options="-1.5 -showWeaveInfo">
++       <message kind="weave" text="Join point"/>
+      </compile>
+    </ajc-test>
+ 
+@@ -50,6 +50,55 @@ import org.aspectj.util.FileUtil;
+  */
+ public class MultiProjectIncrementalTests extends AbstractMultiProjectIncrementalAjdeInteractionTestbed {
+ 
++	public void testPR265729() {
++		AjdeInteractionTestbed.VERBOSE = true;
++		String lib = "pr265729_lib";
++		initialiseProject(lib);
++		// addClasspathEntryChanged(lib, getProjectRelativePath(p1, "bin").toString());
++		build(lib);
++		checkWasFullBuild();
++
++		String cli = "pr265729_client";
++		initialiseProject(cli);
++
++		addClasspathEntry(cli, new File("../lib/junit/junit.jar"));
++		configureAspectPath(cli, getProjectRelativePath(lib, "bin"));
++		build(cli);
++		checkWasFullBuild();
++
++		IProgramElement root = getModelFor(cli).getHierarchy().getRoot();
++
++		dumptree(root, 0);
++		PrintWriter pw = new PrintWriter(System.out);
++		try {
++			getModelFor(cli).dumprels(pw);
++			pw.flush();
++		} catch (Exception e) {
++		}
++		IRelationshipMap irm = getModelFor(cli).getRelationshipMap();
++		IRelationship ir = (IRelationship) irm.get("=pr265729_client<be.cronos.aop{App.java[App").get(0);
++		// This type should be affected by an ITD and a declare parents
++		// could be either way round
++		String h1 = (String) ir.getTargets().get(0);
++		String h2 = (String) ir.getTargets().get(1);
++
++		// For ITD: public void I.g(String s) {}
++		// Node in tree: I.g(java.lang.String) [inter-type method]
++		// Handle: =pr265729_client<be.cronos.aop{App.java}X)I.g)QString;
++
++		if (h1.endsWith("parents")) {
++			assertEquals("=pr265729_client/binaries<be.cronos.aop.aspects*InterTypeAspect.aj}InterTypeAspect`declare parents", h1);
++			assertEquals(
++					"=pr265729_client/binaries<be.cronos.aop.aspects*InterTypeAspect.aj}InterTypeAspect)InterTypeAspectInterface.foo)I",
++					h2);
++		} else {
++			assertEquals("=pr265729_client/binaries<be.cronos.aop.aspects*InterTypeAspect.aj}InterTypeAspect`declare parents", h2);
++			assertEquals(
++					"=pr265729_client/binaries<be.cronos.aop.aspects*InterTypeAspect.aj}InterTypeAspect)InterTypeAspectInterface.foo)I",
++					h1);
++		}
++	}
++
+ 	public void testXmlConfiguredProject() {
+ 		AjdeInteractionTestbed.VERBOSE = true;
+ 		String p = "xmlone";
+@@ -627,7 +676,8 @@ public class MultiProjectIncrementalTests extends AbstractMultiProjectIncrementa
+ 		// File sourceFolderTwo = getProjectRelativePath("MultiSource", "src2");
+ 		// File sourceFolderThree = getProjectRelativePath("MultiSource",
+ 		// "src3");
+-		addSourceFolderForSourceFile("MultiSource", getProjectRelativePath("MultiSource", "src1/CodeOne.java"), "src1");
++		// src1 source folder slashed as per 264563
++		addSourceFolderForSourceFile("MultiSource", getProjectRelativePath("MultiSource", "src1/CodeOne.java"), "src1/");
+ 		addSourceFolderForSourceFile("MultiSource", getProjectRelativePath("MultiSource", "src2/CodeTwo.java"), "src2");
+ 		addSourceFolderForSourceFile("MultiSource", getProjectRelativePath("MultiSource", "src3/pkg/CodeThree.java"), "src3");
+ 		build("MultiSource");
+@@ -13,6 +13,7 @@ package org.aspectj.asm;
+ 
+ import java.io.Serializable;
+ import java.util.HashMap;
++import java.util.Iterator;
+ import java.util.Set;
+ 
+ import org.aspectj.asm.internal.ProgramElement;
+@@ -102,4 +103,13 @@ public interface IHierarchy extends Serializable {
+ 	public void flushHandleMap();
+ 
+ 	public void updateHandleMap(Set deletedFiles);
++
++	/**
++	 * For a specified node, check if any of the children more accurately represent the specified line.
++	 * 
++	 * @param node where to start looking
++	 * @param lineno the line number
++	 * @return any closer match below 'node' or null if nothing is a more accurate match
++	 */
++	public IProgramElement findCloserMatchForLineNumber(IProgramElement node, int lineno);
+ }
+\ No newline at end of file
+@@ -224,6 +224,7 @@ public class AspectJElementHierarchy implements IHierarchy {
+ 					}
+ 				}
+ 			}
++			// 'binaries' will be checked automatically by the code above as it is represented as a SOURCE_FOLDER
+ 			return matchingPackageNodes;
+ 		} else {
+ 			// dealing directly with packages below the root, no source folders. Therefore at most one
+@@ -243,6 +244,20 @@ public class AspectJElementHierarchy implements IHierarchy {
+ 						return result;
+ 					}
+ 				}
++				if (possiblePackage.getKind() == IProgramElement.Kind.SOURCE_FOLDER) { // might be 'binaries'
++					if (possiblePackage.getName().equals("binaries")) {
++						for (Iterator iter2 = possiblePackage.getChildren().iterator(); iter2.hasNext();) {
++							IProgramElement possiblePackage2 = (IProgramElement) iter2.next();
++							if (possiblePackage2.getKind() == IProgramElement.Kind.PACKAGE) {
++								if (possiblePackage2.getName().equals(packagename)) {
++									List result = new ArrayList();
++									result.add(possiblePackage2);
++									return result;
++								}
++							}
++						}
++					}
++				}
+ 			}
+ 		}
+ 		return Collections.EMPTY_LIST;
+@@ -325,8 +340,8 @@ public class AspectJElementHierarchy implements IHierarchy {
+ 	public IProgramElement findElementForSourceLine(String sourceFilePath, int lineNumber) {
+ 		String canonicalSFP = asm.getCanonicalFilePath(new File(sourceFilePath));
+ 		// Used to do this:
+-//		IProgramElement node2 = findNodeForSourceLineHelper(root, canonicalSFP, lineNumber, -1);
+-		
++		// IProgramElement node2 = findNodeForSourceLineHelper(root, canonicalSFP, lineNumber, -1);
++
+ 		// Find the relevant source file node first
+ 		IProgramElement node = findNodeForSourceFile(root, canonicalSFP);
+ 		if (node == null) {
+@@ -358,7 +373,7 @@ public class AspectJElementHierarchy implements IHierarchy {
+ 				return node;
+ 			}
+ 			return null; // no need to search children of a source file node
+-		} else  {
++		} else {
+ 			// check the children
+ 			for (Iterator iterator = node.getChildren().iterator(); iterator.hasNext();) {
+ 				IProgramElement foundit = findNodeForSourceFile((IProgramElement) iterator.next(), sourcefilePath);
+@@ -408,7 +423,7 @@ public class AspectJElementHierarchy implements IHierarchy {
+ 	 * @param lineno the line number
+ 	 * @return any closer match below 'node' or null if nothing is a more accurate match
+ 	 */
+-	private IProgramElement findCloserMatchForLineNumber(IProgramElement node, int lineno) {
++	public IProgramElement findCloserMatchForLineNumber(IProgramElement node, int lineno) {
+ 		for (Iterator childrenIter = node.getChildren().iterator(); childrenIter.hasNext();) {
+ 			IProgramElement child = (IProgramElement) childrenIter.next();
+ 			ISourceLocation childLoc = child.getSourceLocation();
+@@ -421,11 +436,12 @@ public class AspectJElementHierarchy implements IHierarchy {
+ 					} else {
+ 						return evenCloserMatch;
+ 					}
+-				} else if (child.getKind().isType()) { // types are a bit clueless about where they are... do other nodes have similar problems??
++				} else if (child.getKind().isType()) { // types are a bit clueless about where they are... do other nodes have
++					// similar problems??
+ 					IProgramElement evenCloserMatch = findCloserMatchForLineNumber(child, lineno);
+ 					if (evenCloserMatch != null) {
+ 						return evenCloserMatch;
+-					}					
++					}
+ 				}
+ 			}
+ 		}
+@@ -111,6 +111,8 @@ public class HandleProviderDelimiter {
+ 		} else if (kind == IProgramElement.Kind.FILE) {
+ 			if (ipe.getName().endsWith(".class")) {
+ 				return CLASSFILE.getDelimiter();
++			} else if (ipe.getName().endsWith(".aj")) {
++				return ASPECT_CU.getDelimiter();
+ 			} else {
+ 				return empty;
+ 			}
+@@ -747,7 +747,7 @@ public class ReferenceType extends ResolvedType {
+ 		return declares;
+ 	}
+ 
+-	protected Collection getTypeMungers() {
++	public Collection getTypeMungers() {
+ 		return delegate.getTypeMungers();
+ 	}
+ 
+@@ -665,7 +665,7 @@ public abstract class ResolvedType extends UnresolvedType implements AnnotatedEl
+ 		return Collections.EMPTY_LIST;
+ 	}
+ 
+-	protected Collection getTypeMungers() {
++	public Collection getTypeMungers() {
+ 		return Collections.EMPTY_LIST;
+ 	}
+ 
+@@ -119,6 +119,16 @@ public class UnresolvedType implements Traceable, TypeVariableDeclaringElement {
+ 	protected String signature;
+ 
+ 	/**
++	 * Calculated on first request - the package name (java.lang for type java.lang.String)
++	 */
++	private String packageName;
++
++	/**
++	 * Calculated on first request - the class name (String for type java.lang.String)
++	 */
++	private String className;
++
++	/**
+ 	 * The erasure of the signature. Contains only the Java signature of the type with all supertype, superinterface, type variable,
+ 	 * and parameter information removed.
+ 	 */
+@@ -831,16 +841,19 @@ public class UnresolvedType implements Traceable, TypeVariableDeclaringElement {
+ 	}
+ 
+ 	public String getPackageName() {
+-		String name = getName();
+-		if (name.indexOf("<") != -1) {
+-			name = name.substring(0, name.indexOf("<"));
+-		}
+-		int index = name.lastIndexOf('.');
+-		if (index == -1) {
+-			return "";
+-		} else {
+-			return name.substring(0, index);
++		if (packageName == null) {
++			String name = getName();
++			if (name.indexOf("<") != -1) {
++				name = name.substring(0, name.indexOf("<"));
++			}
++			int index = name.lastIndexOf('.');
++			if (index == -1) {
++				packageName = "";
++			} else {
++				packageName = name.substring(0, index);
++			}
+ 		}
++		return packageName;
+ 	}
+ 
+ 	public UnresolvedType[] getTypeParameters() {
+@@ -851,13 +864,16 @@ public class UnresolvedType implements Traceable, TypeVariableDeclaringElement {
+ 	 * Doesn't include the package
+ 	 */
+ 	public String getClassName() {
+-		String name = getName();
+-		int index = name.lastIndexOf('.');
+-		if (index == -1) {
+-			return name;
+-		} else {
+-			return name.substring(index + 1);
++		if (className == null) {
++			String name = getName();
++			int index = name.lastIndexOf('.');
++			if (index == -1) {
++				className = name;
++			} else {
++				className = name.substring(index + 1);
++			}
+ 		}
++		return className;
+ 	}
+ 
+ 	public TypeVariable[] getTypeVariables() {
+@@ -874,8 +874,8 @@ class BcelClassWeaver implements IClassWeaver {
+ 							annotationsToAdd.add(ag);
+ 							mg.addAnnotation(decaM.getAnnotationX());
+ 
+-							AsmRelationshipProvider.getDefault().addDeclareAnnotationMethodRelationship(decaM.getSourceLocation(),
+-									clazz.getName(), mg.getMemberView(), world.getModelAsAsmManager());// getMethod());
++							AsmRelationshipProvider.addDeclareAnnotationMethodRelationship(decaM.getSourceLocation(), clazz
++									.getName(), mg.getMemberView(), world.getModelAsAsmManager());// getMethod());
+ 							reportMethodCtorWeavingMessage(clazz, mg.getMemberView(), decaM, mg.getDeclarationLineNumber());
+ 							isChanged = true;
+ 							modificationOccured = true;
+@@ -918,9 +918,8 @@ class BcelClassWeaver implements IClassWeaver {
+ 								annotationsToAdd.add(a);
+ 
+ 								mg.addAnnotation(decaM.getAnnotationX());
+-								AsmRelationshipProvider.getDefault().addDeclareAnnotationMethodRelationship(
+-										decaM.getSourceLocation(), clazz.getName(), mg.getMemberView(),
+-										world.getModelAsAsmManager());// getMethod());
++								AsmRelationshipProvider.addDeclareAnnotationMethodRelationship(decaM.getSourceLocation(), clazz
++										.getName(), mg.getMemberView(), world.getModelAsAsmManager());// getMethod());
+ 								isChanged = true;
+ 								modificationOccured = true;
+ 								forRemoval.add(decaM);
+@@ -1093,8 +1092,8 @@ class BcelClassWeaver implements IClassWeaver {
+ 					if (doesAlreadyHaveAnnotation(annotationHolder, itdIsActually, decaF, reportedErrors))
+ 						continue; // skip this one...
+ 					annotationHolder.addAnnotation(decaF.getAnnotationX());
+-					AsmRelationshipProvider.getDefault().addDeclareAnnotationRelationship(world.getModelAsAsmManager(),
+-							decaF.getSourceLocation(), itdIsActually.getSourceLocation());
++					AsmRelationshipProvider.addDeclareAnnotationRelationship(world.getModelAsAsmManager(), decaF
++							.getSourceLocation(), itdIsActually.getSourceLocation());
+ 					isChanged = true;
+ 					modificationOccured = true;
+ 
+@@ -1116,8 +1115,8 @@ class BcelClassWeaver implements IClassWeaver {
+ 						if (doesAlreadyHaveAnnotation(annotationHolder, itdIsActually, decaF, reportedErrors))
+ 							continue; // skip this one...
+ 						annotationHolder.addAnnotation(decaF.getAnnotationX());
+-						AsmRelationshipProvider.getDefault().addDeclareAnnotationRelationship(world.getModelAsAsmManager(),
+-								decaF.getSourceLocation(), itdIsActually.getSourceLocation());
++						AsmRelationshipProvider.addDeclareAnnotationRelationship(world.getModelAsAsmManager(), decaF
++								.getSourceLocation(), itdIsActually.getSourceLocation());
+ 						isChanged = true;
+ 						modificationOccured = true;
+ 						forRemoval.add(decaF);
+@@ -1152,7 +1151,7 @@ class BcelClassWeaver implements IClassWeaver {
+ 					}
+ 					annotationHolder.addAnnotation(decaMC.getAnnotationX());
+ 					isChanged = true;
+-					AsmRelationshipProvider.getDefault().addDeclareAnnotationRelationship(asmManager, decaMC.getSourceLocation(),
++					AsmRelationshipProvider.addDeclareAnnotationRelationship(asmManager, decaMC.getSourceLocation(),
+ 							unMangledInterMethod.getSourceLocation());
+ 					reportMethodCtorWeavingMessage(clazz, unMangledInterMethod, decaMC, -1);
+ 					modificationOccured = true;
+@@ -1175,8 +1174,8 @@ class BcelClassWeaver implements IClassWeaver {
+ 							continue; // skip this one...
+ 						annotationHolder.addAnnotation(decaMC.getAnnotationX());
+ 						unMangledInterMethod.addAnnotation(decaMC.getAnnotationX());
+-						AsmRelationshipProvider.getDefault().addDeclareAnnotationRelationship(asmManager,
+-								decaMC.getSourceLocation(), unMangledInterMethod.getSourceLocation());
++						AsmRelationshipProvider.addDeclareAnnotationRelationship(asmManager, decaMC.getSourceLocation(),
++								unMangledInterMethod.getSourceLocation());
+ 						isChanged = true;
+ 						modificationOccured = true;
+ 						forRemoval.add(decaMC);
+@@ -1294,8 +1293,8 @@ class BcelClassWeaver implements IClassWeaver {
+ 								}
+ 							}
+ 
+-							AsmRelationshipProvider.getDefault().addDeclareAnnotationFieldRelationship(
+-									world.getModelAsAsmManager(), decaF.getSourceLocation(), clazz.getName(), aBcelField);// .getFieldAsIs());
++							AsmRelationshipProvider.addDeclareAnnotationFieldRelationship(world.getModelAsAsmManager(), decaF
++									.getSourceLocation(), clazz.getName(), aBcelField);
+ 							reportFieldAnnotationWeavingMessage(clazz, fields, fieldCounter, decaF);
+ 							isChanged = true;
+ 							modificationOccured = true;
+@@ -1329,8 +1328,8 @@ class BcelClassWeaver implements IClassWeaver {
+ 									continue; // skip this one...
+ 								}
+ 								aBcelField.addAnnotation(decaF.getAnnotationX());
+-								AsmRelationshipProvider.getDefault().addDeclareAnnotationFieldRelationship(
+-										world.getModelAsAsmManager(), decaF.getSourceLocation(), clazz.getName(), aBcelField);// .getFieldAsIs());
++								AsmRelationshipProvider.addDeclareAnnotationFieldRelationship(world.getModelAsAsmManager(), decaF
++										.getSourceLocation(), clazz.getName(), aBcelField);
+ 								isChanged = true;
+ 								modificationOccured = true;
+ 								forRemoval.add(decaF);
+@@ -121,8 +121,8 @@ public class BcelTypeMunger extends ConcreteTypeMunger {
+ 		}
+ 
+ 		if (changed && worthReporting) {
+-			AsmRelationshipProvider.getDefault().addRelationship(((BcelWorld) getWorld()).getModelAsAsmManager(),
+-					weaver.getLazyClassGen().getType(), munger, getAspectType());
++			AsmRelationshipProvider.addRelationship(((BcelWorld) getWorld()).getModelAsAsmManager(), weaver.getLazyClassGen()
++					.getType(), munger, getAspectType());
+ 		}
+ 
+ 		// TAG: WeavingMessage
+@@ -1598,8 +1598,8 @@ public class BcelWeaver {
+ 			boolean problemReported = verifyTargetIsOK(decA, onType, annoX, reportProblems);
+ 
+ 			if (!problemReported) {
+-				AsmRelationshipProvider.getDefault().addDeclareAnnotationRelationship(world.getModelAsAsmManager(),
+-						decA.getSourceLocation(), onType.getSourceLocation());
++				AsmRelationshipProvider.addDeclareAnnotationRelationship(world.getModelAsAsmManager(), decA.getSourceLocation(),
++						onType.getSourceLocation());
+ 				// TAG: WeavingMessage
+ 				if (!getWorld().getMessageHandler().isIgnoring(IMessage.WEAVEINFO)) {
+ 					getWorld().getMessageHandler().handleMessage(
+@@ -132,14 +132,12 @@ public class BcelWorld extends World implements Repository {
+ 					);
+ 		}
+ 
+-		// TAG: WeavingMessage
+ 		if (!getMessageHandler().isIgnoring(IMessage.WEAVEINFO)) {
+ 			reportWeavingMessage(munger, shadow);
+ 		}
+ 
+ 		if (getModel() != null) {
+-			// System.err.println("munger: " + munger + " on " + this);
+-			AsmRelationshipProvider.adviceMunger(getModelAsAsmManager(), shadow, munger);
++			AsmRelationshipProvider.addAdvisedRelationship(getModelAsAsmManager(), shadow, munger);
+ 		}
+ 	}
+ 
+@@ -795,7 +793,7 @@ public class BcelWorld extends World implements Repository {
+ 		}
+ 
+ 		if (getModel() != null) {
+-			AsmRelationshipProvider.checkerMunger(getModelAsAsmManager(), shadow, checker);
++			AsmRelationshipProvider.addDeclareErrorOrWarningRelationship(getModelAsAsmManager(), shadow, checker);
+ 		}
+ 
+ 	}
+@@ -12,10 +12,13 @@
+ 
+ package org.aspectj.weaver.model;
+ 
++import java.io.File;
++import java.lang.reflect.Modifier;
+ import java.util.ArrayList;
+ import java.util.Collection;
+ import java.util.Collections;
+ import java.util.Iterator;
++import java.util.List;
+ 
+ import org.aspectj.asm.AsmManager;
+ import org.aspectj.asm.IHierarchy;
+@@ -30,6 +33,7 @@ import org.aspectj.weaver.AdviceKind;
+ import org.aspectj.weaver.Checker;
+ import org.aspectj.weaver.Lint;
+ import org.aspectj.weaver.Member;
++import org.aspectj.weaver.ReferenceType;
+ import org.aspectj.weaver.ResolvedMember;
+ import org.aspectj.weaver.ResolvedPointcutDefinition;
+ import org.aspectj.weaver.ResolvedType;
+@@ -39,13 +43,13 @@ import org.aspectj.weaver.ShadowMunger;
+ import org.aspectj.weaver.UnresolvedType;
+ import org.aspectj.weaver.World;
+ import org.aspectj.weaver.bcel.BcelShadow;
++import org.aspectj.weaver.bcel.BcelTypeMunger;
+ import org.aspectj.weaver.patterns.DeclareErrorOrWarning;
++import org.aspectj.weaver.patterns.DeclareParents;
+ import org.aspectj.weaver.patterns.Pointcut;
+ 
+ public class AsmRelationshipProvider {
+ 
+-	protected static AsmRelationshipProvider INSTANCE = new AsmRelationshipProvider();
+-
+ 	public static final String ADVISES = "advises";
+ 	public static final String ADVISED_BY = "advised by";
+ 	public static final String DECLARES_ON = "declares on";
+@@ -60,66 +64,92 @@ public class AsmRelationshipProvider {
+ 	public static final String ANNOTATES = "annotates";
+ 	public static final String ANNOTATED_BY = "annotated by";
+ 
+-	public static void checkerMunger(AsmManager asm, Shadow shadow, Checker checker) {
+-		if (asm == null) // !AsmManager.isCreatingModel())
++	/**
++	 * Add a relationship for a declare error or declare warning
++	 */
++	public static void addDeclareErrorOrWarningRelationship(AsmManager model, Shadow affectedShadow, Checker deow) {
++		if (model == null) {
+ 			return;
+-		if (shadow.getSourceLocation() == null || checker.getSourceLocation() == null)
++		}
++		if (affectedShadow.getSourceLocation() == null || deow.getSourceLocation() == null) {
+ 			return;
++		}
+ 
+ 		if (World.createInjarHierarchy) {
+-			createHierarchy(asm, checker);
++			createHierarchyForBinaryAspect(model, deow);
+ 		}
+ 
+-		// Ensure a node for the target exists
+-		IProgramElement targetNode = getNode(asm, shadow);
+-		if (targetNode == null)
++		IProgramElement targetNode = getNode(model, affectedShadow);
++		if (targetNode == null) {
+ 			return;
+-		String targetHandle = asm.getHandleProvider().createHandleIdentifier(targetNode);
+-		if (targetHandle == null)
++		}
++		String targetHandle = model.getHandleProvider().createHandleIdentifier(targetNode);
++		if (targetHandle == null) {
+ 			return;
++		}
+ 
+-		IProgramElement sourceNode = asm.getHierarchy().findElementForSourceLine(checker.getSourceLocation());
+-		String sourceHandle = asm.getHandleProvider().createHandleIdentifier(sourceNode);
+-		if (sourceHandle == null)
++		IProgramElement sourceNode = model.getHierarchy().findElementForSourceLine(deow.getSourceLocation());
++		String sourceHandle = model.getHandleProvider().createHandleIdentifier(sourceNode);
++		if (sourceHandle == null) {
+ 			return;
++		}
+ 
+-		IRelationshipMap mapper = asm.getRelationshipMap();
+-		IRelationship foreward = mapper.get(sourceHandle, IRelationship.Kind.DECLARE, MATCHED_BY, false, true);
++		IRelationshipMap relmap = model.getRelationshipMap();
++		IRelationship foreward = relmap.get(sourceHandle, IRelationship.Kind.DECLARE, MATCHED_BY, false, true);
+ 		foreward.addTarget(targetHandle);
+ 
+-		IRelationship back = mapper.get(targetHandle, IRelationship.Kind.DECLARE, MATCHES_DECLARE, false, true);
++		IRelationship back = relmap.get(targetHandle, IRelationship.Kind.DECLARE, MATCHES_DECLARE, false, true);
+ 		if (back != null && back.getTargets() != null) {
+ 			back.addTarget(sourceHandle);
+ 		}
+ 		if (sourceNode.getSourceLocation() != null) {
+-			asm.addAspectInEffectThisBuild(sourceNode.getSourceLocation().getSourceFile());
++			model.addAspectInEffectThisBuild(sourceNode.getSourceLocation().getSourceFile());
+ 		}
+-
+ 	}
+ 
+-	// For ITDs
+-	public void addRelationship(AsmManager asm, ResolvedType onType, ResolvedTypeMunger munger, ResolvedType originatingAspect) {
+-
+-		if (asm == null)// !AsmManager.isCreatingModel())
++	/**
++	 * Add a relationship for a type transformation (declare parents, intertype method declaration, declare annotation on type).
++	 */
++	public static void addRelationship(AsmManager model, ResolvedType onType, ResolvedTypeMunger typeTransformer,
++			ResolvedType originatingAspect) {
++		if (model == null) {
+ 			return;
++		}
++
++		if (World.createInjarHierarchy && isBinaryAspect(originatingAspect)) {
++			createHierarchy(model, typeTransformer, originatingAspect);
++		}
++
+ 		if (originatingAspect.getSourceLocation() != null) {
+ 			String sourceHandle = "";
+ 			IProgramElement sourceNode = null;
+-			if (munger.getSourceLocation() != null && munger.getSourceLocation().getOffset() != -1) {
+-				sourceNode = asm.getHierarchy().findElementForSourceLine(munger.getSourceLocation());
+-				sourceHandle = asm.getHandleProvider().createHandleIdentifier(sourceNode);
++			if (typeTransformer.getSourceLocation() != null && typeTransformer.getSourceLocation().getOffset() != -1) {
++				sourceNode = model.getHierarchy().findElementForType(originatingAspect.getPackageName(),
++						originatingAspect.getClassName());
++				IProgramElement closer = model.getHierarchy().findCloserMatchForLineNumber(sourceNode,
++						typeTransformer.getSourceLocation().getLine());
++				if (closer != null) {
++					sourceNode = closer;
++				}
++				sourceHandle = model.getHandleProvider().createHandleIdentifier(sourceNode);
+ 			} else {
+-				sourceNode = asm.getHierarchy().findElementForSourceLine(originatingAspect.getSourceLocation());
+-				sourceHandle = asm.getHandleProvider().createHandleIdentifier(sourceNode);
++				sourceNode = model.getHierarchy().findElementForType(originatingAspect.getPackageName(),
++						originatingAspect.getClassName());
++				// sourceNode = asm.getHierarchy().findElementForSourceLine(originatingAspect.getSourceLocation());
++				sourceHandle = model.getHandleProvider().createHandleIdentifier(sourceNode);
+ 			}
++			// sourceNode = asm.getHierarchy().findElementForType(originatingAspect.getPackageName(),
++			// originatingAspect.getClassName());
++			// // sourceNode = asm.getHierarchy().findElementForSourceLine(munger.getSourceLocation());
++			// sourceHandle = asm.getHandleProvider().createHandleIdentifier(sourceNode);
+ 			if (sourceHandle == null)
+ 				return;
+-			IProgramElement targetNode = asm.getHierarchy().findElementForSourceLine(onType.getSourceLocation());
+-			String targetHandle = asm.getHandleProvider().createHandleIdentifier(targetNode);
++			IProgramElement targetNode = model.getHierarchy().findElementForSourceLine(onType.getSourceLocation());
++			String targetHandle = model.getHandleProvider().createHandleIdentifier(targetNode);
+ 			if (targetHandle == null)
+ 				return;
+ 
+-			IRelationshipMap mapper = asm.getRelationshipMap();
++			IRelationshipMap mapper = model.getRelationshipMap();
+ 			IRelationship foreward = mapper.get(sourceHandle, IRelationship.Kind.DECLARE_INTER_TYPE, INTER_TYPE_DECLARES, false,
+ 					true);
+ 			foreward.addTarget(targetHandle);
+@@ -127,78 +157,205 @@ public class AsmRelationshipProvider {
+ 			IRelationship back = mapper.get(targetHandle, IRelationship.Kind.DECLARE_INTER_TYPE, INTER_TYPE_DECLARED_BY, false,
+ 					true);
+ 			back.addTarget(sourceHandle);
+-			asm.addAspectInEffectThisBuild(sourceNode.getSourceLocation().getSourceFile());
++			model.addAspectInEffectThisBuild(sourceNode.getSourceLocation().getSourceFile());
+ 		}
+ 	}
+ 
+-	// public void addDeclareParentsRelationship(ISourceLocation decp,
+-	// ResolvedType targetType, List newParents) {
+-	// if (!AsmManager.isCreatingModel())
+-	// return;
+-	//
+-	// IProgramElement sourceNode =
+-	// AsmManager.getDefault().getHierarchy().findElementForSourceLine(decp);
+-	// String sourceHandle =
+-	// AsmManager.getDefault().getHandleProvider().createHandleIdentifier
+-	// (sourceNode);
+-	// if (sourceHandle == null)
+-	// return;
+-	//
+-	// IProgramElement targetNode = AsmManager.getDefault().getHierarchy()
+-	// .findElementForSourceLine(targetType.getSourceLocation());
+-	// String targetHandle =
+-	// AsmManager.getDefault().getHandleProvider().createHandleIdentifier
+-	// (targetNode);
+-	// if (targetHandle == null)
+-	// return;
+-	//
+-	// IRelationshipMap mapper = AsmManager.getDefault().getRelationshipMap();
+-	// IRelationship foreward = mapper.get(sourceHandle,
+-	// IRelationship.Kind.DECLARE_INTER_TYPE, INTER_TYPE_DECLARES, false, true);
+-	// foreward.addTarget(targetHandle);
+-	//
+-	// IRelationship back = mapper.get(targetHandle,
+-	// IRelationship.Kind.DECLARE_INTER_TYPE, INTER_TYPE_DECLARED_BY, false,
+-	// true);
+-	// back.addTarget(sourceHandle);
+-	// }
++	private static boolean isBinaryAspect(ResolvedType aspect) {
++		return aspect.getBinaryPath() != null;
++	}
++
++	/**
++	 * Returns the binarySourceLocation for the given sourcelocation. This isn't cached because it's used when faulting in the
++	 * binary nodes and is called with ISourceLocations for all advice, pointcuts and deows contained within the
++	 * resolvedDeclaringAspect.
++	 */
++	private static ISourceLocation getBinarySourceLocation(ResolvedType aspect, ISourceLocation sl) {
++		if (sl == null) {
++			return null;
++		}
++		String sourceFileName = null;
++		if (aspect instanceof ReferenceType) {
++			String s = ((ReferenceType) aspect).getDelegate().getSourcefilename();
++			int i = s.lastIndexOf('/');
++			if (i != -1) {
++				sourceFileName = s.substring(i + 1);
++			} else {
++				sourceFileName = s;
++			}
++		}
++		ISourceLocation sLoc = new SourceLocation(getBinaryFile(aspect), sl.getLine(), sl.getEndLine(),
++				((sl.getColumn() == 0) ? ISourceLocation.NO_COLUMN : sl.getColumn()), sl.getContext(), sourceFileName);
++		return sLoc;
++	}
++
++	private static ISourceLocation createSourceLocation(String sourcefilename, ResolvedType aspect, ISourceLocation sl) {
++		ISourceLocation sLoc = new SourceLocation(getBinaryFile(aspect), sl.getLine(), sl.getEndLine(),
++				((sl.getColumn() == 0) ? ISourceLocation.NO_COLUMN : sl.getColumn()), sl.getContext(), sourcefilename);
++		return sLoc;
++	}
++
++	private static String getSourceFileName(ResolvedType aspect) {
++		String sourceFileName = null;
++		if (aspect instanceof ReferenceType) {
++			String s = ((ReferenceType) aspect).getDelegate().getSourcefilename();
++			int i = s.lastIndexOf('/');
++			if (i != -1) {
++				sourceFileName = s.substring(i + 1);
++			} else {
++				sourceFileName = s;
++			}
++		}
++		return sourceFileName;
++	}
++
++	/**
++	 * Returns the File with pathname to the class file, for example either C:\temp
++	 * \ajcSandbox\workspace\ajcTest16957.tmp\simple.jar!pkg\BinaryAspect.class if the class file is in a jar file, or
++	 * C:\temp\ajcSandbox\workspace\ajcTest16957.tmp!pkg\BinaryAspect.class if the class file is in a directory
++	 */
++	private static File getBinaryFile(ResolvedType aspect) {
++		String s = aspect.getBinaryPath();
++		File f = aspect.getSourceLocation().getSourceFile();
++		// Replace the source file suffix with .class
++		int i = f.getPath().lastIndexOf('.');
++		String path = null;
++		if (i != -1) {
++			path = f.getPath().substring(0, i) + ".class";
++		} else {
++			path = f.getPath() + ".class";
++		}
++		return new File(s + "!" + path);
++	}
++
++	/**
++	 * Create a basic hierarchy to represent an aspect only available in binary (from the aspectpath).
++	 */
++	private static void createHierarchy(AsmManager model, ResolvedTypeMunger typeTransformer, ResolvedType aspect) {
++		assert aspect != null;
++
++		// Check if already defined in the model
++		// IProgramElement filenode = model.getHierarchy().findElementForType(aspect.getPackageName(), aspect.getClassName());
++		// SourceLine(typeTransformer.getSourceLocation());
++		IProgramElement filenode = model.getHierarchy().findElementForSourceLine(typeTransformer.getSourceLocation());
++		// the call to findElementForSourceLine(ISourceLocation) returns a file
++		// node
++		// if it can't find a node in the hierarchy for the given
++		// sourcelocation.
++		// Therefore, if this is returned, we know we can't find one and have to
++		// // continue to fault in the model.
++		// if (filenode != null) { //
++		if (!filenode.getKind().equals(IProgramElement.Kind.FILE_JAVA)) {
++			return;
++		}
++
++		// create the class file node
++		IProgramElement classFileNode = new ProgramElement(model, filenode.getName(), IProgramElement.Kind.FILE,
++				getBinarySourceLocation(aspect, aspect.getSourceLocation()), 0, null, null);
++
++		// create package ipe if one exists....
++		IProgramElement root = model.getHierarchy().getRoot();
++		IProgramElement binaries = model.getHierarchy().findElementForLabel(root, IProgramElement.Kind.SOURCE_FOLDER, "binaries");
++		if (binaries == null) {
++			binaries = new ProgramElement(model, "binaries", IProgramElement.Kind.SOURCE_FOLDER, new ArrayList());
++			root.addChild(binaries);
++		}
++		// if (aspect.getPackageName() != null) {
++		String packagename = aspect.getPackageName() == null ? "" : aspect.getPackageName();
++		// check that there doesn't already exist a node with this name
++		IProgramElement pkgNode = model.getHierarchy().findElementForLabel(binaries, IProgramElement.Kind.PACKAGE, packagename);
++		// note packages themselves have no source location
++		if (pkgNode == null) {
++			pkgNode = new ProgramElement(model, packagename, IProgramElement.Kind.PACKAGE, new ArrayList());
++			binaries.addChild(pkgNode);
++			pkgNode.addChild(classFileNode);
++		} else {
++			// need to add it first otherwise the handle for classFileNode
++			// may not be generated correctly if it uses information from
++			// it's parent node
++			pkgNode.addChild(classFileNode);
++			for (Iterator iter = pkgNode.getChildren().iterator(); iter.hasNext();) {
++				IProgramElement element = (IProgramElement) iter.next();
++				if (!element.equals(classFileNode) && element.getHandleIdentifier().equals(classFileNode.getHandleIdentifier())) {
++					// already added the classfile so have already
++					// added the structure for this aspect
++					pkgNode.removeChild(classFileNode);
++					return;
++				}
++			}
++		}
++		// } else {
++		// // need to add it first otherwise the handle for classFileNode
++		// // may not be generated correctly if it uses information from
++		// // it's parent node
++		// root.addChild(classFileNode);
++		// for (Iterator iter = root.getChildren().iterator(); iter.hasNext();) {
++		// IProgramElement element = (IProgramElement) iter.next();
++		// if (!element.equals(classFileNode) && element.getHandleIdentifier().equals(classFileNode.getHandleIdentifier())) {
++		// // already added the sourcefile so have already
++		// // added the structure for this aspect
++		// root.removeChild(classFileNode);
++		// return;
++		// }
++		// }
++		// }
++
++		// add and create empty import declaration ipe
++		classFileNode.addChild(new ProgramElement(model, "import declarations", IProgramElement.Kind.IMPORT_REFERENCE, null, 0,
++				null, null));
++
++		// add and create aspect ipe
++		IProgramElement aspectNode = new ProgramElement(model, aspect.getSimpleName(), IProgramElement.Kind.ASPECT,
++				getBinarySourceLocation(aspect, aspect.getSourceLocation()), aspect.getModifiers(), null, null);
++		classFileNode.addChild(aspectNode);
++
++		addChildNodes(model, aspect, aspectNode, aspect.getDeclaredPointcuts());
++
++		addChildNodes(model, aspect, aspectNode, aspect.getDeclaredAdvice());
++		addChildNodes(model, aspect, aspectNode, aspect.getDeclares());
++		addChildNodes(model, aspect, aspectNode, aspect.getTypeMungers());
++	}
+ 
+ 	/**
+ 	 * Adds a declare annotation relationship, sometimes entities don't have source locs (methods/fields) so use other variants of
+ 	 * this method if that is the case as they will look the entities up in the structure model.
+ 	 */
+-	public void addDeclareAnnotationRelationship(AsmManager asm, ISourceLocation declareAnnotationLocation,
++	public static void addDeclareAnnotationRelationship(AsmManager model, ISourceLocation declareAnnotationLocation,
+ 			ISourceLocation annotatedLocation) {
+-		if (asm == null) // !AsmManager.isCreatingModel())
++		if (model == null) {
+ 			return;
++		}
+ 
+-		IProgramElement sourceNode = asm.getHierarchy().findElementForSourceLine(declareAnnotationLocation);
+-		String sourceHandle = asm.getHandleProvider().createHandleIdentifier(sourceNode);
+-		if (sourceHandle == null)
++		IProgramElement sourceNode = model.getHierarchy().findElementForSourceLine(declareAnnotationLocation);
++		String sourceHandle = model.getHandleProvider().createHandleIdentifier(sourceNode);
++		if (sourceHandle == null) {
+ 			return;
++		}
+ 
+-		IProgramElement targetNode = asm.getHierarchy().findElementForSourceLine(annotatedLocation);
+-		String targetHandle = asm.getHandleProvider().createHandleIdentifier(targetNode);
+-		if (targetHandle == null)
++		IProgramElement targetNode = model.getHierarchy().findElementForSourceLine(annotatedLocation);
++		String targetHandle = model.getHandleProvider().createHandleIdentifier(targetNode);
++		if (targetHandle == null) {
+ 			return;
++		}
+ 
+-		IRelationshipMap mapper = asm.getRelationshipMap();
++		IRelationshipMap mapper = model.getRelationshipMap();
+ 		IRelationship foreward = mapper.get(sourceHandle, IRelationship.Kind.DECLARE_INTER_TYPE, ANNOTATES, false, true);
+ 		foreward.addTarget(targetHandle);
+ 
+ 		IRelationship back = mapper.get(targetHandle, IRelationship.Kind.DECLARE_INTER_TYPE, ANNOTATED_BY, false, true);
+ 		back.addTarget(sourceHandle);
+ 		if (sourceNode.getSourceLocation() != null) {
+-			asm.addAspectInEffectThisBuild(sourceNode.getSourceLocation().getSourceFile());
++			model.addAspectInEffectThisBuild(sourceNode.getSourceLocation().getSourceFile());
+ 		}
+ 	}
+ 
+ 	/**
+ 	 * Creates the hierarchy for binary aspects
+ 	 */
+-	public static void createHierarchy(AsmManager asm, ShadowMunger munger) {
+-		if (!munger.isBinary())
++	public static void createHierarchyForBinaryAspect(AsmManager asm, ShadowMunger munger) {
++		if (!munger.isBinary()) {
+ 			return;
++		}
+ 
+ 		IProgramElement sourceFileNode = asm.getHierarchy().findElementForSourceLine(munger.getSourceLocation());
+ 		// the call to findElementForSourceLine(ISourceLocation) returns a file
+@@ -273,13 +430,36 @@ public class AsmRelationshipProvider {
+ 				.getBinarySourceLocation(aspect.getSourceLocation()), aspect.getModifiers(), null, null);
+ 		classFileNode.addChild(aspectNode);
+ 
+-		addChildNodes(asm, munger, aspectNode, aspect.getDeclaredPointcuts());
++		String sourcefilename = getSourceFileName(aspect);
++		addPointcuts(asm, sourcefilename, aspect, aspectNode, aspect.getDeclaredPointcuts());
++		addChildNodes(asm, aspect, aspectNode, aspect.getDeclaredAdvice());
++		addChildNodes(asm, aspect, aspectNode, aspect.getDeclares());
++		addChildNodes(asm, aspect, aspectNode, aspect.getTypeMungers());
+ 
+-		addChildNodes(asm, munger, aspectNode, aspect.getDeclaredAdvice());
+-		addChildNodes(asm, munger, aspectNode, aspect.getDeclares());
+ 	}
+ 
+-	private static void addChildNodes(AsmManager asm, ShadowMunger munger, IProgramElement parent, ResolvedMember[] children) {
++	private static void addPointcuts(AsmManager model, String sourcefilename, ResolvedType aspect,
++			IProgramElement containingAspect, ResolvedMember[] pointcuts) {
++		for (int i = 0; i < pointcuts.length; i++) {
++			ResolvedMember pointcut = pointcuts[i];
++			if (pointcut instanceof ResolvedPointcutDefinition) {
++				ResolvedPointcutDefinition rpcd = (ResolvedPointcutDefinition) pointcut;
++				Pointcut p = rpcd.getPointcut();
++				ISourceLocation sLoc = (p == null ? null : p.getSourceLocation());
++				if (sLoc == null) {
++					sLoc = rpcd.getSourceLocation();
++				}
++				ISourceLocation pointcutLocation = createSourceLocation(sourcefilename, aspect, sLoc);
++				ProgramElement pointcutElement = new ProgramElement(model, pointcut.getName(), IProgramElement.Kind.POINTCUT,
++						pointcutLocation, pointcut.getModifiers(), NO_COMMENT, Collections.EMPTY_LIST);
++				containingAspect.addChild(pointcutElement);
++			}
++		}
++	}
++
++	private static final String NO_COMMENT = null;
++
++	private static void addChildNodes(AsmManager asm, ResolvedType aspect, IProgramElement parent, ResolvedMember[] children) {
+ 		for (int i = 0; i < children.length; i++) {
+ 			ResolvedMember pcd = children[i];
+ 			if (pcd instanceof ResolvedPointcutDefinition) {
+@@ -289,13 +469,13 @@ public class AsmRelationshipProvider {
+ 				if (sLoc == null) {
+ 					sLoc = rpcd.getSourceLocation();
+ 				}
+-				parent.addChild(new ProgramElement(asm, pcd.getName(), IProgramElement.Kind.POINTCUT, munger
+-						.getBinarySourceLocation(sLoc), pcd.getModifiers(), null, Collections.EMPTY_LIST));
++				parent.addChild(new ProgramElement(asm, pcd.getName(), IProgramElement.Kind.POINTCUT, getBinarySourceLocation(
++						aspect, sLoc), pcd.getModifiers(), null, Collections.EMPTY_LIST));
+ 			}
+ 		}
+ 	}
+ 
+-	private static void addChildNodes(AsmManager asm, ShadowMunger munger, IProgramElement parent, Collection children) {
++	private static void addChildNodes(AsmManager asm, ResolvedType aspect, IProgramElement parent, Collection children) {
+ 		int deCtr = 1;
+ 		int dwCtr = 1;
+ 		for (Iterator iter = children.iterator(); iter.hasNext();) {
+@@ -308,18 +488,34 @@ public class AsmRelationshipProvider {
+ 				} else {
+ 					counter = dwCtr++;
+ 				}
+-				parent.addChild(createDeclareErrorOrWarningChild(asm, munger, decl, counter));
++				parent.addChild(createDeclareErrorOrWarningChild(asm, aspect, decl, counter));
+ 			} else if (element instanceof Advice) {
+ 				Advice advice = (Advice) element;
+ 				parent.addChild(createAdviceChild(asm, advice));
++			} else if (element instanceof DeclareParents) {
++				parent.addChild(createDeclareParentsChild(asm, (DeclareParents) element));
++			} else if (element instanceof BcelTypeMunger) {
++				parent.addChild(createIntertypeDeclaredChild(asm, aspect, (BcelTypeMunger) element));
+ 			}
+ 		}
+ 	}
+ 
+-	private static IProgramElement createDeclareErrorOrWarningChild(AsmManager asm, ShadowMunger munger,
++	// private static IProgramElement createDeclareErrorOrWarningChild(AsmManager asm, ShadowMunger munger,
++	// DeclareErrorOrWarning decl, int count) {
++	// IProgramElement deowNode = new ProgramElement(asm, decl.getName(), decl.isError() ? IProgramElement.Kind.DECLARE_ERROR
++	// : IProgramElement.Kind.DECLARE_WARNING, munger.getBinarySourceLocation(decl.getSourceLocation()), decl
++	// .getDeclaringType().getModifiers(), null, null);
++	// deowNode.setDetails("\"" + AsmRelationshipUtils.genDeclareMessage(decl.getMessage()) + "\"");
++	// if (count != -1) {
++	// deowNode.setBytecodeName(decl.getName() + "_" + count);
++	// }
++	// return deowNode;
++	// }
++
++	private static IProgramElement createDeclareErrorOrWarningChild(AsmManager model, ResolvedType aspect,
+ 			DeclareErrorOrWarning decl, int count) {
+-		IProgramElement deowNode = new ProgramElement(asm, decl.getName(), decl.isError() ? IProgramElement.Kind.DECLARE_ERROR
+-				: IProgramElement.Kind.DECLARE_WARNING, munger.getBinarySourceLocation(decl.getSourceLocation()), decl
++		IProgramElement deowNode = new ProgramElement(model, decl.getName(), decl.isError() ? IProgramElement.Kind.DECLARE_ERROR
++				: IProgramElement.Kind.DECLARE_WARNING, getBinarySourceLocation(aspect, decl.getSourceLocation()), decl
+ 				.getDeclaringType().getModifiers(), null, null);
+ 		deowNode.setDetails("\"" + AsmRelationshipUtils.genDeclareMessage(decl.getMessage()) + "\"");
+ 		if (count != -1) {
+@@ -328,21 +524,59 @@ public class AsmRelationshipProvider {
+ 		return deowNode;
+ 	}
+ 
+-	private static IProgramElement createAdviceChild(AsmManager asm, Advice advice) {
+-		IProgramElement adviceNode = new ProgramElement(asm, advice.getKind().getName(), IProgramElement.Kind.ADVICE, advice
++	private static IProgramElement createAdviceChild(AsmManager model, Advice advice) {
++		IProgramElement adviceNode = new ProgramElement(model, advice.getKind().getName(), IProgramElement.Kind.ADVICE, advice
+ 				.getBinarySourceLocation(advice.getSourceLocation()), advice.getSignature().getModifiers(), null,
+ 				Collections.EMPTY_LIST);
+ 		adviceNode.setDetails(AsmRelationshipUtils.genPointcutDetails(advice.getPointcut()));
+ 		adviceNode.setBytecodeName(advice.getSignature().getName());
+-		// String nn = advice.getSignature().getName();
+-		// if (counter != 1) {
+-		// adviceNode.setBytecodeName(advice.getKind().getName() + "$"
+-		// + counter + "$");
+-		// }
+ 		return adviceNode;
+ 	}
+ 
+-	public static String getHandle(Advice advice, AsmManager asm) {
++	/**
++	 * Half baked implementation - will need completing if we go down this route rather than replacing it all for binary aspects
++	 */
++	private static IProgramElement createIntertypeDeclaredChild(AsmManager model, ResolvedType aspect, BcelTypeMunger itd) {
++		ResolvedTypeMunger rtMunger = itd.getMunger();
++		if (rtMunger.getKind() == ResolvedTypeMunger.Field) {
++			String name = rtMunger.getSignature().toString();
++			IProgramElement newElement = new ProgramElement(model, name, IProgramElement.Kind.INTER_TYPE_FIELD,
++					getBinarySourceLocation(aspect, itd.getSourceLocation()), rtMunger.getSignature().getModifiers(), null,
++					Collections.EMPTY_LIST);
++			return newElement;
++		} else if (rtMunger.getKind() == ResolvedTypeMunger.Method) {
++			ResolvedMember sig = rtMunger.getSignature();
++			String name = sig.getDeclaringType() + "." + sig.getName();
++			if (name.indexOf("$") != -1) {
++				name = name.substring(name.indexOf("$") + 1);
++			}
++			IProgramElement pe = new ProgramElement(model, name, IProgramElement.Kind.INTER_TYPE_METHOD, getBinarySourceLocation(
++					aspect, itd.getSourceLocation()), rtMunger.getSignature().getModifiers(), null, Collections.EMPTY_LIST);
++			UnresolvedType[] ts = sig.getParameterTypes();
++			if (ts == null) {
++				pe.setParameterNames(Collections.EMPTY_LIST);
++				pe.setParameterSignatures(Collections.EMPTY_LIST);
++			} else {
++				List paramSigs = new ArrayList();
++				for (int i = 0; i < ts.length; i++) {
++					paramSigs.add(ts[i].getSignature().toCharArray());
++				}
++				pe.setParameterSignatures(paramSigs);
++			}
++			return pe;
++		}
++		// other cases ignored for now
++		return null;
++	}
++
++	private static IProgramElement createDeclareParentsChild(AsmManager model, DeclareParents decp) {
++		IProgramElement decpElement = new ProgramElement(model, "declare parents", IProgramElement.Kind.DECLARE_PARENTS,
++				getBinarySourceLocation(decp.getDeclaringType(), decp.getSourceLocation()), Modifier.PUBLIC, null,
++				Collections.EMPTY_LIST);
++		return decpElement;
++	}
++
++	public static String getHandle(AsmManager asm, Advice advice) {
+ 		if (null == advice.handle) {
+ 			ISourceLocation sl = advice.getSourceLocation();
+ 			if (sl != null) {
+@@ -353,9 +587,11 @@ public class AsmRelationshipProvider {
+ 		return advice.handle;
+ 	}
+ 
+-	public static void adviceMunger(AsmManager asm, Shadow shadow, ShadowMunger munger) {
+-		if (asm == null) // !AsmManager.isCreatingModel())
++	public static void addAdvisedRelationship(AsmManager model, Shadow matchedShadow, ShadowMunger munger) {
++		if (model == null) {
+ 			return;
++		}
++
+ 		if (munger instanceof Advice) {
+ 			Advice advice = (Advice) munger;
+ 
+@@ -365,55 +601,52 @@ public class AsmRelationshipProvider {
+ 			}
+ 
+ 			if (World.createInjarHierarchy) {
+-				createHierarchy(asm, advice);
++				createHierarchyForBinaryAspect(model, advice);
+ 			}
+ 
+-			IRelationshipMap mapper = asm.getRelationshipMap();
+-			IProgramElement targetNode = getNode(asm, shadow);
+-			if (targetNode == null)
++			IRelationshipMap mapper = model.getRelationshipMap();
++			IProgramElement targetNode = getNode(model, matchedShadow);
++			if (targetNode == null) {
+ 				return;
++			}
+ 			boolean runtimeTest = advice.hasDynamicTests();
+ 
+-			// Work out extra info to inform interested UIs !
+-			IProgramElement.ExtraInformation ai = new IProgramElement.ExtraInformation();
++			IProgramElement.ExtraInformation extra = new IProgramElement.ExtraInformation();
+ 
+-			String adviceHandle = getHandle(advice, asm);
+-			if (adviceHandle == null)
++			String adviceHandle = getHandle(model, advice);
++			if (adviceHandle == null) {
+ 				return;
++			}
+ 
+-			// What kind of advice is it?
+-			// TODO: Prob a better way to do this but I just want to
+-			// get it into CVS !!!
+-			AdviceKind ak = ((Advice) munger).getKind();
+-			ai.setExtraAdviceInformation(ak.getName());
+-			IProgramElement adviceElement = asm.getHierarchy().findElementForHandle(adviceHandle);
++			extra.setExtraAdviceInformation(advice.getKind().getName());
++			IProgramElement adviceElement = model.getHierarchy().findElementForHandle(adviceHandle);
+ 			if (adviceElement != null) {
+-				adviceElement.setExtraInfo(ai);
++				adviceElement.setExtraInfo(extra);
+ 			}
+ 			String targetHandle = targetNode.getHandleIdentifier();
+ 			if (advice.getKind().equals(AdviceKind.Softener)) {
+ 				IRelationship foreward = mapper.get(adviceHandle, IRelationship.Kind.DECLARE_SOFT, SOFTENS, runtimeTest, true);
+-				if (foreward != null)
+-					foreward.addTarget(targetHandle);// foreward.getTargets().add
+-				// (targetHandle);
++				if (foreward != null) {
++					foreward.addTarget(targetHandle);
++				}
+ 
+ 				IRelationship back = mapper.get(targetHandle, IRelationship.Kind.DECLARE, SOFTENED_BY, runtimeTest, true);
+-				if (back != null)
+-					back.addTarget(adviceHandle);// back.getTargets().add(
+-				// adviceHandle);
++				if (back != null) {
++					back.addTarget(adviceHandle);
++				}
+ 			} else {
+ 				IRelationship foreward = mapper.get(adviceHandle, IRelationship.Kind.ADVICE, ADVISES, runtimeTest, true);
+-				if (foreward != null)
+-					foreward.addTarget(targetHandle);// foreward.getTargets().add
+-				// (targetHandle);
++				if (foreward != null) {
++					foreward.addTarget(targetHandle);
++				}
+ 
+ 				IRelationship back = mapper.get(targetHandle, IRelationship.Kind.ADVICE, ADVISED_BY, runtimeTest, true);
+-				if (back != null)
+-					back.addTarget(adviceHandle);// back.getTargets().add(
+-				// adviceHandle);
++				if (back != null) {
++					back.addTarget(adviceHandle);
++				}
+ 			}
+ 			if (adviceElement.getSourceLocation() != null) {
+-				asm.addAspectInEffectThisBuild(adviceElement.getSourceLocation().getSourceFile());
++				model.addAspectInEffectThisBuild(adviceElement.getSourceLocation().getSourceFile());
+ 			}
+ 		}
+ 	}
+@@ -460,7 +693,8 @@ public class AsmRelationshipProvider {
+ 
+ 		Member shadowSig = shadow.getSignature();
+ 		// pr235204
+-		if (shadow.getKind() == Shadow.MethodCall || shadow.getKind()==Shadow.ConstructorCall || !shadowSig.equals(enclosingMember)) {
++		if (shadow.getKind() == Shadow.MethodCall || shadow.getKind() == Shadow.ConstructorCall
++				|| !shadowSig.equals(enclosingMember)) {
+ 			IProgramElement bodyNode = findOrCreateCodeNode(model, enclosingNode, shadowSig, shadow);
+ 			return bodyNode;
+ 		} else {
+@@ -468,10 +702,8 @@ public class AsmRelationshipProvider {
+ 		}
+ 	}
+ 
+-	private static boolean sourceLinesMatch(ISourceLocation loc1, ISourceLocation loc2) {
+-		if (loc1.getLine() != loc2.getLine())
+-			return false;
+-		return true;
++	private static boolean sourceLinesMatch(ISourceLocation location1, ISourceLocation location2) {
++		return (location1.getLine() == location2.getLine());
+ 	}
+ 
+ 	/**
+@@ -524,89 +756,47 @@ public class AsmRelationshipProvider {
+ 		return peNode;
+ 	}
+ 
+-	protected static IProgramElement lookupMember(IHierarchy model, Member member) {
+-		UnresolvedType declaringType = member.getDeclaringType();
+-		IProgramElement classNode = model.findElementForType(declaringType.getPackageName(), declaringType.getClassName());
+-		return findMemberInClass(classNode, member);
+-	}
+-
+-	protected static IProgramElement lookupMember(IHierarchy model, UnresolvedType declaringType, Member member) {
+-		IProgramElement classNode = model.findElementForType(declaringType.getPackageName(), declaringType.getClassName());
+-		return findMemberInClass(classNode, member);
+-	}
+-
+-	protected static IProgramElement findMemberInClass(IProgramElement classNode, Member member) {
+-		if (classNode == null)
+-			return null; // XXX remove this check
+-		for (Iterator it = classNode.getChildren().iterator(); it.hasNext();) {
+-			IProgramElement node = (IProgramElement) it.next();
+-			if (member.getName().equals(node.getBytecodeName()) && member.getSignature().equals(node.getBytecodeSignature())) {
+-				return node;
++	private static IProgramElement lookupMember(IHierarchy model, UnresolvedType declaringType, Member member) {
++		IProgramElement typeElement = model.findElementForType(declaringType.getPackageName(), declaringType.getClassName());
++		if (typeElement == null) {
++			return null;
++		}
++		for (Iterator it = typeElement.getChildren().iterator(); it.hasNext();) {
++			IProgramElement element = (IProgramElement) it.next();
++			if (member.getName().equals(element.getBytecodeName()) && member.getSignature().equals(element.getBytecodeSignature())) {
++				return element;
+ 			}
+ 		}
+ 		// if we can't find the member, we'll just put it in the class
+-		return classNode;
+-	}
+-
+-	// private static IProgramElement.Kind genShadowKind(Shadow shadow) {
+-	// IProgramElement.Kind shadowKind;
+-	// if (shadow.getKind() == Shadow.MethodCall
+-	// || shadow.getKind() == Shadow.ConstructorCall
+-	// || shadow.getKind() == Shadow.FieldGet
+-	// || shadow.getKind() == Shadow.FieldSet
+-	// || shadow.getKind() == Shadow.ExceptionHandler) {
+-	// return IProgramElement.Kind.CODE;
+-	//			
+-	// } else if (shadow.getKind() == Shadow.MethodExecution) {
+-	// return IProgramElement.Kind.METHOD;
+-	//			
+-	// } else if (shadow.getKind() == Shadow.ConstructorExecution) {
+-	// return IProgramElement.Kind.CONSTRUCTOR;
+-	//			
+-	// } else if (shadow.getKind() == Shadow.PreInitialization
+-	// || shadow.getKind() == Shadow.Initialization) {
+-	// return IProgramElement.Kind.CLASS;
+-	//			
+-	// } else if (shadow.getKind() == Shadow.AdviceExecution) {
+-	// return IProgramElement.Kind.ADVICE;
+-	//			
+-	// } else {
+-	// return IProgramElement.Kind.ERROR;
+-	// }
+-	// }
+-
+-	public static AsmRelationshipProvider getDefault() {
+-		return INSTANCE;
++		return typeElement;
+ 	}
+ 
+ 	/**
+-	 * Add a relationship to the known set for a declare @method/@constructor construct. Locating the method is a messy (for messy
+-	 * read 'fragile') bit of code that could break at any moment but it's working for my simple testcase. Currently just fails
+-	 * silently if any of the lookup code doesn't find anything...
+-	 * 
+-	 * @param hierarchy
++	 * Add a relationship for a matching declare annotation method or declare annotation constructor. Locating the method is a messy
++	 * (for messy read 'fragile') bit of code that could break at any moment but it's working for my simple testcase.
+ 	 */
+-	public void addDeclareAnnotationMethodRelationship(ISourceLocation sourceLocation, String typename, ResolvedMember method,
+-			AsmManager structureModel) {
+-		if (structureModel == null) // !AsmManager.isCreatingModel())
++	public static void addDeclareAnnotationMethodRelationship(ISourceLocation sourceLocation, String affectedTypeName,
++			ResolvedMember affectedMethod, AsmManager model) {
++		if (model == null) {
+ 			return;
++		}
+ 
+ 		String pkg = null;
+-		String type = typename;
+-		int packageSeparator = typename.lastIndexOf(".");
++		String type = affectedTypeName;
++		int packageSeparator = affectedTypeName.lastIndexOf(".");
+ 		if (packageSeparator != -1) {
+-			pkg = typename.substring(0, packageSeparator);
+-			type = typename.substring(packageSeparator + 1);
++			pkg = affectedTypeName.substring(0, packageSeparator);
++			type = affectedTypeName.substring(packageSeparator + 1);
+ 		}
+ 
+-		IHierarchy hierarchy = structureModel.getHierarchy();
++		IHierarchy hierarchy = model.getHierarchy();
+ 
+ 		IProgramElement typeElem = hierarchy.findElementForType(pkg, type);
+ 		if (typeElem == null)
+ 			return;
+ 
+ 		StringBuffer parmString = new StringBuffer("(");
+-		UnresolvedType[] args = method.getParameterTypes();
++		UnresolvedType[] args = affectedMethod.getParameterTypes();
+ 		// Type[] args = method.getArgumentTypes();
+ 		for (int i = 0; i < args.length; i++) {
+ 			String s = args[i].getName();// Utility.signatureToString(args[i].
+@@ -618,14 +808,15 @@ public class AsmRelationshipProvider {
+ 		parmString.append(")");
+ 		IProgramElement methodElem = null;
+ 
+-		if (method.getName().startsWith("<init>")) {
++		if (affectedMethod.getName().startsWith("<init>")) {
+ 			// its a ctor
+ 			methodElem = hierarchy.findElementForSignature(typeElem, IProgramElement.Kind.CONSTRUCTOR, type + parmString);
+ 			if (methodElem == null && args.length == 0)
+ 				methodElem = typeElem; // assume default ctor
+ 		} else {
+ 			// its a method
+-			methodElem = hierarchy.findElementForSignature(typeElem, IProgramElement.Kind.METHOD, method.getName() + parmString);
++			methodElem = hierarchy.findElementForSignature(typeElem, IProgramElement.Kind.METHOD, affectedMethod.getName()
++					+ parmString);
+ 		}
+ 
+ 		if (methodElem == null)
+@@ -637,11 +828,11 @@ public class AsmRelationshipProvider {
+ 				return;
+ 
+ 			IProgramElement sourceNode = hierarchy.findElementForSourceLine(sourceLocation);
+-			String sourceHandle = structureModel.getHandleProvider().createHandleIdentifier(sourceNode);
++			String sourceHandle = model.getHandleProvider().createHandleIdentifier(sourceNode);
+ 			if (sourceHandle == null)
+ 				return;
+ 
+-			IRelationshipMap mapper = structureModel.getRelationshipMap();
++			IRelationshipMap mapper = model.getRelationshipMap();
+ 			IRelationship foreward = mapper.get(sourceHandle, IRelationship.Kind.DECLARE_INTER_TYPE, ANNOTATES, false, true);
+ 			foreward.addTarget(targetHandle);
+ 
+@@ -655,45 +846,49 @@ public class AsmRelationshipProvider {
+ 	}
+ 
+ 	/**
+-	 * Add a relationship to the known set for a declare @field construct. Locating the field is trickier than it might seem since
+-	 * we have no line number info for it, we have to dig through the structure model under the fields' type in order to locate it.
+-	 * Currently just fails silently if any of the lookup code doesn't find anything...
++	 * Add a relationship for a matching declare ATfield. Locating the field is trickier than it might seem since we have no line
++	 * number info for it, we have to dig through the structure model under the fields' type in order to locate it.
+ 	 */
+-	public void addDeclareAnnotationFieldRelationship(AsmManager asm, ISourceLocation sourceLocation, String typename,
+-			ResolvedMember field) {
+-		if (asm == null) // !AsmManager.isCreatingModel())
++	public static void addDeclareAnnotationFieldRelationship(AsmManager model, ISourceLocation declareLocation,
++			String affectedTypeName, ResolvedMember affectedFieldName) {
++		if (model == null) {
+ 			return;
++		}
+ 
+ 		String pkg = null;
+-		String type = typename;
+-		int packageSeparator = typename.lastIndexOf(".");
++		String type = affectedTypeName;
++		int packageSeparator = affectedTypeName.lastIndexOf(".");
+ 		if (packageSeparator != -1) {
+-			pkg = typename.substring(0, packageSeparator);
+-			type = typename.substring(packageSeparator + 1);
++			pkg = affectedTypeName.substring(0, packageSeparator);
++			type = affectedTypeName.substring(packageSeparator + 1);
+ 		}
+-		IHierarchy hierarchy = asm.getHierarchy();
++		IHierarchy hierarchy = model.getHierarchy();
+ 		IProgramElement typeElem = hierarchy.findElementForType(pkg, type);
+-		if (typeElem == null)
++		if (typeElem == null) {
+ 			return;
++		}
+ 
+-		IProgramElement fieldElem = hierarchy.findElementForSignature(typeElem, IProgramElement.Kind.FIELD, field.getName());
+-		if (fieldElem == null)
++		IProgramElement fieldElem = hierarchy.findElementForSignature(typeElem, IProgramElement.Kind.FIELD, affectedFieldName
++				.getName());
++		if (fieldElem == null) {
+ 			return;
++		}
+ 
+ 		String targetHandle = fieldElem.getHandleIdentifier();
+-		if (targetHandle == null)
++		if (targetHandle == null) {
+ 			return;
++		}
+ 
+-		IProgramElement sourceNode = hierarchy.findElementForSourceLine(sourceLocation);
+-		String sourceHandle = asm.getHandleProvider().createHandleIdentifier(sourceNode);
+-		if (sourceHandle == null)
++		IProgramElement sourceNode = hierarchy.findElementForSourceLine(declareLocation);
++		String sourceHandle = model.getHandleProvider().createHandleIdentifier(sourceNode);
++		if (sourceHandle == null) {
+ 			return;
++		}
+ 
+-		IRelationshipMap mapper = asm.getRelationshipMap();
+-		IRelationship foreward = mapper.get(sourceHandle, IRelationship.Kind.DECLARE_INTER_TYPE, ANNOTATES, false, true);
++		IRelationshipMap relmap = model.getRelationshipMap();
++		IRelationship foreward = relmap.get(sourceHandle, IRelationship.Kind.DECLARE_INTER_TYPE, ANNOTATES, false, true);
+ 		foreward.addTarget(targetHandle);
+-
+-		IRelationship back = mapper.get(targetHandle, IRelationship.Kind.DECLARE_INTER_TYPE, ANNOTATED_BY, false, true);
++		IRelationship back = relmap.get(targetHandle, IRelationship.Kind.DECLARE_INTER_TYPE, ANNOTATED_BY, false, true);
+ 		back.addTarget(sourceHandle);
+ 	}
+ 

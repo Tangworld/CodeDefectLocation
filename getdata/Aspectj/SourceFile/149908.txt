@@ -1,0 +1,193 @@
+@@ -0,0 +1,6 @@
++public aspect A {
++
++	before() : call(C+.new(..)) {
++	}
++	
++}
+@@ -0,0 +1,7 @@
++public class C {
++
++	public void foo() {
++		new MyStringBuilder().append("hello" ," world");
++	}
++	
++}
+@@ -0,0 +1,7 @@
++public class C1 {
++
++	public void bar() {
++		new C();
++	}
++	
++}
+@@ -0,0 +1,7 @@
++public class MyStringBuilder {
++
++	public void append(String s1, String s2) {
++		System.out.println("builder: " + s1 + s2);
++	}
++	
++}
+@@ -0,0 +1,26 @@
++This folder contains the code for two tests:
++
++Case 1: A type that was on the classpath when a jar file was created is 
++        not on the classpath when the aspects are being compiled and woven 
++        with this jar on the inpath. This should result in a cantFindType 
++        message. 
++        
++Case 2: The type exists but one of it's members no longer does. This should 
++        result in an unresolvableMember message.
++
++To recreate required files for Case 1 :
++
++1. Compile the MyStringBuilder.java in folder pr149908 type: 
++
++	javac MyStringBuilder.java
++
++2. ajc C.java -outjar simple.jar
++
++
++To recreate the required files for Case 2:
++
++1. Navigate to the withoutMethod folder
++
++2. Compile MyStringBuilder.java into ..\stringBuilder.jar:
++
++	ajc MyStringBuilder.java -outjar ..\stringBuilder.jar
+@@ -0,0 +1,25 @@
++public aspect Tracing {
++
++	private int _callDepth = -1;
++
++    pointcut tracePoints() : !within(Tracing);
++
++    before() : tracePoints() {
++            _callDepth++; print("Before", thisJoinPoint);
++    }
++
++    after() : tracePoints() {
++            print("After", thisJoinPoint);
++            _callDepth--;
++    }
++
++    private void print(String prefix, Object message) {
++            for(int i = 0, spaces = _callDepth * 2; i < spaces; i++) {
++                    //MyPrint.print(" ","");
++            }
++
++            System.out.println(prefix + ": " + message);
++    }
++
++	
++}
+Binary files differ
+Binary files differ
+@@ -0,0 +1,3 @@
++public class MyStringBuilder {
++	
++}
+@@ -28,6 +28,8 @@ public class Ajc153Tests extends org.aspectj.testing.XMLBasedAjcTestCase {
+   // public void testCFlowXMLAspectLTW_pr149096() { runTest("cflow xml concrete aspect"); }
+   // public void testAmbiguousBinding_pr121805() { runTest("ambiguous binding");}
+ //  public void testNegatedAnnotationMatchingProblem_pr153464() { runTest("negated annotation matching problem");}
++  public void testNoNPEDueToMissingType_pr149908() { runTest("ensure no npe due to missing type");}
++  public void testNoNPEDueToMember_pr149908() { runTest("ensure no npe due to missing member");}
+   public void testPTWgetWithinTypeName_pr123423_1() { runTest("basic usage of getWithinTypeName");}
+   public void testPTWgetWithinTypeName_pr123423_2() { runTest("basic usage of getWithinTypeName - multiple types");}
+   public void testPTWgetWithinTypeName_pr123423_3() { runTest("basic usage of getWithinTypeName - non matching types");}
+@@ -2,6 +2,19 @@
+ 
+ <!-- AspectJ v1.5.3 Tests -->
+ <suite>
++    <ajc-test dir="bugs153/pr149908" title="ensure no npe due to missing type">
++      <compile files="A.aj,C1.java,Tracing.aj" inpath="simple.jar">
++		<message kind="error" text="can't find type MyStringBuilder"/>
++		<message kind="error" text="can't determine superclass of missing type MyStringBuilder"/>
++	  </compile>
++    </ajc-test>
++
++    <ajc-test dir="bugs153/pr149908" title="ensure no npe due to missing member">
++      <compile files="A.aj,C1.java,Tracing.aj" inpath="simple.jar;stringBuilder.jar">
++		<message kind="warning" text="can not resolve this member: append [Xlint:unresolvableMember]"/>
++	  </compile>
++    </ajc-test>
++    
+      <ajc-test dir="bugs153/pr159143" title="declare method annotations">
+         <compile files="DeclareMethodAnnotation.java" options="-1.5">
+             <message line="16" kind="warning" text="all"/>
+@@ -31,6 +31,9 @@ public class MemberImpl implements Comparable, AnnotatedElement,Member {
+     protected UnresolvedType[] parameterTypes;
+     private final String signature;
+     private String paramSignature;
++    private boolean reportedCantFindDeclaringType = false;
++    private boolean reportedUnresolvableMember = false;
++
+ 
+     /**
+      * All the signatures that a join point with this member as its signature has.
+@@ -523,14 +526,24 @@ public class MemberImpl implements Comparable, AnnotatedElement,Member {
+ 	 * @see org.aspectj.weaver.Member#getModifiers(org.aspectj.weaver.World)
+ 	 */
+     public int getModifiers(World world) {
+-        return resolve(world).getModifiers();
++    	ResolvedMember resolved = resolve(world);
++    	if (resolved == null) {
++       		reportDidntFindMember(world);
++    		return 0;
++		}
++		return resolved.getModifiers();
+     }
+ 
+     /* (non-Javadoc)
+ 	 * @see org.aspectj.weaver.Member#getExceptions(org.aspectj.weaver.World)
+ 	 */
+     public UnresolvedType[] getExceptions(World world) {
+-        return resolve(world).getExceptions();
++    	ResolvedMember resolved = resolve(world);
++    	if (resolved == null) {
++       		reportDidntFindMember(world);
++    		return UnresolvedType.NONE;
++		}
++		return resolved.getExceptions();
+     }
+ 
+     /* (non-Javadoc)
+@@ -932,7 +945,12 @@ public class MemberImpl implements Comparable, AnnotatedElement,Member {
+ 	 * @see org.aspectj.weaver.Member#getParameterNames(org.aspectj.weaver.World)
+ 	 */
+ 	public String[] getParameterNames(World world) {
+-    	return resolve(world).getParameterNames();
++    	ResolvedMember resolved = resolve(world);
++    	if (resolved == null) {
++       		reportDidntFindMember(world);
++    		return null;
++		}
++		return resolved.getParameterNames();
+     }
+ 
+     /**
+@@ -946,5 +964,22 @@ public class MemberImpl implements Comparable, AnnotatedElement,Member {
+ 		return joinPointSignatures;
+ 	}
+ 
++	/**
++	 * Raises an [Xlint:cantFindType] message if the declaring type
++	 * cannot be found or an [Xlint:unresolvableMember] message if the
++	 * type can be found (bug 149908)
++	 */
++	private void reportDidntFindMember(World world) {
++       	if (reportedCantFindDeclaringType || reportedUnresolvableMember) return;
++		ResolvedType rType = getDeclaringType().resolve(world);
++		if (rType.isMissing()) {
++			world.getLint().cantFindType.signal(WeaverMessages.format(WeaverMessages.CANT_FIND_TYPE,rType.getName()),null);
++			reportedCantFindDeclaringType = true;
++		} else {
++	       	world.getLint().unresolvableMember.signal(getName(),null);
++	       	reportedUnresolvableMember = true;						
++		}
++    }
++
+ }
+ 

@@ -1,0 +1,237 @@
+@@ -0,0 +1,9 @@
++package b;
++
++import java.util.Collection;
++
++
++public interface Bar {
++
++   public Collection<Foo> getFoos();  
++}
+\ No newline at end of file
+@@ -0,0 +1,9 @@
++package a;
++
++import b.Bar;
++import b.Foo;
++
++public aspect BarAspect {
++   
++   declare parents : Foo implements Bar;
++}
+\ No newline at end of file
+@@ -0,0 +1,11 @@
++package b;
++
++import java.util.ArrayList;
++import java.util.Collection;
++
++public class Foo {
++
++   public Collection<Foo> getFoos() {
++      return new ArrayList<Foo>() {{ add(new Foo()); }};
++   }
++}
+\ No newline at end of file
+@@ -0,0 +1,12 @@
++package c;
++
++import b.Bar;
++import b.Foo;
++
++public class Main {
++
++   public static void main(String [] args) {
++      Foo foo = new Foo();
++      System.out.println(foo instanceof Bar);      
++   }
++}
+\ No newline at end of file
+@@ -7,6 +7,7 @@ import junit.framework.Test;
+ import junit.framework.TestSuite;
+ 
+ import org.aspectj.systemtest.ajc160.AllTestsAspectJ160;
++import org.aspectj.systemtest.ajc161.AllTestsAspectJ161;
+ 
+ public class AllTests16 {
+ 
+@@ -14,6 +15,7 @@ public class AllTests16 {
+ 		TestSuite suite = new TestSuite("AspectJ System Test Suite - JDK 1.6");
+ 		//$JUnit-BEGIN$
+ 		suite.addTest(AllTestsAspectJ160.suite()); // dont require a 1.6 JRE to run but checks 1.6 compiler behaviour
++        suite.addTest(AllTestsAspectJ161.suite()); // dont require a 1.6 JRE to run but checks 1.6 compiler behaviour
+ 		suite.addTest(AllTests15.suite());
+ 		//$JUnit-END$
+ 		return suite;
+@@ -22,6 +22,9 @@ import org.aspectj.testing.XMLBasedAjcTestCase;
+ public class Ajc160Tests extends org.aspectj.testing.XMLBasedAjcTestCase {
+ 
+ 	// AspectJ1.6.0rc1
++   // public void testPipelineCompilationGenericReturnType_pr226567() {
++     //   runTest("pipeline compilation and generic return type");
++    //}
+     public void testPipelineCompilationAnonymous_pr225916() {
+         runTest("pipeline compilation and anonymous type");
+     }
+@@ -3,6 +3,10 @@
+ <!-- AspectJ v1.6.0 Tests -->
+ <suite>
+ 
++    <ajc-test dir="bugs160/pr226567" title="pipeline compilation and generic return type">
++        <compile files="BarAspect.aj Foo.java Bar.java" options="-1.5"/>
++        <compile files="BarAspect.aj Bar.java Foo.java" options="-1.5"/>
++    </ajc-test>
+ 
+ 	<ajc-test dir="bugs160/pr225916" title="pipeline compilation and anonymous type">
+ 		<compile files="Test.java TestMBean.java TestAspect.java" options="-showWeaveInfo">
+@@ -0,0 +1,32 @@
++/*******************************************************************************
++ * Copyright (c) 2008 Contributors 
++ * All rights reserved. This program and the accompanying materials
++ * are made available under the terms of the Eclipse Public License v1.0
++ * which accompanies this distribution, and is available at
++ * http://www.eclipse.org/legal/epl-v10.html
++ *
++ * Contributors:
++ *    Andy Clement - initial API and implementation
++ *******************************************************************************/
++package org.aspectj.systemtest.ajc161;
++
++import java.io.File;
++
++import junit.framework.Test;
++
++import org.aspectj.testing.XMLBasedAjcTestCase;
++
++public class Ajc161Tests extends org.aspectj.testing.XMLBasedAjcTestCase {
++	
++	// AspectJ1.6.0rc1
++    public void testPipelineCompilationGenericReturnType_pr226567() { runTest("pipeline compilation and generic return type"); }
++
++    public static Test suite() {
++      return XMLBasedAjcTestCase.loadSuite(Ajc161Tests.class);
++    }
++
++    protected File getSpecFile() {
++      return new File("../tests/src/org/aspectj/systemtest/ajc161/ajc161.xml");
++    }
++  
++}
+\ No newline at end of file
+@@ -0,0 +1,25 @@
++/*******************************************************************************
++ * Copyright (c) 2008 Contributors
++ * All rights reserved. This program and the accompanying materials
++ * are made available under the terms of the Eclipse Public License v1.0
++ * which accompanies this distribution, and is available at
++ * http://www.eclipse.org/legal/epl-v10.html
++ *
++ * Contributors:
++ *    Andy Clement - initial API and implementation
++ *******************************************************************************/
++package org.aspectj.systemtest.ajc161;
++
++import junit.framework.Test;
++import junit.framework.TestSuite;
++
++public class AllTestsAspectJ161 {
++
++	public static Test suite() {
++		TestSuite suite = new TestSuite("AspectJ 1.6.1 tests");
++		//$JUnit-BEGIN$
++		suite.addTest(Ajc161Tests.suite());
++        //$JUnit-END$
++		return suite;
++	}
++}
+@@ -0,0 +1,11 @@
++<!DOCTYPE suite SYSTEM "../tests/ajcTestSuite.dtd"[]>
++
++<!-- AspectJ v1.6.1 Tests -->
++<suite>
++
++    <ajc-test dir="bugs161/pr226567" title="pipeline compilation and generic return type">
++        <compile files="BarAspect.aj Foo.java Bar.java" options="-1.5"/>
++        <compile files="BarAspect.aj Bar.java Foo.java" options="-1.5"/>
++    </ajc-test>
++
++</suite>
+\ No newline at end of file
+@@ -409,6 +409,9 @@ public final class BcelMethod extends ResolvedMemberImpl {
+ 		 return genericParameterTypes;
+ 	 }
+ 
++	 /**
++      * Return the parameterized/generic return type or the normal return type if the method is not generic.
++      */
+ 	 public UnresolvedType getGenericReturnType() {
+ 		 unpackGenericSignature();
+ 		 return genericReturnType;
+@@ -333,25 +333,24 @@ public class BcelTypeMunger extends ConcreteTypeMunger {
+      */
+     private boolean enforceDecpRule4_compatibleReturnTypes(BcelClassWeaver weaver, ResolvedMember superMethod, LazyMethodGen subMethod) {
+         boolean cont = true;
+-        String superReturnTypeSig = superMethod.getReturnType().getSignature();
+-          String subReturnTypeSig   = subMethod.getReturnType().getSignature();
+-          superReturnTypeSig = superReturnTypeSig.replace('.','/');
+-          subReturnTypeSig = subReturnTypeSig.replace('.','/');
+-          if (!superReturnTypeSig.equals(subReturnTypeSig)) {
+-            // Allow for covariance - wish I could test this (need Java5...)
++        String superReturnTypeSig = superMethod.getGenericReturnType().getSignature(); // eg. Pjava/util/Collection<LFoo;>
++        String subReturnTypeSig = subMethod.getGenericReturnTypeSignature();
++        superReturnTypeSig = superReturnTypeSig.replace('.', '/');
++        subReturnTypeSig = subReturnTypeSig.replace('.', '/');
++        if (!superReturnTypeSig.equals(subReturnTypeSig)) {
++            // Check for covariance
+             ResolvedType subType   = weaver.getWorld().resolve(subMethod.getReturnType());
+             ResolvedType superType = weaver.getWorld().resolve(superMethod.getReturnType());
+             if (!superType.isAssignableFrom(subType)) {
+-                ISourceLocation sloc = subMethod.getSourceLocation();
+                 weaver.getWorld().getMessageHandler().handleMessage(MessageUtil.error(
+-                        "The return type is incompatible with "+superMethod.getDeclaringType()+"."+superMethod.getName()+superMethod.getParameterSignature(),
+-                        subMethod.getSourceLocation()));
++                        "The return type is incompatible with " + superMethod.getDeclaringType() + "." + superMethod.getName()
++                        + superMethod.getParameterSignature(), subMethod.getSourceLocation()));
+ // this just might be a better error message...                      
+ //                        "The return type '"+subReturnTypeSig+"' is incompatible with the overridden method "+superMethod.getDeclaringType()+"."+
+ //                        superMethod.getName()+superMethod.getParameterSignature()+" which returns '"+superReturnTypeSig+"'",
+                  cont=false;
+             }
+-          }
++        }
+         return cont;
+     }
+ 
+@@ -380,11 +379,14 @@ public class BcelTypeMunger extends ConcreteTypeMunger {
+     }
+ 
+ 
++    /**
++     * Search the specified type for a particular method - do not use the return value in the comparison as it is not
++     * considered for overriding.
++     */
+ 	private LazyMethodGen findMatchingMethod(LazyClassGen newParentTarget, ResolvedMember m) {
+         LazyMethodGen found = null;
+-		// Search the type for methods overriding super methods (methods that come from the new parent)
+-		// Don't use the return value in the comparison as overriding doesnt
+-		for (Iterator i = newParentTarget.getMethodGens().iterator(); i.hasNext() && found==null;) {
++        List methodGens = newParentTarget.getMethodGens();
++        for (Iterator i = methodGens.iterator(); i.hasNext() && found == null;) {
+ 		    LazyMethodGen gen = (LazyMethodGen) i.next();
+ 		    if (gen.getName().equals(m.getName()) && 
+ 		        gen.getParameterSignature().equals(m.getParameterSignature())) {
+@@ -887,6 +887,14 @@ public final class LazyMethodGen implements Traceable {
+         return name;
+     }
+ 
++    public String getGenericReturnTypeSignature() {
++        if (memberView == null) {
++            return getReturnType().getSignature();
++        } else {
++            return memberView.getGenericReturnType().getSignature();
++        }
++    }
++    
+     public Type getReturnType() {
+     	initialize();
+         return returnType;

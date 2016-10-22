@@ -1,0 +1,202 @@
+@@ -19,11 +19,18 @@
+ //}
+ 
+ interface IGuard<P> {}
++
+ interface Guard<P> extends IGuard<P> {}
++
++class GuardImpl<X> implements Guard<X> {}
++
+ public class C<T> {
++  
+   private boolean checkGuards(Class<? extends IGuard<T>>[] guardClz) throws Exception { return false;}
+-  public static void main(String []argv) {
+-    Guard<String> g = new Guard<String>();
+-    new C<String>().checkGuards(g.getClass());//Guard.class);
++  
++  public static void main(String []argv) throws Exception {
++    GuardImpl<String> g = new GuardImpl<String>();
++    //new C<String>().checkGuards(g.getClass());//Guard.class);
++    new C<String>().checkGuards(new Class[]{g.getClass()});//Guard.class);
+   }
+-}
+\ No newline at end of file
++}
+@@ -17,6 +17,7 @@ import org.aspectj.testing.XMLBasedAjcTestCase;
+ 
+ public class Ajc152Tests extends org.aspectj.testing.XMLBasedAjcTestCase {
+ 
++  public void testComplexGenericDecl_pr137568() { runTest("complicated generics declaration");}
+   public void testItdOnInnerTypeOfGenericType_pr132349() { runTest("ITD on inner type of generic type");}
+   public void testItdOnInnerTypeOfGenericType_pr132349_2() { runTest("ITD on inner type of generic type - 2");}
+   public void testItdOnInnerTypeOfGenericType_pr132349_3() { runTest("ITD on inner type of generic type - 3");}
+@@ -40,7 +41,6 @@ public class Ajc152Tests extends org.aspectj.testing.XMLBasedAjcTestCase {
+   public void testNotAtWithincode_pr138158_1() { runTest("not at withincode - 1");}
+   public void testNotAtWithincode_pr138158_2() { runTest("not at withincode - 2");}
+   public void testNotAtWithincode_pr138158_3() { runTest("not at within - 3");}
+-//  public void testComplexGenericDecl_pr137568() { runTest("complicated generics declaration");}
+   public void testNpeOnDup_pr138143() { runTest("npe on duplicate method with ataj");}
+   public void testPointcutsAndGenerics_pr137496_1() { runTest("pointcuts and generics - B");}
+   public void testPointcutsAndGenerics_pr137496_2() { runTest("pointcuts and generics - D");}
+@@ -53,14 +53,11 @@ public class Ajc152Tests extends org.aspectj.testing.XMLBasedAjcTestCase {
+   public void testIncorrectOverridesEvaluation13() { runTest("incorrect overrides evaluation - 1.3"); }
+   public void testIncorrectOverridesEvaluation15() { runTest("incorrect overrides evaluation - 1.5"); }
+   public void testAtWithinCodeBug_pr138798() { runTest("atWithinCodeBug"); }
+-
+-  // known failures, uncomment when working.
+   public void testReferencePCutInDeclareWarning_pr138215() { runTest("Reference pointcut fails inside @DeclareWarning");}
+   public void testReferencePCutInPerClause_pr138219() { runTest("Can't use a FQ Reference pointcut in any pointcut expression referenced by a per-clause");}
+   public void testReferencePCutInPerClause_pr130722() { runTest("FQ Reference pointcut from perclause ref pc"); }
+   public void testDoubleAnnotationMatching_pr138223() { runTest("Double at annotation matching (no binding)");}
+   public void testSuperCallsInAtAspectJAdvice_pr139749() { runTest("Super calls in @AspectJ advice");}
+-
+   public void testNoClassCastExceptionWithPerThis_pr138286() { runTest("No ClassCastException with perThis");}
+ 
+ // this next one reported as a bug by Rob Harrop, but I can't reproduce the failure yet...
+@@ -70,6 +70,24 @@ public class TypeFactory {
+ 		return (ReferenceType) rType.resolve(inAWorld);
+ 	}
+ 
++	/**
++	 * Creates a sensible unresolvedtype from some signature, for example:
++	 * signature = LIGuard<TT;>;
++	 * bound =  toString=IGuard<T>   sig=PIGuard<TT;>;     sigErasure=LIGuard;  kind=parameterized
++	 */
++	private static UnresolvedType convertSigToType(String aSignature) {	
++	    UnresolvedType bound = null;
++		int startOfParams = aSignature.indexOf('<');
++		if (startOfParams==-1) {
++			bound = UnresolvedType.forSignature(aSignature);
++		} else {
++			int endOfParams = aSignature.lastIndexOf('>');
++			String signatureErasure = "L" + aSignature.substring(1,startOfParams) + ";";
++			UnresolvedType[] typeParams = createTypeParams(aSignature.substring(startOfParams +1, endOfParams));
++			bound = new UnresolvedType("P"+aSignature.substring(1),signatureErasure,typeParams);
++		}
++		return bound;
++	}
+ 
+ 	/**
+ 	 * Used by UnresolvedType.read, creates a type from a full signature.
+@@ -81,7 +99,6 @@ public class TypeFactory {
+ 		char firstChar = signature.charAt(0);
+ 		if (firstChar=='P') {
+ 			// parameterized type, calculate signature erasure and type parameters
+-			
+ 			// (see pr122458) It is possible for a parameterized type to have *no* type parameters visible in its signature.
+ 			// This happens for an inner type of a parameterized type which simply inherits the type parameters
+ 			// of its parent.  In this case it is parameterized but theres no < in the signature.
+@@ -98,38 +115,27 @@ public class TypeFactory {
+ 				UnresolvedType[] typeParams = createTypeParams(signature.substring(startOfParams +1, endOfParams));
+ 				return new UnresolvedType(signature,signatureErasure,typeParams);
+ 			}
++			// can't replace above with convertSigToType - leads to stackoverflow
+ 		} else if (signature.equals("?")){
+ 			UnresolvedType ret = UnresolvedType.SOMETHING;
+ 			ret.typeKind = TypeKind.WILDCARD;
+ 			return ret;
+ 		} else if(firstChar=='+') { 
+ 			// ? extends ...
+-	/*
+-			// this bound calc is for bug pr137568 ... don't like duplicating this here from above...
+-			String subsig = signature.substring(1);
+-			int startOfParams = subsig.indexOf('<');
+-			int endOfParams = subsig.lastIndexOf('>');
+-			UnresolvedType bound = null;
+-			if (startOfParams==-1) {
+-				bound = new UnresolvedType(subsig);
+-			} else {
+-				String signatureErasure = "L" + subsig.substring(1,startOfParams) + ";";
+-				UnresolvedType[] typeParams = createTypeParams(subsig.substring(startOfParams +1, endOfParams));
+-				bound = new UnresolvedType(subsig,signatureErasure,typeParams);
+-			}
+-	*/
+-			//all that replaces: 
+-			UnresolvedType bound = UnresolvedType.forSignature(signature.substring(1));
+ 			UnresolvedType ret = new UnresolvedType(signature);
+ 			ret.typeKind = TypeKind.WILDCARD;
+-			ret.setUpperBound(bound);
++			
++//			UnresolvedType bound1 = UnresolvedType.forSignature(signature.substring(1));
++//			UnresolvedType bound2 = convertSigToType(signature.substring(1));
++			ret.setUpperBound(convertSigToType(signature.substring(1)));
+ 			return ret;
+ 		} else if (firstChar=='-') { 
+ 			// ? super ...
+-			UnresolvedType bound = UnresolvedType.forSignature(signature.substring(1));
++//			UnresolvedType bound = UnresolvedType.forSignature(signature.substring(1));
++//			UnresolvedType bound2 = convertSigToType(signature.substring(1));
+ 			UnresolvedType ret = new UnresolvedType(signature);
+ 			ret.typeKind = TypeKind.WILDCARD;
+-			ret.setLowerBound(bound);
++			ret.setLowerBound(convertSigToType(signature.substring(1)));
+ 			return ret;
+ 		} else if (firstChar=='T') {
+ 			String typeVariableName = signature.substring(1);
+@@ -1,19 +1,29 @@
+-interface IGuard<P> {}
++//interface IGuard<P> {}
++//
++////interface Guard<P> extends IGuard<P> {}
++//
++//class GuardImpl<G> implements IGuard<G> {}
++//
++//public class C<T> {
++//
++//  private boolean m1(Class<? extends IGuard<T>> guardClz) throws Exception { return false;}
++//  private boolean m2(Class<? extends IGuard<T>>[] guardClz) throws Exception { return false;}
++//
++//  public static void main(String []argv) throws Exception {
++//    GuardImpl<String> g = new GuardImpl<String>();
++//    C<String> newC = new C<String>();
++//    newC.m1(g.getClass());
++////    newC.m2(new Class[]{g.getClass()});
++//  }
++//
++//}
+ 
++interface IGuard<P> {}
+ interface Guard<P> extends IGuard<P> {}
+-
+-class GuardImpl implements Guard<String> {}
+-
+ public class C<T> {
+-
+-  private boolean m1(Class<? extends IGuard<T>> guardClz) throws Exception { return false;}
+-  private boolean m2(Class<? extends IGuard<T>>[] guardClz) throws Exception { return false;}
+-
+-  public static void main(String []argv) throws Exception {
+-    GuardImpl g = new GuardImpl();
+-    C<String> newC = new C<String>();
+-    newC.m1(g.getClass());
+-    newC.m2(new Class[]{g.getClass()});
++  private boolean checkGuards(Class<? extends IGuard<T>>[] guardClz) throws Exception { return false;}
++  public static void main(String []argv) {
++    Guard<String> g = new Guard<String>();
++    new C<String>().checkGuards(g.getClass());//Guard.class);
+   }
+-
+ }
+\ No newline at end of file
+@@ -104,6 +104,21 @@ public class TypeFactory {
+ 			return ret;
+ 		} else if(firstChar=='+') { 
+ 			// ? extends ...
++	/*
++			// this bound calc is for bug pr137568 ... don't like duplicating this here from above...
++			String subsig = signature.substring(1);
++			int startOfParams = subsig.indexOf('<');
++			int endOfParams = subsig.lastIndexOf('>');
++			UnresolvedType bound = null;
++			if (startOfParams==-1) {
++				bound = new UnresolvedType(subsig);
++			} else {
++				String signatureErasure = "L" + subsig.substring(1,startOfParams) + ";";
++				UnresolvedType[] typeParams = createTypeParams(subsig.substring(startOfParams +1, endOfParams));
++				bound = new UnresolvedType(subsig,signatureErasure,typeParams);
++			}
++	*/
++			//all that replaces: 
+ 			UnresolvedType bound = UnresolvedType.forSignature(signature.substring(1));
+ 			UnresolvedType ret = new UnresolvedType(signature);
+ 			ret.typeKind = TypeKind.WILDCARD;

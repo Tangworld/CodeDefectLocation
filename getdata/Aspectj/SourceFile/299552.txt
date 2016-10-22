@@ -1,0 +1,696 @@
+@@ -133,6 +133,7 @@ public abstract class World implements Dump.INode {
+ 	private boolean shouldGenerateStackMaps = false;
+ 	protected boolean bcelRepositoryCaching = xsetBCEL_REPOSITORY_CACHING_DEFAULT.equalsIgnoreCase("true");
+ 	private boolean fastMethodPacking = false;
++	private int itdVersion = 2; // defaults to 2nd generation itds
+ 	private boolean completeBinaryTypes = false;
+ 	private boolean overWeaving = false;
+ 	public boolean forDEBUG_structuralChangesCode = false;
+@@ -892,6 +893,10 @@ public abstract class World implements Dump.INode {
+ 	public final static String xsetOPTIMIZED_MATCHING = "optimizedMatching";
+ 	public final static String xsetTIMERS_PER_JOINPOINT = "timersPerJoinpoint";
+ 	public final static String xsetTIMERS_PER_FASTMATCH_CALL = "timersPerFastMatchCall";
++	public final static String xsetITD_VERSION = "itdVersion";
++	public final static String xsetITD_VERSION_ORIGINAL = "1";
++	public final static String xsetITD_VERSION_2NDGEN = "2";
++	public final static String xsetITD_VERSION_DEFAULT = xsetITD_VERSION_2NDGEN;
+ 
+ 	public boolean isInJava5Mode() {
+ 		return behaveInJava5Way;
+@@ -1359,6 +1364,14 @@ public abstract class World implements Dump.INode {
+ 									.info("[bcelRepositoryCaching=false] AspectJ will not use a bcel cache for class information"));
+ 				}
+ 
++				// ITD Versions
++				// 1 is the first version in use up to AspectJ 1.6.8
++				// 2 is from 1.6.9 onwards
++				s = p.getProperty(xsetITD_VERSION, xsetITD_VERSION_DEFAULT);
++				if (s.equals(xsetITD_VERSION_ORIGINAL)) {
++					itdVersion = 1;
++				}
++
+ 				s = p.getProperty(xsetFAST_PACK_METHODS, "true");
+ 				fastMethodPacking = s.equalsIgnoreCase("true");
+ 
+@@ -1741,4 +1754,14 @@ public abstract class World implements Dump.INode {
+ 		ResolvedType.resetPrimitives();
+ 	}
+ 
++	/**
++	 * Returns the version of ITD that this world wants to create. The default is the new style (2) but in some cases where there
++	 * might be a clash, the old style can be used. It is set through the option -Xset:itdVersion=1
++	 * 
++	 * @return the ITD version this world wants to create - 1=oldstyle 2=new, transparent style
++	 */
++	public int getItdVersion() {
++		return itdVersion;
++	}
++
+ }
+\ No newline at end of file
+@@ -286,8 +286,12 @@ public class AspectDeclaration extends TypeDeclaration {
+ 		classFile.extraAttributes.add(new EclipseAttributeAdapter(new AjAttribute.Aspect(perClause)));
+ 
+ 		if (binding.privilegedHandler != null) {
+-			ResolvedMember[] members = ((PrivilegedHandler) binding.privilegedHandler).getMembers();
+-			classFile.extraAttributes.add(new EclipseAttributeAdapter(new AjAttribute.PrivilegedAttribute(members)));
++		    // Only build the attribute if necessary
++			PrivilegedHandler privilegedHandler= (PrivilegedHandler)binding.privilegedHandler;
++			ResolvedMember[] members = privilegedHandler.getMembers();
++			if (members.length>0) {
++				classFile.extraAttributes.add(new EclipseAttributeAdapter(new AjAttribute.PrivilegedAttribute(members)));
++			}
+ 		}
+ 
+ 		// XXX need to get this attribute on anyone with a pointcut for good errors
+@@ -45,8 +45,9 @@ public class InterTypeMemberFinder implements IMemberFinder {
+ 	public FieldBinding getField(SourceTypeBinding sourceTypeBinding, char[] fieldName, InvocationSite site, Scope scope) {
+ 		FieldBinding retField = sourceTypeBinding.getFieldBase(fieldName, true); // XXX may need to get the correct value for second
+ 		// parameter in the future (see #55341)
+-		if (interTypeFields.isEmpty())
++		if (interTypeFields.isEmpty()) {
+ 			return retField;
++		}
+ 		int fieldLength = fieldName.length;
+ 
+ 		for (int i = 0, len = interTypeFields.size(); i < len; i++) {
+@@ -61,13 +62,16 @@ public class InterTypeMemberFinder implements IMemberFinder {
+ 
+ 	private FieldBinding resolveConflicts(SourceTypeBinding sourceTypeBinding, FieldBinding retField, FieldBinding field,
+ 			InvocationSite site, Scope scope) {
+-		if (retField == null)
++		if (retField == null) {
+ 			return field;
++		}
+ 		if (site != null) {
+-			if (!field.canBeSeenBy(sourceTypeBinding, site, scope))
++			if (!field.canBeSeenBy(sourceTypeBinding, site, scope)) {
+ 				return retField;
+-			if (!retField.canBeSeenBy(sourceTypeBinding, site, scope))
++			}
++			if (!retField.canBeSeenBy(sourceTypeBinding, site, scope)) {
+ 				return field;
++			}
+ 		}
+ 		// XXX need dominates check on aspects
+ 		return new ProblemFieldBinding(retField.declaringClass, retField.name, IProblem.AmbiguousField);// ProblemReporter.Ambiguous);
+@@ -153,11 +157,13 @@ public class InterTypeMemberFinder implements IMemberFinder {
+ 	// }
+ 	// //
+ 	private boolean isVisible(MethodBinding m1, ReferenceBinding s) {
+-		if (m1.declaringClass == s)
++		if (m1.declaringClass == s) {
+ 			return true;
++		}
+ 
+-		if (m1.isPublic())
++		if (m1.isPublic()) {
+ 			return true;
++		}
+ 
+ 		// don't need to handle protected
+ 		// if (m1.isProtected()) {
+@@ -259,8 +265,9 @@ public class InterTypeMemberFinder implements IMemberFinder {
+ 			}
+ 		}
+ 
+-		if (ret.isEmpty())
++		if (ret.isEmpty()) {
+ 			return Binding.NO_METHODS;
++		}
+ 		return (MethodBinding[]) ret.toArray(new MethodBinding[ret.size()]);
+ 	}
+ 
+@@ -286,8 +293,9 @@ public class InterTypeMemberFinder implements IMemberFinder {
+ 		// ", " + new String(selector));
+ 
+ 		MethodBinding[] orig = sourceTypeBinding.getMethodsBase(selector);
+-		if (interTypeMethods.isEmpty())
++		if (interTypeMethods.isEmpty()) {
+ 			return orig;
++		}
+ 
+ 		List ret = new ArrayList(Arrays.asList(orig));
+ 		// System.err.println("declared method: " + ret + " inters = " + interTypeMethods);
+@@ -300,8 +308,9 @@ public class InterTypeMemberFinder implements IMemberFinder {
+ 			}
+ 		}
+ 
+-		if (ret.isEmpty())
++		if (ret.isEmpty()) {
+ 			return Binding.NO_METHODS;
++		}
+ 
+ 		// System.err.println("method: " + ret);
+ 
+@@ -444,4 +453,22 @@ public class InterTypeMemberFinder implements IMemberFinder {
+ 		interTypeMethods.add(binding);
+ 	}
+ 
++	/**
++	 * @param name the name of the field
++	 * @return true if already know about an intertype field declaration for that field
++	 */
++	public boolean definesField(String name) {
++		List l = interTypeFields;
++		if (l.size() > 0) {
++			char[] nameChars = name.toCharArray();
++			for (int i = 0; i < l.size(); i++) {
++				FieldBinding fieldBinding = (FieldBinding) interTypeFields.get(i);
++				if (CharOperation.equals(fieldBinding.name, nameChars)) {
++					return true;
++				}
++			}
++		}
++		return false;
++	}
++
+ }
+@@ -0,0 +1,17 @@
++import java.lang.annotation.*;
++
++public class DeclareAtTwo {
++}
++
++aspect X {
++  declare @field: int DeclareAtTwo.x: @Anno2;
++
++  @Anno
++  private int DeclareAtTwo.x;
++}
++
++@Retention(RetentionPolicy.RUNTIME)
++@interface Anno {}
++
++@Retention(RetentionPolicy.RUNTIME)
++@interface Anno2 {}
+@@ -0,0 +1,37 @@
++import java.util.*;
++
++public class Generics<X> {
++  public static void main(String []argv) {
++    Generics<String> inst = new Generics<String>();
++    List<String> ls = new ArrayList<String>();
++    inst.setter(ls);
++    List<String> newls = inst.getter();
++
++    inst.setThing("abc");
++    String s = inst.getThing();
++  }
++}
++
++aspect X {
++  private List<String> Generics.listOfString;
++ 
++  public List<String> Generics.getter() {
++    return listOfString;
++  }
++
++  public void Generics.setter(List<String> los) {
++    listOfString = los;
++  }
++}
++
++aspect Y {
++  private T Generics<T>.thing;
++
++  public T Generics<T>.getThing() {
++    return thing;
++  }
++
++  public void Generics<T>.setThing(T thing) {
++    this.thing = thing;
++  }
++}
+@@ -0,0 +1,38 @@
++// Interacting private ITDs
++
++public class InteractingOldAndNew {
++  public static void main(String []argv) {
++    InteractingOldAndNew inst = new InteractingOldAndNew();
++    inst.setI1(12);
++    inst.setI2(65);
++    int value = inst.getI1();
++    if (value!=12) { throw new RuntimeException(Integer.toString(value)); }
++    value = inst.getI2();
++    if (value!=65) { throw new RuntimeException(Integer.toString(value)); }
++  }
++}
++
++
++aspect X {
++  private int InteractingOldAndNew.i;
++
++  public int InteractingOldAndNew.getI1() {
++    return i;
++  }
++
++  public void InteractingOldAndNew.setI1(int newvalue) {
++    i = newvalue;
++  }
++}
++
++aspect Y {
++  private int InteractingOldAndNew.i;
++
++  public int InteractingOldAndNew.getI2() {
++    return i;
++  }
++
++  public void InteractingOldAndNew.setI2(int newvalue) {
++    i = newvalue;
++  }
++}
+@@ -0,0 +1,13 @@
++import java.lang.annotation.*;
++
++public class OneDeclareAt {
++}
++
++aspect X {
++  declare @field: int OneDeclareAt.x: @Anno;
++
++  private int OneDeclareAt.x;
++}
++
++@Retention(RetentionPolicy.RUNTIME)
++@interface Anno {}
+@@ -0,0 +1,6 @@
++public class OneDefault {
++}
++
++aspect X {
++  int OneDefault.x;
++}
+@@ -0,0 +1,12 @@
++import java.lang.annotation.*;
++
++public class OneDefaultAnnotated {
++}
++
++aspect X {
++  @Anno
++  int OneDefaultAnnotated.x;
++}
++
++@Retention(RetentionPolicy.RUNTIME)
++@interface Anno {}
+@@ -0,0 +1,6 @@
++public class OnePrivate {
++}
++
++aspect X {
++  private int OnePrivate.x;
++}
+@@ -0,0 +1,21 @@
++import java.lang.annotation.*;
++
++public class OnePrivateAccessors {
++  public static void main(String[] argv) {
++    int i = new OnePrivateAccessors().run();
++    if (i!=37) throw new RuntimeException(Integer.toString(i));
++  }
++}
++
++aspect X {
++  @Anno
++  private int OnePrivateAccessors.x;
++
++  public int OnePrivateAccessors.run() {
++    x = 37;
++    return x;
++  }
++}
++
++@Retention(RetentionPolicy.RUNTIME)
++@interface Anno {}
+@@ -0,0 +1,12 @@
++import java.lang.annotation.*;
++
++public class OnePrivateAnnotated {
++}
++
++aspect X {
++  @Anno
++  private int OnePrivateAnnotated.x;
++}
++
++@Retention(RetentionPolicy.RUNTIME)
++@interface Anno {}
+@@ -0,0 +1,16 @@
++import java.lang.annotation.*;
++
++public class OnePrivateInitializer {
++  public static void main(String[] argv) {
++    int i = new OnePrivateInitializer().run();
++    if (i!=42) throw new RuntimeException(Integer.toString(i));
++  }
++}
++
++aspect X {
++  private int OnePrivateInitializer.x = 42;
++
++  public int OnePrivateInitializer.run() {
++    return x;
++  }
++}
+@@ -0,0 +1,7 @@
++public class Three {
++  private int x;
++}
++
++aspect X {
++  private int Three.x;
++}
+@@ -0,0 +1,7 @@
++public class Two {
++  public int x;
++}
++
++aspect X {
++  public int Two.x;
++}
+@@ -0,0 +1,10 @@
++public class TwoItdsOnTarget {
++}
++
++aspect X {
++  private int TwoItdsOnTarget.x;
++}
++
++aspect Y {
++  private int TwoItdsOnTarget.x;
++}
+@@ -0,0 +1,11 @@
++public class TwoItdsOnTargetHasAlready {
++  private int x;
++}
++
++aspect X {
++  private int TwoItdsOnTargetHasAlready.x;
++}
++
++aspect Y {
++  private int TwoItdsOnTargetHasAlready.x;
++}
+@@ -0,0 +1,229 @@
++/*******************************************************************************
++ * Copyright (c) 2008 Contributors 
++ * All rights reserved. This program and the accompanying materials
++ * are made available under the terms of the Eclipse Public License v1.0
++ * which accompanies this distribution, and is available at
++ * http://www.eclipse.org/legal/epl-v10.html
++ *
++ * Contributors:
++ *    Andy Clement - initial API and implementation
++ *******************************************************************************/
++package org.aspectj.systemtest.ajc169;
++
++import java.io.File;
++import org.aspectj.apache.bcel.classfile.Method;
++import java.lang.reflect.Modifier;
++
++import junit.framework.Test;
++
++import org.aspectj.apache.bcel.classfile.Field;
++import org.aspectj.apache.bcel.classfile.JavaClass;
++import org.aspectj.apache.bcel.classfile.annotation.AnnotationGen;
++import org.aspectj.apache.bcel.util.ClassPath;
++import org.aspectj.apache.bcel.util.SyntheticRepository;
++import org.aspectj.testing.XMLBasedAjcTestCase;
++
++/**
++ * What would a completely transparent weave be? Is there a minimal subset that makes sense? What is the roadmap to get there? What
++ * needs testing
++ * 
++ * --- 'Transparent' here is meaning that the resultant bytecode is more representative of the original declarations, so that it
++ * looks like the intertype declaration and associated constructs have been seamless added to the affected targets.
++ * 
++ * 
++ * Fully transparent weaving, what would we like to have: - ITDs appear exactly as declared: 'private int A.i' will create 'private
++ * int i' in A
++ * 
++ * - What is the benefit? - although this isn't really in keeping with the AspectJ definition of what an ITD represents, having the
++ * end result look like the declaration does make it easier for users simply looking at the resultant class file or attempting
++ * reflection to access what they just ITD'd in place
++ * 
++ * 
++ * testing For transparent weaving of ITD fields - annotations on new fields - AJDT model - AjType support - what happens to it? -
++ * advice on within() how does that get affected? - visibility - accessors created when required? - handling clashes with existing
++ * fields - handling clashes with other aspects - generic declarations - interface declarations - initializers - static and
++ * non-static - accessibility from advice, for read and write
++ * 
++ * Design<br>
++ * The intention will be 'new code' uses the new style whilst old code continues to cause the old code to be built. Whether the code
++ * wants to use the old or new naming should be apparent from the
++ * 
++ * @author Andy Clement
++ */
++public class TransparentWeavingTests extends org.aspectj.testing.XMLBasedAjcTestCase {
++
++	// Simple private ITD onto a target
++	public void testSimplePrivate() throws Exception {
++		runTest("one - private");
++		checkForField("OnePrivate", Modifier.PRIVATE, "x");
++	}
++
++	// Default visibility ITD field
++	public void testSimpleDefault() throws Exception {
++		runTest("one - default");
++		checkForField("OneDefault", 0, "x");
++	}
++
++	// annotated private ITD
++	public void testSimplePrivateAnnotated() throws Exception {
++		runTest("one - private - annotated");
++		Field f = checkForField("OnePrivateAnnotated", Modifier.PRIVATE, "x");
++		AnnotationGen[] annos = f.getAnnotations();
++		assertTrue(annos.length > 0); // 0==Anno 1==ajcITD
++		assertEquals("LAnno;", annos[0].getTypeSignature());
++	}
++
++	// annotated default ITD
++	public void testSimpleDefaultAnnotated() throws Exception {
++		runTest("one - default - annotated");
++		Field f = checkForField("OneDefaultAnnotated", 0, "x");
++		AnnotationGen[] annos = f.getAnnotations();
++		assertTrue(annos.length > 0); // 0==Anno 1==ajcITD
++		assertEquals("LAnno;", annos[0].getTypeSignature());
++	}
++
++	// Simple private ITD with getter/setter usage
++	public void testSimplePrivateWithAccessors() throws Exception {
++		runTest("one - private - accessors");
++	}
++
++	// check initializer runs OK
++	public void testSimplePrivateInitializer() throws Exception {
++		runTest("one - private - initializer");
++	}
++
++	public void testDeclareAtOnPrivateItd() throws Exception {
++		runTest("declare at on private itd");
++		Field f = checkForField("OneDeclareAt", Modifier.PRIVATE, "x");
++		AnnotationGen[] annos = f.getAnnotations();
++		assertTrue(annos.length > 0); // 1==Anno 0==ajcITD
++		assertEquals("LAnno;", annos[1].getTypeSignature());
++	}
++
++	// declare @field on a field that already has one
++	public void testDeclareAtTwo() throws Exception {
++		runTest("declare at two");
++		Field f = checkForField("DeclareAtTwo", Modifier.PRIVATE, "x");
++		AnnotationGen[] annos = f.getAnnotations();
++		assertTrue(annos.length > 2); // 1==Anno 0==ajcITD
++		assertEquals("LAnno;", annos[0].getTypeSignature());
++		assertEquals("LAnno2;", annos[2].getTypeSignature());
++	}
++
++	public void testTwoItdsOnTarget() throws Exception {
++		runTest("two itds on target");
++		// Aspect X gets the field, aspect Y gets a mangled one
++		checkForField("TwoItdsOnTarget", Modifier.PRIVATE, "x");
++		checkForField("TwoItdsOnTarget", Modifier.PUBLIC, "ajc$interField$Y$x");
++	}
++
++	public void testTwoItdsOnTargetThatAlreadyHasIt() throws Exception {
++		runTest("two itds on target that already has it");
++		// Aspect X gets the field, aspect Y gets a mangled one
++		checkForField("TwoItdsOnTargetHasAlready", Modifier.PUBLIC, "ajc$interField$X$x");
++		checkForField("TwoItdsOnTargetHasAlready", Modifier.PUBLIC, "ajc$interField$Y$x");
++	}
++
++	public void testInteractingOldAndNew() throws Exception {
++		runTest("interacting old and new");
++		int SYNTHETIC = 0x00001000; // 4096
++		checkForField("InteractingOldAndNew", Modifier.PRIVATE, "i");
++		checkForField("InteractingOldAndNew", Modifier.PUBLIC, "ajc$interField$Y$i");
++		checkForMethod("InteractingOldAndNew", Modifier.PUBLIC | Modifier.STATIC, "main");
++		checkForMethod("InteractingOldAndNew", Modifier.PUBLIC | Modifier.STATIC | SYNTHETIC, "ajc$get$i");
++		checkForMethod("InteractingOldAndNew", Modifier.PUBLIC | Modifier.STATIC | SYNTHETIC, "ajc$set$i");
++		checkForMethod("InteractingOldAndNew", Modifier.PUBLIC, "getI1");
++		checkForMethod("InteractingOldAndNew", Modifier.PUBLIC, "getI2");
++		checkForMethod("InteractingOldAndNew", Modifier.PUBLIC, "setI1");
++		checkForMethod("InteractingOldAndNew", Modifier.PUBLIC, "setI2");
++	}
++
++	public void testPrivateGenerics() throws Exception {
++		runTest("generics - private");
++		Field f = checkForField("Generics", Modifier.PRIVATE, "listOfString");
++		assertEquals("Ljava/util/List<Ljava/lang/String;>;", f.getGenericSignature());
++		f = checkForField("Generics", Modifier.PRIVATE, "thing");
++		assertEquals("TX;", f.getGenericSignature());
++	}
++
++	// ---
++
++	private Field checkForField(String clazzname, int modifiers, String name) throws Exception {
++		JavaClass jc = getClassFrom(ajc.getSandboxDirectory(), clazzname);
++		Field[] fs = jc.getFields();
++		StringBuffer fields = new StringBuffer();
++		for (Field f : fs) {
++			fields.append(f.getName()).append(" ");
++			if (f.getName().equals(name)) {
++				if (f.getModifiers() != modifiers) {
++					fail("Found field " + name + " in " + clazzname + " but modifiers were wrong, they were " + f.getModifiers());
++				}
++				return f;
++			}
++		}
++		fail("Did not find field " + name + " in class " + clazzname + ".  Found fields: " + fields.toString());
++		return null;
++	}
++
++	private Method checkForMethod(String clazzname, int modifiers, String name) throws Exception {
++		JavaClass jc = getClassFrom(ajc.getSandboxDirectory(), clazzname);
++		Method[] fs = jc.getMethods();
++		StringBuffer methods = new StringBuffer();
++		methods.append("\n");
++		for (Method f : fs) {
++			methods.append(f.getName()).append("\n");
++			if (f.getName().equals(name)) {
++				if (f.getModifiers() != modifiers) {
++					fail("Found method " + name + " in " + clazzname + " but modifiers were wrong, they were " + f.getModifiers());
++				}
++				return f;
++			}
++			System.out.println(f.getGenericSignature());
++		}
++		fail("Did not find method " + name + " in class " + clazzname + ".  Found methods: " + methods.toString());
++		return null;
++	}
++
++	// public itd onto a target that already has a field of that name
++	// just to check what goes wrong and who checks it
++	public void testPublicClash() throws Exception {
++		runTest("two");
++	}
++
++	public void testPrivateClash() throws Exception {
++		runTest("three");
++
++		JavaClass jc = getClassFrom(ajc.getSandboxDirectory(), "Three");
++		Field[] fs = jc.getFields();
++		for (Field f : fs) {
++			System.out.println(f);
++		}
++
++		// public int ajc$interField$X$xPrivate [RuntimeVisibleAnnotations]
++		// public Integer ajc$interField$$yDefault [RuntimeVisibleAnnotations]
++		// public String zPublic [RuntimeVisibleAnnotations]
++
++	}
++
++	// --
++
++	public SyntheticRepository createRepos(File cpentry) {
++		ClassPath cp = new ClassPath(cpentry + File.pathSeparator + System.getProperty("java.class.path"));
++		return SyntheticRepository.getInstance(cp);
++	}
++
++	protected JavaClass getClassFrom(File where, String clazzname) throws ClassNotFoundException {
++		SyntheticRepository repos = createRepos(where);
++		return repos.loadClass(clazzname);
++	}
++
++	public static Test suite() {
++		return XMLBasedAjcTestCase.loadSuite(TransparentWeavingTests.class);
++	}
++
++	@Override
++	protected File getSpecFile() {
++		return new File("../tests/src/org/aspectj/systemtest/ajc169/transparentweaving.xml");
++	}
++
++}
+\ No newline at end of file
+@@ -0,0 +1,68 @@
++<!DOCTYPE suite SYSTEM "../tests/ajcTestSuite.dtd"[]>
++
++<suite>
++   
++   <ajc-test dir="features169/transparent" title="one - private">
++     <compile files="OnePrivate.java" options="-1.5"/>
++   </ajc-test>
++
++   <ajc-test dir="features169/transparent" title="one - default">
++     <compile files="OneDefault.java" options="-1.5"/>
++   </ajc-test>
++   
++   <ajc-test dir="features169/transparent" title="one - private - annotated">
++     <compile files="OnePrivateAnnotated.java" options="-1.5"/>
++   </ajc-test>
++   
++   <ajc-test dir="features169/transparent" title="one - default - annotated">
++     <compile files="OneDefaultAnnotated.java" options="-1.5"/>
++   </ajc-test>
++   
++   <ajc-test dir="features169/transparent" title="one - private - accessors">
++     <compile files="OnePrivateAccessors.java" options="-1.5"/>
++     <run class="OnePrivateAccessors"/>
++   </ajc-test>
++   
++   <ajc-test dir="features169/transparent" title="interacting old and new">
++     <compile files="InteractingOldAndNew.java" options="-1.5"/>
++     <run class="InteractingOldAndNew"/>
++   </ajc-test>
++   
++   <ajc-test dir="features169/transparent" title="one - private - initializer">
++     <compile files="OnePrivateInitializer.java" options="-1.5"/>
++     <run class="OnePrivateInitializer"/>
++   </ajc-test>
++   
++   <ajc-test dir="features169/transparent" title="two">
++     <compile files="Two.java" options="-1.5">
++       <message kind="error" text="inter-type declaration from X conflicts with existing member: int Two.x"/>
++     </compile>
++   </ajc-test>
++   
++   <ajc-test dir="features169/transparent" title="two itds on target">
++     <compile files="TwoItdsOnTarget.java" options="-1.5"/>
++   </ajc-test>
++   
++   <ajc-test dir="features169/transparent" title="two itds on target that already has it">
++     <compile files="TwoItdsOnTargetHasAlready.java" options="-1.5"/>
++   </ajc-test>
++   
++   <ajc-test dir="features169/transparent" title="declare at on private itd">
++     <compile files="OneDeclareAt.java" options="-1.5"/>
++   </ajc-test>
++   
++   <ajc-test dir="features169/transparent" title="declare at two">
++     <compile files="DeclareAtTwo.java" options="-1.5"/>
++   </ajc-test>
++   
++   <ajc-test dir="features169/transparent" title="three">
++     <compile files="Three.java" options="-1.5"/>
++   </ajc-test>
++   
++   <ajc-test dir="features169/transparent" title="generics - private">
++     <compile files="Generics.java" options="-1.5"/>
++     <run class="Generics"/>
++   </ajc-test>
++   
++
++</suite>
+\ No newline at end of file

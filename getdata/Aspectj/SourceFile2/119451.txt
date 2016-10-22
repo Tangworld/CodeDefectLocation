@@ -1,0 +1,28 @@
+@@ -35,6 +35,7 @@ public class AsmDeclarationsTest extends AjdeTestCase {
+ 		IProgramElement packageAspect = AsmManager.getDefault().getHierarchy().findElementForType(null, "AdviceNamingCoverage");
+ 		assertNotNull(packageAspect);
+ 		assertEquals(IProgramElement.Accessibility.PACKAGE, packageAspect.getAccessibility());
++		assertEquals("aspect should not have public in it's signature","aspect AdviceNamingCoverage",packageAspect.getSourceSignature());
+ 	}
+ 
+ 	public void testStaticModifiers() {
+@@ -165,7 +165,7 @@ class StubFileGenerator{
+     	String signature = classNode.getSourceSignature();
+ 		if (signature != null){
+ 			int index = signature.indexOf("aspect");
+-			if (index != -1 && signature.charAt(index-1) != '.') {
++			if (index == 0 || (index != -1 && signature.charAt(index-1) != '.') ) {
+ 				signature = signature.substring(0, index) +
+ 				"class " +
+ 				signature.substring(index + 6, signature.length());
+@@ -1113,7 +1113,9 @@ public class AspectDeclaration extends TypeDeclaration {
+ //	}
+ 
+ 	public StringBuffer printHeader(int indent, StringBuffer output) {
+-		printModifiers(this.modifiers, output);
++		// since all aspects are made public we want to print the
++		// modifiers that were supplied in the original source code
++		printModifiers(this.declaredModifiers,output);
+ 		output.append("aspect " ); 
+ 		output.append(name);
+ 		if (superclass != null) {

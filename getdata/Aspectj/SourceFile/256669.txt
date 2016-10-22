@@ -1,0 +1,381 @@
+@@ -374,6 +374,30 @@ class BcelMethod extends ResolvedMemberImpl {
+ 		// method.addAnnotation(annotation.getBcelAnnotation());
+ 	}
+ 
++	public static final AnnotationAJ[] NO_PARAMETER_ANNOTATIONS = new AnnotationAJ[] {};
++
++	public void addParameterAnnotation(int param, AnnotationAJ anno) {
++		ensureParameterAnnotationsRetrieved();
++		if (parameterAnnotations == NO_PARAMETER_ANNOTATIONXS) {
++			// First time we've added any, so lets set up the array
++			parameterAnnotations = new AnnotationAJ[getArity()][];
++			for (int i = 0; i < getArity(); i++) {
++				parameterAnnotations[i] = NO_PARAMETER_ANNOTATIONS;
++			}
++		}
++		int existingCount = parameterAnnotations[param].length;
++		if (existingCount == 0) {
++			AnnotationAJ[] annoArray = new AnnotationAJ[1];
++			annoArray[0] = anno;
++			parameterAnnotations[param] = annoArray;
++		} else {
++			AnnotationAJ[] newAnnoArray = new AnnotationAJ[existingCount + 1];
++			System.arraycopy(parameterAnnotations[param], 0, newAnnoArray, 0, existingCount);
++			newAnnoArray[existingCount] = anno;
++			parameterAnnotations[param] = newAnnoArray;
++		}
++	}
++
+ 	private void ensureAnnotationsRetrieved() {
+ 		if (method == null)
+ 			return; // must be ok, we have evicted it
+@@ -786,8 +786,7 @@ public class BcelTypeMunger extends ConcreteTypeMunger {
+ 
+ 			// pr98901
+ 			// For copying the annotations across, we have to discover the real
+-			// member in the aspect
+-			// which is holding them.
++			// member in the aspect which is holding them.
+ 			if (weaver.getWorld().isInJava5Mode()) {
+ 				AnnotationAJ annotationsOnRealMember[] = null;
+ 				ResolvedType toLookOn = aspectType;
+@@ -807,6 +806,20 @@ public class BcelTypeMunger extends ConcreteTypeMunger {
+ 						newMethod.addAnnotation(new BcelAnnotation(ag, weaver.getWorld()));
+ 					}
+ 				}
++				AnnotationAJ[][] pAnnos = realMember.getParameterAnnotations();
++				int offset = newMethod.isStatic() ? 0 : 1;
++				if (pAnnos != null && pAnnos.length != 0) {
++					int param = 0;
++					for (int i = offset; i < pAnnos.length; i++) {
++						AnnotationAJ[] annosOnParam = pAnnos[i];
++						if (annosOnParam != null && annosOnParam.length > 0) {
++							for (int j = 0; j < annosOnParam.length; j++) {
++								newMethod.addParameterAnnotation(param, annosOnParam[j]);
++							}
++						}
++						param++;
++					}
++				}
+ 				// the below loop fixes the very special (and very stupid)
+ 				// case where an aspect declares an annotation
+ 				// on an ITD it declared on itself.
+@@ -914,6 +927,21 @@ public class BcelTypeMunger extends ConcreteTypeMunger {
+ 							mg.addAnnotation(new BcelAnnotation(ag, weaver.getWorld()));
+ 						}
+ 					}
++
++					AnnotationAJ[][] pAnnos = realMember.getParameterAnnotations();
++					int offset = mg.isStatic() ? 0 : 1;
++					if (pAnnos != null && pAnnos.length != 0) {
++						int param = 0;
++						for (int i = offset; i < pAnnos.length; i++) {
++							AnnotationAJ[] annosOnParam = pAnnos[i];
++							if (annosOnParam != null && annosOnParam.length > 0) {
++								for (int j = 0; j < annosOnParam.length; j++) {
++									mg.addParameterAnnotation(param, annosOnParam[j]);
++								}
++							}
++							param++;
++						}
++					}
+ 				}
+ 
+ 				if (mungingInterface) {
+@@ -89,6 +89,7 @@ public final class LazyMethodGen implements Traceable {
+ 	private InstructionList body; // leaving null for abstracts
+ 	private List attributes;
+ 	private List newAnnotations;
++	private AnnotationAJ[][] newParameterAnnotations;
+ 	private final LazyClassGen enclosingClass;
+ 	private BcelMethod memberView;
+ 	private AjAttribute.EffectiveSignatureAttribute effectiveSignature;
+@@ -276,6 +277,35 @@ public final class LazyMethodGen implements Traceable {
+ 		}
+ 	}
+ 
++	private static final AnnotationAJ[] NO_ANNOTATIONAJ = new AnnotationAJ[] {};
++
++	public void addParameterAnnotation(int parameterNumber, AnnotationAJ anno) {
++		initialize();
++		if (memberView == null) {
++			if (newParameterAnnotations == null) {
++				// time to create it
++				int pcount = getArgumentTypes().length;
++				newParameterAnnotations = new AnnotationAJ[pcount][];
++				for (int i = 0; i < pcount; i++) {
++					if (i == parameterNumber) {
++						newParameterAnnotations[i] = new AnnotationAJ[1];
++						newParameterAnnotations[i][0] = anno;
++					} else {
++						newParameterAnnotations[i] = NO_ANNOTATIONAJ;
++					}
++				}
++			} else {
++				AnnotationAJ[] currentAnnoArray = newParameterAnnotations[parameterNumber];
++				AnnotationAJ[] newAnnoArray = new AnnotationAJ[currentAnnoArray.length + 1];
++				System.arraycopy(currentAnnoArray, 0, newAnnoArray, 0, currentAnnoArray.length);
++				newAnnoArray[currentAnnoArray.length] = anno;
++				newParameterAnnotations[parameterNumber] = newAnnoArray;
++			}
++		} else {
++			memberView.addParameterAnnotation(parameterNumber, anno);
++		}
++	}
++
+ 	public boolean hasAnnotation(UnresolvedType annotationTypeX) {
+ 		initialize();
+ 		if (memberView == null) {
+@@ -898,6 +928,16 @@ public final class LazyMethodGen implements Traceable {
+ 			}
+ 		}
+ 
++		if (newParameterAnnotations != null) {
++			for (int i = 0; i < newParameterAnnotations.length; i++) {
++				AnnotationAJ[] annos = newParameterAnnotations[i];
++				for (int j = 0; j < annos.length; j++) {
++					gen.addParameterAnnotation(i, new AnnotationGen(((BcelAnnotation) annos[j]).getBcelAnnotation(), gen
++							.getConstantPool(), true));
++				}
++			}
++		}
++
+ 		if (memberView != null && memberView.getAnnotations() != null && memberView.getAnnotations().length != 0) {
+ 			AnnotationAJ[] ans = memberView.getAnnotations();
+ 			for (int i = 0, len = ans.length; i < len; i++) {
+@@ -0,0 +1 @@
++public class Destination {}
+@@ -0,0 +1,40 @@
++import java.lang.reflect.*;
++import java.lang.annotation.*;
++
++
++interface I {}
++
++class D implements I {}
++
++aspect Introduction {
++  // ITD onto interface
++  public String I.helloWorld( @SomeAnnotation("xyz") String who) {
++    return "Hello " + who;
++  }
++}
++
++public class Four {
++  public static void main(String[] argv) throws Exception {
++    Class<D> clazz = D.class;
++    Method m = clazz.getMethod("helloWorld", String.class);
++    Annotation[] ann = m.getAnnotations();
++    for (int i = 0; i < m.getParameterAnnotations().length; i++) {
++      int count = m.getParameterAnnotations()[i].length;
++      System.out.println("Class D parameter " + i + " has " + count + " parameter annotations");
++    }
++    Class<I> clazzI = I.class;
++    m = clazzI.getMethod("helloWorld", String.class);
++    ann = m.getAnnotations();
++    for (int i = 0; i < m.getParameterAnnotations().length; i++) {
++      int count = m.getParameterAnnotations()[i].length;
++      System.out.println("Interface I parameter " + i + " has " + count + " parameter annotations");
++    }
++
++  }
++}
++
++@Retention(RetentionPolicy.RUNTIME)
++@Target(ElementType.PARAMETER)
++@interface SomeAnnotation {
++        String value() default "";
++}
+@@ -0,0 +1,6 @@
++privileged aspect Introduction {
++  public String Destination.helloWorld(@SomeAnnotation("xyz") String who) {
++    return "Hello " + who;
++  }
++}
++
+@@ -0,0 +1,22 @@
++import java.lang.reflect.*;
++import java.lang.annotation.*;
++
++public class SimpleTest {
++  public static void main(String[] argv) throws Exception {
++    Class<Destination> clazz = Destination.class;
++    Method m = clazz.getMethod("helloWorld", String.class);
++    Annotation[] ann = m.getAnnotations();
++//    System.out.println(m + " has " + ann.length + " annotations");
++
++    for (int i = 0; i < ann.length; i++) {
++//      System.out.println("Method annotation: " + ann[i].getClass() + ann[i].toString());
++    }
++
++    for (int i = 0; i < m.getParameterAnnotations().length; i++) {
++      int count = m.getParameterAnnotations()[i].length;
++      System.out.println("Parameter " + i + " has " + count + " parameter annotations");
++    }
++
++  }
++}
++
+@@ -0,0 +1,7 @@
++import java.lang.annotation.*;
++
++@Retention(RetentionPolicy.RUNTIME)
++@Target(ElementType.PARAMETER)
++public @interface SomeAnnotation {
++        String value() default "";
++}
+@@ -0,0 +1,31 @@
++import java.lang.reflect.*;
++import java.lang.annotation.*;
++
++
++class Destination {}
++
++aspect Introduction {
++  // multiple parameters, not all annotated
++  public static String Destination.helloWorld(int i, @SomeAnnotation("xyz") String who, long l, @SomeAnnotation("abc") String what) {
++    return "Hello " + who;
++  }
++}
++
++public class Three {
++  public static void main(String[] argv) throws Exception {
++    Class<Destination> clazz = Destination.class;
++    Method m = clazz.getMethod("helloWorld", Integer.TYPE,String.class,Long.TYPE,String.class);
++    Annotation[] ann = m.getAnnotations();
++    for (int i = 0; i < m.getParameterAnnotations().length; i++) {
++      int count = m.getParameterAnnotations()[i].length;
++      System.out.println("Parameter " + i + " has " + count + " parameter annotations");
++    }
++
++  }
++}
++
++@Retention(RetentionPolicy.RUNTIME)
++@Target(ElementType.PARAMETER)
++@interface SomeAnnotation {
++        String value() default "";
++}
+@@ -0,0 +1,31 @@
++import java.lang.reflect.*;
++import java.lang.annotation.*;
++
++
++class Destination {}
++
++aspect Introduction {
++  // static ITD
++  public static String Destination.helloWorld(@SomeAnnotation("xyz") String who) {
++    return "Hello " + who;
++  }
++}
++
++public class Two {
++  public static void main(String[] argv) throws Exception {
++    Class<Destination> clazz = Destination.class;
++    Method m = clazz.getMethod("helloWorld", String.class);
++    Annotation[] ann = m.getAnnotations();
++    for (int i = 0; i < m.getParameterAnnotations().length; i++) {
++      int count = m.getParameterAnnotations()[i].length;
++      System.out.println("Parameter " + i + " has " + count + " parameter annotations");
++    }
++
++  }
++}
++
++@Retention(RetentionPolicy.RUNTIME)
++@Target(ElementType.PARAMETER)
++@interface SomeAnnotation {
++        String value() default "";
++}
+@@ -23,6 +23,22 @@ import org.aspectj.testing.XMLBasedAjcTestCase;
+ 
+ public class Ajc163Tests extends org.aspectj.testing.XMLBasedAjcTestCase {
+ 
++	public void testParameterAnnotationsOnITDs_pr256669() { // regular itd
++		runTest("parameter annotations on ITDs");
++	}
++
++	public void testParameterAnnotationsOnITDs_pr256669_2() { // static itd
++		runTest("parameter annotations on ITDs - 2");
++	}
++
++	public void testParameterAnnotationsOnITDs_pr256669_3() { // multiple parameters
++		runTest("parameter annotations on ITDs - 3");
++	}
++
++	public void testParameterAnnotationsOnITDs_pr256669_4() { // itd on interface
++		runTest("parameter annotations on ITDs - 4");
++	}
++
+ 	public void testOrderingIssue_1() {
+ 		runTest("ordering issue");
+ 	}
+@@ -31,9 +47,9 @@ public class Ajc163Tests extends org.aspectj.testing.XMLBasedAjcTestCase {
+ 		runTest("ordering issue - 2");
+ 	}
+ 
+-//	public void testGenericPointcuts_5() {
+-//		runTest("generic pointcuts - 5");
+-//	}
++	// public void testGenericPointcuts_5() {
++	// runTest("generic pointcuts - 5");
++	// }
+ 
+ 	public void testGenericPointcuts_1() {
+ 		runTest("generic pointcuts - 1");
+@@ -51,7 +67,6 @@ public class Ajc163Tests extends org.aspectj.testing.XMLBasedAjcTestCase {
+ 		runTest("generic pointcuts - 4");
+ 	}
+ 
+-
+ 	// public void testBrokenLVT_pr194314_1() throws Exception {
+ 	// runTest("broken lvt - 1");
+ 	// JavaClass jc = Utils.getClassFrom(ajc.getSandboxDirectory().getAbsolutePath(), "Service");
+@@ -16,6 +16,46 @@
+         <message kind="error" line="1" text="Bound mismatch"/>
+       </compile>      
+     </ajc-test>
++    
++    <ajc-test dir="bugs163/pr256669" title="parameter annotations on ITDs">
++      <compile files="Destination.java SimpleTest.java Introduction.java SomeAnnotation.java" options="-1.5"/>
++      <run class="SimpleTest">
++        <stdout>
++           <line text="Parameter 0 has 1 parameter annotations"/>
++        </stdout>
++      </run>
++    </ajc-test>
++    
++    <ajc-test dir="bugs163/pr256669" title="parameter annotations on ITDs - 2">
++      <compile files="Two.java" options="-1.5"/>
++      <run class="Two">
++        <stdout>
++           <line text="Parameter 0 has 1 parameter annotations"/>
++        </stdout>
++      </run>
++    </ajc-test>
++    
++    <ajc-test dir="bugs163/pr256669" title="parameter annotations on ITDs - 3">
++      <compile files="Three.java" options="-1.5"/>
++      <run class="Three">
++        <stdout>
++           <line text="Parameter 0 has 0 parameter annotations"/>
++           <line text="Parameter 1 has 1 parameter annotations"/>
++           <line text="Parameter 2 has 0 parameter annotations"/>
++           <line text="Parameter 3 has 1 parameter annotations"/>
++        </stdout>
++      </run>
++    </ajc-test>
++    
++    <ajc-test dir="bugs163/pr256669" title="parameter annotations on ITDs - 4">
++      <compile files="Four.java" options="-1.5"/>
++      <run class="Four">
++        <stdout>
++           <line text="Class D parameter 0 has 1 parameter annotations"/>
++           <line text="Interface I parameter 0 has 1 parameter annotations"/>
++        </stdout>
++      </run>
++    </ajc-test>
+ 
+     <ajc-test dir="bugs163/pr253109" title="generic pointcuts - 1">
+       <compile files="CodeOne.java" options="-1.5">

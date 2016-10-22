@@ -1,0 +1,3427 @@
+Binary files differ
+Binary files differ
+@@ -10,6 +10,7 @@
+  * Contributors: 
+  *     Xerox/PARC     initial implementation 
+  *    Alex Vasseur    wired up for @AJ proceeding
++ *    Andy Clement 23-06-06 added extras for @AJ
+  * ******************************************************************/
+ 
+ 
+@@ -19,6 +20,12 @@ import org.aspectj.lang.ProceedingJoinPoint;
+ 
+ public abstract class AroundClosure {
+     protected Object[] state;
++
++    // Records with the related joinpoint has a this or a target and whether 
++    // either of them are bound in the pointcut.  Set in the 'link' call made
++    // at each matching join point... (see pr126167)
++    // bit6 being 1 means the flags haven't been initialized
++    protected int bitflags = 0x100000; 
+     protected Object[] preInitializationState;
+ 
+     public AroundClosure() {
+@@ -28,7 +35,7 @@ public abstract class AroundClosure {
+     	this.state = state;
+     }
+ 
+-    
++    public int getFlags() {return bitflags;}
+ 
+     public Object[] getState() {
+       return state;
+@@ -54,4 +61,16 @@ public abstract class AroundClosure {
+         jp.set$AroundClosure(this);
+         return jp;
+     }
++
++    /**
++     * This method is called to implicitly associate the closure with the joinpoint
++     * as required for @AJ aspect proceed()
++     */
++    public ProceedingJoinPoint linkClosureAndJoinPoint(int flags) {
++        //TODO is this cast safe ?
++        ProceedingJoinPoint jp = (ProceedingJoinPoint)state[state.length-1];
++        jp.set$AroundClosure(this);
++        this.bitflags = flags;
++        return jp;
++    }
+ }
+@@ -106,17 +106,73 @@ class JoinPointImpl implements ProceedingJoinPoint {
+         if (arc == null)
+             return null;
+         else {
++
++        	// Based on the bit flags in the AroundClosure we can determine what to
++        	// expect in the adviceBindings array.  We may or may not be expecting
++        	// the first value to be a new this or a new target... (see pr126167)
++        	int flags = arc.getFlags();
++        	boolean unset             = (flags &0x100000)!=0;
++        	boolean thisTargetTheSame = (flags &0x010000)!=0;
++        	boolean hasThis           = (flags &0x001000)!=0;
++        	boolean bindsThis         = (flags &0x000100)!=0;
++        	boolean hasTarget         = (flags &0x000010)!=0;
++        	boolean bindsTarget       = (flags &0x000001)!=0;
++        	
+             // state is always consistent with caller?,callee?,formals...,jp
+             Object[] state = arc.getState();
+-            for (int i = state.length-2; i >= 0; i--) {
+-                int formalIndex = (adviceBindings.length - 1) - (state.length-2) + i;
+-                if (formalIndex >= 0 && formalIndex < adviceBindings.length) {
+-                    state[i] = adviceBindings[formalIndex];
+-                }
++            
++            // these next two numbers can differ because some join points have a this and 
++            // target that are the same (eg. call) - and yet you can bind this and target 
++            // separately.
++            
++            // In the state array, [0] may be this, [1] may be target
++            
++            int firstArgumentIndexIntoAdviceBindings = 0;
++            int firstArgumentIndexIntoState = 0;
++            firstArgumentIndexIntoState+=(hasThis?1:0);
++            firstArgumentIndexIntoState+=(hasTarget&&!thisTargetTheSame?1:0);
++            if (hasThis) {
++            	if (bindsThis) {
++            		// replace [0] (this)
++	            	firstArgumentIndexIntoAdviceBindings=1;
++	            	state[0]=adviceBindings[0];
++            	} else {
++            		// leave state[0] alone, its OK
++            	}
++            }
++            if (hasTarget) {
++            	if (bindsTarget) {
++                  if (thisTargetTheSame) {
++                	  // this and target are the same so replace state[0]
++		        	  firstArgumentIndexIntoAdviceBindings=1+(bindsThis?1:0);
++		        	  state[0]=adviceBindings[(bindsThis?1:0)];
++		          } else {
++		        	  // need to replace the target, and it is different to this, whether
++		        	  // that means replacing state[0] or state[1] depends on whether
++		        	  // the join point has a this
++		        	  firstArgumentIndexIntoAdviceBindings=(hasThis?1:0)+1;
++		        	  state[hasThis?1:0]=adviceBindings[hasThis?1:0]; 	  
++		          }
++            	} else {
++            		// leave state[0]/state[1] alone, they are OK
++            	}
+             }
++            
++            // copy the rest across
++            for (int i=firstArgumentIndexIntoAdviceBindings;i<adviceBindings.length;i++) {
++            	state[firstArgumentIndexIntoState+(i-firstArgumentIndexIntoAdviceBindings)]=adviceBindings[i];
++            }
++            
++            // old code that did this, didnt allow this/target overriding
++//            for (int i = state.length-2; i >= 0; i--) {
++//                int formalIndex = (adviceBindings.length - 1) - (state.length-2) + i;
++//                if (formalIndex >= 0 && formalIndex < adviceBindings.length) {
++//                    state[i] = adviceBindings[formalIndex];
++//                }
++//            }
+             return arc.run(state);
+         }
+     }
+-
++    
+ 
+ }
+@@ -24,49 +24,60 @@ import org.aspectj.testing.XMLBasedAjcTestCase;
+  * @author AndyClement
+  *
+  */
+-
+-
+ public class AtAroundTests extends XMLBasedAjcTestCase {
+ 
+-  public void testCodeBasic() {       runTest("code style - basic"); }
+-  public void testAtBasic()   { runTest("annotation style - basic"); }
++  public void testCodeBasic()       { runTest("code style - basic"); }
++  public void testAtBasicNoInline() { runTest("annotation style - basic - noinline"); }
++  public void testAtBasic()         { runTest("annotation style - basic"); }
+ 
++  public void testCodeBindingTarget()       { runTest("code style - correct usage, binding and passing same target for call"); }
++  public void testAtBindingTargetNoInline() { runTest("annotation style - correct usage, binding and passing same target for call - noinline"); }
++  public void testAtBindingTarget()         { runTest("annotation style - correct usage, binding and passing same target for call"); }
++
++  public void testCodeBindingTarget2()       { runTest("code style - correct usage, binding and passing new target for call"); }
++  public void testAtBindingTargetNoInline2() { runTest("annotation style - correct usage, binding and passing new target for call - noinline"); }
++  public void testAtBindingTarget2()         { runTest("annotation style - correct usage, binding and passing new target for call"); }
++
+   public void testCodeErrorCase1() {     runTest("code style - forget to pass target");}
+   // Don't think we can report correct errors for @AJ as the parameters are specified as an object array
+-  // public void testAtErrorCase1() { runTest("annotation style - forget to pass target");}
++  //public void testAtErrorCase1() { runTest("annotation style - forget to pass target");}
++
++  public void testCodeBindThisCallChangeProceed()       { runTest("code style - bind this on call - change on proceed - no effect");} 
++  public void testAtBindThisCallChangeProceedNoInline() { runTest("annotation style - bind this on call - change on proceed - no effect - noinline");}
++  public void testAtBindThisCallChangeProceed()         { runTest("annotation style - bind this on call - change on proceed - no effect");}
++
++  public void testCodeBindThisExecutionChangeProceed()       { runTest("code style - bind this on execution - change on proceed - works");}
++  public void testAtBindThisExecutionChangeProceedNoInline() { runTest("annotation style - bind this on execution - change on proceed - works - noinline");}
++  public void testAtBindThisExecutionChangeProceed()         { runTest("annotation style - bind this on execution - change on proceed - works");}
++
++  public void testCodeBindBothExecutionChangeProceed()       { runTest("code style - bind this and target on execution - change on proceed - works");}
++  public void testAtBindBothExecutionChangeProceedNoInline() { runTest("annotation style - bind this and target on execution - change on proceed - works - noinline");}
++  public void testAtBindBothExecutionChangeProceed()         { runTest("annotation style - bind this and target on execution - change on proceed - works");}
+ 
+   public void testCodeErrorCase2() {     runTest("code style - incorrect arg types");}
+   // Don't think we can report correct errors for @AJ as the parameters are specified as an object array
+   // public void testAtErrorCase2() { runTest("annotation style - incorrect arg types");}
+-  
+-  public void testCodeBindingTarget() {       runTest("code style - correct usage, binding and passing new target for call"); }
+-  public void testAtBindingTarget()   { runTest("annotation style - correct usage, binding and passing new target for call"); }
+ 
+-  public void testCodeChangingTarget() {       runTest("code style - changing target for call"); }
+-  public void testAtChangingTarget()   { runTest("annotation style - changing target for call"); }
+-  
+   public void testCodeChangingTargetDifferingOrder() {       runTest("code style - changing target for call - reverse order"); }
+   // @AJ cant cope with the changing of the order of arguments bound and passed through proceed
+   //public void testAtChangingTargetDifferingOrder()   { runTest("annotation style - changing target for call - reverse order"); }
+- 
+-  public void testCodeBindThisCallChangeProceed() {     runTest("code style - bind this on call - change on proceed - no effect");} 
+-  //public void testAtBindThisCallChangeProceed() { runTest("annotation style - bind this on call - change on proceed - no effect");}
++
++  public void testCodeBindBothCallChangeProceed()       { runTest("code style - bind this and target on call - change on proceed - works");}
++  public void testAtBindBothCallChangeProceedNoInline() { runTest("annotation style - bind this and target on call - change on proceed - works - noinline");}
++  public void testAtBindBothCallChangeProceed()         { runTest("annotation style - bind this and target on call - change on proceed - works");}
+ 
+-  public void testCodeBindThisExecutionChangeProceed() {     runTest("code style - bind this on execution - change on proceed - works");}
+-  //public void testAtBindThisExecutionChangeProceed() { runTest("annotation style - bind this on execution - change on proceed - works");}
++  public void testBreakingIt1() { runTest("breaking it - one");}
++  public void testBreakingIt2() { runTest("breaking it - two");}
++  
++  public void testBugCase1() { runTest("bug case one");}
++  public void testBugCase2() { runTest("bug case two");}
++  public void testMultipleArgs() { runTest("multiple args");}
+ 
+-  public void testCodeBindBothExecutionChangeProceed() { runTest("code style - bind this and target on execution - change on proceed - works");}
+-  //public void testAtBindBothExecutionChangeProceed() { runTest("annotation style - bind this and target on execution - change on proceed - works");}
+- 
+-  public void testCodeBindBothCallChangeProceed() { runTest("code style - bind this and target on call - change on proceed - works");}
+-  //public void testAtBindBothCallChangeProceed() { runTest("annotation style - bind this and target on call - change on proceed - works");}
+-
+   public void testCodeSubsetArguments() {     runTest("code style - works with subset of arguments in advice");}
++  // cant do this for annotation style
+   //public void testAtSubsetArguments() { runTest("annotation style - works with subset of arguments in advice");}
+-
+-  
+ 
+-  //
++  // ---
+   public static Test suite() {
+     return XMLBasedAjcTestCase.loadSuite(AtAroundTests.class);
+   }
+@@ -2174,10 +2174,6 @@ public class BcelShadow extends Shadow {
+ 		range.insert(entryInstructions, Range.InsideBefore);
+ 	}
+ 
+-    public void weaveAroundInline(
+-    	BcelAdvice munger,
+-    	boolean hasDynamicTest)
+-	{
+ 		/* Implementation notes:
+ 		 * 
+ 		 * AroundInline still extracts the instructions of the original shadow into 
+@@ -2208,6 +2204,7 @@ public class BcelShadow extends Shadow {
+ 		 * new method for the advice can also be re-lined.  We are not doing that
+ 		 * presently.
+ 		 */
++    public void weaveAroundInline(BcelAdvice munger,boolean hasDynamicTest) {
+ 
+ 		// !!! THIS BLOCK OF CODE SHOULD BE IN A METHOD CALLED weaveAround(...);
+         Member mungerSig = munger.getSignature();
+@@ -2246,9 +2243,8 @@ public class BcelShadow extends Shadow {
+ 
+         // specific test for @AJ proceedInInners
+         if (munger.getConcreteAspect().isAnnotationStyleAspect()) {
+-            // if we can't find one proceed()
+-            // we suspect that the call is happening in an inner class
+-            // so we don't inline it.
++            // if we can't find one proceed() we suspect that the call 
++        	// is happening in an inner class so we don't inline it.
+             // Note: for code style, this is done at Aspect compilation time.
+             boolean canSeeProceedPassedToOther = false;
+             InstructionHandle curr = adviceMethod.getBody().getStart();
+@@ -2285,29 +2281,25 @@ public class BcelShadow extends Shadow {
+ 		final InstructionFactory fact = getFactory();
+ 
+ 		// now generate the aroundBody method
++		// eg. "private static final void method_aroundBody0(M, M, String, org.aspectj.lang.JoinPoint)"
+         LazyMethodGen extractedMethod = 
+         	extractMethod(
+-        		NameMangler.aroundCallbackMethodName(
+-        			getSignature(),
+-        			getEnclosingClass()),
++        		NameMangler.aroundCallbackMethodName(getSignature(),getEnclosingClass()),
+ 				Modifier.PRIVATE,
+-				munger
+-            );
+-        			
++				munger);
+ 
+         // now extract the advice into its own method
+         String adviceMethodName =
+-			NameMangler.aroundCallbackMethodName(
+-							getSignature(),
+-							getEnclosingClass()) + "$advice";
++			NameMangler.aroundCallbackMethodName(getSignature(),getEnclosingClass()) + "$advice";
+ 
+-		List argVarList = new ArrayList();
+-		List proceedVarList = new ArrayList();
++		List argVarList      = new ArrayList();
++		List proceedVarList  = new ArrayList();
+ 		int extraParamOffset = 0;
+ 
+ 		// Create the extra parameters that are needed for passing to proceed
+ 		// This code is very similar to that found in makeCallToCallback and should
+ 		// be rationalized in the future
++		
+ 		if (thisVar != null) {
+ 			argVarList.add(thisVar);
+ 			proceedVarList.add(new BcelVar(thisVar.getType(), extraParamOffset));
+@@ -2612,13 +2604,6 @@ public class BcelShadow extends Shadow {
+     /**
+      * ATAJ Handle the inlining for @AJ aspects
+      *
+-     * @param fact
+-     * @param callbackMethod
+-     * @param munger
+-     * @param localAdviceMethod
+-     * @param argVarList
+-     * @param isProceedWithArgs
+-     * @return
+      */
+     private InstructionList getRedoneProceedCallForAnnotationStyle(
+         InstructionFactory fact,
+@@ -2630,8 +2615,6 @@ public class BcelShadow extends Shadow {
+     {
+         // Notes:
+         // proceedingjp is on stack (since user was calling pjp.proceed(...)
+-        // the boxed args to proceed() are on stack as well (Object[]) unless
+-        // the call is to pjp.proceed(<noarg>)
+ 
+         // new Object[]{new Integer(argAdvice1-1)};// arg of proceed
+         // call to proceed(..) is NOT made
+@@ -2646,15 +2629,19 @@ public class BcelShadow extends Shadow {
+         // int res = .. from original code
+ 
+         //Note: we just don't care about the proceed map etc
++    	// (we would need to care if we allow repositioning of arguments in advice signature)
+ 
+         InstructionList ret = new InstructionList();
+ 
+         // store the Object[] array on stack if proceed with args
+         if (isProceedWithArgs) {
++        	
++        	// STORE the Object[] into a local variable
+             Type objectArrayType = Type.getType("[Ljava/lang/Object;");
+             int localProceedArgArray = localAdviceMethod.allocateLocal(objectArrayType);
+             ret.append(InstructionFactory.createStore(objectArrayType, localProceedArgArray));
+ 
++            // STORE the ProceedingJoinPoint instance into a local variable
+             Type proceedingJpType = Type.getType("Lorg/aspectj/lang/ProceedingJoinPoint;");
+             int localJp = localAdviceMethod.allocateLocal(proceedingJpType);
+             ret.append(InstructionFactory.createStore(proceedingJpType, localJp));
+@@ -2664,22 +2651,74 @@ public class BcelShadow extends Shadow {
+             // TODO do we want to try catch ClassCast and AOOBE exception ?
+ 
+             // special logic when withincode is static or not
+-            int startIndex = 0;
+-            if (thisVar != null) {
+-                startIndex = 1;
+-                //TODO this logic is actually depending on target as well - test me
+-                ret.append(new ALOAD(0));//thisVar
++            
++            // This next bit of code probably makes more sense if you read its implementation for
++            // weaveAroundClosure() - see JoinPointImpl.proceed(Object[]).  Basically depending
++            // on whether the join point has a this/target and whether the pointcut binds this/target
++            // then the arguments to the 'new' proceed call need to be reorganized. (pr126167)
++        	boolean relatedPointcutBindsThis = bindsThis(munger);
++        	boolean relatedPointcutBindsTarget = bindsTarget(munger);
++        	boolean targetIsSameAsThis = getKind().isTargetSameAsThis();
++        	
++        	// two numbers can differ because a pointcut may bind both this/target and yet at the
++        	// join point this and target are the same (eg. call)
++            int indexIntoObjectArrayForArguments=0;
++            int indexIntoCallbackMethodForArguments = 0;
++            if (hasThis()) {
++            	if (relatedPointcutBindsThis) {
++            		if (!(relatedPointcutBindsTarget && targetIsSameAsThis)) {
++	            		// they have supplied new this as first entry in object array
++	            		 ret.append(InstructionFactory.createLoad(objectArrayType, localProceedArgArray));
++	                     ret.append(Utility.createConstant(fact, 0));
++	                     ret.append(InstructionFactory.createArrayLoad(Type.OBJECT));
++	                     ret.append(Utility.createConversion(fact,Type.OBJECT,callbackMethod.getArgumentTypes()[0]));
++	                     indexIntoCallbackMethodForArguments++;
++            		 }
++                    indexIntoObjectArrayForArguments=1;
++            	} else {
++            		// use local variable 0 (which is 'this' for a non-static method)
++            		ret.append(new ALOAD(0));
++                	indexIntoCallbackMethodForArguments++;
++            	}
+             }
+-//    	    if (bindsThisOrTarget(munger.getPointcut())) {                
+ 
+-            for (int i = startIndex, len=callbackMethod.getArgumentTypes().length; i < len; i++) {
++            if (hasTarget()) {
++            	if (relatedPointcutBindsTarget) {
++            		if (getKind().isTargetSameAsThis()) {
++            			 ret.append(InstructionFactory.createLoad(objectArrayType, localProceedArgArray));
++                         ret.append(Utility.createConstant(fact, relatedPointcutBindsThis?1:0));
++                         ret.append(InstructionFactory.createArrayLoad(Type.OBJECT));
++                         ret.append(Utility.createConversion(fact,Type.OBJECT,callbackMethod.getArgumentTypes()[0]));
++                         indexIntoObjectArrayForArguments++;
++                         indexIntoCallbackMethodForArguments++;
++            		} else {
++            			 int position =(hasThis()&& relatedPointcutBindsThis?1:0);
++	           			 ret.append(InstructionFactory.createLoad(objectArrayType, localProceedArgArray));
++	                     ret.append(Utility.createConstant(fact, position));
++	                     ret.append(InstructionFactory.createArrayLoad(Type.OBJECT));
++	                     ret.append(Utility.createConversion(fact,Type.OBJECT,callbackMethod.getArgumentTypes()[position]));
++	                     indexIntoObjectArrayForArguments=position+1;
++	             		 indexIntoCallbackMethodForArguments++;
++            		}
++            	} else {
++                	if (getKind().isTargetSameAsThis()) {
++                		//ret.append(new ALOAD(0));
++                	} else {
++                		ret.append(InstructionFactory.createLoad(localAdviceMethod.getArgumentTypes()[0],hasThis()?1:0));
++                		indexIntoCallbackMethodForArguments++;
++                	}
++            	}
++            }
++            
++            
++            for (int i = indexIntoCallbackMethodForArguments, len=callbackMethod.getArgumentTypes().length; i < len; i++) {
+                 Type stateType = callbackMethod.getArgumentTypes()[i];
+                 BcelWorld.fromBcel(stateType).resolve(world);
+                 if ("Lorg/aspectj/lang/JoinPoint;".equals(stateType.getSignature())) {
+                     ret.append(new ALOAD(localJp));// from localAdvice signature
+                 } else {
+                     ret.append(InstructionFactory.createLoad(objectArrayType, localProceedArgArray));
+-                    ret.append(Utility.createConstant(fact, i-startIndex));
++                    ret.append(Utility.createConstant(fact, i-indexIntoCallbackMethodForArguments +indexIntoObjectArrayForArguments));
+                     ret.append(InstructionFactory.createArrayLoad(Type.OBJECT));
+                     ret.append(Utility.createConversion(
+                             fact,
+@@ -2688,6 +2727,7 @@ public class BcelShadow extends Shadow {
+                     ));
+                 }
+             }
++
+         } else {
+             Type proceedingJpType = Type.getType("Lorg/aspectj/lang/ProceedingJoinPoint;");
+             int localJp = localAdviceMethod.allocateLocal(proceedingJpType);
+@@ -2802,7 +2842,72 @@ public class BcelShadow extends Shadow {
+ //        return ret;
+     }
+ 
+-    public void weaveAroundClosure(BcelAdvice munger, boolean hasDynamicTest) {
++    private boolean bindsThis(BcelAdvice munger) {
++    	UsesThisVisitor utv = new UsesThisVisitor();
++    	munger.getPointcut().accept(utv, null);
++		return utv.usesThis;
++	}
++
++    private boolean bindsTarget(BcelAdvice munger) {
++    	UsesTargetVisitor utv = new UsesTargetVisitor();
++    	munger.getPointcut().accept(utv, null);
++		return utv.usesTarget;
++	}
++    
++    private static class UsesThisVisitor extends IdentityPointcutVisitor {
++        boolean usesThis = false;
++        
++        public Object visit(ThisOrTargetPointcut node, Object data) {
++        	if (node.isThis() && node.isBinding()) usesThis=true;
++        	return node;
++        }
++
++        public Object visit(AndPointcut node, Object data) {
++            if (!usesThis) node.getLeft().accept(this, data);
++            if (!usesThis) node.getRight().accept(this, data);
++            return node;
++        }
++
++        public Object visit(NotPointcut node, Object data) {
++            if (!usesThis) node.getNegatedPointcut().accept(this, data);
++            return node;
++        }
++
++        public Object visit(OrPointcut node, Object data) {
++            if (!usesThis) node.getLeft().accept(this, data);
++            if (!usesThis) node.getRight().accept(this, data);
++            return node;
++        }
++    }
++    
++
++    private static class UsesTargetVisitor extends IdentityPointcutVisitor {
++        boolean usesTarget = false;
++        
++        public Object visit(ThisOrTargetPointcut node, Object data) {
++        	if (!node.isThis() && node.isBinding()) usesTarget=true;
++        	return node;
++        }
++
++        public Object visit(AndPointcut node, Object data) {
++            if (!usesTarget) node.getLeft().accept(this, data);
++            if (!usesTarget) node.getRight().accept(this, data);
++            return node;
++        }
++
++        public Object visit(NotPointcut node, Object data) {
++            if (!usesTarget) node.getNegatedPointcut().accept(this, data);
++            return node;
++        }
++
++        public Object visit(OrPointcut node, Object data) {
++            if (!usesTarget) node.getLeft().accept(this, data);
++            if (!usesTarget) node.getRight().accept(this, data);
++            return node;
++        }
++    }
++
++	public void weaveAroundClosure(BcelAdvice munger, boolean hasDynamicTest) {
+     	InstructionFactory fact = getFactory();
+ 
+ 		enclosingMethod.setCanInline(false);
+@@ -2895,9 +3000,19 @@ public class BcelShadow extends Shadow {
+ 			}
+ 		}
+ 
++		// initialize the bit flags for this shadow
++		int bitflags                                 =0x000000;
++		if (getKind().isTargetSameAsThis()) bitflags|=0x010000;
++		if (hasThis())                      bitflags|=0x001000;
++		if (bindsThis(munger))              bitflags|=0x000100;
++		if (hasTarget())                    bitflags|=0x000010;
++		if (bindsTarget(munger))            bitflags|=0x000001;
++		
+         // ATAJ for @AJ aspect we need to link the closure with the joinpoint instance
+         if (munger.getConcreteAspect()!=null && munger.getConcreteAspect().isAnnotationStyleAspect() 
+            && munger.getDeclaringAspect()!=null && munger.getDeclaringAspect().resolve(world).isAnnotationStyleAspect()) {
++        	// stick the bitflags on the stack and call the variant of linkClosureAndJoinPoint that takes an int
++        	closureInstantiation.append(fact.createConstant(new Integer(bitflags)));
+             closureInstantiation.append(Utility.createInvoke(
+                     getFactory(),
+                     getWorld(),
+@@ -2906,7 +3021,7 @@ public class BcelShadow extends Shadow {
+                             UnresolvedType.forName("org.aspectj.runtime.internal.AroundClosure"),
+                             Modifier.PUBLIC,
+                             "linkClosureAndJoinPoint",
+-                            "()Lorg/aspectj/lang/ProceedingJoinPoint;"
++                            "(I)Lorg/aspectj/lang/ProceedingJoinPoint;"
+                             )
+             ));
+         }
+@@ -8,7 +8,7 @@ public class A1 {
+   @Around("call(void M.method(String)) && args(p)")
+   public void a( ProceedingJoinPoint pjp, String p) throws Throwable {
+     System.err.println("advice from ataj aspect");
+-    pjp.proceed( new Object[] { pjp.getTarget(),"faked" } );
++    pjp.proceed( new Object[] { "faked" } );
+   }
+ 
+   public static void main(String []argv) {
+@@ -10,7 +10,7 @@ public class A10 {
+   @Around("call(void M.method(String)) && args(p) && this(t) && target(t2)")
+   public void a( ProceedingJoinPoint pjp, M t,String p, M t2) throws Throwable {
+     System.err.println("advice from ataj aspect");
+-    pjp.proceed(new Object[]{newM2,"faked",newM3});
++    pjp.proceed(new Object[]{newM2,newM3,"faked"});
+   }
+ 
+   public static void main(String []argv) {
+@@ -0,0 +1,32 @@
++// Bind the target and pass in the right order
++import org.aspectj.lang.ProceedingJoinPoint;
++import org.aspectj.lang.annotation.*;
++
++@Aspect
++public class A42 {
++  M newM = new M("2");
++
++  @Around("call(void M.method(String)) && args(p) && target(t)")
++  public void a( ProceedingJoinPoint pjp, M t, String p) throws Throwable {
++    System.err.println("advice from ataj aspect");
++    pjp.proceed(new Object[]{newM,"faked"});
++  }
++
++  public static void main(String []argv) {
++    M.main(argv);
++  }
++}
++
++class M {
++
++  String prefix;
++
++  public M(String prefix) { this.prefix = prefix; }
++
++  public static void main( String[] args ) {
++    M m = new M("1");
++    m.method("real");
++  }
++
++  public void method(String s) { System.err.println(prefix+s); }
++}
+@@ -4,19 +4,41 @@ import org.aspectj.lang.annotation.*;
+ 
+ @Aspect
+ public class A7 {
+-  M newM = new M("2");
++  N newN = new N();
+ 
+   @Around("call(void M.method(String)) && args(p) && this(t)")
+-  public void a( ProceedingJoinPoint pjp, M t,String p) throws Throwable {
++  public void a( ProceedingJoinPoint pjp, N t,String p) throws Throwable {
+     System.err.println("advice from ataj aspect");
+-    pjp.proceed(new Object[]{newM,"faked"});
++    pjp.proceed(new Object[]{newN,"faked"});
+   }
+ 
+   public static void main(String []argv) {
+-    M.main(argv);
++    N.main(argv);
+   }
+ }
+ 
++class N {
++ public static void main( String[] args ) {
++   N n = new N();
++   n.methodCaller("real");
++ }
++
++
++ public void methodCaller(String param) {
++   M m = new M("1");
++   m.method(param);
++ }
++
++}
++
++
++class M {
++ String prefix;
++ public M(String prefix) { this.prefix = prefix; }
++ public void method(String s) { System.err.println(prefix+s); }
++}
++
++/*
+ class M {
+ 
+  String prefix;
+@@ -35,3 +57,4 @@ class M {
+  public void method(String s) { System.err.println(prefix+s); }
+ 
+ }
++*/
+@@ -8,9 +8,9 @@ public class A9 {
+   M newM3 = new M("3");
+ 
+   @Around("execution(void M.method(String)) && args(p) && this(t) && target(t2)")
+-  public void a( ProceedingJoinPoint pjp, M t,String p, M t2) throws Throwable {
++  public void a( ProceedingJoinPoint pjp, M t,M t2,String p) throws Throwable {
+     System.err.println("advice from ataj aspect");
+-    pjp.proceed(new Object[]{newM2,"faked",newM3});
++    pjp.proceed(new Object[]{newM2,newM3,"faked"});
+   }
+ 
+   public static void main(String []argv) {
+@@ -0,0 +1,33 @@
++// target() is used, but not in a binding capacity, so dont need to supply
++// in proceed
++
++import org.aspectj.lang.ProceedingJoinPoint;
++import org.aspectj.lang.annotation.*;
++
++@Aspect
++public class Break1 {
++
++  @Around("call(void M.method(String)) && args(p) && target(M)")
++  public void a( ProceedingJoinPoint pjp, String p) throws Throwable {
++    System.err.println("advice from ataj aspect");
++    pjp.proceed(new Object[]{"faked"});
++  }
++
++  public static void main(String []argv) {
++    M.main(argv);
++  }
++}
++
++class M {
++
++  String prefix;
++
++  public M(String prefix) { this.prefix = prefix; }
++
++  public static void main( String[] args ) {
++    M m = new M("1");
++    m.method("real");
++  }
++
++  public void method(String s) { System.err.println(prefix+s); }
++}
+@@ -0,0 +1,38 @@
++// this() is used for matching but not binding
++import org.aspectj.lang.ProceedingJoinPoint;
++import org.aspectj.lang.annotation.*;
++
++@Aspect
++public class Break2 {
++  M newM2 = new M("2");
++  M newM3 = new M("3");
++
++  @Around("execution(void M.method(String)) && args(p) && this(M)")
++  public void a( ProceedingJoinPoint pjp, String p) throws Throwable {
++    System.err.println("advice from ataj aspect");
++    pjp.proceed(new Object[]{"faked"});
++  }
++
++  public static void main(String []argv) {
++    M.main(argv);
++  }
++}
++
++class M {
++
++ String prefix;
++
++ public M(String prefix) { this.prefix = prefix; }
++
++ public static void main( String[] args ) {
++   M m = new M("1");
++   m.methodCaller("real");
++ }
++
++ public void methodCaller(String param) {
++   method(param);
++ }
++
++ public void method(String s) { System.err.println(prefix+s); }
++
++}
+@@ -12,11 +12,14 @@ public class BugCase1 {
+          System.err.println("advice running");
+          return thisJoinPoint.proceed(new Object[]{i*2}); 
+        }
++  public static void main(String []argv) {
++    Foo.main(argv);
++  }
+ 
+ }
+ 
+ 
+-public class Foo {
++class Foo {
+   int a;
+   public void setAge(int i) {
+      System.err.println("Setting age to "+i);
+@@ -2,7 +2,7 @@ import org.aspectj.lang.*;
+ import org.aspectj.lang.annotation.*;
+ 
+ @Aspect
+-public class ProceedAspect {
++public class BugCase2 {
+ 
+   @Pointcut("execution(* setAge(..)) && args(i)")
+   void setAge(int i) {}
+@@ -12,10 +12,13 @@ public class ProceedAspect {
+    System.err.println("advice running");
+    return thisJoinPoint.proceed(new Object[]{i*2});
+  }
++  public static void main(String []argv) {
++    Foo.main(argv);
++  }
+ }
+ 
+ 
+-public class Foo {
++ class Foo {
+   int a;
+   public void setAge(int i) {
+      System.err.println("Setting age to "+i);
+@@ -1,24 +1,25 @@
+-
++import java.util.*;
+ import org.aspectj.lang.annotation.*;
++import org.aspectj.lang.*;
+ 
+ @Aspect
+-public class X {
++public class MultipleArgs {
+ 
+ 
+-  @Before("call(* callone(..)) && !within(X) && args(a,b,c)") 
+-  public void b1(ProceedingJoinPoint pjp,int a,String b,List c) {
++  @Around("call(* callone(..)) && !within((MultipleArgs)) && args(a,b,c)") 
++  public void a1(ProceedingJoinPoint pjp,int a,String b,List c) {
+     System.err.println("advice running");
+     pjp.proceed(new Object[]{a,b,c});
+   }
+ 
+-  @Before("call(* calltwo(..)) && !within(X) && args(a,b,c)") 
+-  public void b1(ProceedingJoinPoint pjp,String b,List c,int a) {
++  @Around("call(* calltwo(..)) && !within((MultipleArgs)) && args(a,b,c)") 
++  public void a2(ProceedingJoinPoint pjp,String b,List c,int a) {
+     System.err.println("advice running");
+     pjp.proceed(new Object[]{a,b,c});
+   }
+ 
+-  @Before("call(* callone(..)) && !within(X) && args(a,b,c) && this(o)") 
+-  public void b1(ProceedingJoinPoint pjp,int a,String b,List c,Object o) {
++  @Around("call(* callone(..)) && !within((MultipleArgs)) && args(a,b,c) && this(o)") 
++  public void a3(ProceedingJoinPoint pjp,int a,String b,List c,Object o) {
+     System.err.println("advice running");
+     pjp.proceed(new Object[]{o,a,b,c});
+   }
+@@ -0,0 +1,30 @@
++// Bind the target and pass in the right order
++
++aspect X42 {
++  M newM = new M("2");
++
++  void around(M t,String p): call(void M.method(String)) && args(p) && target(t) {
++    System.err.println("advice from code aspect");
++    proceed( newM , "faked" );
++  }
++
++  public static void main(String []argv) {
++    M.main(argv);
++  }
++}
++
++
++
++class M {
++
++  String prefix;
++
++  public M(String prefix) { this.prefix = prefix; }
++
++  public static void main( String[] args ) {
++    M m = new M("1");
++    m.method("real");
++  }
++
++  public void method(String s) { System.err.println(prefix+s); }
++}
+@@ -14,6 +14,16 @@
+         </run>
+     </ajc-test>
+ 
++    <ajc-test dir="features151/ataround" title="annotation style - basic - noinline">
++        <compile files="A1.java" options="-1.5 -XnoInline"/>
++        <run class="A1">
++          <stderr>
++             <line text="advice from ataj aspect"/>
++             <line text="faked"/>
++          </stderr>
++        </run>
++    </ajc-test>
++    
+     <ajc-test dir="features151/ataround" title="annotation style - basic">
+         <compile files="A1.java" options="-1.5"/>
+         <run class="A1">
+@@ -26,37 +36,8 @@
+ 
+ 
+ 
+-   
+-    
+-     <ajc-test dir="features151/ataround" title="code style - forget to pass target">
+-        <compile files="X2.java" options="-1.5">
+-          <message kind="error" line="7" text="too few arguments to proceed, expected 2"/>
+-        </compile>
+-     </ajc-test>
+-    
+-     <ajc-test dir="features151/ataround" title="annotation style - forget to pass target">
+-        <compile files="A2.java" options="-1.5">
+-          <message kind="error" line="7" text="too few arguments to proceed, expected 2"/>
+-        </compile>
+-     </ajc-test>
+- 
+- 
+-     <ajc-test dir="features151/ataround" title="code style - incorrect arg types">
+-        <compile files="X3.java" options="-1.5">
+-          <message kind="error" line="7" text="Type mismatch: cannot convert from String to M"/>
+-          <message kind="error" line="7" text="Type mismatch: cannot convert from M to String"/>
+-        </compile>
+-     </ajc-test>
+-    
+-     <ajc-test dir="features151/ataround" title="annotation style - incorrect arg types">
+-        <compile files="A3.java" options="-1.5">
+-          <message kind="error" line="7" text="too few arguments to proceed, expected 2"/>
+-        </compile>
+-     </ajc-test>    
+-     
+-     
+ 
+-     <ajc-test dir="features151/ataround" title="code style - correct usage, binding and passing new target for call">
++     <ajc-test dir="features151/ataround" title="code style - correct usage, binding and passing same target for call">
+         <compile files="X4.java" options="-1.5"/>
+         <run class="X4">
+           <stderr>
+@@ -66,7 +47,17 @@
+         </run>
+      </ajc-test>
+ 
+-     <ajc-test dir="features151/ataround" title="annotation style - correct usage, binding and passing new target for call">
++     <ajc-test dir="features151/ataround" title="annotation style - correct usage, binding and passing same target for call - noinline">
++        <compile files="A4.java" options="-1.5 -XnoInline"/>
++        <run class="A4">
++          <stderr>
++             <line text="advice from ataj aspect"/>
++             <line text="1faked"/>
++          </stderr>
++        </run>
++     </ajc-test>   
++     
++     <ajc-test dir="features151/ataround" title="annotation style - correct usage, binding and passing same target for call">
+         <compile files="A4.java" options="-1.5"/>
+         <run class="A4">
+           <stderr>
+@@ -78,9 +69,10 @@
+ 
+ 
+ 
+-     <ajc-test dir="features151/ataround" title="code style - changing target for call">
+-        <compile files="X5.java" options="-1.5"/>
+-        <run class="X5">
++     
++     <ajc-test dir="features151/ataround" title="code style - correct usage, binding and passing new target for call">
++        <compile files="X42.java" options="-1.5"/>
++        <run class="X42">
+           <stderr>
+              <line text="advice from code aspect"/>
+              <line text="2faked"/>
+@@ -88,9 +80,9 @@
+         </run>
+      </ajc-test>
+ 
+-     <ajc-test dir="features151/ataround" title="annotation style - changing target for call">
+-        <compile files="A5.java" options="-1.5"/>
+-        <run class="A5">
++     <ajc-test dir="features151/ataround" title="annotation style - correct usage, binding and passing new target for call - noinline">
++        <compile files="A42.java" options="-1.5 -XnoInline"/>
++        <run class="A42">
+           <stderr>
+              <line text="advice from ataj aspect"/>
+              <line text="2faked"/>
+@@ -98,21 +90,9 @@
+         </run>
+      </ajc-test>   
+ 
+-     
+-     
+-     <ajc-test dir="features151/ataround" title="code style - changing target for call - reverse order">
+-        <compile files="X6.java" options="-1.5"/>
+-        <run class="X6">
+-          <stderr>
+-             <line text="advice from code aspect"/>
+-             <line text="2faked"/>
+-          </stderr>
+-        </run>
+-     </ajc-test>
+-    
+-     <ajc-test dir="features151/ataround" title="annotation style - changing target for call - reverse order">
+-        <compile files="A6.java" options="-1.5"/>
+-        <run class="A6">
++     <ajc-test dir="features151/ataround" title="annotation style - correct usage, binding and passing new target for call">
++        <compile files="A42.java" options="-1.5"/>
++        <run class="A42">
+           <stderr>
+              <line text="advice from ataj aspect"/>
+              <line text="2faked"/>
+@@ -122,6 +102,23 @@
+ 
+ 
+ 
++     
++     
++     <ajc-test dir="features151/ataround" title="code style - forget to pass target">
++        <compile files="X2.java" options="-1.5">
++          <message kind="error" line="7" text="too few arguments to proceed, expected 2"/>
++        </compile>
++     </ajc-test>
++    
++     <ajc-test dir="features151/ataround" title="annotation style - forget to pass target">
++        <compile files="A2.java" options="-1.5">
++          <message kind="error" line="7" text="too few arguments to proceed, expected 2"/>
++        </compile>
++     </ajc-test>
++     
++     
++     
++     
+      <ajc-test dir="features151/ataround" title="code style - bind this on call - change on proceed - no effect">
+         <compile files="X7.java" options="-1.5"/>
+         <run class="X7">
+@@ -132,6 +129,16 @@
+         </run>
+      </ajc-test>
+ 
++     <ajc-test dir="features151/ataround" title="annotation style - bind this on call - change on proceed - no effect - noinline">
++        <compile files="A7.java" options="-1.5 -XnoInline"/>
++        <run class="A7">
++          <stderr>
++             <line text="advice from ataj aspect"/>
++             <line text="1faked"/>
++          </stderr>
++        </run>
++     </ajc-test>
++     
+      <ajc-test dir="features151/ataround" title="annotation style - bind this on call - change on proceed - no effect">
+         <compile files="A7.java" options="-1.5"/>
+         <run class="A7">
+@@ -154,17 +161,44 @@
+         </run>
+      </ajc-test>
+ 
++     <ajc-test dir="features151/ataround" title="annotation style - bind this on execution - change on proceed - works - noinline">
++        <compile files="A8.java" options="-1.5 -XnoInline"/>
++        <run class="A8">
++          <stderr>
++             <line text="advice from ataj aspect"/>
++             <line text="2faked"/>
++          </stderr>
++        </run>
++     </ajc-test>
++
+      <ajc-test dir="features151/ataround" title="annotation style - bind this on execution - change on proceed - works">
+         <compile files="A8.java" options="-1.5"/>
+         <run class="A8">
+           <stderr>
+-             <line text="advice from code aspect"/>
++             <line text="advice from ataj aspect"/>
+              <line text="2faked"/>
+           </stderr>
+         </run>
+      </ajc-test>
++     
+ 
+ 
++ 
++     <ajc-test dir="features151/ataround" title="code style - incorrect arg types">
++        <compile files="X3.java" options="-1.5">
++          <message kind="error" line="7" text="Type mismatch: cannot convert from String to M"/>
++          <message kind="error" line="7" text="Type mismatch: cannot convert from M to String"/>
++        </compile>
++     </ajc-test>
++    
++     <ajc-test dir="features151/ataround" title="annotation style - incorrect arg types">
++        <compile files="A3.java" options="-1.5">
++          <message kind="error" line="7" text="too few arguments to proceed, expected 2"/>
++        </compile>
++     </ajc-test>    
++     
++     
++     
+ 
+      <ajc-test dir="features151/ataround" title="code style - bind this and target on execution - change on proceed - works">
+         <compile files="X9.java" options="-1.5"/>
+@@ -176,17 +210,29 @@
+         </run>
+      </ajc-test>
+ 
++     <ajc-test dir="features151/ataround" title="annotation style - bind this and target on execution - change on proceed - works - noinline">
++        <compile files="A9.java" options="-1.5 -XnoInline"/>
++        <run class="A9">
++          <stderr>
++             <line text="advice from ataj aspect"/>
++             <line text="3faked"/>
++          </stderr>
++        </run>
++     </ajc-test> 
++     
+      <ajc-test dir="features151/ataround" title="annotation style - bind this and target on execution - change on proceed - works">
+         <compile files="A9.java" options="-1.5"/>
+         <run class="A9">
+           <stderr>
+-             <line text="advice from code aspect"/>
++             <line text="advice from ataj aspect"/>
+              <line text="3faked"/>
+           </stderr>
+         </run>
+-     </ajc-test>
+-
+-
++     </ajc-test> 
++     
++     
++     
++     
+ 
+      <ajc-test dir="features151/ataround" title="code style - bind this and target on call - change on proceed - works">
+         <compile files="X10.java" options="-1.5"/>
+@@ -198,15 +244,115 @@
+         </run>
+      </ajc-test>     
+ 
++     <ajc-test dir="features151/ataround" title="annotation style - bind this and target on call - change on proceed - works - noinline">
++        <compile files="A10.java" options="-1.5"/>
++        <run class="A10">
++          <stderr>
++             <line text="advice from ataj aspect"/>
++             <line text="3faked"/>
++          </stderr>
++        </run>
++     </ajc-test>     
++
+      <ajc-test dir="features151/ataround" title="annotation style - bind this and target on call - change on proceed - works">
+         <compile files="A10.java" options="-1.5"/>
+         <run class="A10">
+           <stderr>
+-             <line text="advice from code aspect"/>
++             <line text="advice from ataj aspect"/>
+              <line text="3faked"/>
+           </stderr>
+         </run>
+      </ajc-test>     
++     
++     
++     
++     
++     <ajc-test dir="features151/ataround" title="breaking it - one">
++        <compile files="Break1.java" options="-1.5"/>
++        <run class="Break1">
++          <stderr>
++             <line text="advice from ataj aspect"/>
++             <line text="1faked"/>
++          </stderr>
++        </run>
++     </ajc-test>     
++     
++     <ajc-test dir="features151/ataround" title="breaking it - two">
++        <compile files="Break2.java" options="-1.5"/>
++        <run class="Break2">
++          <stderr>
++             <line text="advice from ataj aspect"/>
++             <line text="1faked"/>
++          </stderr>
++        </run>
++     </ajc-test>     
++     
++     
++     <ajc-test dir="features151/ataround" title="bug case one">
++        <compile files="BugCase1.java" options="-1.5"/>
++        <run class="BugCase1">
++          <stderr>
++             <line text="advice running"/>
++             <line text="Setting age to 10"/>
++          </stderr>
++        </run>
++     </ajc-test>     
++    
++     <ajc-test dir="features151/ataround" title="bug case two">
++        <compile files="BugCase2.java" options="-1.5"/>
++        <run class="BugCase2">
++          <stderr>
++             <line text="advice running"/>
++             <line text="Setting age to 10"/>
++          </stderr>
++        </run>
++     </ajc-test>     
++     
++     
++     <ajc-test dir="features151/ataround" title="multiple args">
++        <compile files="MultipleArgs.java" options="-1.5"/>
++        <run class="MultipleArgs">
++          <stderr>
++             <line text="advice running"/>
++             <line text="advice running"/>
++             <line text="advice running"/>
++          </stderr>
++        </run>
++     </ajc-test>     
++    
++   
++     
++     
++     
++     
++     
++     <ajc-test dir="features151/ataround" title="code style - changing target for call - reverse order">
++        <compile files="X6.java" options="-1.5"/>
++        <run class="X6">
++          <stderr>
++             <line text="advice from code aspect"/>
++             <line text="2faked"/>
++          </stderr>
++        </run>
++     </ajc-test>
++    
++     <ajc-test dir="features151/ataround" title="annotation style - changing target for call - reverse order">
++        <compile files="A6.java" options="-1.5"/>
++        <run class="A6">
++          <stderr>
++             <line text="advice from ataj aspect"/>
++             <line text="2faked"/>
++          </stderr>
++        </run>
++     </ajc-test>   
++     
++     
++     
++     
++     
++
++
++
+ 
+ 
+ 
+Binary files differ
+Binary files differ
+@@ -10,6 +10,7 @@
+  * Contributors: 
+  *     Xerox/PARC     initial implementation 
+  *    Alex Vasseur    wired up for @AJ proceeding
++ *    Andy Clement 23-06-06 added extras for @AJ
+  * ******************************************************************/
+ 
+ 
+@@ -19,6 +20,12 @@ import org.aspectj.lang.ProceedingJoinPoint;
+ 
+ public abstract class AroundClosure {
+     protected Object[] state;
++
++    // Records with the related joinpoint has a this or a target and whether 
++    // either of them are bound in the pointcut.  Set in the 'link' call made
++    // at each matching join point... (see pr126167)
++    // bit6 being 1 means the flags haven't been initialized
++    protected int bitflags = 0x100000; 
+     protected Object[] preInitializationState;
+ 
+     public AroundClosure() {
+@@ -28,7 +35,7 @@ public abstract class AroundClosure {
+     	this.state = state;
+     }
+ 
+-    
++    public int getFlags() {return bitflags;}
+ 
+     public Object[] getState() {
+       return state;
+@@ -54,4 +61,16 @@ public abstract class AroundClosure {
+         jp.set$AroundClosure(this);
+         return jp;
+     }
++
++    /**
++     * This method is called to implicitly associate the closure with the joinpoint
++     * as required for @AJ aspect proceed()
++     */
++    public ProceedingJoinPoint linkClosureAndJoinPoint(int flags) {
++        //TODO is this cast safe ?
++        ProceedingJoinPoint jp = (ProceedingJoinPoint)state[state.length-1];
++        jp.set$AroundClosure(this);
++        this.bitflags = flags;
++        return jp;
++    }
+ }
+@@ -106,17 +106,73 @@ class JoinPointImpl implements ProceedingJoinPoint {
+         if (arc == null)
+             return null;
+         else {
++
++        	// Based on the bit flags in the AroundClosure we can determine what to
++        	// expect in the adviceBindings array.  We may or may not be expecting
++        	// the first value to be a new this or a new target... (see pr126167)
++        	int flags = arc.getFlags();
++        	boolean unset             = (flags &0x100000)!=0;
++        	boolean thisTargetTheSame = (flags &0x010000)!=0;
++        	boolean hasThis           = (flags &0x001000)!=0;
++        	boolean bindsThis         = (flags &0x000100)!=0;
++        	boolean hasTarget         = (flags &0x000010)!=0;
++        	boolean bindsTarget       = (flags &0x000001)!=0;
++        	
+             // state is always consistent with caller?,callee?,formals...,jp
+             Object[] state = arc.getState();
+-            for (int i = state.length-2; i >= 0; i--) {
+-                int formalIndex = (adviceBindings.length - 1) - (state.length-2) + i;
+-                if (formalIndex >= 0 && formalIndex < adviceBindings.length) {
+-                    state[i] = adviceBindings[formalIndex];
+-                }
++            
++            // these next two numbers can differ because some join points have a this and 
++            // target that are the same (eg. call) - and yet you can bind this and target 
++            // separately.
++            
++            // In the state array, [0] may be this, [1] may be target
++            
++            int firstArgumentIndexIntoAdviceBindings = 0;
++            int firstArgumentIndexIntoState = 0;
++            firstArgumentIndexIntoState+=(hasThis?1:0);
++            firstArgumentIndexIntoState+=(hasTarget&&!thisTargetTheSame?1:0);
++            if (hasThis) {
++            	if (bindsThis) {
++            		// replace [0] (this)
++	            	firstArgumentIndexIntoAdviceBindings=1;
++	            	state[0]=adviceBindings[0];
++            	} else {
++            		// leave state[0] alone, its OK
++            	}
++            }
++            if (hasTarget) {
++            	if (bindsTarget) {
++                  if (thisTargetTheSame) {
++                	  // this and target are the same so replace state[0]
++		        	  firstArgumentIndexIntoAdviceBindings=1+(bindsThis?1:0);
++		        	  state[0]=adviceBindings[(bindsThis?1:0)];
++		          } else {
++		        	  // need to replace the target, and it is different to this, whether
++		        	  // that means replacing state[0] or state[1] depends on whether
++		        	  // the join point has a this
++		        	  firstArgumentIndexIntoAdviceBindings=(hasThis?1:0)+1;
++		        	  state[hasThis?1:0]=adviceBindings[hasThis?1:0]; 	  
++		          }
++            	} else {
++            		// leave state[0]/state[1] alone, they are OK
++            	}
+             }
++            
++            // copy the rest across
++            for (int i=firstArgumentIndexIntoAdviceBindings;i<adviceBindings.length;i++) {
++            	state[firstArgumentIndexIntoState+(i-firstArgumentIndexIntoAdviceBindings)]=adviceBindings[i];
++            }
++            
++            // old code that did this, didnt allow this/target overriding
++//            for (int i = state.length-2; i >= 0; i--) {
++//                int formalIndex = (adviceBindings.length - 1) - (state.length-2) + i;
++//                if (formalIndex >= 0 && formalIndex < adviceBindings.length) {
++//                    state[i] = adviceBindings[formalIndex];
++//                }
++//            }
+             return arc.run(state);
+         }
+     }
+-
++    
+ 
+ }
+@@ -24,49 +24,60 @@ import org.aspectj.testing.XMLBasedAjcTestCase;
+  * @author AndyClement
+  *
+  */
+-
+-
+ public class AtAroundTests extends XMLBasedAjcTestCase {
+ 
+-  public void testCodeBasic() {       runTest("code style - basic"); }
+-  public void testAtBasic()   { runTest("annotation style - basic"); }
++  public void testCodeBasic()       { runTest("code style - basic"); }
++  public void testAtBasicNoInline() { runTest("annotation style - basic - noinline"); }
++  public void testAtBasic()         { runTest("annotation style - basic"); }
+ 
++  public void testCodeBindingTarget()       { runTest("code style - correct usage, binding and passing same target for call"); }
++  public void testAtBindingTargetNoInline() { runTest("annotation style - correct usage, binding and passing same target for call - noinline"); }
++  public void testAtBindingTarget()         { runTest("annotation style - correct usage, binding and passing same target for call"); }
++
++  public void testCodeBindingTarget2()       { runTest("code style - correct usage, binding and passing new target for call"); }
++  public void testAtBindingTargetNoInline2() { runTest("annotation style - correct usage, binding and passing new target for call - noinline"); }
++  public void testAtBindingTarget2()         { runTest("annotation style - correct usage, binding and passing new target for call"); }
++
+   public void testCodeErrorCase1() {     runTest("code style - forget to pass target");}
+   // Don't think we can report correct errors for @AJ as the parameters are specified as an object array
+-  // public void testAtErrorCase1() { runTest("annotation style - forget to pass target");}
++  //public void testAtErrorCase1() { runTest("annotation style - forget to pass target");}
++
++  public void testCodeBindThisCallChangeProceed()       { runTest("code style - bind this on call - change on proceed - no effect");} 
++  public void testAtBindThisCallChangeProceedNoInline() { runTest("annotation style - bind this on call - change on proceed - no effect - noinline");}
++  public void testAtBindThisCallChangeProceed()         { runTest("annotation style - bind this on call - change on proceed - no effect");}
++
++  public void testCodeBindThisExecutionChangeProceed()       { runTest("code style - bind this on execution - change on proceed - works");}
++  public void testAtBindThisExecutionChangeProceedNoInline() { runTest("annotation style - bind this on execution - change on proceed - works - noinline");}
++  public void testAtBindThisExecutionChangeProceed()         { runTest("annotation style - bind this on execution - change on proceed - works");}
++
++  public void testCodeBindBothExecutionChangeProceed()       { runTest("code style - bind this and target on execution - change on proceed - works");}
++  public void testAtBindBothExecutionChangeProceedNoInline() { runTest("annotation style - bind this and target on execution - change on proceed - works - noinline");}
++  public void testAtBindBothExecutionChangeProceed()         { runTest("annotation style - bind this and target on execution - change on proceed - works");}
+ 
+   public void testCodeErrorCase2() {     runTest("code style - incorrect arg types");}
+   // Don't think we can report correct errors for @AJ as the parameters are specified as an object array
+   // public void testAtErrorCase2() { runTest("annotation style - incorrect arg types");}
+-  
+-  public void testCodeBindingTarget() {       runTest("code style - correct usage, binding and passing new target for call"); }
+-  public void testAtBindingTarget()   { runTest("annotation style - correct usage, binding and passing new target for call"); }
+ 
+-  public void testCodeChangingTarget() {       runTest("code style - changing target for call"); }
+-  public void testAtChangingTarget()   { runTest("annotation style - changing target for call"); }
+-  
+   public void testCodeChangingTargetDifferingOrder() {       runTest("code style - changing target for call - reverse order"); }
+   // @AJ cant cope with the changing of the order of arguments bound and passed through proceed
+   //public void testAtChangingTargetDifferingOrder()   { runTest("annotation style - changing target for call - reverse order"); }
+- 
+-  public void testCodeBindThisCallChangeProceed() {     runTest("code style - bind this on call - change on proceed - no effect");} 
+-  //public void testAtBindThisCallChangeProceed() { runTest("annotation style - bind this on call - change on proceed - no effect");}
++
++  public void testCodeBindBothCallChangeProceed()       { runTest("code style - bind this and target on call - change on proceed - works");}
++  public void testAtBindBothCallChangeProceedNoInline() { runTest("annotation style - bind this and target on call - change on proceed - works - noinline");}
++  public void testAtBindBothCallChangeProceed()         { runTest("annotation style - bind this and target on call - change on proceed - works");}
+ 
+-  public void testCodeBindThisExecutionChangeProceed() {     runTest("code style - bind this on execution - change on proceed - works");}
+-  //public void testAtBindThisExecutionChangeProceed() { runTest("annotation style - bind this on execution - change on proceed - works");}
++  public void testBreakingIt1() { runTest("breaking it - one");}
++  public void testBreakingIt2() { runTest("breaking it - two");}
++  
++  public void testBugCase1() { runTest("bug case one");}
++  public void testBugCase2() { runTest("bug case two");}
++  public void testMultipleArgs() { runTest("multiple args");}
+ 
+-  public void testCodeBindBothExecutionChangeProceed() { runTest("code style - bind this and target on execution - change on proceed - works");}
+-  //public void testAtBindBothExecutionChangeProceed() { runTest("annotation style - bind this and target on execution - change on proceed - works");}
+- 
+-  public void testCodeBindBothCallChangeProceed() { runTest("code style - bind this and target on call - change on proceed - works");}
+-  //public void testAtBindBothCallChangeProceed() { runTest("annotation style - bind this and target on call - change on proceed - works");}
+-
+   public void testCodeSubsetArguments() {     runTest("code style - works with subset of arguments in advice");}
++  // cant do this for annotation style
+   //public void testAtSubsetArguments() { runTest("annotation style - works with subset of arguments in advice");}
+-
+-  
+ 
+-  //
++  // ---
+   public static Test suite() {
+     return XMLBasedAjcTestCase.loadSuite(AtAroundTests.class);
+   }
+@@ -2174,10 +2174,6 @@ public class BcelShadow extends Shadow {
+ 		range.insert(entryInstructions, Range.InsideBefore);
+ 	}
+ 
+-    public void weaveAroundInline(
+-    	BcelAdvice munger,
+-    	boolean hasDynamicTest)
+-	{
+ 		/* Implementation notes:
+ 		 * 
+ 		 * AroundInline still extracts the instructions of the original shadow into 
+@@ -2208,6 +2204,7 @@ public class BcelShadow extends Shadow {
+ 		 * new method for the advice can also be re-lined.  We are not doing that
+ 		 * presently.
+ 		 */
++    public void weaveAroundInline(BcelAdvice munger,boolean hasDynamicTest) {
+ 
+ 		// !!! THIS BLOCK OF CODE SHOULD BE IN A METHOD CALLED weaveAround(...);
+         Member mungerSig = munger.getSignature();
+@@ -2246,9 +2243,8 @@ public class BcelShadow extends Shadow {
+ 
+         // specific test for @AJ proceedInInners
+         if (munger.getConcreteAspect().isAnnotationStyleAspect()) {
+-            // if we can't find one proceed()
+-            // we suspect that the call is happening in an inner class
+-            // so we don't inline it.
++            // if we can't find one proceed() we suspect that the call 
++        	// is happening in an inner class so we don't inline it.
+             // Note: for code style, this is done at Aspect compilation time.
+             boolean canSeeProceedPassedToOther = false;
+             InstructionHandle curr = adviceMethod.getBody().getStart();
+@@ -2285,29 +2281,25 @@ public class BcelShadow extends Shadow {
+ 		final InstructionFactory fact = getFactory();
+ 
+ 		// now generate the aroundBody method
++		// eg. "private static final void method_aroundBody0(M, M, String, org.aspectj.lang.JoinPoint)"
+         LazyMethodGen extractedMethod = 
+         	extractMethod(
+-        		NameMangler.aroundCallbackMethodName(
+-        			getSignature(),
+-        			getEnclosingClass()),
++        		NameMangler.aroundCallbackMethodName(getSignature(),getEnclosingClass()),
+ 				Modifier.PRIVATE,
+-				munger
+-            );
+-        			
++				munger);
+ 
+         // now extract the advice into its own method
+         String adviceMethodName =
+-			NameMangler.aroundCallbackMethodName(
+-							getSignature(),
+-							getEnclosingClass()) + "$advice";
++			NameMangler.aroundCallbackMethodName(getSignature(),getEnclosingClass()) + "$advice";
+ 
+-		List argVarList = new ArrayList();
+-		List proceedVarList = new ArrayList();
++		List argVarList      = new ArrayList();
++		List proceedVarList  = new ArrayList();
+ 		int extraParamOffset = 0;
+ 
+ 		// Create the extra parameters that are needed for passing to proceed
+ 		// This code is very similar to that found in makeCallToCallback and should
+ 		// be rationalized in the future
++		
+ 		if (thisVar != null) {
+ 			argVarList.add(thisVar);
+ 			proceedVarList.add(new BcelVar(thisVar.getType(), extraParamOffset));
+@@ -2612,13 +2604,6 @@ public class BcelShadow extends Shadow {
+     /**
+      * ATAJ Handle the inlining for @AJ aspects
+      *
+-     * @param fact
+-     * @param callbackMethod
+-     * @param munger
+-     * @param localAdviceMethod
+-     * @param argVarList
+-     * @param isProceedWithArgs
+-     * @return
+      */
+     private InstructionList getRedoneProceedCallForAnnotationStyle(
+         InstructionFactory fact,
+@@ -2630,8 +2615,6 @@ public class BcelShadow extends Shadow {
+     {
+         // Notes:
+         // proceedingjp is on stack (since user was calling pjp.proceed(...)
+-        // the boxed args to proceed() are on stack as well (Object[]) unless
+-        // the call is to pjp.proceed(<noarg>)
+ 
+         // new Object[]{new Integer(argAdvice1-1)};// arg of proceed
+         // call to proceed(..) is NOT made
+@@ -2646,15 +2629,19 @@ public class BcelShadow extends Shadow {
+         // int res = .. from original code
+ 
+         //Note: we just don't care about the proceed map etc
++    	// (we would need to care if we allow repositioning of arguments in advice signature)
+ 
+         InstructionList ret = new InstructionList();
+ 
+         // store the Object[] array on stack if proceed with args
+         if (isProceedWithArgs) {
++        	
++        	// STORE the Object[] into a local variable
+             Type objectArrayType = Type.getType("[Ljava/lang/Object;");
+             int localProceedArgArray = localAdviceMethod.allocateLocal(objectArrayType);
+             ret.append(InstructionFactory.createStore(objectArrayType, localProceedArgArray));
+ 
++            // STORE the ProceedingJoinPoint instance into a local variable
+             Type proceedingJpType = Type.getType("Lorg/aspectj/lang/ProceedingJoinPoint;");
+             int localJp = localAdviceMethod.allocateLocal(proceedingJpType);
+             ret.append(InstructionFactory.createStore(proceedingJpType, localJp));
+@@ -2664,22 +2651,74 @@ public class BcelShadow extends Shadow {
+             // TODO do we want to try catch ClassCast and AOOBE exception ?
+ 
+             // special logic when withincode is static or not
+-            int startIndex = 0;
+-            if (thisVar != null) {
+-                startIndex = 1;
+-                //TODO this logic is actually depending on target as well - test me
+-                ret.append(new ALOAD(0));//thisVar
++            
++            // This next bit of code probably makes more sense if you read its implementation for
++            // weaveAroundClosure() - see JoinPointImpl.proceed(Object[]).  Basically depending
++            // on whether the join point has a this/target and whether the pointcut binds this/target
++            // then the arguments to the 'new' proceed call need to be reorganized. (pr126167)
++        	boolean relatedPointcutBindsThis = bindsThis(munger);
++        	boolean relatedPointcutBindsTarget = bindsTarget(munger);
++        	boolean targetIsSameAsThis = getKind().isTargetSameAsThis();
++        	
++        	// two numbers can differ because a pointcut may bind both this/target and yet at the
++        	// join point this and target are the same (eg. call)
++            int indexIntoObjectArrayForArguments=0;
++            int indexIntoCallbackMethodForArguments = 0;
++            if (hasThis()) {
++            	if (relatedPointcutBindsThis) {
++            		if (!(relatedPointcutBindsTarget && targetIsSameAsThis)) {
++	            		// they have supplied new this as first entry in object array
++	            		 ret.append(InstructionFactory.createLoad(objectArrayType, localProceedArgArray));
++	                     ret.append(Utility.createConstant(fact, 0));
++	                     ret.append(InstructionFactory.createArrayLoad(Type.OBJECT));
++	                     ret.append(Utility.createConversion(fact,Type.OBJECT,callbackMethod.getArgumentTypes()[0]));
++	                     indexIntoCallbackMethodForArguments++;
++            		 }
++                    indexIntoObjectArrayForArguments=1;
++            	} else {
++            		// use local variable 0 (which is 'this' for a non-static method)
++            		ret.append(new ALOAD(0));
++                	indexIntoCallbackMethodForArguments++;
++            	}
+             }
+-//    	    if (bindsThisOrTarget(munger.getPointcut())) {                
+ 
+-            for (int i = startIndex, len=callbackMethod.getArgumentTypes().length; i < len; i++) {
++            if (hasTarget()) {
++            	if (relatedPointcutBindsTarget) {
++            		if (getKind().isTargetSameAsThis()) {
++            			 ret.append(InstructionFactory.createLoad(objectArrayType, localProceedArgArray));
++                         ret.append(Utility.createConstant(fact, relatedPointcutBindsThis?1:0));
++                         ret.append(InstructionFactory.createArrayLoad(Type.OBJECT));
++                         ret.append(Utility.createConversion(fact,Type.OBJECT,callbackMethod.getArgumentTypes()[0]));
++                         indexIntoObjectArrayForArguments++;
++                         indexIntoCallbackMethodForArguments++;
++            		} else {
++            			 int position =(hasThis()&& relatedPointcutBindsThis?1:0);
++	           			 ret.append(InstructionFactory.createLoad(objectArrayType, localProceedArgArray));
++	                     ret.append(Utility.createConstant(fact, position));
++	                     ret.append(InstructionFactory.createArrayLoad(Type.OBJECT));
++	                     ret.append(Utility.createConversion(fact,Type.OBJECT,callbackMethod.getArgumentTypes()[position]));
++	                     indexIntoObjectArrayForArguments=position+1;
++	             		 indexIntoCallbackMethodForArguments++;
++            		}
++            	} else {
++                	if (getKind().isTargetSameAsThis()) {
++                		//ret.append(new ALOAD(0));
++                	} else {
++                		ret.append(InstructionFactory.createLoad(localAdviceMethod.getArgumentTypes()[0],hasThis()?1:0));
++                		indexIntoCallbackMethodForArguments++;
++                	}
++            	}
++            }
++            
++            
++            for (int i = indexIntoCallbackMethodForArguments, len=callbackMethod.getArgumentTypes().length; i < len; i++) {
+                 Type stateType = callbackMethod.getArgumentTypes()[i];
+                 BcelWorld.fromBcel(stateType).resolve(world);
+                 if ("Lorg/aspectj/lang/JoinPoint;".equals(stateType.getSignature())) {
+                     ret.append(new ALOAD(localJp));// from localAdvice signature
+                 } else {
+                     ret.append(InstructionFactory.createLoad(objectArrayType, localProceedArgArray));
+-                    ret.append(Utility.createConstant(fact, i-startIndex));
++                    ret.append(Utility.createConstant(fact, i-indexIntoCallbackMethodForArguments +indexIntoObjectArrayForArguments));
+                     ret.append(InstructionFactory.createArrayLoad(Type.OBJECT));
+                     ret.append(Utility.createConversion(
+                             fact,
+@@ -2688,6 +2727,7 @@ public class BcelShadow extends Shadow {
+                     ));
+                 }
+             }
++
+         } else {
+             Type proceedingJpType = Type.getType("Lorg/aspectj/lang/ProceedingJoinPoint;");
+             int localJp = localAdviceMethod.allocateLocal(proceedingJpType);
+@@ -2802,7 +2842,72 @@ public class BcelShadow extends Shadow {
+ //        return ret;
+     }
+ 
+-    public void weaveAroundClosure(BcelAdvice munger, boolean hasDynamicTest) {
++    private boolean bindsThis(BcelAdvice munger) {
++    	UsesThisVisitor utv = new UsesThisVisitor();
++    	munger.getPointcut().accept(utv, null);
++		return utv.usesThis;
++	}
++
++    private boolean bindsTarget(BcelAdvice munger) {
++    	UsesTargetVisitor utv = new UsesTargetVisitor();
++    	munger.getPointcut().accept(utv, null);
++		return utv.usesTarget;
++	}
++    
++    private static class UsesThisVisitor extends IdentityPointcutVisitor {
++        boolean usesThis = false;
++        
++        public Object visit(ThisOrTargetPointcut node, Object data) {
++        	if (node.isThis() && node.isBinding()) usesThis=true;
++        	return node;
++        }
++
++        public Object visit(AndPointcut node, Object data) {
++            if (!usesThis) node.getLeft().accept(this, data);
++            if (!usesThis) node.getRight().accept(this, data);
++            return node;
++        }
++
++        public Object visit(NotPointcut node, Object data) {
++            if (!usesThis) node.getNegatedPointcut().accept(this, data);
++            return node;
++        }
++
++        public Object visit(OrPointcut node, Object data) {
++            if (!usesThis) node.getLeft().accept(this, data);
++            if (!usesThis) node.getRight().accept(this, data);
++            return node;
++        }
++    }
++    
++
++    private static class UsesTargetVisitor extends IdentityPointcutVisitor {
++        boolean usesTarget = false;
++        
++        public Object visit(ThisOrTargetPointcut node, Object data) {
++        	if (!node.isThis() && node.isBinding()) usesTarget=true;
++        	return node;
++        }
++
++        public Object visit(AndPointcut node, Object data) {
++            if (!usesTarget) node.getLeft().accept(this, data);
++            if (!usesTarget) node.getRight().accept(this, data);
++            return node;
++        }
++
++        public Object visit(NotPointcut node, Object data) {
++            if (!usesTarget) node.getNegatedPointcut().accept(this, data);
++            return node;
++        }
++
++        public Object visit(OrPointcut node, Object data) {
++            if (!usesTarget) node.getLeft().accept(this, data);
++            if (!usesTarget) node.getRight().accept(this, data);
++            return node;
++        }
++    }
++
++	public void weaveAroundClosure(BcelAdvice munger, boolean hasDynamicTest) {
+     	InstructionFactory fact = getFactory();
+ 
+ 		enclosingMethod.setCanInline(false);
+@@ -2895,9 +3000,19 @@ public class BcelShadow extends Shadow {
+ 			}
+ 		}
+ 
++		// initialize the bit flags for this shadow
++		int bitflags                                 =0x000000;
++		if (getKind().isTargetSameAsThis()) bitflags|=0x010000;
++		if (hasThis())                      bitflags|=0x001000;
++		if (bindsThis(munger))              bitflags|=0x000100;
++		if (hasTarget())                    bitflags|=0x000010;
++		if (bindsTarget(munger))            bitflags|=0x000001;
++		
+         // ATAJ for @AJ aspect we need to link the closure with the joinpoint instance
+         if (munger.getConcreteAspect()!=null && munger.getConcreteAspect().isAnnotationStyleAspect() 
+            && munger.getDeclaringAspect()!=null && munger.getDeclaringAspect().resolve(world).isAnnotationStyleAspect()) {
++        	// stick the bitflags on the stack and call the variant of linkClosureAndJoinPoint that takes an int
++        	closureInstantiation.append(fact.createConstant(new Integer(bitflags)));
+             closureInstantiation.append(Utility.createInvoke(
+                     getFactory(),
+                     getWorld(),
+@@ -2906,7 +3021,7 @@ public class BcelShadow extends Shadow {
+                             UnresolvedType.forName("org.aspectj.runtime.internal.AroundClosure"),
+                             Modifier.PUBLIC,
+                             "linkClosureAndJoinPoint",
+-                            "()Lorg/aspectj/lang/ProceedingJoinPoint;"
++                            "(I)Lorg/aspectj/lang/ProceedingJoinPoint;"
+                             )
+             ));
+         }
+@@ -8,7 +8,7 @@ public class A1 {
+   @Around("call(void M.method(String)) && args(p)")
+   public void a( ProceedingJoinPoint pjp, String p) throws Throwable {
+     System.err.println("advice from ataj aspect");
+-    pjp.proceed( new Object[] { pjp.getTarget(),"faked" } );
++    pjp.proceed( new Object[] { "faked" } );
+   }
+ 
+   public static void main(String []argv) {
+@@ -10,7 +10,7 @@ public class A10 {
+   @Around("call(void M.method(String)) && args(p) && this(t) && target(t2)")
+   public void a( ProceedingJoinPoint pjp, M t,String p, M t2) throws Throwable {
+     System.err.println("advice from ataj aspect");
+-    pjp.proceed(new Object[]{newM2,"faked",newM3});
++    pjp.proceed(new Object[]{newM2,newM3,"faked"});
+   }
+ 
+   public static void main(String []argv) {
+@@ -0,0 +1,32 @@
++// Bind the target and pass in the right order
++import org.aspectj.lang.ProceedingJoinPoint;
++import org.aspectj.lang.annotation.*;
++
++@Aspect
++public class A42 {
++  M newM = new M("2");
++
++  @Around("call(void M.method(String)) && args(p) && target(t)")
++  public void a( ProceedingJoinPoint pjp, M t, String p) throws Throwable {
++    System.err.println("advice from ataj aspect");
++    pjp.proceed(new Object[]{newM,"faked"});
++  }
++
++  public static void main(String []argv) {
++    M.main(argv);
++  }
++}
++
++class M {
++
++  String prefix;
++
++  public M(String prefix) { this.prefix = prefix; }
++
++  public static void main( String[] args ) {
++    M m = new M("1");
++    m.method("real");
++  }
++
++  public void method(String s) { System.err.println(prefix+s); }
++}
+@@ -4,19 +4,41 @@ import org.aspectj.lang.annotation.*;
+ 
+ @Aspect
+ public class A7 {
+-  M newM = new M("2");
++  N newN = new N();
+ 
+   @Around("call(void M.method(String)) && args(p) && this(t)")
+-  public void a( ProceedingJoinPoint pjp, M t,String p) throws Throwable {
++  public void a( ProceedingJoinPoint pjp, N t,String p) throws Throwable {
+     System.err.println("advice from ataj aspect");
+-    pjp.proceed(new Object[]{newM,"faked"});
++    pjp.proceed(new Object[]{newN,"faked"});
+   }
+ 
+   public static void main(String []argv) {
+-    M.main(argv);
++    N.main(argv);
+   }
+ }
+ 
++class N {
++ public static void main( String[] args ) {
++   N n = new N();
++   n.methodCaller("real");
++ }
++
++
++ public void methodCaller(String param) {
++   M m = new M("1");
++   m.method(param);
++ }
++
++}
++
++
++class M {
++ String prefix;
++ public M(String prefix) { this.prefix = prefix; }
++ public void method(String s) { System.err.println(prefix+s); }
++}
++
++/*
+ class M {
+ 
+  String prefix;
+@@ -35,3 +57,4 @@ class M {
+  public void method(String s) { System.err.println(prefix+s); }
+ 
+ }
++*/
+@@ -8,9 +8,9 @@ public class A9 {
+   M newM3 = new M("3");
+ 
+   @Around("execution(void M.method(String)) && args(p) && this(t) && target(t2)")
+-  public void a( ProceedingJoinPoint pjp, M t,String p, M t2) throws Throwable {
++  public void a( ProceedingJoinPoint pjp, M t,M t2,String p) throws Throwable {
+     System.err.println("advice from ataj aspect");
+-    pjp.proceed(new Object[]{newM2,"faked",newM3});
++    pjp.proceed(new Object[]{newM2,newM3,"faked"});
+   }
+ 
+   public static void main(String []argv) {
+@@ -0,0 +1,33 @@
++// target() is used, but not in a binding capacity, so dont need to supply
++// in proceed
++
++import org.aspectj.lang.ProceedingJoinPoint;
++import org.aspectj.lang.annotation.*;
++
++@Aspect
++public class Break1 {
++
++  @Around("call(void M.method(String)) && args(p) && target(M)")
++  public void a( ProceedingJoinPoint pjp, String p) throws Throwable {
++    System.err.println("advice from ataj aspect");
++    pjp.proceed(new Object[]{"faked"});
++  }
++
++  public static void main(String []argv) {
++    M.main(argv);
++  }
++}
++
++class M {
++
++  String prefix;
++
++  public M(String prefix) { this.prefix = prefix; }
++
++  public static void main( String[] args ) {
++    M m = new M("1");
++    m.method("real");
++  }
++
++  public void method(String s) { System.err.println(prefix+s); }
++}
+@@ -0,0 +1,38 @@
++// this() is used for matching but not binding
++import org.aspectj.lang.ProceedingJoinPoint;
++import org.aspectj.lang.annotation.*;
++
++@Aspect
++public class Break2 {
++  M newM2 = new M("2");
++  M newM3 = new M("3");
++
++  @Around("execution(void M.method(String)) && args(p) && this(M)")
++  public void a( ProceedingJoinPoint pjp, String p) throws Throwable {
++    System.err.println("advice from ataj aspect");
++    pjp.proceed(new Object[]{"faked"});
++  }
++
++  public static void main(String []argv) {
++    M.main(argv);
++  }
++}
++
++class M {
++
++ String prefix;
++
++ public M(String prefix) { this.prefix = prefix; }
++
++ public static void main( String[] args ) {
++   M m = new M("1");
++   m.methodCaller("real");
++ }
++
++ public void methodCaller(String param) {
++   method(param);
++ }
++
++ public void method(String s) { System.err.println(prefix+s); }
++
++}
+@@ -12,11 +12,14 @@ public class BugCase1 {
+          System.err.println("advice running");
+          return thisJoinPoint.proceed(new Object[]{i*2}); 
+        }
++  public static void main(String []argv) {
++    Foo.main(argv);
++  }
+ 
+ }
+ 
+ 
+-public class Foo {
++class Foo {
+   int a;
+   public void setAge(int i) {
+      System.err.println("Setting age to "+i);
+@@ -2,7 +2,7 @@ import org.aspectj.lang.*;
+ import org.aspectj.lang.annotation.*;
+ 
+ @Aspect
+-public class ProceedAspect {
++public class BugCase2 {
+ 
+   @Pointcut("execution(* setAge(..)) && args(i)")
+   void setAge(int i) {}
+@@ -12,10 +12,13 @@ public class ProceedAspect {
+    System.err.println("advice running");
+    return thisJoinPoint.proceed(new Object[]{i*2});
+  }
++  public static void main(String []argv) {
++    Foo.main(argv);
++  }
+ }
+ 
+ 
+-public class Foo {
++ class Foo {
+   int a;
+   public void setAge(int i) {
+      System.err.println("Setting age to "+i);
+@@ -1,24 +1,25 @@
+-
++import java.util.*;
+ import org.aspectj.lang.annotation.*;
++import org.aspectj.lang.*;
+ 
+ @Aspect
+-public class X {
++public class MultipleArgs {
+ 
+ 
+-  @Before("call(* callone(..)) && !within(X) && args(a,b,c)") 
+-  public void b1(ProceedingJoinPoint pjp,int a,String b,List c) {
++  @Around("call(* callone(..)) && !within((MultipleArgs)) && args(a,b,c)") 
++  public void a1(ProceedingJoinPoint pjp,int a,String b,List c) {
+     System.err.println("advice running");
+     pjp.proceed(new Object[]{a,b,c});
+   }
+ 
+-  @Before("call(* calltwo(..)) && !within(X) && args(a,b,c)") 
+-  public void b1(ProceedingJoinPoint pjp,String b,List c,int a) {
++  @Around("call(* calltwo(..)) && !within((MultipleArgs)) && args(a,b,c)") 
++  public void a2(ProceedingJoinPoint pjp,String b,List c,int a) {
+     System.err.println("advice running");
+     pjp.proceed(new Object[]{a,b,c});
+   }
+ 
+-  @Before("call(* callone(..)) && !within(X) && args(a,b,c) && this(o)") 
+-  public void b1(ProceedingJoinPoint pjp,int a,String b,List c,Object o) {
++  @Around("call(* callone(..)) && !within((MultipleArgs)) && args(a,b,c) && this(o)") 
++  public void a3(ProceedingJoinPoint pjp,int a,String b,List c,Object o) {
+     System.err.println("advice running");
+     pjp.proceed(new Object[]{o,a,b,c});
+   }
+@@ -0,0 +1,30 @@
++// Bind the target and pass in the right order
++
++aspect X42 {
++  M newM = new M("2");
++
++  void around(M t,String p): call(void M.method(String)) && args(p) && target(t) {
++    System.err.println("advice from code aspect");
++    proceed( newM , "faked" );
++  }
++
++  public static void main(String []argv) {
++    M.main(argv);
++  }
++}
++
++
++
++class M {
++
++  String prefix;
++
++  public M(String prefix) { this.prefix = prefix; }
++
++  public static void main( String[] args ) {
++    M m = new M("1");
++    m.method("real");
++  }
++
++  public void method(String s) { System.err.println(prefix+s); }
++}
+@@ -14,6 +14,16 @@
+         </run>
+     </ajc-test>
+ 
++    <ajc-test dir="features151/ataround" title="annotation style - basic - noinline">
++        <compile files="A1.java" options="-1.5 -XnoInline"/>
++        <run class="A1">
++          <stderr>
++             <line text="advice from ataj aspect"/>
++             <line text="faked"/>
++          </stderr>
++        </run>
++    </ajc-test>
++    
+     <ajc-test dir="features151/ataround" title="annotation style - basic">
+         <compile files="A1.java" options="-1.5"/>
+         <run class="A1">
+@@ -26,37 +36,8 @@
+ 
+ 
+ 
+-   
+-    
+-     <ajc-test dir="features151/ataround" title="code style - forget to pass target">
+-        <compile files="X2.java" options="-1.5">
+-          <message kind="error" line="7" text="too few arguments to proceed, expected 2"/>
+-        </compile>
+-     </ajc-test>
+-    
+-     <ajc-test dir="features151/ataround" title="annotation style - forget to pass target">
+-        <compile files="A2.java" options="-1.5">
+-          <message kind="error" line="7" text="too few arguments to proceed, expected 2"/>
+-        </compile>
+-     </ajc-test>
+- 
+- 
+-     <ajc-test dir="features151/ataround" title="code style - incorrect arg types">
+-        <compile files="X3.java" options="-1.5">
+-          <message kind="error" line="7" text="Type mismatch: cannot convert from String to M"/>
+-          <message kind="error" line="7" text="Type mismatch: cannot convert from M to String"/>
+-        </compile>
+-     </ajc-test>
+-    
+-     <ajc-test dir="features151/ataround" title="annotation style - incorrect arg types">
+-        <compile files="A3.java" options="-1.5">
+-          <message kind="error" line="7" text="too few arguments to proceed, expected 2"/>
+-        </compile>
+-     </ajc-test>    
+-     
+-     
+ 
+-     <ajc-test dir="features151/ataround" title="code style - correct usage, binding and passing new target for call">
++     <ajc-test dir="features151/ataround" title="code style - correct usage, binding and passing same target for call">
+         <compile files="X4.java" options="-1.5"/>
+         <run class="X4">
+           <stderr>
+@@ -66,7 +47,17 @@
+         </run>
+      </ajc-test>
+ 
+-     <ajc-test dir="features151/ataround" title="annotation style - correct usage, binding and passing new target for call">
++     <ajc-test dir="features151/ataround" title="annotation style - correct usage, binding and passing same target for call - noinline">
++        <compile files="A4.java" options="-1.5 -XnoInline"/>
++        <run class="A4">
++          <stderr>
++             <line text="advice from ataj aspect"/>
++             <line text="1faked"/>
++          </stderr>
++        </run>
++     </ajc-test>   
++     
++     <ajc-test dir="features151/ataround" title="annotation style - correct usage, binding and passing same target for call">
+         <compile files="A4.java" options="-1.5"/>
+         <run class="A4">
+           <stderr>
+@@ -78,9 +69,10 @@
+ 
+ 
+ 
+-     <ajc-test dir="features151/ataround" title="code style - changing target for call">
+-        <compile files="X5.java" options="-1.5"/>
+-        <run class="X5">
++     
++     <ajc-test dir="features151/ataround" title="code style - correct usage, binding and passing new target for call">
++        <compile files="X42.java" options="-1.5"/>
++        <run class="X42">
+           <stderr>
+              <line text="advice from code aspect"/>
+              <line text="2faked"/>
+@@ -88,9 +80,9 @@
+         </run>
+      </ajc-test>
+ 
+-     <ajc-test dir="features151/ataround" title="annotation style - changing target for call">
+-        <compile files="A5.java" options="-1.5"/>
+-        <run class="A5">
++     <ajc-test dir="features151/ataround" title="annotation style - correct usage, binding and passing new target for call - noinline">
++        <compile files="A42.java" options="-1.5 -XnoInline"/>
++        <run class="A42">
+           <stderr>
+              <line text="advice from ataj aspect"/>
+              <line text="2faked"/>
+@@ -98,21 +90,9 @@
+         </run>
+      </ajc-test>   
+ 
+-     
+-     
+-     <ajc-test dir="features151/ataround" title="code style - changing target for call - reverse order">
+-        <compile files="X6.java" options="-1.5"/>
+-        <run class="X6">
+-          <stderr>
+-             <line text="advice from code aspect"/>
+-             <line text="2faked"/>
+-          </stderr>
+-        </run>
+-     </ajc-test>
+-    
+-     <ajc-test dir="features151/ataround" title="annotation style - changing target for call - reverse order">
+-        <compile files="A6.java" options="-1.5"/>
+-        <run class="A6">
++     <ajc-test dir="features151/ataround" title="annotation style - correct usage, binding and passing new target for call">
++        <compile files="A42.java" options="-1.5"/>
++        <run class="A42">
+           <stderr>
+              <line text="advice from ataj aspect"/>
+              <line text="2faked"/>
+@@ -122,6 +102,23 @@
+ 
+ 
+ 
++     
++     
++     <ajc-test dir="features151/ataround" title="code style - forget to pass target">
++        <compile files="X2.java" options="-1.5">
++          <message kind="error" line="7" text="too few arguments to proceed, expected 2"/>
++        </compile>
++     </ajc-test>
++    
++     <ajc-test dir="features151/ataround" title="annotation style - forget to pass target">
++        <compile files="A2.java" options="-1.5">
++          <message kind="error" line="7" text="too few arguments to proceed, expected 2"/>
++        </compile>
++     </ajc-test>
++     
++     
++     
++     
+      <ajc-test dir="features151/ataround" title="code style - bind this on call - change on proceed - no effect">
+         <compile files="X7.java" options="-1.5"/>
+         <run class="X7">
+@@ -132,6 +129,16 @@
+         </run>
+      </ajc-test>
+ 
++     <ajc-test dir="features151/ataround" title="annotation style - bind this on call - change on proceed - no effect - noinline">
++        <compile files="A7.java" options="-1.5 -XnoInline"/>
++        <run class="A7">
++          <stderr>
++             <line text="advice from ataj aspect"/>
++             <line text="1faked"/>
++          </stderr>
++        </run>
++     </ajc-test>
++     
+      <ajc-test dir="features151/ataround" title="annotation style - bind this on call - change on proceed - no effect">
+         <compile files="A7.java" options="-1.5"/>
+         <run class="A7">
+@@ -154,17 +161,44 @@
+         </run>
+      </ajc-test>
+ 
++     <ajc-test dir="features151/ataround" title="annotation style - bind this on execution - change on proceed - works - noinline">
++        <compile files="A8.java" options="-1.5 -XnoInline"/>
++        <run class="A8">
++          <stderr>
++             <line text="advice from ataj aspect"/>
++             <line text="2faked"/>
++          </stderr>
++        </run>
++     </ajc-test>
++
+      <ajc-test dir="features151/ataround" title="annotation style - bind this on execution - change on proceed - works">
+         <compile files="A8.java" options="-1.5"/>
+         <run class="A8">
+           <stderr>
+-             <line text="advice from code aspect"/>
++             <line text="advice from ataj aspect"/>
+              <line text="2faked"/>
+           </stderr>
+         </run>
+      </ajc-test>
++     
+ 
+ 
++ 
++     <ajc-test dir="features151/ataround" title="code style - incorrect arg types">
++        <compile files="X3.java" options="-1.5">
++          <message kind="error" line="7" text="Type mismatch: cannot convert from String to M"/>
++          <message kind="error" line="7" text="Type mismatch: cannot convert from M to String"/>
++        </compile>
++     </ajc-test>
++    
++     <ajc-test dir="features151/ataround" title="annotation style - incorrect arg types">
++        <compile files="A3.java" options="-1.5">
++          <message kind="error" line="7" text="too few arguments to proceed, expected 2"/>
++        </compile>
++     </ajc-test>    
++     
++     
++     
+ 
+      <ajc-test dir="features151/ataround" title="code style - bind this and target on execution - change on proceed - works">
+         <compile files="X9.java" options="-1.5"/>
+@@ -176,17 +210,29 @@
+         </run>
+      </ajc-test>
+ 
++     <ajc-test dir="features151/ataround" title="annotation style - bind this and target on execution - change on proceed - works - noinline">
++        <compile files="A9.java" options="-1.5 -XnoInline"/>
++        <run class="A9">
++          <stderr>
++             <line text="advice from ataj aspect"/>
++             <line text="3faked"/>
++          </stderr>
++        </run>
++     </ajc-test> 
++     
+      <ajc-test dir="features151/ataround" title="annotation style - bind this and target on execution - change on proceed - works">
+         <compile files="A9.java" options="-1.5"/>
+         <run class="A9">
+           <stderr>
+-             <line text="advice from code aspect"/>
++             <line text="advice from ataj aspect"/>
+              <line text="3faked"/>
+           </stderr>
+         </run>
+-     </ajc-test>
+-
+-
++     </ajc-test> 
++     
++     
++     
++     
+ 
+      <ajc-test dir="features151/ataround" title="code style - bind this and target on call - change on proceed - works">
+         <compile files="X10.java" options="-1.5"/>
+@@ -198,15 +244,115 @@
+         </run>
+      </ajc-test>     
+ 
++     <ajc-test dir="features151/ataround" title="annotation style - bind this and target on call - change on proceed - works - noinline">
++        <compile files="A10.java" options="-1.5"/>
++        <run class="A10">
++          <stderr>
++             <line text="advice from ataj aspect"/>
++             <line text="3faked"/>
++          </stderr>
++        </run>
++     </ajc-test>     
++
+      <ajc-test dir="features151/ataround" title="annotation style - bind this and target on call - change on proceed - works">
+         <compile files="A10.java" options="-1.5"/>
+         <run class="A10">
+           <stderr>
+-             <line text="advice from code aspect"/>
++             <line text="advice from ataj aspect"/>
+              <line text="3faked"/>
+           </stderr>
+         </run>
+      </ajc-test>     
++     
++     
++     
++     
++     <ajc-test dir="features151/ataround" title="breaking it - one">
++        <compile files="Break1.java" options="-1.5"/>
++        <run class="Break1">
++          <stderr>
++             <line text="advice from ataj aspect"/>
++             <line text="1faked"/>
++          </stderr>
++        </run>
++     </ajc-test>     
++     
++     <ajc-test dir="features151/ataround" title="breaking it - two">
++        <compile files="Break2.java" options="-1.5"/>
++        <run class="Break2">
++          <stderr>
++             <line text="advice from ataj aspect"/>
++             <line text="1faked"/>
++          </stderr>
++        </run>
++     </ajc-test>     
++     
++     
++     <ajc-test dir="features151/ataround" title="bug case one">
++        <compile files="BugCase1.java" options="-1.5"/>
++        <run class="BugCase1">
++          <stderr>
++             <line text="advice running"/>
++             <line text="Setting age to 10"/>
++          </stderr>
++        </run>
++     </ajc-test>     
++    
++     <ajc-test dir="features151/ataround" title="bug case two">
++        <compile files="BugCase2.java" options="-1.5"/>
++        <run class="BugCase2">
++          <stderr>
++             <line text="advice running"/>
++             <line text="Setting age to 10"/>
++          </stderr>
++        </run>
++     </ajc-test>     
++     
++     
++     <ajc-test dir="features151/ataround" title="multiple args">
++        <compile files="MultipleArgs.java" options="-1.5"/>
++        <run class="MultipleArgs">
++          <stderr>
++             <line text="advice running"/>
++             <line text="advice running"/>
++             <line text="advice running"/>
++          </stderr>
++        </run>
++     </ajc-test>     
++    
++   
++     
++     
++     
++     
++     
++     <ajc-test dir="features151/ataround" title="code style - changing target for call - reverse order">
++        <compile files="X6.java" options="-1.5"/>
++        <run class="X6">
++          <stderr>
++             <line text="advice from code aspect"/>
++             <line text="2faked"/>
++          </stderr>
++        </run>
++     </ajc-test>
++    
++     <ajc-test dir="features151/ataround" title="annotation style - changing target for call - reverse order">
++        <compile files="A6.java" options="-1.5"/>
++        <run class="A6">
++          <stderr>
++             <line text="advice from ataj aspect"/>
++             <line text="2faked"/>
++          </stderr>
++        </run>
++     </ajc-test>   
++     
++     
++     
++     
++     
++
++
++
+ 
+ 
+ 
+@@ -0,0 +1,31 @@
++// Simple - don't attempt to alter target for proceed, just change the arg
++import org.aspectj.lang.ProceedingJoinPoint;
++import org.aspectj.lang.annotation.*;
++
++@Aspect
++public class A1 {
++
++  @Around("call(void M.method(String)) && args(p)")
++  public void a( ProceedingJoinPoint pjp, String p) throws Throwable {
++    System.err.println("advice from ataj aspect");
++    pjp.proceed( new Object[] { pjp.getTarget(),"faked" } );
++  }
++
++  public static void main(String []argv) {
++    M.main(argv);
++  }
++}
++
++class M {
++
++  String prefix;
++
++  public M(String prefix) { this.prefix = prefix; }
++
++  public static void main( String[] args ) {
++    M m = new M(">");
++    m.method("real");
++  }
++
++  public void method(String s) { System.err.println(s); }
++}
+@@ -0,0 +1,38 @@
++// Bind this and target on call and change it with proceed
++import org.aspectj.lang.ProceedingJoinPoint;
++import org.aspectj.lang.annotation.*;
++
++@Aspect
++public class A10 {
++  M newM2 = new M("2");
++  M newM3 = new M("3");
++
++  @Around("call(void M.method(String)) && args(p) && this(t) && target(t2)")
++  public void a( ProceedingJoinPoint pjp, M t,String p, M t2) throws Throwable {
++    System.err.println("advice from ataj aspect");
++    pjp.proceed(new Object[]{newM2,"faked",newM3});
++  }
++
++  public static void main(String []argv) {
++    M.main(argv);
++  }
++}
++
++class M {
++
++ String prefix;
++
++ public M(String prefix) { this.prefix = prefix; }
++
++ public static void main( String[] args ) {
++   M m = new M("1");
++   m.methodCaller("real");
++ }
++
++ public void methodCaller(String param) {
++   method(param);
++ }
++
++ public void method(String s) { System.err.println(prefix+s); }
++
++}
+@@ -0,0 +1,37 @@
++// only bind arg subset and change that subset
++import org.aspectj.lang.ProceedingJoinPoint;
++import org.aspectj.lang.annotation.*;
++
++@Aspect
++public class A11 {
++  M newM2 = new M("2");
++  M newM3 = new M("3");
++
++  @Around("call(void M.method(..)) && args(*,p,*) && this(t) && target(t2)")
++  public void a( ProceedingJoinPoint pjp, M t,String p, M t2) throws Throwable {
++    System.err.println("advice from ataj aspect");
++    pjp.proceed(new Object[]{newM2,"_",newM3});
++  }
++
++  public static void main(String []argv) {
++    M.main(argv);
++  }
++}
++
++class M {
++
++  String prefix;
++
++  public M(String prefix) { this.prefix = prefix; }
++
++  public static void main( String[] args ) {
++    M m = new M("1");
++    m.methodCaller("x","y","z");
++  }
++
++  public void methodCaller(String param,String param2,String param3) {
++    method(param,param2,param3);
++  }
++
++  public void method(String a,String b,String c) { System.err.println(prefix+a+b+c); }
++}
+@@ -0,0 +1,31 @@
++// Bind the target but forget to pass it on the proceed call
++import org.aspectj.lang.ProceedingJoinPoint;
++import org.aspectj.lang.annotation.*;
++
++@Aspect
++public class A2 {
++
++  @Around("call(void M.method(String)) && args(p) && target(t)")
++  public void a( ProceedingJoinPoint pjp, M t, String p) throws Throwable {
++    System.err.println("advice from ataj aspect");
++    pjp.proceed( new Object[] { "faked" } ); // too few arguments to proceed?
++  }
++
++  public static void main(String []argv) {
++    M.main(argv);
++  }
++}
++
++class M {
++
++  String prefix;
++
++  public M(String prefix) { this.prefix = prefix; }
++
++  public static void main( String[] args ) {
++    M m = new M(">");
++    m.method("real");
++  }
++
++  public void method(String s) { System.err.println(s); }
++}
+@@ -0,0 +1,33 @@
++// Bind the target but pass args in wrong order on proceed
++import org.aspectj.lang.ProceedingJoinPoint;
++import org.aspectj.lang.annotation.*;
++
++@Aspect
++public class A3 {
++
++  @Around("call(void M.method(String)) && args(p) && target(t)")
++  public void a( ProceedingJoinPoint pjp, M t, String p) throws Throwable {
++    System.err.println("advice from ataj aspect");
++    pjp.proceed(new Object[]{"faked",t});
++    // Type mismatch: cannot convert from String to M
++    // Type mismatch: cannot convert from M to String
++  }
++
++  public static void main(String []argv) {
++    M.main(argv);
++  }
++}
++
++class M {
++
++  String prefix;
++
++  public M(String prefix) { this.prefix = prefix; }
++
++  public static void main( String[] args ) {
++    M m = new M(">");
++    m.method("real");
++  }
++
++  public void method(String s) { System.err.println(s); }
++}
+@@ -0,0 +1,31 @@
++// Bind the target and pass in the right order
++import org.aspectj.lang.ProceedingJoinPoint;
++import org.aspectj.lang.annotation.*;
++
++@Aspect
++public class A4 {
++
++  @Around("call(void M.method(String)) && args(p) && target(t)")
++  public void a( ProceedingJoinPoint pjp, M t, String p) throws Throwable {
++    System.err.println("advice from ataj aspect");
++    pjp.proceed(new Object[]{t,"faked"});
++  }
++
++  public static void main(String []argv) {
++    M.main(argv);
++  }
++}
++
++class M {
++
++  String prefix;
++
++  public M(String prefix) { this.prefix = prefix; }
++
++  public static void main( String[] args ) {
++    M m = new M("1");
++    m.method("real");
++  }
++
++  public void method(String s) { System.err.println(prefix+s); }
++}
+@@ -0,0 +1,32 @@
++// Bind the target and pass in the right order - but pass in a different target
++import org.aspectj.lang.ProceedingJoinPoint;
++import org.aspectj.lang.annotation.*;
++
++@Aspect
++public class A5 {
++  M newM = new M("2");
++
++  @Around("call(void M.method(String)) && args(p) && target(t)")
++  public void a( ProceedingJoinPoint pjp, M t, String p) throws Throwable {
++    System.err.println("advice from ataj aspect");
++    pjp.proceed(new Object[]{newM,"faked"});
++  }
++
++  public static void main(String []argv) {
++    M.main(argv);
++  }
++}
++
++class M {
++
++  String prefix;
++
++  public M(String prefix) { this.prefix = prefix; }
++
++  public static void main( String[] args ) {
++    M m = new M("1");
++    m.method("real");
++  }
++
++  public void method(String s) { System.err.println(prefix+s); }
++}
+@@ -0,0 +1,32 @@
++// Bind the target but make it the third arg rather than the second
++import org.aspectj.lang.ProceedingJoinPoint;
++import org.aspectj.lang.annotation.*;
++
++@Aspect
++public class A6 {
++  M newM = new M("2");
++
++  @Around("call(void M.method(String)) && args(p) && target(t)")
++  public void a( ProceedingJoinPoint pjp, String p, M t) throws Throwable {
++//    System.err.println("advice from ataj aspect");
++    pjp.proceed(new Object[]{"faked",newM});
++  }
++
++  public static void main(String []argv) {
++    M.main(argv);
++  }
++}
++
++class M {
++
++  String prefix;
++
++  public M(String prefix) { this.prefix = prefix; }
++
++  public static void main( String[] args ) {
++    M m = new M(">");
++    m.method("real");
++  }
++
++  public void method(String s) { System.err.println(s); }
++}
+@@ -0,0 +1,37 @@
++// Bind the this on a call and change it with proceed... makes no difference
++import org.aspectj.lang.ProceedingJoinPoint;
++import org.aspectj.lang.annotation.*;
++
++@Aspect
++public class A7 {
++  M newM = new M("2");
++
++  @Around("call(void M.method(String)) && args(p) && this(t)")
++  public void a( ProceedingJoinPoint pjp, M t,String p) throws Throwable {
++    System.err.println("advice from ataj aspect");
++    pjp.proceed(new Object[]{newM,"faked"});
++  }
++
++  public static void main(String []argv) {
++    M.main(argv);
++  }
++}
++
++class M {
++
++ String prefix;
++
++ public M(String prefix) { this.prefix = prefix; }
++
++ public static void main( String[] args ) {
++   M m = new M("1");
++   m.methodCaller("real");
++ }
++
++ public void methodCaller(String param) {
++   method(param);
++ }
++
++ public void method(String s) { System.err.println(prefix+s); }
++
++}
+@@ -0,0 +1,37 @@
++// Bind the this on a call and change it with proceed... works
++import org.aspectj.lang.ProceedingJoinPoint;
++import org.aspectj.lang.annotation.*;
++
++@Aspect
++public class A8 {
++  M newM = new M("2");
++
++  @Around("execution(void M.method(String)) && args(p) && this(t)")
++  public void a( ProceedingJoinPoint pjp, String p, M t) throws Throwable {
++    System.err.println("advice from ataj aspect");
++    pjp.proceed(new Object[]{newM,"faked"});
++  }
++
++  public static void main(String []argv) {
++    M.main(argv);
++  }
++}
++
++class M {
++
++ String prefix;
++
++ public M(String prefix) { this.prefix = prefix; }
++
++ public static void main( String[] args ) {
++   M m = new M("1");
++   m.methodCaller("real");
++ }
++
++ public void methodCaller(String param) {
++   method(param);
++ }
++
++ public void method(String s) { System.err.println(prefix+s); }
++
++}
+@@ -0,0 +1,38 @@
++// Bind this and target on execution and change it with proceed
++import org.aspectj.lang.ProceedingJoinPoint;
++import org.aspectj.lang.annotation.*;
++
++@Aspect
++public class A9 {
++  M newM2 = new M("2");
++  M newM3 = new M("3");
++
++  @Around("execution(void M.method(String)) && args(p) && this(t) && target(t2)")
++  public void a( ProceedingJoinPoint pjp, M t,String p, M t2) throws Throwable {
++    System.err.println("advice from ataj aspect");
++    pjp.proceed(new Object[]{newM2,"faked",newM3});
++  }
++
++  public static void main(String []argv) {
++    M.main(argv);
++  }
++}
++
++class M {
++
++ String prefix;
++
++ public M(String prefix) { this.prefix = prefix; }
++
++ public static void main( String[] args ) {
++   M m = new M("1");
++   m.methodCaller("real");
++ }
++
++ public void methodCaller(String param) {
++   method(param);
++ }
++
++ public void method(String s) { System.err.println(prefix+s); }
++
++}
+@@ -0,0 +1,29 @@
++// Simple - don't attempt to alter target for proceed, just change the arg
++
++aspect X1 {
++
++  void around(String p): call(void M.method(String)) && args(p) {
++    System.err.println("advice from code aspect");
++    proceed( "faked" );
++  }
++
++  public static void main(String []argv) {
++    M.main(argv);
++  }
++}
++
++
++
++class M {
++
++  String prefix;
++
++  public M(String prefix) { this.prefix = prefix; }
++
++  public static void main( String[] args ) {
++    M m = new M(">");
++    m.method("real");
++  }
++
++  public void method(String s) { System.err.println(s); }
++}
+@@ -0,0 +1,35 @@
++// Bind the this and target on call and change it with proceed... 
++
++aspect X10 {
++  M newM2 = new M("2");
++  M newM3 = new M("3");
++
++  void around(M t,String p,M t2): call(void M.method(String)) && args(p) && this(t) && target(t2) {
++    System.err.println("advice from code aspect");
++    proceed( newM2,"faked" , newM3);
++  }
++
++  public static void main(String []argv) {
++    M.main(argv);
++  }
++}
++
++
++
++class M {
++
++  String prefix;
++
++  public M(String prefix) { this.prefix = prefix; }
++
++  public static void main( String[] args ) {
++    M m = new M("1");
++    m.methodCaller("real");
++  }
++
++  public void methodCaller(String param) {
++    method(param);
++  }
++
++  public void method(String s) { System.err.println(prefix+s); }
++}
+@@ -0,0 +1,35 @@
++// Bind the this and target on call and change it with proceed... but subset arguments in advice
++
++aspect X11 {
++  M newM2 = new M("2");
++  M newM3 = new M("3");
++
++  void around(M t,String p,M t2): call(void M.method(..)) && args(*,p,*) && this(t) && target(t2) {
++    System.err.println("advice from code aspect");
++    proceed( newM2,"_" , newM3);
++  }
++
++  public static void main(String []argv) {
++    M.main(argv);
++  }
++}
++
++
++
++class M {
++
++  String prefix;
++
++  public M(String prefix) { this.prefix = prefix; }
++
++  public static void main( String[] args ) {
++    M m = new M("1");
++    m.methodCaller("x","y","z");
++  }
++
++  public void methodCaller(String param,String param2,String param3) {
++    method(param,param2,param3);
++  }
++
++  public void method(String a,String b,String c) { System.err.println(prefix+a+b+c); }
++}
+@@ -0,0 +1,29 @@
++// Bind the target but forget to pass it on the proceed call
++
++aspect X2 {
++
++  void around(M t,String p): call(void M.method(String)) && args(p) && target(t) {
++    System.err.println("advice from code aspect");
++    proceed( "faked" ); // X2.java:7 [error] too few arguments to proceed, expected 2
++  }
++
++  public static void main(String []argv) {
++    M.main(argv);
++  }
++}
++
++
++
++class M {
++
++  String prefix;
++
++  public M(String prefix) { this.prefix = prefix; }
++
++  public static void main( String[] args ) {
++    M m = new M(">");
++    m.method("real");
++  }
++
++  public void method(String s) { System.err.println(s); }
++}
+@@ -0,0 +1,31 @@
++// Bind the target but pass args in wrong order on proceed
++
++aspect X3 {
++
++  void around(M t,String p): call(void M.method(String)) && args(p) && target(t) {
++    System.err.println("advice from code aspect");
++    proceed( "faked" , t);
++    // X3.java:7 [error] Type mismatch: cannot convert from String to M
++    // X3.java:7 [error] Type mismatch: cannot convert from M to String
++  }
++
++  public static void main(String []argv) {
++    M.main(argv);
++  }
++}
++
++
++
++class M {
++
++  String prefix;
++
++  public M(String prefix) { this.prefix = prefix; }
++
++  public static void main( String[] args ) {
++    M m = new M(">");
++    m.method("real");
++  }
++
++  public void method(String s) { System.err.println(s); }
++}
+@@ -0,0 +1,30 @@
++// Bind the target and pass in the right order
++
++aspect X4 {
++  M newM = new M("2");
++
++  void around(M t,String p): call(void M.method(String)) && args(p) && target(t) {
++    System.err.println("advice from code aspect");
++    proceed( t , "faked" );
++  }
++
++  public static void main(String []argv) {
++    M.main(argv);
++  }
++}
++
++
++
++class M {
++
++  String prefix;
++
++  public M(String prefix) { this.prefix = prefix; }
++
++  public static void main( String[] args ) {
++    M m = new M("1");
++    m.method("real");
++  }
++
++  public void method(String s) { System.err.println(prefix+s); }
++}
+@@ -0,0 +1,30 @@
++// Bind the target and pass in the right order - but pass in a different target
++
++aspect X5 {
++  M newM = new M("2");
++
++  void around(M t,String p): call(void M.method(String)) && args(p) && target(t) {
++    System.err.println("advice from code aspect");
++    proceed( newM , "faked" );
++  }
++
++  public static void main(String []argv) {
++    M.main(argv);
++  }
++}
++
++
++
++class M {
++
++  String prefix;
++
++  public M(String prefix) { this.prefix = prefix; }
++
++  public static void main( String[] args ) {
++    M m = new M("1");
++    m.method("real");
++  }
++
++  public void method(String s) { System.err.println(prefix+s); }
++}
+@@ -0,0 +1,30 @@
++// Bind the target but make it the second arg rather than the first
++
++aspect X6 {
++  M newM = new M("2");
++
++  void around(String p,M t): call(void M.method(String)) && args(p) && target(t) {
++    System.err.println("advice from code aspect");
++    proceed( "faked" , newM);
++  }
++
++  public static void main(String []argv) {
++    M.main(argv);
++  }
++}
++
++
++
++class M {
++
++  String prefix;
++
++  public M(String prefix) { this.prefix = prefix; }
++
++  public static void main( String[] args ) {
++    M m = new M("1");
++    m.method("real");
++  }
++
++  public void method(String s) { System.err.println(prefix+s); }
++}
+@@ -0,0 +1,34 @@
++// Bind the this on a call and change it with proceed... it is ignored
++
++aspect X7 {
++  M newM = new M("2");
++
++  void around(M t,String p): call(void M.method(String)) && args(p) && this(t) {
++    System.err.println("advice from code aspect");
++    proceed(newM, "faked");
++  }
++
++  public static void main(String []argv) {
++    M.main(argv);
++  }
++}
++
++
++
++class M {
++
++  String prefix;
++
++  public M(String prefix) { this.prefix = prefix; }
++
++  public static void main( String[] args ) {
++    M m = new M("1");
++    m.methodCaller("real");
++  }
++
++  public void methodCaller(String param) {
++    method(param);
++  }
++
++  public void method(String s) { System.err.println(prefix+s); }
++}
+@@ -0,0 +1,34 @@
++// Bind the this on execution and change it with proceed... works, modifies instance that executes
++
++aspect X8 {
++  M newM = new M("2");
++
++  void around(M t,String p): execution(void M.method(String)) && args(p) && this(t) {
++    System.err.println("advice from code aspect");
++    proceed( newM,"faked" );
++  }
++
++  public static void main(String []argv) {
++    M.main(argv);
++  }
++}
++
++
++
++class M {
++
++  String prefix;
++
++  public M(String prefix) { this.prefix = prefix; }
++
++  public static void main( String[] args ) {
++    M m = new M("1");
++    m.methodCaller("real");
++  }
++
++  public void methodCaller(String param) {
++    method(param);
++  }
++
++  public void method(String s) { System.err.println(prefix+s); }
++}
+@@ -0,0 +1,35 @@
++// Bind the this and target on execution and change it with proceed... 
++
++aspect X9 {
++  M newM2 = new M("2");
++  M newM3 = new M("3");
++
++  void around(M t,String p,M t2): execution(void M.method(String)) && args(p) && this(t) && target(t2) {
++    System.err.println("advice from code aspect");
++    proceed( newM2,"faked" , newM3);
++  }
++
++  public static void main(String []argv) {
++    M.main(argv);
++  }
++}
++
++
++
++class M {
++
++  String prefix;
++
++  public M(String prefix) { this.prefix = prefix; }
++
++  public static void main( String[] args ) {
++    M m = new M("1");
++    m.methodCaller("real");
++  }
++
++  public void methodCaller(String param) {
++    method(param);
++  }
++
++  public void method(String s) { System.err.println(prefix+s); }
++}
+@@ -20,6 +20,7 @@ public class AllTestsAspectJ151 {
+ 		//$JUnit-BEGIN$
+ 		suite.addTest(Ajc151Tests.suite());
+ 		suite.addTest(NewarrayJoinpointTests.suite());
++		suite.addTest(AtAroundTests.suite());
+         //$JUnit-END$
+ 		return suite;
+ 	}
+@@ -0,0 +1,78 @@
++/*******************************************************************************
++ * Copyright (c) 2006 IBM Corporation and others.
++ * All rights reserved. This program and the accompanying materials 
++ * are made available under the terms of the Common Public License v1.0
++ * which accompanies this distribution, and is available at
++ * http://www.eclipse.org/legal/epl-v10.html
++ * 
++ * Contributors:
++ *     Andy Clement - initial implementation
++ *******************************************************************************/
++package org.aspectj.systemtest.ajc151;
++
++import java.io.File;
++
++import junit.framework.Test;
++
++import org.aspectj.testing.XMLBasedAjcTestCase;
++
++/**
++ * This testcode shows what is possible with code style and the current limitations
++ * of @AJ style.  Each program is written in both styles and those variations
++ * not currently possible are commented out.
++ * 
++ * @author AndyClement
++ *
++ */
++
++
++public class AtAroundTests extends XMLBasedAjcTestCase {
++
++  public void testCodeBasic() {       runTest("code style - basic"); }
++  public void testAtBasic()   { runTest("annotation style - basic"); }
++  
++  public void testCodeErrorCase1() {     runTest("code style - forget to pass target");}
++  // Don't think we can report correct errors for @AJ as the parameters are specified as an object array
++  // public void testAtErrorCase1() { runTest("annotation style - forget to pass target");}
++
++  public void testCodeErrorCase2() {     runTest("code style - incorrect arg types");}
++  // Don't think we can report correct errors for @AJ as the parameters are specified as an object array
++  // public void testAtErrorCase2() { runTest("annotation style - incorrect arg types");}
++  
++  public void testCodeBindingTarget() {       runTest("code style - correct usage, binding and passing new target for call"); }
++  public void testAtBindingTarget()   { runTest("annotation style - correct usage, binding and passing new target for call"); }
++
++  public void testCodeChangingTarget() {       runTest("code style - changing target for call"); }
++  public void testAtChangingTarget()   { runTest("annotation style - changing target for call"); }
++  
++  public void testCodeChangingTargetDifferingOrder() {       runTest("code style - changing target for call - reverse order"); }
++  // @AJ cant cope with the changing of the order of arguments bound and passed through proceed
++  //public void testAtChangingTargetDifferingOrder()   { runTest("annotation style - changing target for call - reverse order"); }
++ 
++  public void testCodeBindThisCallChangeProceed() {     runTest("code style - bind this on call - change on proceed - no effect");} 
++  //public void testAtBindThisCallChangeProceed() { runTest("annotation style - bind this on call - change on proceed - no effect");}
++  
++  public void testCodeBindThisExecutionChangeProceed() {     runTest("code style - bind this on execution - change on proceed - works");}
++  //public void testAtBindThisExecutionChangeProceed() { runTest("annotation style - bind this on execution - change on proceed - works");}
++  
++  public void testCodeBindBothExecutionChangeProceed() { runTest("code style - bind this and target on execution - change on proceed - works");}
++  //public void testAtBindBothExecutionChangeProceed() { runTest("annotation style - bind this and target on execution - change on proceed - works");}
++ 
++  public void testCodeBindBothCallChangeProceed() { runTest("code style - bind this and target on call - change on proceed - works");}
++  //public void testAtBindBothCallChangeProceed() { runTest("annotation style - bind this and target on call - change on proceed - works");}
++
++  public void testCodeSubsetArguments() {     runTest("code style - works with subset of arguments in advice");}
++  //public void testAtSubsetArguments() { runTest("annotation style - works with subset of arguments in advice");}
++
++  
++  
++  //
++  public static Test suite() {
++    return XMLBasedAjcTestCase.loadSuite(AtAroundTests.class);
++  }
++
++  protected File getSpecFile() {
++    return new File("../tests/src/org/aspectj/systemtest/ajc151/ataround.xml");
++  }
++	
++}
+@@ -0,0 +1,233 @@
++<!DOCTYPE suite SYSTEM "../tests/ajcTestSuite.dtd"[]>
++
++<!-- AspectJ v1.5.1 Tests -->
++<suite>
++    
++    
++     <ajc-test dir="features151/ataround" title="code style - basic">
++        <compile files="X1.java" options="-1.5"/>
++        <run class="X1">
++          <stderr>
++             <line text="advice from code aspect"/>
++             <line text="faked"/>
++          </stderr>
++        </run>
++    </ajc-test>
++    
++    <ajc-test dir="features151/ataround" title="annotation style - basic">
++        <compile files="A1.java" options="-1.5"/>
++        <run class="A1">
++          <stderr>
++             <line text="advice from ataj aspect"/>
++             <line text="faked"/>
++          </stderr>
++        </run>
++    </ajc-test>
++    
++    
++    
++   
++    
++     <ajc-test dir="features151/ataround" title="code style - forget to pass target">
++        <compile files="X2.java" options="-1.5">
++          <message kind="error" line="7" text="too few arguments to proceed, expected 2"/>
++        </compile>
++     </ajc-test>
++    
++     <ajc-test dir="features151/ataround" title="annotation style - forget to pass target">
++        <compile files="A2.java" options="-1.5">
++          <message kind="error" line="7" text="too few arguments to proceed, expected 2"/>
++        </compile>
++     </ajc-test>
++ 
++ 
++     <ajc-test dir="features151/ataround" title="code style - incorrect arg types">
++        <compile files="X3.java" options="-1.5">
++          <message kind="error" line="7" text="Type mismatch: cannot convert from String to M"/>
++          <message kind="error" line="7" text="Type mismatch: cannot convert from M to String"/>
++        </compile>
++     </ajc-test>
++    
++     <ajc-test dir="features151/ataround" title="annotation style - incorrect arg types">
++        <compile files="A3.java" options="-1.5">
++          <message kind="error" line="7" text="too few arguments to proceed, expected 2"/>
++        </compile>
++     </ajc-test>    
++     
++     
++     
++     <ajc-test dir="features151/ataround" title="code style - correct usage, binding and passing new target for call">
++        <compile files="X4.java" options="-1.5"/>
++        <run class="X4">
++          <stderr>
++             <line text="advice from code aspect"/>
++             <line text="1faked"/>
++          </stderr>
++        </run>
++     </ajc-test>
++    
++     <ajc-test dir="features151/ataround" title="annotation style - correct usage, binding and passing new target for call">
++        <compile files="A4.java" options="-1.5"/>
++        <run class="A4">
++          <stderr>
++             <line text="advice from ataj aspect"/>
++             <line text="1faked"/>
++          </stderr>
++        </run>
++     </ajc-test>   
++     
++     
++     
++     <ajc-test dir="features151/ataround" title="code style - changing target for call">
++        <compile files="X5.java" options="-1.5"/>
++        <run class="X5">
++          <stderr>
++             <line text="advice from code aspect"/>
++             <line text="2faked"/>
++          </stderr>
++        </run>
++     </ajc-test>
++    
++     <ajc-test dir="features151/ataround" title="annotation style - changing target for call">
++        <compile files="A5.java" options="-1.5"/>
++        <run class="A5">
++          <stderr>
++             <line text="advice from ataj aspect"/>
++             <line text="2faked"/>
++          </stderr>
++        </run>
++     </ajc-test>   
++     
++     
++     
++     <ajc-test dir="features151/ataround" title="code style - changing target for call - reverse order">
++        <compile files="X6.java" options="-1.5"/>
++        <run class="X6">
++          <stderr>
++             <line text="advice from code aspect"/>
++             <line text="2faked"/>
++          </stderr>
++        </run>
++     </ajc-test>
++    
++     <ajc-test dir="features151/ataround" title="annotation style - changing target for call - reverse order">
++        <compile files="A6.java" options="-1.5"/>
++        <run class="A6">
++          <stderr>
++             <line text="advice from ataj aspect"/>
++             <line text="2faked"/>
++          </stderr>
++        </run>
++     </ajc-test>   
++     
++     
++     
++     <ajc-test dir="features151/ataround" title="code style - bind this on call - change on proceed - no effect">
++        <compile files="X7.java" options="-1.5"/>
++        <run class="X7">
++          <stderr>
++             <line text="advice from code aspect"/>
++             <line text="1faked"/>
++          </stderr>
++        </run>
++     </ajc-test>
++     
++     <ajc-test dir="features151/ataround" title="annotation style - bind this on call - change on proceed - no effect">
++        <compile files="A7.java" options="-1.5"/>
++        <run class="A7">
++          <stderr>
++             <line text="advice from ataj aspect"/>
++             <line text="1faked"/>
++          </stderr>
++        </run>
++     </ajc-test>
++     
++     
++     
++     <ajc-test dir="features151/ataround" title="code style - bind this on execution - change on proceed - works">
++        <compile files="X8.java" options="-1.5"/>
++        <run class="X8">
++          <stderr>
++             <line text="advice from code aspect"/>
++             <line text="2faked"/>
++          </stderr>
++        </run>
++     </ajc-test>
++     
++     <ajc-test dir="features151/ataround" title="annotation style - bind this on execution - change on proceed - works">
++        <compile files="A8.java" options="-1.5"/>
++        <run class="A8">
++          <stderr>
++             <line text="advice from code aspect"/>
++             <line text="2faked"/>
++          </stderr>
++        </run>
++     </ajc-test>
++
++
++
++     <ajc-test dir="features151/ataround" title="code style - bind this and target on execution - change on proceed - works">
++        <compile files="X9.java" options="-1.5"/>
++        <run class="X9">
++          <stderr>
++             <line text="advice from code aspect"/>
++             <line text="3faked"/>
++          </stderr>
++        </run>
++     </ajc-test>
++     
++     <ajc-test dir="features151/ataround" title="annotation style - bind this and target on execution - change on proceed - works">
++        <compile files="A9.java" options="-1.5"/>
++        <run class="A9">
++          <stderr>
++             <line text="advice from code aspect"/>
++             <line text="3faked"/>
++          </stderr>
++        </run>
++     </ajc-test>
++
++
++
++     <ajc-test dir="features151/ataround" title="code style - bind this and target on call - change on proceed - works">
++        <compile files="X10.java" options="-1.5"/>
++        <run class="X10">
++          <stderr>
++             <line text="advice from code aspect"/>
++             <line text="3faked"/>
++          </stderr>
++        </run>
++     </ajc-test>     
++     
++     <ajc-test dir="features151/ataround" title="annotation style - bind this and target on call - change on proceed - works">
++        <compile files="A10.java" options="-1.5"/>
++        <run class="A10">
++          <stderr>
++             <line text="advice from code aspect"/>
++             <line text="3faked"/>
++          </stderr>
++        </run>
++     </ajc-test>     
++
++
++
++     <ajc-test dir="features151/ataround" title="code style - works with subset of arguments in advice">
++        <compile files="X11.java" options="-1.5"/>
++        <run class="X11">
++          <stderr>
++             <line text="advice from code aspect"/>
++             <line text="3x_z"/>
++          </stderr>
++        </run>
++     </ajc-test>
++     
++      <ajc-test dir="features151/ataround" title="annotation style - works with subset of arguments in advice">
++        <compile files="A11.java" options="-1.5"/>
++        <run class="A11">
++          <stderr>
++             <line text="advice from code aspect"/>
++             <line text="3x_z"/>
++          </stderr>
++        </run>
++     </ajc-test>
++
++</suite>
+\ No newline at end of file

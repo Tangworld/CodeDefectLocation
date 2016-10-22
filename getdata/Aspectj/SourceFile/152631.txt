@@ -1,0 +1,50 @@
+@@ -0,0 +1,13 @@
++
++public aspect EMA {
++    before() : cflow(execution(* *(..))) {}
++}
++
++aspect Goo {
++  declare parents: EMA extends C;
++  public void EMA.m() {}
++}
++
++abstract class C {
++  abstract void m();
++}
+@@ -26,6 +26,7 @@ public class Ajc153Tests extends org.aspectj.testing.XMLBasedAjcTestCase {
+   // public void testArgnamesAndJavac_pr148381() { runTest("argNames and javac");}
+   // public void testCFlowXMLAspectLTW_pr149096() { runTest("cflow xml concrete aspect"); }
+   // public void testAmbiguousBinding_pr121805() { runTest("ambiguous binding");}
++  public void testDecpAndCflowadderMungerClash_pr152631() { runTest("decp and cflowadder munger clash");}
+   public void testGenericInheritanceDecp_pr150095() { runTest("generics, inheritance and decp");}
+   public void testIllegalStateException_pr148737() { runTest("illegalstateexception for non generic type");}
+   public void testAtajInheritance_pr149305_1()     { runTest("ataj inheritance - 1");}
+@@ -254,4 +254,8 @@
+       </compile>
+     </ajc-test>
+ 
++    <ajc-test dir="bugs153/pr152631" title="decp and cflowadder munger clash">
++      <compile files="EMA.java" options="-1.5"/>
++    </ajc-test>
++    
+ </suite>
+\ No newline at end of file
+@@ -247,7 +247,7 @@ public class BcelTypeMunger extends ConcreteTypeMunger {
+                         boolean satisfiedByITD = false;
+                         for (Iterator ii = newParentTarget.getType().getInterTypeMungersIncludingSupers().iterator(); ii.hasNext(); ) {
+                             ConcreteTypeMunger m = (ConcreteTypeMunger)ii.next();
+-                            if (m.getMunger().getKind() == ResolvedTypeMunger.Method) {
++                            if (m.getMunger()!=null && m.getMunger().getKind() == ResolvedTypeMunger.Method) {
+                                 ResolvedMember sig = m.getSignature();
+                                 if (!Modifier.isAbstract(sig.getModifiers())) {
+ 
+@@ -265,7 +265,7 @@ public class BcelTypeMunger extends ConcreteTypeMunger {
+                                         satisfiedByITD = true;
+                                     }
+                                 }
+-                            } else if (m.getMunger().getKind() == ResolvedTypeMunger.MethodDelegate) {
++                            } else if (m.getMunger()!=null && m.getMunger().getKind() == ResolvedTypeMunger.MethodDelegate) {
+                                 satisfiedByITD = true;//AV - that should be enough, no need to check more
+                             }
+                         }

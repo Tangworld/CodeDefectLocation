@@ -1,0 +1,185 @@
+@@ -226,6 +226,19 @@ public class JDTLikeHandleProvider implements IElementHandleProvider {
+ 			if (ipeSig != null && ((idx = ipeSig.indexOf(")")) != -1)) {
+ 				ipeSig = ipeSig.substring(0, idx);
+ 			}
++			if (ipeSig != null) {
++				if (ipeSig.indexOf("Lorg/aspectj/lang") != -1) {
++					if (ipeSig.endsWith("Lorg/aspectj/lang/JoinPoint$StaticPart;")) {
++						ipeSig = ipeSig.substring(0, ipeSig.lastIndexOf("Lorg/aspectj/lang/JoinPoint$StaticPart;"));
++					}
++					if (ipeSig.endsWith("Lorg/aspectj/lang/JoinPoint;")) {
++						ipeSig = ipeSig.substring(0, ipeSig.lastIndexOf("Lorg/aspectj/lang/JoinPoint;"));
++					}
++					if (ipeSig.endsWith("Lorg/aspectj/lang/JoinPoint$StaticPart;")) {
++						ipeSig = ipeSig.substring(0, ipeSig.lastIndexOf("Lorg/aspectj/lang/JoinPoint$StaticPart;"));
++					}
++				}
++			}
+ 			for (Iterator iterator = kids.iterator(); iterator.hasNext();) {
+ 				IProgramElement object = (IProgramElement) iterator.next();
+ 				if (object.equals(ipe)) {
+@@ -0,0 +1,31 @@
++package test;
++import test.ChildInt;
++import test.Parent;
++import test.ParentInt;
++
++
++public aspect AspectTrace {
++
++	
++	public pointcut p1(): execution(* test.Parent+.do*(..));	
++	public pointcut p2(): withincode(* test.Parent+.do*(..)) && this(test.Parent+);
++	
++	public pointcut p3() : execution(* test.ParentInt.*(..));
++	public pointcut p4() : execution(* test.ChildInt.*(..));
++	
++	before() : p1() {
++		System.out.println("p1" + thisJoinPoint);
++	}
++	
++//	before() : p2(){
++//		System.out.println("p2" + thisJoinPoint);
++//	}	
++//	
++	before() : p3() {
++		System.out.println("p3" + thisJoinPoint);
++	}
++//	
++//	before() : p4() {
++//		System.out.println("p4" + thisJoinPoint);
++//	}	 
++}
+@@ -0,0 +1,13 @@
++package test;
++
++public class Child extends Parent {
++	
++	public static void doTT(String o){
++		System.out.println("child");
++	}
++	
++	public static void main(String[] args) {
++		new Child().doTT("kkk");
++	}
++
++}
+@@ -0,0 +1,7 @@
++package test;
++
++public interface ChildInt extends ParentInt {
++
++	public void doNewTT(String o);
++	public void doNewXX(String o);
++}
+@@ -0,0 +1,23 @@
++package test;
++
++public class ChildIntObj implements ChildInt {
++
++	public void doNewTT(String o) {
++		// TODO Auto-generated method stub
++		
++		System.out.println("ChildIntObj.doNewTT");
++
++	}
++
++	public void doNewXX(String o) {
++		// TODO Auto-generated method stub
++		System.out.println("ChildIntObj.doNewXX");
++	}
++	
++	public static void main(String[] args) {
++		new ChildIntObj().doNewTT("");
++		
++		new ChildIntObj().doNewXX("");
++	}
++
++}
+@@ -0,0 +1,24 @@
++package test;
++
++public aspect Logger {
++
++	//declare precedence: Logger, ErrorContainment; 
++//	
++//	before() : adviceexecution() && !within(Logger){
++//		
++//		System.out.println("--->Logger:" + thisJoinPoint);
++//		
++//	}
++//	
++//	after() : adviceexecution() && !within(Logger) {
++//		
++//		System.out.println("--->Logger:" + thisJoinPoint);
++//		
++//	}
++	
++	
++	before(): execution(* hk..*.do*(..)){
++		System.out.println("This is a test");
++	}
++	
++}
+@@ -0,0 +1,15 @@
++package test;
++
++public class Parent {
++
++	public static void doTT(String o){
++		
++		System.out.println("parent");
++		
++	}
++	
++	
++	public static void main(String[] args) {
++		new Parent().doTT("kkk");
++	}
++}
+@@ -0,0 +1,7 @@
++package test;
++
++public interface ParentInt {
++
++	public void doNewTT(String o);
++	
++}
+@@ -0,0 +1,16 @@
++package test;
++
++public class ParentIntObj implements ParentInt {
++
++	public void doNewTT(String o) {
++		// TODO Auto-generated method stub
++		
++		System.out.println("ParentIntObj");
++
++	}
++	
++	public static void main(String[] args) {
++		new ParentIntObj().doNewTT("");				
++	}
++
++}
+@@ -91,6 +91,20 @@ public class MultiProjectIncrementalTests extends AbstractMultiProjectIncrementa
+ 		// *cough* third error, hmmm
+ 	}
+ 
++	public void testAdviceHandles_pr284771() throws Exception {
++		String p = "pr284771";
++		initialiseProject(p);
++		build(p);
++		printModel(p);
++		IRelationshipMap irm = getModelFor(p).getRelationshipMap();
++		List rels = irm.get("=pr284771<test*AspectTrace.aj}AspectTrace&before");
++		assertNotNull(rels);
++		assertEquals(2, ((Relationship) rels.get(0)).getTargets().size());
++		rels = irm.get("=pr284771<test*AspectTrace.aj}AspectTrace&before!2");
++		assertNotNull(rels);
++		assertEquals(2, ((Relationship) rels.get(0)).getTargets().size());
++	}
++
+ 	// TODO (asc) these tests don't actually verify anything!
+ 	// public void testAtDeclareParents_280658() throws Exception {
+ 	// AjdeInteractionTestbed.VERBOSE = true;

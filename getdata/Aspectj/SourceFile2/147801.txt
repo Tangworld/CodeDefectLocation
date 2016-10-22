@@ -1,0 +1,498 @@
+@@ -0,0 +1,8 @@
++public aspect Advisor {
++
++  before(): staticinitialization(*oo) {
++    System.err.println("x");
++  }
++
++  declare parents: Foo implements java.io.Serializable;
++}
+@@ -0,0 +1,30 @@
++import java.lang.reflect.Method;
++
++public class Foo  implements PreparedStatement {
++
++  public static void main(String []argv) throws Exception {
++    new Foo().getParameterMetaData();
++    Method[] m = Foo.class.getMethods();
++    int count = 1;
++    for (int i = 0; i < m.length; i++) {
++		Method method = m[i];
++		if (method.toString().indexOf("Foo.getParameterMetaData")!=-1)
++			System.err.println((count++)+") "+method);
++	}
++  }
++  public Sub getParameterMetaData() throws MyException {
++     return null;
++  }
++}
++
++class Sub {}
++
++interface PreparedStatement {
++//   public ParameterMetaData getParameterMetaData() throws MyException;
++}
++
++class MyException extends Exception {}
++
++interface ParameterMetaData {}
++
++interface SubParameterMetaData extends ParameterMetaData {}
+@@ -0,0 +1,3 @@
++interface PreparedStatement {
++   public ParameterMetaData getParameterMetaData() throws MyException;
++}
+@@ -0,0 +1,6 @@
++<aspectj>
++ <weaver options="-verbose"/>
++    <aspects>
++      <aspect name="Advisor"/>
++    </aspects>
++</aspectj>
+Binary files differ
+@@ -0,0 +1,18 @@
++to rebuild foo.jar:
++
++
++Build Foo.java - it includes a definition of PreparedStatement with no method specified
++
++mkdir out
++javac -d out Foo.java
++
++Build a new PreparedStatement that includes the method
++
++javac -d out PreparedStatement.java
++
++Build the jar
++
++cd out
++jar -cvMf ../foo.jar *
++
++You now have a jar where the Foo.class contains an invalid override...
+@@ -32,6 +32,7 @@ public class Ajc152Tests extends org.aspectj.testing.XMLBasedAjcTestCase {
+ //  public void testBrokenIfArgsCflowAtAj_pr145018() { runTest("ataj crashing with cflow, if and args");}
+ //  public void testItdCallingGenericMethod_pr145391() { runTest("itd calling generic method");}
+ //  public void testItdCallingGenericMethod_pr145391_2() { runTest("itd calling generic method - 2");}
++  public void testDuplicateBridgeMethods_pr147801_1() { runTest("duplicate bridge methods");}
+   public void testPackageIgnoredForException_pr147701_1() { runTest("package for exception ignored");}
+   public void testPackageIgnoredForException_pr147701_2() { runTest("package for exception ignored - 2");}
+   public void testPackageIgnoredForException_pr147701_3() { runTest("package for exception ignored - 3");}
+@@ -720,4 +720,14 @@
+       </compile>
+     </ajc-test>
+ 
++   <ajc-test dir="bugs152/pr147801" title="duplicate bridge methods">
++      <compile files="Advisor.aj" inpath="foo.jar" options="-1.5"/>
++      <run class="Foo">
++        <stderr>
++          <line text="x"/>
++          <line text="1) public Sub Foo.getParameterMetaData() throws MyException"/>
++        </stderr>
++      </run>
++    </ajc-test>
++    
+ </suite>
+\ No newline at end of file
+@@ -112,6 +112,7 @@ public abstract class World implements Dump.INode {
+     private boolean fastDelegateSupportEnabled = isASMAround;
+ 	private boolean runMinimalMemory = false;
+ 	public boolean forDEBUG_structuralChangesCode = false;
++	public boolean forDEBUG_bridgingCode = false;
+ 
+ 
+     // Records whether ASM is around ... so we might use it for delegates
+@@ -756,6 +757,7 @@ public abstract class World implements Dump.INode {
+ 	public final static String xsetACTIVATE_LIGHTWEIGHT_DELEGATES = "activateLightweightDelegates"; // default true
+ 	public final static String xsetRUN_MINIMAL_MEMORY ="runMinimalMemory"; // default true
+ 	public final static String xsetDEBUG_STRUCTURAL_CHANGES_CODE = "debugStructuralChangesCode"; // default false
++	public final static String xsetDEBUG_BRIDGING = "debugBridging"; // default false
+ 
+ 	public boolean isInJava5Mode() {
+ 		return behaveInJava5Way;
+@@ -1136,16 +1138,19 @@ public abstract class World implements Dump.INode {
+ 				}
+ 
+ 				String s = p.getProperty(xsetRUN_MINIMAL_MEMORY,"false");
+-	        		runMinimalMemory = s.equalsIgnoreCase("true");
+-//	        		if (runMinimalMemory) 
+-//	        			getMessageHandler().handleMessage(MessageUtil.info("[runMinimalMemory=true] Optimizing bcel processing (and cost of performance) to use less memory"));
++        		runMinimalMemory = s.equalsIgnoreCase("true");
++//	        	if (runMinimalMemory) 
++//	        		getMessageHandler().handleMessage(MessageUtil.info("[runMinimalMemory=true] Optimizing bcel processing (and cost of performance) to use less memory"));
++        		
++        		
++        		s = p.getProperty(xsetDEBUG_STRUCTURAL_CHANGES_CODE,"false");
++        		forDEBUG_structuralChangesCode = s.equalsIgnoreCase("true");
++        		
++        		s = p.getProperty(xsetDEBUG_BRIDGING,"false");
++        		forDEBUG_bridgingCode = s.equalsIgnoreCase("true");
+ 
+-	        		
+-	        		s = p.getProperty(xsetDEBUG_STRUCTURAL_CHANGES_CODE,"false");
+-	        		forDEBUG_structuralChangesCode = s.equalsIgnoreCase("true");
+-	        		
+-	    		}
+-	        	checkedAdvancedConfiguration=true;
++    		}
++        	checkedAdvancedConfiguration=true;
+         }
+      }
+ 
+@@ -409,7 +409,7 @@ class BcelClassWeaver implements IClassWeaver {
+ 		  Type paramType = paramTypes[i];
+ 		  body.append(InstructionFactory.createLoad(paramType, pos));
+ 		  if (!newParamTypes[i].equals(paramTypes[i])) {
+-			  if (debug) System.err.println("Cast "+newParamTypes[i]+" from "+paramTypes[i]);
++			  if (world.forDEBUG_bridgingCode) System.err.println("Bridging: Cast "+newParamTypes[i]+" from "+paramTypes[i]);
+ 			  body.append(fact.createCast(paramTypes[i],newParamTypes[i]));
+ 		  }
+ 		  pos+=paramType.getSize();
+@@ -552,10 +552,6 @@ class BcelClassWeaver implements IClassWeaver {
+ 
+     // **************************** start of bridge method creation code *****************
+ 
+-    // debug flag for bridge method creation
+-	public static boolean debug=false;
+-    
+-	
+ 	// FIXME asc tidy this lot up !!
+ 
+     // FIXME asc refactor into ResolvedType or even ResolvedMember?
+@@ -571,7 +567,7 @@ class BcelClassWeaver implements IClassWeaver {
+ 		if (methodThatMightBeGettingOverridden.getParameterTypes().length!=methodParamsArray.length)  return null; // check same number of parameters
+ 		if (!isVisibilityOverride(mmods,methodThatMightBeGettingOverridden,inSamePackage))  return null;
+ 
+-		if (debug) System.err.println("  Seriously considering this might be getting overridden "+methodThatMightBeGettingOverridden);
++		if (typeToCheck.getWorld().forDEBUG_bridgingCode) System.err.println("  Bridging:seriously considering this might be getting overridden '"+methodThatMightBeGettingOverridden+"'");
+ 
+ 		// Look at erasures of parameters (List<String> erased is List)
+ 		boolean sameParams = true;
+@@ -590,7 +586,12 @@ class BcelClassWeaver implements IClassWeaver {
+ 	    	if (typeToCheck.isParameterizedType()) {
+ 				return methodThatMightBeGettingOverridden.getBackingGenericMember();
+ 	    	} else if (!methodThatMightBeGettingOverridden.getReturnType().getErasureSignature().equals(mrettype)) {
+-	    		return methodThatMightBeGettingOverridden; // covariance
++	    	    // addressing the wierd situation from bug 147801
++	    		// just check whether these things are in the right relationship for covariance...
++	    		ResolvedType superReturn = typeToCheck.getWorld().resolve(UnresolvedType.forSignature(methodThatMightBeGettingOverridden.getReturnType().getErasureSignature()));
++	    		ResolvedType subReturn   = typeToCheck.getWorld().resolve(UnresolvedType.forSignature(mrettype));
++	    		if (superReturn.isAssignableFrom(subReturn)) 
++	    			return methodThatMightBeGettingOverridden;
+ 	    	}
+ 	    } 
+ 	    return null;
+@@ -624,7 +625,7 @@ class BcelClassWeaver implements IClassWeaver {
+     	if (typeToCheck==null) return null;
+     	if (typeToCheck instanceof MissingResolvedTypeWithKnownSignature) return null; // we just can't tell !
+ 
+-    	if (debug) System.err.println("  Checking for override of "+mname+" in "+typeToCheck);
++    	if (typeToCheck.getWorld().forDEBUG_bridgingCode) System.err.println("  Bridging:checking for override of "+mname+" in "+typeToCheck);
+ 
+     	String packageName = typeToCheck.getPackageName();
+     	if (packageName==null) packageName="";
+@@ -643,7 +644,7 @@ class BcelClassWeaver implements IClassWeaver {
+ 			if (o instanceof BcelTypeMunger) {
+ 				BcelTypeMunger element = (BcelTypeMunger)o;
+ 				if (element.getMunger() instanceof NewMethodTypeMunger) {
+-					if (debug) System.err.println("Possible ITD candidate "+element);
++					if (typeToCheck.getWorld().forDEBUG_bridgingCode) System.err.println("Possible ITD candidate "+element);
+ 					ResolvedMember aMethod = element.getSignature();
+ 					ResolvedMember isOverriding = isOverriding(typeToCheck,aMethod,mname,mrettype,mmods,inSamePackage,methodParamsArray);
+ 					if (isOverriding!=null) return isOverriding;
+@@ -675,6 +676,7 @@ class BcelClassWeaver implements IClassWeaver {
+      * See pr108101
+      */
+ 	public static boolean calculateAnyRequiredBridgeMethods(BcelWorld world,LazyClassGen clazz) {
++	    world.ensureAdvancedConfigurationProcessed();
+ 		if (!world.isInJava5Mode()) return false; // just double check... the caller should have already verified this
+ 		if (clazz.isInterface()) return false; // dont bother if we're an interface
+ 		boolean didSomething=false; // set if we build any bridge methods
+@@ -704,18 +706,18 @@ class BcelClassWeaver implements IClassWeaver {
+ 			if (bridgeToCandidate.isStatic())      continue; // ignore static methods
+ 			if (name.endsWith("init>")) continue; // Skip constructors and static initializers
+ 
+-			if (debug) System.err.println("Determining if we have to bridge to "+clazz.getName()+"."+name+""+bridgeToCandidate.getSignature());
++			if (world.forDEBUG_bridgingCode) System.err.println("Bridging: Determining if we have to bridge to "+clazz.getName()+"."+name+""+bridgeToCandidate.getSignature());
+ 
+ 			// Let's take a look at the superclass
+ 			ResolvedType theSuperclass= clazz.getSuperClass();
+-			if (debug) System.err.println("Checking supertype "+theSuperclass);
++			if (world.forDEBUG_bridgingCode) System.err.println("Bridging: Checking supertype "+theSuperclass);
+ 			String pkgName = clazz.getPackageName();
+ 			UnresolvedType[] bm = BcelWorld.fromBcel(bridgeToCandidate.getArgumentTypes());
+ 			ResolvedMember overriddenMethod = checkForOverride(theSuperclass,name,psig,rsig,bridgeToCandidate.getAccessFlags(),pkgName,bm);
+ 			if (overriddenMethod!=null) { 
+ 				boolean alreadyHaveABridgeMethod = methodsSet.contains(overriddenMethod.getName()+overriddenMethod.getSignature());
+ 				if (!alreadyHaveABridgeMethod) {
+-					if (debug) System.err.println("Bridging to "+overriddenMethod);
++					if (world.forDEBUG_bridgingCode) System.err.println("Bridging:bridging to '"+overriddenMethod+"'");
+ 					createBridgeMethod(world, bridgeToCandidate, clazz, overriddenMethod);
+ 					didSomething = true;
+ 					continue; // look at the next method
+@@ -725,7 +727,7 @@ class BcelClassWeaver implements IClassWeaver {
+ 			// Check superinterfaces
+ 			String[] interfaces = clazz.getInterfaceNames();
+ 			for (int j = 0; j < interfaces.length; j++) {
+-				if (debug) System.err.println("Checking superinterface "+interfaces[j]);
++				if (world.forDEBUG_bridgingCode) System.err.println("Bridging:checking superinterface "+interfaces[j]);
+ 				ResolvedType interfaceType = world.resolve(interfaces[j]);
+ 				overriddenMethod = checkForOverride(interfaceType,name,psig,rsig,bridgeToCandidate.getAccessFlags(),clazz.getPackageName(),bm);
+ 				if (overriddenMethod!=null) { 
+@@ -733,7 +735,7 @@ class BcelClassWeaver implements IClassWeaver {
+ 					if (!alreadyHaveABridgeMethod) {
+ 						createBridgeMethod(world, bridgeToCandidate, clazz, overriddenMethod);
+ 						didSomething=true;
+-						if (debug) System.err.println("Bridging to "+overriddenMethod);
++						if (world.forDEBUG_bridgingCode) System.err.println("Bridging:bridging to "+overriddenMethod);
+ 						continue; // look at the next method
+ 					}	
+ 				}
+@@ -0,0 +1,8 @@
++public aspect Advisor {
++
++  before(): staticinitialization(*oo) {
++    System.err.println("x");
++  }
++
++  declare parents: Foo implements java.io.Serializable;
++}
+@@ -0,0 +1,30 @@
++import java.lang.reflect.Method;
++
++public class Foo  implements PreparedStatement {
++
++  public static void main(String []argv) throws Exception {
++    new Foo().getParameterMetaData();
++    Method[] m = Foo.class.getMethods();
++    int count = 1;
++    for (int i = 0; i < m.length; i++) {
++		Method method = m[i];
++		if (method.toString().indexOf("Foo.getParameterMetaData")!=-1)
++			System.err.println((count++)+") "+method);
++	}
++  }
++  public Sub getParameterMetaData() throws MyException {
++     return null;
++  }
++}
++
++class Sub {}
++
++interface PreparedStatement {
++//   public ParameterMetaData getParameterMetaData() throws MyException;
++}
++
++class MyException extends Exception {}
++
++interface ParameterMetaData {}
++
++interface SubParameterMetaData extends ParameterMetaData {}
+@@ -0,0 +1,3 @@
++interface PreparedStatement {
++   public ParameterMetaData getParameterMetaData() throws MyException;
++}
+@@ -0,0 +1,6 @@
++<aspectj>
++ <weaver options="-verbose"/>
++    <aspects>
++      <aspect name="Advisor"/>
++    </aspects>
++</aspectj>
+Binary files differ
+@@ -0,0 +1,18 @@
++to rebuild foo.jar:
++
++
++Build Foo.java - it includes a definition of PreparedStatement with no method specified
++
++mkdir out
++javac -d out Foo.java
++
++Build a new PreparedStatement that includes the method
++
++javac -d out PreparedStatement.java
++
++Build the jar
++
++cd out
++jar -cvMf ../foo.jar *
++
++You now have a jar where the Foo.class contains an invalid override...
+@@ -32,6 +32,7 @@ public class Ajc152Tests extends org.aspectj.testing.XMLBasedAjcTestCase {
+ //  public void testBrokenIfArgsCflowAtAj_pr145018() { runTest("ataj crashing with cflow, if and args");}
+ //  public void testItdCallingGenericMethod_pr145391() { runTest("itd calling generic method");}
+ //  public void testItdCallingGenericMethod_pr145391_2() { runTest("itd calling generic method - 2");}
++  public void testDuplicateBridgeMethods_pr147801_1() { runTest("duplicate bridge methods");}
+   public void testPackageIgnoredForException_pr147701_1() { runTest("package for exception ignored");}
+   public void testPackageIgnoredForException_pr147701_2() { runTest("package for exception ignored - 2");}
+   public void testPackageIgnoredForException_pr147701_3() { runTest("package for exception ignored - 3");}
+@@ -720,4 +720,14 @@
+       </compile>
+     </ajc-test>
+ 
++   <ajc-test dir="bugs152/pr147801" title="duplicate bridge methods">
++      <compile files="Advisor.aj" inpath="foo.jar" options="-1.5"/>
++      <run class="Foo">
++        <stderr>
++          <line text="x"/>
++          <line text="1) public Sub Foo.getParameterMetaData() throws MyException"/>
++        </stderr>
++      </run>
++    </ajc-test>
++    
+ </suite>
+\ No newline at end of file
+@@ -112,6 +112,7 @@ public abstract class World implements Dump.INode {
+     private boolean fastDelegateSupportEnabled = isASMAround;
+ 	private boolean runMinimalMemory = false;
+ 	public boolean forDEBUG_structuralChangesCode = false;
++	public boolean forDEBUG_bridgingCode = false;
+ 
+ 
+     // Records whether ASM is around ... so we might use it for delegates
+@@ -756,6 +757,7 @@ public abstract class World implements Dump.INode {
+ 	public final static String xsetACTIVATE_LIGHTWEIGHT_DELEGATES = "activateLightweightDelegates"; // default true
+ 	public final static String xsetRUN_MINIMAL_MEMORY ="runMinimalMemory"; // default true
+ 	public final static String xsetDEBUG_STRUCTURAL_CHANGES_CODE = "debugStructuralChangesCode"; // default false
++	public final static String xsetDEBUG_BRIDGING = "debugBridging"; // default false
+ 
+ 	public boolean isInJava5Mode() {
+ 		return behaveInJava5Way;
+@@ -1136,16 +1138,19 @@ public abstract class World implements Dump.INode {
+ 				}
+ 
+ 				String s = p.getProperty(xsetRUN_MINIMAL_MEMORY,"false");
+-	        		runMinimalMemory = s.equalsIgnoreCase("true");
+-//	        		if (runMinimalMemory) 
+-//	        			getMessageHandler().handleMessage(MessageUtil.info("[runMinimalMemory=true] Optimizing bcel processing (and cost of performance) to use less memory"));
++        		runMinimalMemory = s.equalsIgnoreCase("true");
++//	        	if (runMinimalMemory) 
++//	        		getMessageHandler().handleMessage(MessageUtil.info("[runMinimalMemory=true] Optimizing bcel processing (and cost of performance) to use less memory"));
++        		
++        		
++        		s = p.getProperty(xsetDEBUG_STRUCTURAL_CHANGES_CODE,"false");
++        		forDEBUG_structuralChangesCode = s.equalsIgnoreCase("true");
++        		
++        		s = p.getProperty(xsetDEBUG_BRIDGING,"false");
++        		forDEBUG_bridgingCode = s.equalsIgnoreCase("true");
+ 
+-	        		
+-	        		s = p.getProperty(xsetDEBUG_STRUCTURAL_CHANGES_CODE,"false");
+-	        		forDEBUG_structuralChangesCode = s.equalsIgnoreCase("true");
+-	        		
+-	    		}
+-	        	checkedAdvancedConfiguration=true;
++    		}
++        	checkedAdvancedConfiguration=true;
+         }
+      }
+ 
+@@ -409,7 +409,7 @@ class BcelClassWeaver implements IClassWeaver {
+ 		  Type paramType = paramTypes[i];
+ 		  body.append(InstructionFactory.createLoad(paramType, pos));
+ 		  if (!newParamTypes[i].equals(paramTypes[i])) {
+-			  if (debug) System.err.println("Cast "+newParamTypes[i]+" from "+paramTypes[i]);
++			  if (world.forDEBUG_bridgingCode) System.err.println("Bridging: Cast "+newParamTypes[i]+" from "+paramTypes[i]);
+ 			  body.append(fact.createCast(paramTypes[i],newParamTypes[i]));
+ 		  }
+ 		  pos+=paramType.getSize();
+@@ -552,10 +552,6 @@ class BcelClassWeaver implements IClassWeaver {
+ 
+     // **************************** start of bridge method creation code *****************
+ 
+-    // debug flag for bridge method creation
+-	public static boolean debug=false;
+-    
+-	
+ 	// FIXME asc tidy this lot up !!
+ 
+     // FIXME asc refactor into ResolvedType or even ResolvedMember?
+@@ -571,7 +567,7 @@ class BcelClassWeaver implements IClassWeaver {
+ 		if (methodThatMightBeGettingOverridden.getParameterTypes().length!=methodParamsArray.length)  return null; // check same number of parameters
+ 		if (!isVisibilityOverride(mmods,methodThatMightBeGettingOverridden,inSamePackage))  return null;
+ 
+-		if (debug) System.err.println("  Seriously considering this might be getting overridden "+methodThatMightBeGettingOverridden);
++		if (typeToCheck.getWorld().forDEBUG_bridgingCode) System.err.println("  Bridging:seriously considering this might be getting overridden '"+methodThatMightBeGettingOverridden+"'");
+ 
+ 		// Look at erasures of parameters (List<String> erased is List)
+ 		boolean sameParams = true;
+@@ -590,7 +586,12 @@ class BcelClassWeaver implements IClassWeaver {
+ 	    	if (typeToCheck.isParameterizedType()) {
+ 				return methodThatMightBeGettingOverridden.getBackingGenericMember();
+ 	    	} else if (!methodThatMightBeGettingOverridden.getReturnType().getErasureSignature().equals(mrettype)) {
+-	    		return methodThatMightBeGettingOverridden; // covariance
++	    	    // addressing the wierd situation from bug 147801
++	    		// just check whether these things are in the right relationship for covariance...
++	    		ResolvedType superReturn = typeToCheck.getWorld().resolve(UnresolvedType.forSignature(methodThatMightBeGettingOverridden.getReturnType().getErasureSignature()));
++	    		ResolvedType subReturn   = typeToCheck.getWorld().resolve(UnresolvedType.forSignature(mrettype));
++	    		if (superReturn.isAssignableFrom(subReturn)) 
++	    			return methodThatMightBeGettingOverridden;
+ 	    	}
+ 	    } 
+ 	    return null;
+@@ -624,7 +625,7 @@ class BcelClassWeaver implements IClassWeaver {
+     	if (typeToCheck==null) return null;
+     	if (typeToCheck instanceof MissingResolvedTypeWithKnownSignature) return null; // we just can't tell !
+ 
+-    	if (debug) System.err.println("  Checking for override of "+mname+" in "+typeToCheck);
++    	if (typeToCheck.getWorld().forDEBUG_bridgingCode) System.err.println("  Bridging:checking for override of "+mname+" in "+typeToCheck);
+ 
+     	String packageName = typeToCheck.getPackageName();
+     	if (packageName==null) packageName="";
+@@ -643,7 +644,7 @@ class BcelClassWeaver implements IClassWeaver {
+ 			if (o instanceof BcelTypeMunger) {
+ 				BcelTypeMunger element = (BcelTypeMunger)o;
+ 				if (element.getMunger() instanceof NewMethodTypeMunger) {
+-					if (debug) System.err.println("Possible ITD candidate "+element);
++					if (typeToCheck.getWorld().forDEBUG_bridgingCode) System.err.println("Possible ITD candidate "+element);
+ 					ResolvedMember aMethod = element.getSignature();
+ 					ResolvedMember isOverriding = isOverriding(typeToCheck,aMethod,mname,mrettype,mmods,inSamePackage,methodParamsArray);
+ 					if (isOverriding!=null) return isOverriding;
+@@ -675,6 +676,7 @@ class BcelClassWeaver implements IClassWeaver {
+      * See pr108101
+      */
+ 	public static boolean calculateAnyRequiredBridgeMethods(BcelWorld world,LazyClassGen clazz) {
++	    world.ensureAdvancedConfigurationProcessed();
+ 		if (!world.isInJava5Mode()) return false; // just double check... the caller should have already verified this
+ 		if (clazz.isInterface()) return false; // dont bother if we're an interface
+ 		boolean didSomething=false; // set if we build any bridge methods
+@@ -704,18 +706,18 @@ class BcelClassWeaver implements IClassWeaver {
+ 			if (bridgeToCandidate.isStatic())      continue; // ignore static methods
+ 			if (name.endsWith("init>")) continue; // Skip constructors and static initializers
+ 
+-			if (debug) System.err.println("Determining if we have to bridge to "+clazz.getName()+"."+name+""+bridgeToCandidate.getSignature());
++			if (world.forDEBUG_bridgingCode) System.err.println("Bridging: Determining if we have to bridge to "+clazz.getName()+"."+name+""+bridgeToCandidate.getSignature());
+ 
+ 			// Let's take a look at the superclass
+ 			ResolvedType theSuperclass= clazz.getSuperClass();
+-			if (debug) System.err.println("Checking supertype "+theSuperclass);
++			if (world.forDEBUG_bridgingCode) System.err.println("Bridging: Checking supertype "+theSuperclass);
+ 			String pkgName = clazz.getPackageName();
+ 			UnresolvedType[] bm = BcelWorld.fromBcel(bridgeToCandidate.getArgumentTypes());
+ 			ResolvedMember overriddenMethod = checkForOverride(theSuperclass,name,psig,rsig,bridgeToCandidate.getAccessFlags(),pkgName,bm);
+ 			if (overriddenMethod!=null) { 
+ 				boolean alreadyHaveABridgeMethod = methodsSet.contains(overriddenMethod.getName()+overriddenMethod.getSignature());
+ 				if (!alreadyHaveABridgeMethod) {
+-					if (debug) System.err.println("Bridging to "+overriddenMethod);
++					if (world.forDEBUG_bridgingCode) System.err.println("Bridging:bridging to '"+overriddenMethod+"'");
+ 					createBridgeMethod(world, bridgeToCandidate, clazz, overriddenMethod);
+ 					didSomething = true;
+ 					continue; // look at the next method
+@@ -725,7 +727,7 @@ class BcelClassWeaver implements IClassWeaver {
+ 			// Check superinterfaces
+ 			String[] interfaces = clazz.getInterfaceNames();
+ 			for (int j = 0; j < interfaces.length; j++) {
+-				if (debug) System.err.println("Checking superinterface "+interfaces[j]);
++				if (world.forDEBUG_bridgingCode) System.err.println("Bridging:checking superinterface "+interfaces[j]);
+ 				ResolvedType interfaceType = world.resolve(interfaces[j]);
+ 				overriddenMethod = checkForOverride(interfaceType,name,psig,rsig,bridgeToCandidate.getAccessFlags(),clazz.getPackageName(),bm);
+ 				if (overriddenMethod!=null) { 
+@@ -733,7 +735,7 @@ class BcelClassWeaver implements IClassWeaver {
+ 					if (!alreadyHaveABridgeMethod) {
+ 						createBridgeMethod(world, bridgeToCandidate, clazz, overriddenMethod);
+ 						didSomething=true;
+-						if (debug) System.err.println("Bridging to "+overriddenMethod);
++						if (world.forDEBUG_bridgingCode) System.err.println("Bridging:bridging to "+overriddenMethod);
+ 						continue; // look at the next method
+ 					}	
+ 				}

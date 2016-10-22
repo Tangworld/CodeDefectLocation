@@ -1,0 +1,86 @@
+@@ -67,6 +67,7 @@ public interface Member {
+ 	public UnresolvedType getReturnType();
+ 
+ 	public UnresolvedType getGenericReturnType();
++	public UnresolvedType[] getGenericParameterTypes();
+ 
+ 	public UnresolvedType getType();
+ 
+@@ -466,6 +466,7 @@ public class MemberImpl implements Comparable, AnnotatedElement,Member {
+     public UnresolvedType getReturnType() { return returnType; }
+ 
+     public UnresolvedType getGenericReturnType() { return getReturnType(); }
++    public UnresolvedType[] getGenericParameterTypes() { return getParameterTypes(); }
+     /* (non-Javadoc)
+ 	 * @see org.aspectj.weaver.Member#getType()
+ 	 */
+@@ -429,8 +429,11 @@ public abstract class ResolvedType extends UnresolvedType implements AnnotatedEl
+     		return true;
+     	}
+ 
+-    	UnresolvedType[] p1 = m1.getParameterTypes();
+-    	UnresolvedType[] p2 = m2.getParameterTypes();
++    	
++    	UnresolvedType[] p1 = m1.getGenericParameterTypes();
++    	UnresolvedType[] p2 = m2.getGenericParameterTypes();
++    	if (p1==null) p1 = m1.getParameterTypes();
++    	if (p2==null) p2 = m2.getParameterTypes();
+     	int n = p1.length;
+     	if (n != p2.length) return false;
+ 
+@@ -0,0 +1,16 @@
++import java.util.*;
++
++// this should be OK, the parameterized forms of Set are the same
++
++abstract class BaseClass { }
++
++aspect BaseClassAspect {
++        public abstract void BaseClass.setSomething(Set<String> somethings);
++}
++
++class ExtendedBaseClass extends BaseClass {
++        @Override
++        public void setSomething(Set<String> somethings) { }
++}
++
++
+@@ -0,0 +1,16 @@
++import java.util.*;
++
++// Trivial testcase to ensure the basics behave
++
++abstract class BaseClass { }
++
++aspect BaseClassAspect {
++        public abstract void BaseClass.setSomething(Set somethings);
++}
++
++class ExtendedBaseClass extends BaseClass {
++        @Override
++        public void setSomething(Set somethings) { }
++}
++
++
+@@ -21,6 +21,7 @@ import junit.framework.Test;
+  */
+ public class Ajc160Tests extends org.aspectj.testing.XMLBasedAjcTestCase {
+ 
++  public void testItdsParameterizedParameters_pr170467() { runTest("itds and parameterized parameters");}
+   public void testComplexGenerics_pr168044() { runTest("complex generics - 1");}
+   public void testIncorrectlyMarkingFieldTransient_pr168063() { runTest("incorrectly marking field transient");}
+   public void testInheritedAnnotations_pr169706() { runTest("inherited annotations");}
+@@ -4,6 +4,13 @@
+ <suite>
+ 
+  <!-- first section - dont need a 1.6 vm but fixed in the 1.6 branch of AspectJ -->
++ 
++    <ajc-test dir="bugs160/pr170467" title="itds and parameterized parameters">
++      <compile files="Bug.aj" options="-1.5"/>
++      <compile files="Bug2.aj" options="-1.5"/>
++    </ajc-test>
++    
++    
+     <ajc-test dir="bugs160/pr169706" title="inherited annotations">
+       <compile files="A.java,B.java,C.java,MyAspect.java,MyAnnotation.java,Test.java" options="-1.5 -showWeaveInfo">
+         <message kind="weave" text="Join point 'method-call(void C.foo())' in Type 'Test' (Test.java:5) advised by before advice from 'MyAspect' (MyAspect.java:4)"/>

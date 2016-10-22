@@ -1,0 +1,118 @@
+Binary files differ
+Binary files differ
+@@ -2,7 +2,7 @@ import java.lang.annotation.*;
+ 
+ public class MyClass {
+ 
+-        @Retention({RententionPolicy.RUNTIME})
++        @Retention({RetentionPolicy.RUNTIME})
+         private @interface MyAnnotation {
+         }
+ }
+@@ -29,7 +29,7 @@ public class Ajc153Tests extends org.aspectj.testing.XMLBasedAjcTestCase {
+ 	runTest("verification problem");   // build the code
+ 	Utils.verifyClass(ajc,"mypackage.MyAspect"); // verify it <<< BRAND NEW VERIFY UTILITY FOR EVERYONE TO TRY ;)
+   }
+- // public void testIncorrectAnnotationValue_pr148537() { runTest("incorrect annotation value");}
++  public void testIncorrectAnnotationValue_pr148537() { runTest("incorrect annotation value");}
+ 
+ 
+   /////////////////////////////////////////
+@@ -43,7 +43,9 @@
+     </ajc-test>
+ 
+     <ajc-test dir="bugs153/pr148537" title="incorrect annotation value">
+-		<compile files="MyClass.java" options="-1.5"/>
++		<compile files="MyClass.java" options="-1.5">
++		  <message kind="error" line="5" text="Type mismatch: cannot convert from RetentionPolicy[] to RetentionPolicy"/>
++		</compile>
+     </ajc-test>
+ 
+ 
+@@ -0,0 +1,8 @@
++import java.lang.annotation.*;
++
++public class MyClass {
++
++        @Retention({RententionPolicy.RUNTIME})
++        private @interface MyAnnotation {
++        }
++}
+@@ -29,6 +29,7 @@ public class Ajc153Tests extends org.aspectj.testing.XMLBasedAjcTestCase {
+ 	runTest("verification problem");   // build the code
+ 	Utils.verifyClass(ajc,"mypackage.MyAspect"); // verify it <<< BRAND NEW VERIFY UTILITY FOR EVERYONE TO TRY ;)
+   }
++ // public void testIncorrectAnnotationValue_pr148537() { runTest("incorrect annotation value");}
+ 
+ 
+   /////////////////////////////////////////
+@@ -42,5 +42,9 @@
+ 		<compile files="MyAspect.java" options="-1.5 -XterminateAfterCompilation=true"/>
+     </ajc-test>
+ 
++    <ajc-test dir="bugs153/pr148537" title="incorrect annotation value">
++		<compile files="MyClass.java" options="-1.5"/>
++    </ajc-test>
++    
+ 
+ </suite>
+\ No newline at end of file
+Binary files differ
+Binary files differ
+@@ -2,7 +2,7 @@ import java.lang.annotation.*;
+ 
+ public class MyClass {
+ 
+-        @Retention({RententionPolicy.RUNTIME})
++        @Retention({RetentionPolicy.RUNTIME})
+         private @interface MyAnnotation {
+         }
+ }
+@@ -29,7 +29,7 @@ public class Ajc153Tests extends org.aspectj.testing.XMLBasedAjcTestCase {
+ 	runTest("verification problem");   // build the code
+ 	Utils.verifyClass(ajc,"mypackage.MyAspect"); // verify it <<< BRAND NEW VERIFY UTILITY FOR EVERYONE TO TRY ;)
+   }
+- // public void testIncorrectAnnotationValue_pr148537() { runTest("incorrect annotation value");}
++  public void testIncorrectAnnotationValue_pr148537() { runTest("incorrect annotation value");}
+ 
+ 
+   /////////////////////////////////////////
+@@ -43,7 +43,9 @@
+     </ajc-test>
+ 
+     <ajc-test dir="bugs153/pr148537" title="incorrect annotation value">
+-		<compile files="MyClass.java" options="-1.5"/>
++		<compile files="MyClass.java" options="-1.5">
++		  <message kind="error" line="5" text="Type mismatch: cannot convert from RetentionPolicy[] to RetentionPolicy"/>
++		</compile>
+     </ajc-test>
+ 
+ 
+@@ -0,0 +1,8 @@
++import java.lang.annotation.*;
++
++public class MyClass {
++
++        @Retention({RententionPolicy.RUNTIME})
++        private @interface MyAnnotation {
++        }
++}
+@@ -29,6 +29,7 @@ public class Ajc153Tests extends org.aspectj.testing.XMLBasedAjcTestCase {
+ 	runTest("verification problem");   // build the code
+ 	Utils.verifyClass(ajc,"mypackage.MyAspect"); // verify it <<< BRAND NEW VERIFY UTILITY FOR EVERYONE TO TRY ;)
+   }
++ // public void testIncorrectAnnotationValue_pr148537() { runTest("incorrect annotation value");}
+ 
+ 
+   /////////////////////////////////////////
+@@ -42,5 +42,9 @@
+ 		<compile files="MyAspect.java" options="-1.5 -XterminateAfterCompilation=true"/>
+     </ajc-test>
+ 
++    <ajc-test dir="bugs153/pr148537" title="incorrect annotation value">
++		<compile files="MyClass.java" options="-1.5"/>
++    </ajc-test>
++    
+ 
+ </suite>
+\ No newline at end of file

@@ -1,0 +1,388 @@
+@@ -36,6 +36,7 @@ import org.aspectj.org.eclipse.jdt.internal.compiler.lookup.ClassScope;
+ import org.aspectj.org.eclipse.jdt.internal.compiler.lookup.MethodScope;
+ import org.aspectj.org.eclipse.jdt.internal.compiler.lookup.ParameterizedTypeBinding;
+ import org.aspectj.org.eclipse.jdt.internal.compiler.lookup.ProblemReferenceBinding;
++import org.aspectj.org.eclipse.jdt.internal.compiler.lookup.RawTypeBinding;
+ import org.aspectj.org.eclipse.jdt.internal.compiler.lookup.ReferenceBinding;
+ import org.aspectj.org.eclipse.jdt.internal.compiler.lookup.TypeBinding;
+ import org.aspectj.org.eclipse.jdt.internal.compiler.lookup.TypeVariableBinding;
+@@ -216,9 +217,9 @@ public abstract class InterTypeDeclaration extends AjMethodDeclaration {
+ 
+ 		// Collapse the parameterized reference to its generic type
+ 		if (onType instanceof ParameterizedSingleTypeReference) {
+-		ParameterizedSingleTypeReference pref = (ParameterizedSingleTypeReference) onType;
+-		long pos = (((long)pref.sourceStart) << 32) | pref.sourceEnd;
+-		onType = new SingleTypeReference(pref.token,pos);
++			ParameterizedSingleTypeReference pref = (ParameterizedSingleTypeReference) onType;
++			long pos = (((long)pref.sourceStart) << 32) | pref.sourceEnd;
++			onType = new SingleTypeReference(pref.token,pos);
+ 		} else {
+ 			ParameterizedQualifiedTypeReference pref = (ParameterizedQualifiedTypeReference) onType;
+ 			long pos = (((long)pref.sourceStart) << 32) | pref.sourceEnd;
+@@ -231,6 +232,11 @@ public abstract class InterTypeDeclaration extends AjMethodDeclaration {
+ 			classScope.problemReporter().invalidType(onType, onTypeBinding);
+ 			ignoreFurtherInvestigation = true;
+ 		}
++
++ 		
++		if (onTypeBinding.isRawType()) {
++			onTypeBinding = ((RawTypeBinding)onTypeBinding).type;
++		}
+ 
+ 		int aliasCount = (typeVariableAliases==null?0:typeVariableAliases.size());
+ 
+@@ -270,7 +276,6 @@ public abstract class InterTypeDeclaration extends AjMethodDeclaration {
+ 				}
+ 			}
+ 		}
+-		
+ //		TypeVariableBinding[] tVarsInGenericType = onTypeBinding.typeVariables();
+ //		typeVariableAliases = new ArrayList(); /* Name>GenericTypeVariablePosition */ // FIXME ASC DONT THINK WE NEED TO BUILD IT HERE AS WELL...
+ //		TypeReference[] targs = pref.typeArguments;
+@@ -344,12 +349,24 @@ public abstract class InterTypeDeclaration extends AjMethodDeclaration {
+ 	 * type SomeType'
+ 	 */
+ 	public void determineTypeVariableAliases() {
+-		if (onType!=null && onType instanceof ParameterizedSingleTypeReference) {
+-			ParameterizedSingleTypeReference paramRef = (ParameterizedSingleTypeReference) onType;
+-			TypeReference[] rb = paramRef.typeArguments;
+-			typeVariableAliases = new ArrayList();
+-			for (int i = 0; i < rb.length; i++) {
+-				typeVariableAliases.add(CharOperation.toString(rb[i].getTypeName()));
++		if (onType!=null) {
++		    // TODO loses distinction about which level the type variables are at... is that a problem?
++			if (onType instanceof ParameterizedSingleTypeReference) {
++				ParameterizedSingleTypeReference paramRef = (ParameterizedSingleTypeReference) onType;
++				TypeReference[] rb = paramRef.typeArguments;
++				typeVariableAliases = new ArrayList();
++				for (int i = 0; i < rb.length; i++) {
++					typeVariableAliases.add(CharOperation.toString(rb[i].getTypeName()));
++				}
++			} else if (onType instanceof ParameterizedQualifiedTypeReference) {
++				ParameterizedQualifiedTypeReference paramRef = (ParameterizedQualifiedTypeReference) onType;
++				typeVariableAliases = new ArrayList();
++				for (int j = 0; j < paramRef.typeArguments.length; j++) {
++					TypeReference[] rb = paramRef.typeArguments[j];
++					for (int i = 0; rb!=null && i < rb.length; i++) {
++						typeVariableAliases.add(CharOperation.toString(rb[i].getTypeName()));
++					}
++				}
+ 			}
+ 		}
+ 	}  
+@@ -370,17 +387,32 @@ public abstract class InterTypeDeclaration extends AjMethodDeclaration {
+ 		if (ot instanceof ParameterizedQualifiedTypeReference) { // pr132349
+ 			ParameterizedQualifiedTypeReference pref = (ParameterizedQualifiedTypeReference) ot;
+ 			if (pref.typeArguments!=null && pref.typeArguments.length!=0) {
+-				scope.problemReporter().signalError(sourceStart,sourceEnd,
+-				  "Cannot make inter-type declarations on parameterized types");
+-				// to prevent disgusting cascading errors after this problem - lets null out what leads to them (pr105038)
+-				this.arguments=null;
+-				this.returnType=new SingleTypeReference(TypeReference.VOID,0L);
+-				
+-				this.ignoreFurtherInvestigation=true;
+-				ReferenceBinding closestMatch = null;
+-				rb = new ProblemReferenceBinding(ot.getParameterizedTypeName(),closestMatch,0);		
+-				onType=null;
++				boolean usingNonTypeVariableInITD = false;
++				// Check if any of them are not type variables
++				for (int i = 0; i < pref.typeArguments.length; i++) {
++					TypeReference[] refs = pref.typeArguments[i];
++					for (int j = 0; refs!=null && j < refs.length; j++) {
++						TypeBinding tb = refs[j].getTypeBindingPublic(scope.parent);
++						if (!tb.isTypeVariable() && !(tb instanceof ProblemReferenceBinding)) {
++							usingNonTypeVariableInITD = true;
++						}
++						
++					}
++				}
++				if (usingNonTypeVariableInITD) {
++					scope.problemReporter().signalError(sourceStart,sourceEnd,
++					  "Cannot make inter-type declarations on parameterized types");
++					// to prevent disgusting cascading errors after this problem - lets null out what leads to them (pr105038)
++					this.arguments=null;
++					this.returnType=new SingleTypeReference(TypeReference.VOID,0L);
++					
++					this.ignoreFurtherInvestigation=true;
++					ReferenceBinding closestMatch = null;
++					rb = new ProblemReferenceBinding(ot.getParameterizedTypeName(),closestMatch,0);		
++					onType=null;
++				}
+ 			}
++		
+ 		}
+ 
+ 		// Work out the real base type
+@@ -398,6 +430,13 @@ public abstract class InterTypeDeclaration extends AjMethodDeclaration {
+ 		if (rb==null) {
+ 		  rb = (ReferenceBinding)ot.getTypeBindingPublic(scope.parent);
+ 		}
++		
++		// pr203646 - if we have ended up with the raw type, get back to the underlying generic one.
++		if (rb.isRawType() && rb.isMemberType()) {
++			// if the real target type used a type variable alias then we can do this OK, but need to switch things around, we want the generic type
++			rb = ((RawTypeBinding)rb).type;
++		}
++		
+ 		if (rb instanceof TypeVariableBinding) {
+ 			scope.problemReporter().signalError(sourceStart,sourceEnd,
+ 					  "Cannot make inter-type declarations on type variables, use an interface and declare parents");
+@@ -0,0 +1,9 @@
++// fails
++
++interface I {
++  interface J< T > {}
++}
++
++public aspect Bang {
++ public void I.J< T >.intro() {}
++}
+\ No newline at end of file
+@@ -0,0 +1,22 @@
++// ITD of a method onto a generic inner type - working example
++
++interface I {
++  interface J< T > {}
++}
++
++aspect Bang {
++ public int I.J<T>.intro(T t) {return 42;}
++}
++
++class Impl implements I {
++  class InnerImpl implements J<String> {
++  }
++}
++
++public class ExampleA {
++  public static void main(String []argv) {
++    Impl i = new Impl();
++    Impl.InnerImpl j = i.new InnerImpl();
++    System.out.println(j.intro("foo"));
++  }
++}
+\ No newline at end of file
+@@ -0,0 +1,22 @@
++// ITD of a method onto a generic inner type - failing example, passes wrongly typed parameter on the call
++
++interface I {
++  interface J< T > {}
++}
++
++aspect Bang {
++ public int I.J<T>.intro(T t) {return 42;}
++}
++
++class Impl implements I {
++  class InnerImpl implements J<String> {
++  }
++}
++
++public class ExampleB {
++  public static void main(String []argv) {
++    Impl i = new Impl();
++    Impl.InnerImpl j = i.new InnerImpl();
++    System.out.println(j.intro(8));
++  }
++}
+\ No newline at end of file
+@@ -0,0 +1,26 @@
++// ITD of a method onto a generic inner inner type
++
++interface I {
++  interface J {
++	  interface K<T> {}
++  }
++}
++
++aspect Bang {
++ public int I.J.K<T>.intro(T t) {return 42;}
++}
++
++class Impl implements I {
++  class InnerImpl implements J {
++	  class InnerInnerImpl implements K<String> {}
++  }
++}
++
++public class ExampleC {
++  public static void main(String []argv) {
++    Impl i = new Impl();
++    Impl.InnerImpl j = i.new InnerImpl();
++    Impl.InnerImpl.InnerInnerImpl k = j.new InnerInnerImpl();
++    System.out.println(k.intro("foo"));
++  }
++}
+\ No newline at end of file
+@@ -0,0 +1,26 @@
++// ITD of a method onto a generic inner type - working example
++
++interface I {
++  interface J<T> {
++	  interface K {}
++  }
++}
++
++aspect Bang {
++ public int I.J<P>.intro(P t) {return 42;}
++}
++
++class Impl implements I {
++  class InnerImpl implements J<String> {
++	  class InnerInnerImpl implements K {}
++  }
++}
++
++public class ExampleD {
++  public static void main(String []argv) {
++    Impl i = new Impl();
++    Impl.InnerImpl j = i.new InnerImpl();
++    Impl.InnerImpl.InnerInnerImpl k = j.new InnerInnerImpl();
++    System.out.println(j.intro("foo"));
++  }
++}
+\ No newline at end of file
+@@ -0,0 +1,23 @@
++// ITD of a method onto a generic inner type - complex example
++
++interface I<P> {
++  interface J<Q> {
++  }
++}
++
++aspect Bang {
++ public int I<A>.J<B>.intro(A a,B b) {return 42;}
++}
++
++class Impl implements I<Integer> {
++  class InnerImpl implements J<String> {
++  }
++}
++
++public class ExampleE {
++  public static void main(String []argv) {
++    Impl i = new Impl();
++    Impl.InnerImpl j = i.new InnerImpl();
++    System.out.println(j.intro(new Integer(5),"foo"));
++  }
++}
+\ No newline at end of file
+@@ -0,0 +1,25 @@
++// ITD of a method onto a generic inner type - complex example
++
++class Goo {}
++
++interface I {
++  interface J<Q extends Goo> {
++  }
++}
++
++aspect Bang {
++ public int I.J.intro(String a,Integer b) {return 42;}
++}
++
++class Impl implements I {
++	class InnerImpl implements J {
++	}
++}
++
++public class ExampleF {
++  public static void main(String []argv) {
++    Impl i = new Impl();
++    Impl.InnerImpl j = i.new InnerImpl();
++    System.out.println(j.intro("o",new Integer(3)));
++  }
++}
+\ No newline at end of file
+@@ -0,0 +1,10 @@
++interface I {
++        interface J< T > {
++                T getT();
++        }
++}
++public aspect ExampleG {
++        public T I.J< T >.intro() {
++                return null;
++        }
++}
+\ No newline at end of file
+@@ -149,9 +149,9 @@ public class Ajc153Tests extends org.aspectj.testing.XMLBasedAjcTestCase {
+ 					expected, ipe.getSourceSignature());
+   }
+ 
+-  public void testNPEWithCustomAgent_pr158005() {
+-	  runTest("NPE with custom agent");
+-  }
++//  public void testNPEWithCustomAgent_pr158205() {
++//	  runTest("NPE with custom agent");
++//  }
+ 
+   public void testWeaveConcreteSubaspectWithAdvice_pr132080() {
+ 	  runTest("Weave concrete sub-aspect with advice");
+@@ -45,6 +45,15 @@ public class Ajc154Tests extends org.aspectj.testing.XMLBasedAjcTestCase {
+ //		runTest("new pointcut designators in a reference pointcut");
+ //	}
+ 
++	public void testItdOnGenericInnerInterface_pr203646() { runTest("npe with itd on inner generic interface");}
++	public void testItdOnGenericInnerInterface_pr203646_A() { runTest("npe with itd on inner generic interface - exampleA");}
++	public void testItdOnGenericInnerInterface_pr203646_B() { runTest("npe with itd on inner generic interface - exampleB");}
++	public void testItdOnGenericInnerInterface_pr203646_C() { runTest("npe with itd on inner generic interface - exampleC");}
++	public void testItdOnGenericInnerInterface_pr203646_D() { runTest("npe with itd on inner generic interface - exampleD");}
++//	public void testItdOnGenericInnerInterface_pr203646_E() { runTest("npe with itd on inner generic interface - exampleE");} // needs parser change
++	public void testItdOnGenericInnerInterface_pr203646_F() { runTest("npe with itd on inner generic interface - exampleF");}
++	public void testItdOnGenericInnerInterface_pr203646_G() { runTest("npe with itd on inner generic interface - exampleG");}
++	
+ 	public void testItdClashForTypesFromAspectPath_pr206732() { runTest("itd clash for types from aspectpath"); } 
+ //	public void testAnnotationStyleAndMultiplePackages_pr197719() { runTest("annotation style syntax and cross package extension"); }
+ 
+@@ -3,6 +3,50 @@
+ <!-- AspectJ v1.6.0 Tests -->
+ <suite>
+ 
++   <ajc-test dir="bugs154/pr203646" title="npe with itd on inner generic interface">
++     <compile options="-1.5" files="Bang.java"/>
++     <!--compile options="-1.5 -emacssym" files="Bang.java"/-->
++   </ajc-test>
++   
++   <ajc-test dir="bugs154/pr203646" title="npe with itd on inner generic interface - emacssym">
++     <compile options="-1.5 -emacssym" files="Bang.java"/>
++   </ajc-test>
++   
++   <ajc-test dir="bugs154/pr203646" title="npe with itd on inner generic interface - exampleA">
++     <compile options="-1.5" files="ExampleA.java"/>
++     <run class="ExampleA"/>
++   </ajc-test>
++   
++   <ajc-test dir="bugs154/pr203646" title="npe with itd on inner generic interface - exampleB">
++     <compile options="-1.5" files="ExampleB.java">
++       <message kind="error" line="20" text="The method intro(String) in the type I.J&lt;String&gt; is not applicable for the arguments (int)"/>
++     </compile>
++   </ajc-test>
++   
++   <ajc-test dir="bugs154/pr203646" title="npe with itd on inner generic interface - exampleC">
++     <compile options="-1.5" files="ExampleC.java"/>
++     <run class="ExampleC"/>
++   </ajc-test>
++   
++   <ajc-test dir="bugs154/pr203646" title="npe with itd on inner generic interface - exampleD">
++     <compile options="-1.5" files="ExampleD.java"/>
++     <run class="ExampleD"/>
++   </ajc-test>
++   
++   <ajc-test dir="bugs154/pr203646" title="npe with itd on inner generic interface - exampleE">
++     <compile options="-1.5" files="ExampleE.java"/>
++     <run class="ExampleE"/>
++   </ajc-test>
++   
++   <ajc-test dir="bugs154/pr203646" title="npe with itd on inner generic interface - exampleF">
++     <compile options="-1.5" files="ExampleF.java"/>
++     <run class="ExampleF"/>
++   </ajc-test>
++   
++   <ajc-test dir="bugs154/pr203646" title="npe with itd on inner generic interface - exampleG">
++     <compile options="-1.5" files="ExampleG.java"/>
++   </ajc-test>
++   
+    <ajc-test dir="bugs154/pr206732" title="itd clash for types from aspectpath">
+      <compile outjar="foo.jar" files="Advised.aj"/>
+      <compile files="Ref.aj" aspectpath="foo.jar"/>

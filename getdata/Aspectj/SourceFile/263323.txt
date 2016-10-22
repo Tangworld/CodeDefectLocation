@@ -1,0 +1,272 @@
+@@ -36,6 +36,8 @@ import org.aspectj.weaver.BCException;
+ import org.aspectj.weaver.IEclipseSourceContext;
+ import org.aspectj.weaver.ISourceContext;
+ import org.aspectj.weaver.Member;
++import org.aspectj.weaver.ReferenceType;
++import org.aspectj.weaver.ReferenceTypeDelegate;
+ import org.aspectj.weaver.ResolvedMember;
+ import org.aspectj.weaver.ResolvedMemberImpl;
+ import org.aspectj.weaver.ResolvedType;
+@@ -212,13 +214,26 @@ class BcelAdvice extends Advice {
+ 		if (concreteAspect.getWorld().isXnoInline())
+ 			return false;
+ 		// System.err.println("isWoven? " + ((BcelObjectType)concreteAspect).getLazyClassGen().getWeaverState());
+-		return BcelWorld.getBcelObjectType(concreteAspect).getLazyClassGen().isWoven();
++		BcelObjectType boType = BcelWorld.getBcelObjectType(concreteAspect);
++		if (boType == null) {
++			// Could be a symptom that the aspect failed to build last build... return the default answer of false
++			return false;
++		}
++		return boType.getLazyClassGen().isWoven();
+ 	}
+ 
+ 	public boolean implementOn(Shadow s) {
+ 		hasMatchedAtLeastOnce = true;
+ 		BcelShadow shadow = (BcelShadow) s;
+ 
++		// pr263323 - if the aspect is broken then the delegate will not be usable for weaving
++		if (concreteAspect instanceof ReferenceType) {
++			ReferenceTypeDelegate rtDelegate = ((ReferenceType) concreteAspect).getDelegate();
++			if (!(rtDelegate instanceof BcelObjectType)) {
++				return false;
++			}
++		}
++
+ 		// remove any unnecessary exceptions if the compiler option is set to
+ 		// error or warning and if this piece of advice throws exceptions
+ 		// (bug 129282). This may be expanded to include other compiler warnings
+@@ -275,19 +275,43 @@ public class MultiProjectIncrementalTests extends AbstractMultiProjectIncrementa
+ 		List l = getCompilerErrorMessages(p);
+ 		assertEquals("Unexpected compiler error", 0, l.size());
+ 	}
+-
+-	/*public void testNPEGenericCtor_pr260944() {
++/*
++	public void testImports() {
+ 		AjdeInteractionTestbed.VERBOSE = true;
+-		String p = "pr260944";
++		String p = "importProb";
+ 		initialiseProject(p);
+ 		build(p);
+ 		checkWasFullBuild();
+ 		alter(p, "inc1");
++		addProjectSourceFileChanged(p, getProjectRelativePath(p, "src/p/Code.java"));
++		addProjectSourceFileChanged(p, getProjectRelativePath(p, "src/q/Asp.java"));
++		build(p);
++		checkWasntFullBuild();
++		List l = getCompilerErrorMessages(p);
++		assertEquals("Unexpected compiler error", 0, l.size());
++	}
++*/
++	public void testBuildingBrokenCode_pr263323() {
++		AjdeInteractionTestbed.VERBOSE = true;
++		String p = "brokenCode";
++		initialiseProject(p);
++		build(p);
++		checkWasFullBuild();
++		alter(p, "inc1"); // break the aspect
++		build(p);
++		checkWasntFullBuild();
++		alter(p, "inc2"); // whitespace change on affected file
+ 		build(p);
+ 		checkWasntFullBuild();
+ 		List l = getCompilerErrorMessages(p);
+ 		assertEquals("Unexpected compiler error", 0, l.size());
+-	}*/
++	}
++
++	/*
++	 * public void testNPEGenericCtor_pr260944() { AjdeInteractionTestbed.VERBOSE = true; String p = "pr260944";
++	 * initialiseProject(p); build(p); checkWasFullBuild(); alter(p, "inc1"); build(p); checkWasntFullBuild(); List l =
++	 * getCompilerErrorMessages(p); assertEquals("Unexpected compiler error", 0, l.size()); }
++	 */
+ 
+ 	public void testItdProb() {
+ 		AjdeInteractionTestbed.VERBOSE = true;
+@@ -0,0 +1,39 @@
++/*
++
++Copyright (c) Xerox Corporation 1998-2002.  All rights reserved.
++
++Use and copying of this software and preparation of derivative works based
++upon this software are permitted.  Any distribution of this software or
++derivative works must comply with all applicable United States export control
++laws.
++
++This software is made available AS IS, and Xerox Corporation makes no warranty
++about the software, its performance or its conformity to any specification.
++
++*/
++package tjp;
++import java.util.List;
++import java.util.ArrayList;
++  
++public class Demo {
++    static Demo d;
++ 
++    public static void main(String[] args){
++        new Demo().go();
++    }
++ 
++    void go(){
++        d = new Demo();
++        d.foo(1,d);
++        System.out.println(d.bar(new Integer(3)));
++    }
++
++    void foo(int i, Object o){
++        System.out.println("Demo.foo(" + i + ", " + o + ")\n");
++    }
++
++    String bar (Integer j){
++        System.out.println("Demo.bar(" + j + ")\n");
++        return "Demo.bar(" + j  + ")";
++    }
++}
+@@ -0,0 +1,52 @@
++/*
++Copyright (c) Xerox Corporation 1998-2002.  All rights reserved.
++
++Use and copying of this software and preparation of derivative works based
++upon this software are permitted.  Any distribution of this software or
++derivative works must comply with all applicable United States export control
++laws.
++
++This software is made available AS IS, and Xerox Corporation makes no warranty
++about the software, its performance or its conformity to any specification.
++*/
++
++package tjp;
++
++import org.aspectj.lang.reflect.CodeSignature;
++
++import org.aspectj.lang.JoinPoint;
++
++aspect GetInfo {
++ 
++
++before():staticinitialization(*) {}
++   static final void println(String s){ System.out.println(s); }
++
++   pointcut goCut(): cflow(this(Demo) && execution(void go()));
++
++   pointcut demoExecs(): within(Demo) && execution(* *(..));
++
++   Object around(): demoExecs() && !execution(* go()) && goCut() {
++      println("Intercepted message: " +
++          thisJoinPointStaticPart.getSignature().getName());
++      println("in class: " +
++          thisJoinPointStaticPart.getSignature().getDeclaringType().getName());
++      printParameters(thisJoinPoint);
++      println("Running original method: \n" );
++      Object result = proceed();
++      println("  result: " + result );
++      return result;
++   }
++
++   static private void printParameters(JoinPoint jp) {
++      println("Arguments: " );
++      Object[] args = jp.getArgs();
++      String[] names = ((CodeSignature)jp.getSignature()).getParameterNames();
++      Class[] types = ((CodeSignature)jp.getSignature()).getParameterTypes();
++      for (int i = 0; i < args.length; i++) {
++         println("  "  + i + ". " + names[i] +
++             " : " +            types[i].getName() +
++             " = " +            args[i]);
++      }
++   }
++}
+@@ -0,0 +1,52 @@
++/*
++Copyright (c) Xerox Corporation 1998-2002.  All rights reserved.
++
++Use and copying of this software and preparation of derivative works based
++upon this software are permitted.  Any distribution of this software or
++derivative works must comply with all applicable United States export control
++laws.
++
++This software is made available AS IS, and Xerox Corporation makes no warranty
++about the software, its performance or its conformity to any specification.
++*/
++
++package tjp;
++
++import org.aspectj.lang.reflect.CodeSignature;
++
++
++
++aspect GetInfo {
++ 
++
++before():staticinitialization(*) {}
++   static final void println(String s){ System.out.println(s); }
++
++   pointcut goCut(): cflow(this(Demo) && execution(void go()));
++
++   pointcut demoExecs(): within(Demo) && execution(* *(..));
++
++   Object around(): demoExecs() && !execution(* go()) && goCut() {
++      println("Intercepted message: " +
++          thisJoinPointStaticPart.getSignature().getName());
++      println("in class: " +
++          thisJoinPointStaticPart.getSignature().getDeclaringType().getName());
++      printParameters(thisJoinPoint);
++      println("Running original method: \n" );
++      Object result = proceed();
++      println("  result: " + result );
++      return result;
++   }
++
++   static private void printParameters(JoinPoint jp) {
++      println("Arguments: " );
++      Object[] args = jp.getArgs();
++      String[] names = ((CodeSignature)jp.getSignature()).getParameterNames();
++      Class[] types = ((CodeSignature)jp.getSignature()).getParameterTypes();
++      for (int i = 0; i < args.length; i++) {
++         println("  "  + i + ". " + names[i] +
++             " : " +            types[i].getName() +
++             " = " +            args[i]);
++      }
++   }
++}
+@@ -0,0 +1,40 @@
++/*
++
++Copyright (c) Xerox Corporation 1998-2002.  All rights reserved.
++
++Use and copying of this software and preparation of derivative works based
++upon this software are permitted.  Any distribution of this software or
++derivative works must comply with all applicable United States export control
++laws.
++
++This software is made available AS IS, and Xerox Corporation makes no warranty
++about the software, its performance or its conformity to any specification.
++
++*/
++package tjp;
++import java.util.List;
++import java.util.ArrayList;
++
++  
++public class Demo {
++    static Demo d;
++ 
++    public static void main(String[] args){
++        new Demo().go();
++    }
++ 
++    void go(){
++        d = new Demo();
++        d.foo(1,d);
++        System.out.println(d.bar(new Integer(3)));
++    }
++
++    void foo(int i, Object o){
++        System.out.println("Demo.foo(" + i + ", " + o + ")\n");
++    }
++
++    String bar (Integer j){
++        System.out.println("Demo.bar(" + j + ")\n");
++        return "Demo.bar(" + j  + ")";
++    }
++}

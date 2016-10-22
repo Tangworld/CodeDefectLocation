@@ -1,0 +1,65 @@
+@@ -0,0 +1,20 @@
++aspect BadAdvice {
++    after(Object controller) returning (Object foo): 
++      cflow(adviceexecution() && args(controller, ..) && this(BadAdvice)) && 
++      call(Bar+.new(..)) 
++    {
++    }    
++    
++    Object around(Object controller) : call(* whoKnows()) && target(controller) 
++    {
++        return new Bar();
++    }
++    
++    public static void main(String args[]) {
++        (new Bar()).whoKnows();
++    }
++}
++
++class Bar {
++    void whoKnows() {}
++}
+\ No newline at end of file
+@@ -393,6 +393,10 @@ public class Ajc150Tests extends org.aspectj.testing.XMLBasedAjcTestCase {
+   public void testPrivatePointcutOverriding() {
+ 	  runTest("can't override private pointcut in abstract aspect");
+   }
++
++  public void testAdviceOnCflow() {
++	  runTest("advising cflow advice execution");
++  }
+ 
+   // helper methods.....
+ 
+@@ -500,7 +500,11 @@
+             <message kind="warning" line="21" text="matched join point from sub advice"/>
+         </compile>
+     </ajc-test>
+-    
++ 
++    <ajc-test dir="bugs150" pr="108816" title="advising cflow advice execution">
++        <compile files="pr108816.aj" >
++        </compile>
++    </ajc-test>   
+     <!-- ============================================================================ -->
+     <!-- ============================================================================ -->
+ 
+@@ -350,7 +350,8 @@ public class ArgsPointcut extends NameBindingPointcut {
+ 	}
+ 
+ 	protected Test findResidueInternal(Shadow shadow, ExposedState state) {
+-		if (arguments.matches(getArgumentsToMatchAgainst(shadow), TypePattern.DYNAMIC).alwaysFalse()) {
++		ResolvedType[] argsToMatch = getArgumentsToMatchAgainst(shadow);
++		if (arguments.matches(argsToMatch, TypePattern.DYNAMIC).alwaysFalse()) {
+ 			return Literal.FALSE;
+ 		}
+ 		int ellipsisCount = arguments.ellipsisCount;
+@@ -358,7 +359,7 @@ public class ArgsPointcut extends NameBindingPointcut {
+ 			return findResidueNoEllipsis(shadow, state, arguments.getTypePatterns());		
+ 		} else if (ellipsisCount == 1) {
+ 			TypePattern[] patternsWithEllipsis = arguments.getTypePatterns();
+-			TypePattern[] patternsWithoutEllipsis = new TypePattern[shadow.getArgCount()];
++			TypePattern[] patternsWithoutEllipsis = new TypePattern[argsToMatch.length];
+ 			int lenWithEllipsis = patternsWithEllipsis.length;
+ 			int lenWithoutEllipsis = patternsWithoutEllipsis.length;
+ 			// l1+1 >= l0

@@ -1,0 +1,123 @@
+@@ -286,7 +286,9 @@ public abstract class ResolvedType extends UnresolvedType implements AnnotatedEl
+             boolean shouldSkip = false;
+             for (int j = 0; j < rtx.interTypeMungers.size(); j++) {
+                 ConcreteTypeMunger munger = (ConcreteTypeMunger) rtx.interTypeMungers.get(j);
+-                if (munger.getMunger()!=null && munger.getMunger().getKind() == ResolvedTypeMunger.Parent) {
++                if (munger.getMunger()!=null && munger.getMunger().getKind() == ResolvedTypeMunger.Parent 
++                		&& ((NewParentTypeMunger)munger.getMunger()).getNewParent().equals(iface) // pr171953
++                		) {
+                     shouldSkip = true;
+                     break;
+                 }
+@@ -0,0 +1,5 @@
++package test;
++
++public abstract class AbstractExecutable implements AnotherExecutable {
++
++}
+@@ -0,0 +1,5 @@
++package test;
++
++public interface AnotherExecutable extends Executable {
++
++}
+@@ -0,0 +1,6 @@
++package test;
++
++public interface Executable {
++
++	void execute();
++}
+@@ -0,0 +1,12 @@
++package test;
++
++public aspect ExecutionAspect {
++
++declare parents: AbstractExecutable implements java.io.Serializable;
++
++	pointcut executions(Executable executable): execution(public void Executable.execute()) && this(executable);
++	
++	void around(Executable executable): executions(executable) {
++		System.err.println(thisJoinPoint);
++	}
++}
+@@ -0,0 +1,11 @@
++package test;
++
++public aspect RunnableAspect {
++
++//	public void Executable.run() {
++//		execute();
++//	}
++//	
++//	//declare parents: (Executable+ && !Executable) implements Runnable;
++//	declare parents: AbstractExecutable implements java.io.Serializable;
++}
+@@ -0,0 +1,13 @@
++package test;
++
++public class SecondTestExecutable extends AbstractExecutable {
++
++	public void execute() {
++		// should not happen because of ExecutionAspect prevents execution
++		throw new RuntimeException();
++	}
++	
++	public static void main(String[] args) {
++		new SecondTestExecutable().execute(); 
++	} 
++}
+@@ -0,0 +1,9 @@
++package test;
++
++public class SubTestExecutable extends TestExecutable {
++
++	@Override
++	public void execute() {
++		super.execute();
++	}
++}
+@@ -0,0 +1,7 @@
++package test;
++
++public class TestExecutable implements Executable {
++
++	public void execute() {
++	}
++}
+@@ -21,6 +21,8 @@ import junit.framework.Test;
+  */
+ public class Ajc160Tests extends org.aspectj.testing.XMLBasedAjcTestCase {
+ 
++  public void testItdAndJoinpointSignatureCollection_ok_pr171953() { runTest("problem with itd and join point signature collection - ok");}
++  public void testItdAndJoinpointSignatureCollection_bad_pr171953() { runTest("problem with itd and join point signature collection - bad");}
+   public void testGenericMethodsAndItds_pr171952() { runTest("generic methods and ITDs");}
+   //public void testUsingDecpAnnotationWithoutAspectAnnotation_pr169428() { runTest("using decp annotation without aspect annotation");}
+   public void testItdsParameterizedParameters_pr170467() { runTest("itds and parameterized parameters");}
+@@ -5,6 +5,26 @@
+ 
+  <!-- first section - dont need a 1.6 vm but fixed in the 1.6 branch of AspectJ -->
+ 
++   <ajc-test dir="bugs160/pr171953" title="problem with itd and join point signature collection - bad">
++     <compile options="-1.5 -showWeaveInfo" files="test/AbstractExecutable.java,test/AnotherExecutable.java,test/Executable.java,test/ExecutionAspect.aj,test/SecondTestExecutable.java test/SubTestExecutable.java test/TestExecutable.java">
++       <message kind="weave" text="Join point 'method-execution(void test.SecondTestExecutable.execute())' in Type 'test.SecondTestExecutable' (SecondTestExecutable.java:5) advised by around advice from 'test.ExecutionAspect' (ExecutionAspect.aj:9)"/>
++       <message kind="weave" text="Extending interface set for type 'test.AbstractExecutable' (AbstractExecutable.java) to include 'java.io.Serializable' (ExecutionAspect.aj)"/>
++       <message kind="weave" text="Join point 'method-execution(void test.SubTestExecutable.execute())' in Type 'test.SubTestExecutable' (SubTestExecutable.java:6) advised by around advice from 'test.ExecutionAspect' (ExecutionAspect.aj:9)"/>
++       <message kind="weave" text="Join point 'method-execution(void test.TestExecutable.execute())' in Type 'test.TestExecutable' (TestExecutable.java:5) advised by around advice from 'test.ExecutionAspect' (ExecutionAspect.aj:9)"/>
++     </compile>       
++     <run class="test.SecondTestExecutable"/>
++   </ajc-test>
++
++   <ajc-test dir="bugs160/pr171953" title="problem with itd and join point signature collection - ok">
++     <compile options="-1.5 -showWeaveInfo" files="test/SecondTestExecutable.java test/AbstractExecutable.java test/AnotherExecutable.java  test/Executable.java test/ExecutionAspect.aj test/RunnableAspect.aj test/SubTestExecutable.java test/TestExecutable.java">
++       <message kind="weave" text="Join point 'method-execution(void test.SecondTestExecutable.execute())' in Type 'test.SecondTestExecutable' (SecondTestExecutable.java:5) advised by around advice from 'test.ExecutionAspect' (ExecutionAspect.aj:9)"/>
++       <message kind="weave" text="Extending interface set for type 'test.AbstractExecutable' (AbstractExecutable.java) to include 'java.io.Serializable' (ExecutionAspect.aj)"/>
++       <message kind="weave" text="Join point 'method-execution(void test.SubTestExecutable.execute())' in Type 'test.SubTestExecutable' (SubTestExecutable.java:6) advised by around advice from 'test.ExecutionAspect' (ExecutionAspect.aj:9)"/>
++       <message kind="weave" text="Join point 'method-execution(void test.TestExecutable.execute())' in Type 'test.TestExecutable' (TestExecutable.java:5) advised by around advice from 'test.ExecutionAspect' (ExecutionAspect.aj:9)"/>
++     </compile>       
++     <run class="test.SecondTestExecutable"/>
++   </ajc-test>
++
+     <ajc-test dir="bugs160/pr171952" title="generic methods and ITDs">
+       <compile files="Foo.java,FooAspect.java" options="-1.5"/>
+     </ajc-test>

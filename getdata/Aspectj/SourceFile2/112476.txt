@@ -1,0 +1,120 @@
+@@ -0,0 +1,8 @@
++package lib;
++
++public class A {
++
++	public A(String s) {		
++	}
++
++}
+@@ -0,0 +1,9 @@
++package lib;
++
++public class B extends A{
++
++	public B(String s) {
++		super(s);
++	}
++
++}
+@@ -0,0 +1,14 @@
++/*
++ * Created on Oct 13, 2005 
++ * \u00462004-2005 Business Process Engineering S.r.L.  All rights reserved
++ */
++
++package lib;
++
++public class C extends B {
++
++	public C(String s) {
++		super(s);
++	}
++
++}
+@@ -0,0 +1,5 @@
++package weaved;
++
++public aspect DeclareAspect {
++	declare parents : lib.C extends SuperC;
++}
+@@ -0,0 +1,17 @@
++package weaved;
++
++import lib.B;
++import lib.C;
++
++public class SuperC extends B {
++
++	public SuperC(String s) {
++		super(s);
++	}
++	
++	public static void main(String[] args) {
++		C c = new C("test");
++		System.out.println("Is ["+C.class+"] subcass of ["+SuperC.class+"]? "+(SuperC.class.isAssignableFrom(c.getClass())));
++	}
++
++}
+@@ -51,6 +51,7 @@ public class Ajc150Tests extends org.aspectj.testing.XMLBasedAjcTestCase {
+   public void testITDCtor_pr112783()       { runTest("Problem with constructor ITDs");}
+   */
+ 
++  public void testBrokenDecp_pr112476()       { runTest("binary weaving decp broken");}
+   public void testUnboundFormal_pr112027()    { runTest("unexpected error unboundFormalInPC");}
+   public void testNPEScopeSetup_pr115038()    { runTest("NPE in ensureScopeSetup");}
+   public void testCCEGenerics_pr113445()      { runTest("Generics ClassCastException");}
+@@ -3,6 +3,20 @@
+ <!-- AspectJ v1.5.0 Tests -->
+ <suite>
+ 
++    <ajc-test dir="bugs150/pr112476/case1" title="binary weaving decp broken">
++        <compile files="lib/A.java,lib/B.java,lib/C.java" outjar="library.jar" options="-1.5"/>
++        <!-- library.jar on the aspectpath here just for resolution when compiling SuperC -->
++        <compile aspectpath="library.jar" files="weaved/SuperC.java" outjar="newsuper.jar" options="-1.5"/>
++        <compile inpath="library.jar;newsuper.jar" files="weaved/DeclareAspect.aj" options="-1.5 -showWeaveInfo">
++          <message kind="weave" text="Setting superclass of type 'lib.C' (C.java) to 'weaved.SuperC' (DeclareAspect.aj)"/>
++        </compile>
++        <run class="weaved.SuperC">
++          <stdout>
++             <line text="Is [class lib.C] subcass of [class weaved.SuperC]? true"/>
++          </stdout>
++        </run>
++    </ajc-test>
++    
+     <ajc-test dir="java5/staticImports" title="import static java.lang.System.out">
+         <compile files="StaticImport.aj" options="-1.5"/>
+     </ajc-test>
+@@ -10,7 +24,7 @@
+     <ajc-test dir="bugs150" title="Problem with constructor ITDs">
+         <compile files="pr112783.aj" options="-1.5"/>
+     </ajc-test>
+- 
++
+     <ajc-test dir="bugs150" title="NPE in ensureScopeSetup">
+         <compile files="pr115038.aj" options="-1.5">
+           <!-- fixme asc the 'static ref' messages are a bit poor and ought to be eliminated... -->
+@@ -20,12 +34,12 @@
+         </compile>
+     </ajc-test>
+ 
+-   <ajc-test dir="bugs150" title="ITDC with no explicit cons call">
++    <ajc-test dir="bugs150" title="ITDC with no explicit cons call">
+       <compile files="Pr62606.aj" options="-1.5">
+         <message kind="warning" line="6" text="[Xlint:noExplicitConstructorCall]"/>
+       </compile>
+     </ajc-test>
+- 
++    
+     <ajc-test dir="java5/generics/bugs" title="using same type variable in ITD">
+       <compile files="SameTypeVariable.aj" options="-1.5">
+       </compile>
+@@ -424,7 +424,7 @@ public class BcelTypeMunger extends ConcreteTypeMunger {
+                                 }
+         					}
+ 
+-        					int idx = cpg.addMethodref(newParent.getClassName(), invokeSpecial.getMethodName(cpg), invokeSpecial.getSignature(cpg));
++        					int idx = cpg.addMethodref(newParent.getName(), invokeSpecial.getMethodName(cpg), invokeSpecial.getSignature(cpg));
+         					invokeSpecial.setIndex(idx);
+         				}
+         			}

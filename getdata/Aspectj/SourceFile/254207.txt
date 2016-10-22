@@ -1,0 +1,100 @@
+@@ -528,6 +528,9 @@ public abstract class ResolvedType extends UnresolvedType implements AnnotatedEl
+ 
+ 	public CrosscuttingMembers collectCrosscuttingMembers(boolean shouldConcretizeIfNeeded) {
+ 		crosscuttingMembers = new CrosscuttingMembers(this, shouldConcretizeIfNeeded);
++		if (getPerClause() == null) {
++			return crosscuttingMembers;
++		}
+ 		crosscuttingMembers.setPerClause(getPerClause());
+ 		crosscuttingMembers.addShadowMungers(collectShadowMungers());
+ 		// GENERICITDFIX
+@@ -0,0 +1,3 @@
++public abstract aspect Abstract<T extends Integer> {
++  public abstract T getT();
++}
+\ No newline at end of file
+@@ -0,0 +1,5 @@
++public aspect Concrete extends Abstract<Number> {
++  public Number getT() {
++    return 5;
++  }
++}
+@@ -0,0 +1 @@
++public abstract aspect Abstract<T extends Interface> {}
+@@ -0,0 +1 @@
++public class Clazz {}
+@@ -0,0 +1 @@
++public aspect Concrete extends Abstract<Clazz> {}
+@@ -0,0 +1 @@
++public interface Interface {}
+@@ -23,6 +23,18 @@ import org.aspectj.testing.XMLBasedAjcTestCase;
+ 
+ public class Ajc163Tests extends org.aspectj.testing.XMLBasedAjcTestCase {
+ 
++	public void testOrderingIssue_1() {
++		runTest("ordering issue");
++	}
++
++	public void testOrderingIssue_2() {
++		runTest("ordering issue - 2");
++	}
++
++//	public void testGenericPointcuts_5() {
++//		runTest("generic pointcuts - 5");
++//	}
++
+ 	public void testGenericPointcuts_1() {
+ 		runTest("generic pointcuts - 1");
+ 	}
+@@ -39,6 +51,7 @@ public class Ajc163Tests extends org.aspectj.testing.XMLBasedAjcTestCase {
+ 		runTest("generic pointcuts - 4");
+ 	}
+ 
++
+ 	// public void testBrokenLVT_pr194314_1() throws Exception {
+ 	// runTest("broken lvt - 1");
+ 	// JavaClass jc = Utils.getClassFrom(ajc.getSandboxDirectory().getAbsolutePath(), "Service");
+@@ -2,6 +2,20 @@
+ 
+ <suite>
+ 
++    <ajc-test dir="bugs163/pr254207" title="ordering issue">
++      <compile files="Abstract.java Concrete.java" options="-1.5 -proceedOnError -Xset:pipelineCompilation=false">
++        <message kind="error" line="1" text="Bound mismatch"/>
++      </compile>      
++      <compile files="Concrete.java Abstract.java" options="-1.5 -proceedOnError -Xset:pipelineCompilation=false">
++        <message kind="error" line="1" text="Bound mismatch"/>
++      </compile>
++    </ajc-test>
++    
++    <ajc-test dir="bugs163/pr254207/case2" title="ordering issue - 2">
++      <compile files="Interface.java Clazz.java Abstract.java Concrete.java" options="-1.5 -proceedOnError -Xset:pipelineCompilation=false">
++        <message kind="error" line="1" text="Bound mismatch"/>
++      </compile>      
++    </ajc-test>
+ 
+     <ajc-test dir="bugs163/pr253109" title="generic pointcuts - 1">
+       <compile files="CodeOne.java" options="-1.5">
+@@ -14,7 +28,7 @@
+     </ajc-test>
+ 
+     <ajc-test dir="bugs163/pr253109" title="generic pointcuts - 3">
+-      <compile files="CodeThree.java" options="-1.5 -showWeaveInfo">      
++      <compile files="CodeThree.java" options="-1.5 -showWeaveInfo">
+         <message kind="weave" text="advised by before advice from 'CodeThree' (CodeThree.java:4)"/>
+         <message kind="weave" text="advised by before advice from 'CodeThree' (CodeThree.java:5) [with runtime test]"/>
+         <message kind="warning" line="6" text="has not been applied"/>
+@@ -31,6 +45,13 @@
+         <message kind="warning" text="has not been applied"/>
+       </compile>
+     </ajc-test>
++    
++    <ajc-test dir="bugs163/pr253109" title="generic pointcuts - 5">
++      <compile files="CodeFive.java" options="-1.5 -showWeaveInfo">
++        <message kind="weave" text="advised by around advice"/>
++      </compile>
++    </ajc-test>
++    
+ 
+     <ajc-test dir="bugs163/pr194314" title="broken lvt - 1">
+       <compile files="Service.java IService.java Main.java ServiceInterceptor.java" options="-1.5"/>

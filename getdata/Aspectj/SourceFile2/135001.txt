@@ -1,0 +1,219 @@
+@@ -0,0 +1,9 @@
++public abstract aspect AbstractAspect {
++	
++	abstract pointcut scope();
++	
++	void around(): scope() {
++		System.err.println("In the advice!");
++		proceed();
++	}
++}
+\ No newline at end of file
+@@ -0,0 +1,3 @@
++public aspect ConcreteAspect extends AbstractAspect {
++	pointcut scope(): call(* foo(..));
++}
+\ No newline at end of file
+@@ -0,0 +1,9 @@
++public class Foo {
++	public static void main(String[] args) {
++		new Foo().foo();
++	}
++	
++	public void foo() {
++		
++	}
++}
+\ No newline at end of file
+@@ -9,6 +9,7 @@ import junit.framework.TestSuite;
+ import org.aspectj.systemtest.ajc150.AllTestsAspectJ150;
+ import org.aspectj.systemtest.ajc150.ataspectj.AtAjAnnotationGenTests;
+ import org.aspectj.systemtest.ajc151.AllTestsAspectJ151;
++import org.aspectj.systemtest.ajc152.AllTestsAspectJ152;
+ 
+ public class AllTests15 {
+ 
+@@ -18,6 +19,7 @@ public class AllTests15 {
+ 		suite.addTest(AllTests14.suite());
+ 		suite.addTest(AllTestsAspectJ150.suite());
+ 		suite.addTest(AllTestsAspectJ151.suite());
++		suite.addTest(AllTestsAspectJ152.suite());
+ 		suite.addTest(AtAjAnnotationGenTests.suite());
+ 		//$JUnit-END$
+ 		return suite;
+@@ -0,0 +1,32 @@
++/*******************************************************************************
++ * Copyright (c) 2006 IBM 
++ * All rights reserved. This program and the accompanying materials
++ * are made available under the terms of the Common Public License v1.0
++ * which accompanies this distribution, and is available at
++ * http://www.eclipse.org/legal/cpl-v10.html
++ *
++ * Contributors:
++ *    Andy Clement - initial API and implementation
++ *******************************************************************************/
++package org.aspectj.systemtest.ajc152;
++
++import java.io.File;
++import junit.framework.Test;
++
++import org.aspectj.testing.XMLBasedAjcTestCase;
++
++public class Ajc152Tests extends org.aspectj.testing.XMLBasedAjcTestCase {
++  public void testAspectLibrariesAndASM_pr135001() { runTest("aspect libraries and asm");}
++  
++  
++  /////////////////////////////////////////
++  public static Test suite() {
++    return XMLBasedAjcTestCase.loadSuite(Ajc152Tests.class);
++  }
++
++  protected File getSpecFile() {
++    return new File("../tests/src/org/aspectj/systemtest/ajc152/ajc152.xml");
++  }
++
++  
++}
+\ No newline at end of file
+@@ -0,0 +1,25 @@
++/*******************************************************************************
++ * Copyright (c) 2006 IBM 
++ * All rights reserved. This program and the accompanying materials
++ * are made available under the terms of the Common Public License v1.0
++ * which accompanies this distribution, and is available at
++ * http://www.eclipse.org/legal/cpl-v10.html
++ *
++ * Contributors:
++ *    Andy Clement - initial API and implementation
++ *******************************************************************************/
++package org.aspectj.systemtest.ajc152;
++
++import junit.framework.Test;
++import junit.framework.TestSuite;
++
++public class AllTestsAspectJ152 {
++
++	public static Test suite() {
++		TestSuite suite = new TestSuite("AspectJ 1.5.2 tests");
++		//$JUnit-BEGIN$
++		suite.addTest(Ajc152Tests.suite());
++        //$JUnit-END$
++		return suite;
++	}
++}
+@@ -0,0 +1,18 @@
++<!DOCTYPE suite SYSTEM "../tests/ajcTestSuite.dtd"[]>
++
++<!-- AspectJ v1.5.2 Tests -->
++<suite>
++
++    <ajc-test dir="bugs152/pr135001" title="aspect libraries and asm">
++      <compile files="AbstractAspect.java" outjar="lib.jar" options="-1.5"/>
++      <compile files="Foo.java,ConcreteAspect.java" classpath="lib.jar" options="-1.5 -showWeaveInfo">
++        <message kind="weave" text="Join point 'method-call(void Foo.foo())' in Type 'Foo' (Foo.java:3) advised by around advice from 'ConcreteAspect' (AbstractAspect.java:5)"/>
++      </compile>
++      <run class="Foo">
++         <stderr>
++           <line text="In the advice!"/>
++         </stderr>
++      </run>
++    </ajc-test>
++    
++</suite>
+\ No newline at end of file
+@@ -55,6 +55,7 @@ import org.aspectj.apache.bcel.generic.StoreInstruction;
+ import org.aspectj.apache.bcel.generic.TargetLostException;
+ import org.aspectj.apache.bcel.generic.Type;
+ import org.aspectj.bridge.ISourceLocation;
++import org.aspectj.bridge.MessageUtil;
+ import org.aspectj.weaver.Advice;
+ import org.aspectj.weaver.AdviceKind;
+ import org.aspectj.weaver.AjcMemberMaker;
+@@ -2104,8 +2105,14 @@ public class BcelShadow extends Shadow {
+ //          world.getMessageHandler().handleMessage(msg);
+         }
+         //??? might want some checks here to give better errors
+-        BcelObjectType ot = BcelWorld.getBcelObjectType((declaringType.isParameterizedType()?declaringType.getGenericType():declaringType)); 
+-        
++        ResolvedType rt = (declaringType.isParameterizedType()?declaringType.getGenericType():declaringType);
++        BcelObjectType ot = BcelWorld.getBcelObjectType(rt); 
++//        if (ot==null) {
++//        	world.getMessageHandler().handleMessage(
++//        	  MessageUtil.warn("Unable to find modifiable delegate for the aspect '"+rt.getName()+"' containing around advice - cannot implement inlining",munger.getSourceLocation()));
++//        	weaveAroundClosure(munger, hasDynamicTest);
++//			return;
++//        }
+ 		LazyMethodGen adviceMethod = ot.getLazyClassGen().getLazyMethodGen(mungerSig);
+ 		if (!adviceMethod.getCanInline()) {
+ 			weaveAroundClosure(munger, hasDynamicTest);
+@@ -244,8 +244,11 @@ public class BcelWorld extends World implements Repository {
+ 
+     public ResolvedType resolve(Type t) {
+         return resolve(fromBcel(t));
+-    }       
+-
++    } 
++    
++    // SECRETAPI: used for testing ASM loading of delegates...
++    public boolean fallbackToLoadingBcelDelegatesForAspects = true;
++    
+     private int packageRestrictionsForFastDelegates = 0; // 0=dontknow 1=no  2=yes
+     private List packagePrefixRestrictionList = null;
+ 
+@@ -288,7 +291,22 @@ public class BcelWorld extends World implements Repository {
+ 	        if (cf==null) {
+ 	        	return null;
+ 	        } else {
+-	        	return buildAsmDelegate(ty,cf);
++	        	ReferenceTypeDelegate delegate =  buildAsmDelegate(ty,cf);
++	        	if (fallbackToLoadingBcelDelegatesForAspects && delegate.isAspect()) {
++	        		// bugger - pr135001 - we can't inline around advice from an aspect because we don't load the instructions.
++	        		// fixing this quick to get AJDT upgraded with a good 1.5.2dev build.
++	        		// other fixes would be:
++	        		// 1. record that we are loading the superclass for an aspect, so we know to make it a BCEL delegate
++	        		//
++	        		// the 'fix' here is only reasonable because there are many less aspects than classes!
++	        		
++	        		// Create a BCEL delegate
++	        		if (jc == null) jc = lookupJavaClass(classPath, name);
++	    	        if (jc == null) return delegate; // worrying situation ?!?
++	    	        else            return buildBcelDelegate(ty, jc, false);
++	        	} else {
++	        		return delegate;
++	        	}
+ 	        }
+         } else {
+ 	        if (jc == null) {
+@@ -57,8 +57,10 @@ public class AsmDelegateTests extends AbstractWorldTestCase {
+ 	// --- testcode
+ 
+     public void testWeDontGoBang() {
++        world.fallbackToLoadingBcelDelegatesForAspects = false;
+     	ResolvedType rt = world.resolve("SimpleAspect");
+     	ReferenceTypeDelegate delegate = ((ReferenceType)rt).getDelegate();
++    	
+     	assertTrue("Should be an ASM delegate but is "+delegate.getClass(),
+     			   delegate.getClass().toString().equals("class org.aspectj.weaver.asm.AsmDelegate"));
+     }
+@@ -392,8 +394,10 @@ public class AsmDelegateTests extends AbstractWorldTestCase {
+      * Load up the AspectFromHell and take it apart...
+      */
+     public void testLoadingAttributesForTypes() {
+-    	BcelWorld slowWorld = new BcelWorld(BcweaverTests.TESTDATA_PATH+"/forAsmDelegateTesting/stuff.jar");slowWorld.setFastDelegateSupport(false);
++    	BcelWorld slowWorld = new BcelWorld(BcweaverTests.TESTDATA_PATH+"/forAsmDelegateTesting/stuff.jar");
++    	slowWorld.setFastDelegateSupport(false);
+         BcelWorld fastWorld = new BcelWorld(BcweaverTests.TESTDATA_PATH+"/forAsmDelegateTesting/stuff.jar");
++        fastWorld.fallbackToLoadingBcelDelegatesForAspects = false;
+ 
+         ReferenceType bcelT = (ReferenceType)slowWorld.resolve("AspectFromHell");
+         ReferenceType asmT  = (ReferenceType)fastWorld.resolve("AspectFromHell");
+@@ -416,7 +420,8 @@ public class AsmDelegateTests extends AbstractWorldTestCase {
+     	boolean debug = false;
+     	BcelWorld slowWorld = new BcelWorld(BcweaverTests.TESTDATA_PATH+"/forAsmDelegateTesting/stuff.jar");slowWorld.setFastDelegateSupport(false);
+         BcelWorld fastWorld = new BcelWorld(BcweaverTests.TESTDATA_PATH+"/forAsmDelegateTesting/stuff.jar");
+-        
++        fastWorld.fallbackToLoadingBcelDelegatesForAspects = false;
++
+         ReferenceType bcelT = (ReferenceType)slowWorld.resolve("AspectFromHell");
+         ReferenceType asmT  = (ReferenceType)fastWorld.resolve("AspectFromHell");
+ 

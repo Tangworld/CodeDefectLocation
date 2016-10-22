@@ -1,0 +1,88 @@
+@@ -158,7 +158,11 @@ public abstract class TypePattern extends PatternNode {
+ 		if (type.isTypeVariableReference()) {
+ 			typesIterator = ((TypeVariableReference)type).getTypeVariable().getFirstBound().resolve(type.getWorld()).getDirectSupertypes();
+ 		} else {
+-			typesIterator = type.getDirectSupertypes();
++            // pr223605
++            if (type.isRawType()) {
++                type = type.getGenericType();
++            }
++            typesIterator = type.getDirectSupertypes();
+ 		}
+ 
+ 		// FuzzyBoolean ret = FuzzyBoolean.NO; // ??? -eh
+@@ -0,0 +1,51 @@
++package test;
++
++import junit.framework.TestCase;
++
++/**
++ * Test case to illustrate problem with SPR-4587.
++ * 
++ * @author Ramnivas Laddad
++ *
++ */
++public class GenericConfigurableBugTest {
++    public static void main(String[] argv) {
++        RegularClass regular = new RegularClass();
++        GenericParameterClass generic = new GenericParameterClass();
++        
++        if (!(regular instanceof ConfigurableObject)) 
++            throw new RuntimeException("regular not instanceof ConfigurableObject");
++
++        if (!(generic instanceof ConfigurableObject)) 
++            throw new RuntimeException("generic not instanceof ConfigurableObject");
++        
++        if (TestAspect.aspectOf().count!=4) 
++            throw new RuntimeException("Count should be 4 but is "+TestAspect.aspectOf().count);
++    }
++}
++
++aspect TestAspect {
++    int count = 0;
++    
++    after() : initialization(ConfigurableObject+.new(..)) {
++        System.out.println(thisJoinPoint);
++        count++;
++    }
++    
++    declare parents: @Configurable * implements ConfigurableObject;
++}
++
++interface ConfigurableObject {
++}
++
++@interface Configurable {
++}
++
++@Configurable
++class RegularClass {
++}
++
++@Configurable
++class GenericParameterClass<T> {
++}
++
+@@ -22,6 +22,9 @@ import org.aspectj.testing.XMLBasedAjcTestCase;
+ public class Ajc160Tests extends org.aspectj.testing.XMLBasedAjcTestCase {
+ 
+ 	// AspectJ1.6.0rc1
++    public void testGenericDecpLtw_pr223605() {
++        runTest("generic decp ltw");
++    }
+     public void testDuplicateITDsNPE_pr173602() {
+         runTest("duplicate itd npe");
+     }
+@@ -3,6 +3,12 @@
+ <!-- AspectJ v1.6.0 Tests -->
+ <suite>
+ 
++	<ajc-test dir="bugs160/pr223605" title="generic decp ltw">
++		<compile files="GenericConfigurableBugTest.java" options="-1.5"><!-- -showWeaveInfo"-->
++		</compile>
++		<run class="test.GenericConfigurableBugTest"/>
++	</ajc-test>
++
+ 	<ajc-test dir="bugs160/pr173602" title="duplicate itd npe">
+ 		<compile files="X.java">
+ 		  <message kind="error" line="2" text="intertype declaration from "/>

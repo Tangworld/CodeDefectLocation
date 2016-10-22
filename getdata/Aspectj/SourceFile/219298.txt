@@ -1,0 +1,74 @@
+@@ -4503,6 +4503,7 @@
+    </ajc-test>
+    <ajc-test dir="java5/generics/genericaspects/" title="uberaspects - K2">
+      <compile files="GenericAspectK2.aj" options="-1.5">
++       <message kind="error" line="13" text="The type String is not a valid substitute"/>
+        <message kind="error" line="13" text="Type java.lang.String does not meet the specification for type parameter 2 (B extends java.lang.Number) in generic type GenericAspect"/>
+      </compile>
+    </ajc-test>
+@@ -142,6 +142,7 @@ public class AjLookupEnvironment extends LookupEnvironment implements AnonymousC
+ 
+ 		for (int i = lastCompletedUnitIndex + 1; i <= lastUnitIndex; i++) {
+ 			ContextToken tok = CompilationAndWeavingContext.enteringPhase(CompilationAndWeavingContext.BUILDING_FIELDS_AND_METHODS, units[i].compilationResult.fileName);
++			units[i].scope.checkParameterizedTypes();
+ 			units[i].scope.buildFieldsAndMethods();
+ 			CompilationAndWeavingContext.leavingPhase(tok);
+ 		}
+@@ -0,0 +1,12 @@
++public class TestMarkers2 {
++        public class SuperGenericsType {}
++
++        public class SubGenericsType 
++                //Following line would produce correct code
++                extends SuperGenericsType
++        {}
++
++        public class Super<T extends SuperGenericsType> {}
++
++        public class Sub extends Super<SubGenericsType> {}
++}
+\ No newline at end of file
+@@ -19,7 +19,9 @@ import junit.framework.Test;
+  * These are tests for AspectJ1.6.0
+  */
+ public class Ajc160Tests extends org.aspectj.testing.XMLBasedAjcTestCase {
+-	
++
++	public void testBoundsCheckShouldFail_pr219298() { runTest("bounds check failure");}
++	public void testBoundsCheckShouldFail_pr219298_2() { runTest("bounds check failure - 2");}
+ 	public void testDecFieldProblem_pr218167() { runTest("dec field problem");}
+ 	public void testGenericsSuperITD_pr206911() { runTest("generics super itd"); }
+ 	public void testGenericsSuperITD_pr206911_2() { runTest("generics super itd - 2"); }
+@@ -3,6 +3,16 @@
+ <!-- AspectJ v1.6.0 Tests -->
+ <suite>
+ 
++   <ajc-test dir="bugs160/pr219298" title="bounds check failure">
++     <compile options="-1.5" files="TestMarkers.java">
++       <message kind="error" line="11" text="Bound mismatch: The type TestMarkers.SubGenericsType is not a valid substitute for the bounded"/>
++     </compile>
++   </ajc-test>
++
++   <ajc-test dir="bugs160/pr219298" title="bounds check failure - 2">
++     <compile options="-1.5" files="TestMarkers2.java"/>
++   </ajc-test>
++
+    <ajc-test dir="bugs160/pr218167" title="dec field problem">
+      <compile options="-1.5" files="Test.java">
+        <message kind="warning" text="already has an annotation of type A, cannot add a second instance"/>
+Binary files differ
+Binary files differ
+@@ -0,0 +1,12 @@
++public class TestMarkers {
++        public class SuperGenericsType {}
++
++        public class SubGenericsType 
++                //Following line would produce correct code
++                //extends SuperGenericsType
++        {}
++
++        public class Super<T extends SuperGenericsType> {}
++
++        public class Sub extends Super<SubGenericsType> {}
++}
+\ No newline at end of file

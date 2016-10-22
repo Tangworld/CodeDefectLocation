@@ -1,0 +1,152 @@
+@@ -0,0 +1,42 @@
++import java.util.*;
++import org.aspectj.lang.annotation.*;
++
++@Aspect
++public class Broken {
++
++    @Pointcut("call( * *.someMethod(..)) && args(arg1, arg2, arg3, status) ")
++    public void someMethod2( int arg1, int arg2, int arg3, Status status ) {}
++
++    @Pointcut("someMethod2(arg1, arg2, arg3, status) && if()")
++    public static boolean someMethod2if(int arg1, int arg2, int arg3, Status status) {
++        return status.equals( Status.DELETED );
++    }
++
++    @Pointcut("cflow(execution( * *.doProcess(..) ) && args( context, *, args)) && this(SomeClass+) ")
++    public void inSomeClass2(Context context, Map args) {}
++
++    @After( "inSomeClass2(context,args) && someMethod2if(arg1, arg2, arg3, status) ")
++    public void deleteManagerInSomeClass2( Context context, Map args, int arg1, int arg2, int arg3, Status status) {
++//             _log.write( DEBUG, "STATUS2: " + status );
++    }
++}
++
++class Status {
++  public final static int DELETED = 1;
++}
++
++class Context {}
++
++class SomeClass {
++
++  public void doProcess(Context c,Object o, Map m) {
++ 
++    someMethod(1,2,3,new Status());
++    someMethod(1,2,3,new Status());
++    someMethod(1,2,3,new Status());
++  }
++
++  public void someMethod(int a, int b, int c, Status s) {
++    doProcess(null,null,null);
++  }
++}
+@@ -23,6 +23,7 @@ import org.aspectj.testing.XMLBasedAjcTestCase;
+ 
+ public class Ajc152Tests extends org.aspectj.testing.XMLBasedAjcTestCase {
+ 
++  //public void testBrokenIfArgsCflowAtAj_pr145018() { runTest("ataj crashing with cflow, if and args");}
+   public void testNoUnnecessaryDeclarationOfThrownExcp_pr129282_1() {runTest("no unnecessary declaration of thrown exception warning - 1");}
+   public void testNoUnnecessaryDeclarationOfThrownExcp_pr129282_2() {runTest("no unnecessary declaration of thrown exception warning - 2");}
+   public void testNoUnnecessaryDeclarationOfThrownExcp_pr129282_3() {runTest("no unnecessary declaration of thrown exception warning - 3");}
+@@ -88,6 +88,15 @@
+      <compile files="Pair.java" options="-1.5"/>
+      <compile files="Test.java" options="-1.5"/>
+     </ajc-test>
++    
++	<ajc-test dir="bugs152/pr145018" title="ataj crashing with cflow, if and args">
++     <compile files="Broken.aj" options="-1.5"/>
++     <run class="Broken">
++       <stderr>
++         <line text="ahhh"/>
++       </stderr>
++     </run>
++    </ajc-test>
+ 
+     <ajc-test dir="bugs152/pr132349" title="ITD on inner type of generic type">
+      <compile files="TopLevelType.java" options="-1.5"/>
+@@ -545,7 +554,7 @@
+         <run class="t.C" ltw="aop.xml"/>
+     </ajc-test>
+ 
+-    	<ajc-test dir="bugs152/pr135068" title="ltw verifyerror - 4">
++    <ajc-test dir="bugs152/pr135068" title="ltw verifyerror - 4">
+ 	    <compile files="t/C2.java" options="-1.5"/>
+         <compile files="t/Ajava2.java" options="-1.5">
+ 	      <message kind="error" line="13" text="advice can not be declared static"/>
+@@ -0,0 +1,42 @@
++import java.util.*;
++import org.aspectj.lang.annotation.*;
++
++@Aspect
++public class Broken {
++
++    @Pointcut("call( * *.someMethod(..)) && args(arg1, arg2, arg3, status) ")
++    public void someMethod2( int arg1, int arg2, int arg3, Status status ) {}
++
++    @Pointcut("someMethod2(arg1, arg2, arg3, status) && if()")
++    public static boolean someMethod2if(int arg1, int arg2, int arg3, Status status) {
++        return status.equals( Status.DELETED );
++    }
++
++    @Pointcut("cflow(execution( * *.doProcess(..) ) && args( context, *, args)) && this(SomeClass+) ")
++    public void inSomeClass2(Context context, Map args) {}
++
++    @After( "inSomeClass2(context,args) && someMethod2if(arg1, arg2, arg3, status) ")
++    public void deleteManagerInSomeClass2( Context context, Map args, int arg1, int arg2, int arg3, Status status) {
++//             _log.write( DEBUG, "STATUS2: " + status );
++    }
++}
++
++class Status {
++  public final static int DELETED = 1;
++}
++
++class Context {}
++
++class SomeClass {
++
++  public void doProcess(Context c,Object o, Map m) {
++ 
++    someMethod(1,2,3,new Status());
++    someMethod(1,2,3,new Status());
++    someMethod(1,2,3,new Status());
++  }
++
++  public void someMethod(int a, int b, int c, Status s) {
++    doProcess(null,null,null);
++  }
++}
+@@ -23,6 +23,7 @@ import org.aspectj.testing.XMLBasedAjcTestCase;
+ 
+ public class Ajc152Tests extends org.aspectj.testing.XMLBasedAjcTestCase {
+ 
++  //public void testBrokenIfArgsCflowAtAj_pr145018() { runTest("ataj crashing with cflow, if and args");}
+   public void testNoUnnecessaryDeclarationOfThrownExcp_pr129282_1() {runTest("no unnecessary declaration of thrown exception warning - 1");}
+   public void testNoUnnecessaryDeclarationOfThrownExcp_pr129282_2() {runTest("no unnecessary declaration of thrown exception warning - 2");}
+   public void testNoUnnecessaryDeclarationOfThrownExcp_pr129282_3() {runTest("no unnecessary declaration of thrown exception warning - 3");}
+@@ -88,6 +88,15 @@
+      <compile files="Pair.java" options="-1.5"/>
+      <compile files="Test.java" options="-1.5"/>
+     </ajc-test>
++    
++	<ajc-test dir="bugs152/pr145018" title="ataj crashing with cflow, if and args">
++     <compile files="Broken.aj" options="-1.5"/>
++     <run class="Broken">
++       <stderr>
++         <line text="ahhh"/>
++       </stderr>
++     </run>
++    </ajc-test>
+ 
+     <ajc-test dir="bugs152/pr132349" title="ITD on inner type of generic type">
+      <compile files="TopLevelType.java" options="-1.5"/>
+@@ -545,7 +554,7 @@
+         <run class="t.C" ltw="aop.xml"/>
+     </ajc-test>
+ 
+-    	<ajc-test dir="bugs152/pr135068" title="ltw verifyerror - 4">
++    <ajc-test dir="bugs152/pr135068" title="ltw verifyerror - 4">
+ 	    <compile files="t/C2.java" options="-1.5"/>
+         <compile files="t/Ajava2.java" options="-1.5">
+ 	      <message kind="error" line="13" text="advice can not be declared static"/>

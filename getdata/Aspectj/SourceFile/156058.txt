@@ -1,0 +1,34 @@
+@@ -0,0 +1,11 @@
++aspect MyAspect implements MyInterface<MyClass> {
++  before() : MyAspect1<MyClass>.myPointcutInInterface(){ }
++}
++
++class MyClass { }
++
++interface MyInterface<T>{
++  public abstract static aspect MyAspect1<T> {
++    public final pointcut myPointcutInInterface() : call(* *..*.*(..));
++  }
++}
+@@ -27,7 +27,7 @@ public class Ajc153Tests extends org.aspectj.testing.XMLBasedAjcTestCase {
+   // public void testArgnamesAndJavac_pr148381() { runTest("argNames and javac");}
+   // public void testCFlowXMLAspectLTW_pr149096() { runTest("cflow xml concrete aspect"); }
+   // public void testAmbiguousBinding_pr121805() { runTest("ambiguous binding");}
+-	 
++//  public void testNoIllegalStateExceptionWithGenericInnerAspect_pr156058() { runTest("no IllegalStateException with generic inner aspect"); }  
+   public void testNoIllegalStateExceptionFromAsmDelegate_pr153490_1() { runTest("no illegal state exception from AsmDelegate - 1");}
+   public void testNoIllegalStateExceptionFromAsmDelegate_pr153490_2() { runTest("no illegal state exception from AsmDelegate - 2");}
+   public void testNoIllegalStateExceptionFromAsmDelegate_pr153490_3() { runTest("no illegal state exception from AsmDelegate - 3");}
+@@ -3,6 +3,12 @@
+ <!-- AspectJ v1.5.3 Tests -->
+ <suite>
+ 
++    <ajc-test dir="bugs153/pr156058" title="no IllegalStateException with generic inner aspect">
++      <compile files="Bug.java" options="-1.5">
++        <message kind="warning" line="2" text="advice defined in MyAspect has not been applied [Xlint:adviceDidNotMatch]"/>
++      </compile>
++    </ajc-test>
++    
+     <ajc-test dir="bugs153/pr153490" title="no illegal state exception from AsmDelegate - 1">
+       <compile files="Foo.java" options="-1.5" classpath="jarForFoo.jar" />
+     </ajc-test>

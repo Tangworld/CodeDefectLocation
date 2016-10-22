@@ -1,0 +1,130 @@
+@@ -214,8 +214,9 @@ public class BcelGenericSignatureToTypeXConverter {
+ 	}
+ 
+ 	private static void fixUpCircularDependencies(ResolvedType aTypeX, Map typeVariableResolutions) {
+-		if (!(aTypeX instanceof ReferenceType))
++		if (!(aTypeX instanceof ReferenceType)) {
+ 			return;
++		}
+ 
+ 		ReferenceType rt = (ReferenceType) aTypeX;
+ 		TypeVariable[] typeVars = rt.getTypeVariables();
+@@ -244,6 +245,10 @@ public class BcelGenericSignatureToTypeXConverter {
+ 		public ResolvedType resolve(World world) {
+ 			return this;
+ 		}
++
++		public boolean isCacheable() {
++			return false;
++		}
+ 	}
+ 
+ 	public static class GenericSignatureFormatException extends Exception {
+@@ -80,6 +80,10 @@ public abstract class ResolvedType extends UnresolvedType implements AnnotatedEl
+ 
+ 	public abstract ResolvedMember[] getDeclaredPointcuts();
+ 
++	public boolean isCacheable() {
++		return true;
++	}
++
+ 	/**
+ 	 * Returns a ResolvedType object representing the superclass of this type, or null. If this represents a java.lang.Object, a
+ 	 * primitive type, or void, this method returns null.
+@@ -946,6 +946,9 @@ public abstract class World implements Dump.INode {
+ 		 * generic type.
+ 		 */
+ 		public ResolvedType put(String key, ResolvedType type) {
++			if (!type.isCacheable()) {
++				return type;
++			}
+ 			if (type.isParameterizedType() && type.isParameterizedWithTypeVariable()) {
+ 				if (debug)
+ 					System.err
+@@ -214,8 +214,9 @@ public class BcelGenericSignatureToTypeXConverter {
+ 	}
+ 
+ 	private static void fixUpCircularDependencies(ResolvedType aTypeX, Map typeVariableResolutions) {
+-		if (!(aTypeX instanceof ReferenceType))
++		if (!(aTypeX instanceof ReferenceType)) {
+ 			return;
++		}
+ 
+ 		ReferenceType rt = (ReferenceType) aTypeX;
+ 		TypeVariable[] typeVars = rt.getTypeVariables();
+@@ -244,6 +245,10 @@ public class BcelGenericSignatureToTypeXConverter {
+ 		public ResolvedType resolve(World world) {
+ 			return this;
+ 		}
++
++		public boolean isCacheable() {
++			return false;
++		}
+ 	}
+ 
+ 	public static class GenericSignatureFormatException extends Exception {
+@@ -80,6 +80,10 @@ public abstract class ResolvedType extends UnresolvedType implements AnnotatedEl
+ 
+ 	public abstract ResolvedMember[] getDeclaredPointcuts();
+ 
++	public boolean isCacheable() {
++		return true;
++	}
++
+ 	/**
+ 	 * Returns a ResolvedType object representing the superclass of this type, or null. If this represents a java.lang.Object, a
+ 	 * primitive type, or void, this method returns null.
+@@ -946,6 +946,9 @@ public abstract class World implements Dump.INode {
+ 		 * generic type.
+ 		 */
+ 		public ResolvedType put(String key, ResolvedType type) {
++			if (!type.isCacheable()) {
++				return type;
++			}
+ 			if (type.isParameterizedType() && type.isParameterizedWithTypeVariable()) {
+ 				if (debug)
+ 					System.err
+@@ -0,0 +1,5 @@
++privileged public abstract aspect DatabaseOperationMonitor<T extends AggregatedDatabaseStats<T>> extends BaseOperationMonitor<T> {}
++class BaseOperationMonitor<P> {}
++class AggregatedDatabaseStats<Q> {}
++class Wibble extends AggregatedDatabaseStats<Wibble> {}
++aspect Foo extends DatabaseOperationMonitor<Wibble> {}
+@@ -18,13 +18,18 @@ import org.aspectj.testing.XMLBasedAjcTestCase;
+ 
+ public class Ajc166Tests extends org.aspectj.testing.XMLBasedAjcTestCase {
+ 
++//	public void testITDannos_288049() {
++//		runTest("itd decanno");
++//	}
++
+ 	public void testMungerCCE_288635() {
+ 		runTest("munger cce");
+ 	}
+ 
+-	// public void testNPEonBadAspectDecl_286375() {
+-	// runTest("npe on bad aspect decl");
+-	// }
++	public void testNPEonBadAspectDecl_286375() {
++		runTest("npe on bad aspect decl");
++	}
++
+ 	//
+ 	// public void testAnnoModifierOrdering_287597_1() {
+ 	// runTest("anno modifier ordering - 1");
+@@ -2,11 +2,14 @@
+ 
+ <suite>
+ 
++  <ajc-test dir="bugs166/pr288049" title="itd decanno">
++     <compile files="org/tests/AClass.java org/tests/ASubClass.java org/tests/DeclareAnns.aj" options="-1.5"/>
++  </ajc-test>
++  
+   <ajc-test dir="bugs166/pr288635" title="munger cce">
+      <compile files="org/tests/atann/AddAnnotations.aj org/tests/atann/AddITDDoMethod.aj org/tests/atann/InterceptTraceds.aj org/tests/atann/TestClass.java org/tests/atann/Traced.java" options="-1.5"/>
+      <run class="org.tests.atann.TestClass"/>
+   </ajc-test>
+-  
+ 
+   <ajc-test dir="bugs166/pr286375" title="npe on bad aspect decl">
+      <compile files="DatabaseOperationMonitor.java" options="-1.5" outjar="wibble.jar"/>

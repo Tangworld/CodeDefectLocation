@@ -1,0 +1,140 @@
+@@ -390,7 +390,7 @@ public class PointcutParser {
+     	if (formalParameters == null) formalParameters = new PointcutParameter[0];
+     	FormalBinding[] formalBindings = new FormalBinding[formalParameters.length];
+     	for (int i = 0; i < formalBindings.length; i++) {
+-			formalBindings[i] = new FormalBinding(UnresolvedType.forName(formalParameters[i].getType().getName()),formalParameters[i].getName(),i);			
++			formalBindings[i] = new FormalBinding(toUnresolvedType(formalParameters[i].getType()),formalParameters[i].getName(),i);			
+ 		}
+     	if (inScope == null) {
+     		return new SimpleScope(getWorld(),formalBindings);
+@@ -412,6 +412,14 @@ public class PointcutParser {
+     	}
+     }
+ 
++    private UnresolvedType toUnresolvedType(Class clazz) {
++    	if (clazz.isArray()) {
++			return UnresolvedType.forSignature(clazz.getName().replace('.','/'));
++    	} else {
++    		return UnresolvedType.forName(clazz.getName());
++    	}
++    }
++    
+     private void validateAgainstSupportedPrimitives(Pointcut pc, String expression) {
+         switch(pc.getPointcutKind()) {
+         	case Pointcut.AND:
+@@ -257,7 +257,7 @@ public class Java15ReflectionBasedReferenceTypeDelegate extends
+ 				AjType<?>[] ptypes = pcs[i].getParameterTypes();
+ 				UnresolvedType[] weaverPTypes = new UnresolvedType[ptypes.length];
+ 				for (int j = 0; j < weaverPTypes.length; j++) {
+-					weaverPTypes[j] = UnresolvedType.forName(ptypes[j].getName());
++					weaverPTypes[j] = this.typeConverter.fromType(ptypes[j].getJavaClass()) ;
+ 				}
+ 				pointcuts[i] = new DeferredResolvedPointcutDefinition(getResolvedTypeX(),pcs[i].getModifiers(),pcs[i].getName(),weaverPTypes);				
+ 			}
+@@ -14,6 +14,7 @@ package org.aspectj.weaver.tools;
+ import java.lang.annotation.Retention;
+ import java.lang.annotation.RetentionPolicy;
+ import java.lang.reflect.Method;
++import java.util.Date;
+ import java.util.List;
+ 
+ import org.aspectj.lang.annotation.Pointcut;
+@@ -299,6 +300,14 @@ public class Java15PointcutExpressionTest extends TestCase {
+ 		assertTrue("does not match",sm.neverMatches());		
+ 	}
+ 
++	public void testArrayTypeInArgs() throws Exception {
++		PointcutParameter[] params = new PointcutParameter[3];
++		params[0] = parser.createPointcutParameter("d", Date.class);
++		params[1] = parser.createPointcutParameter("s", String.class);
++		params[2] = parser.createPointcutParameter("ss", String[].class);
++		PointcutExpression ex = parser.parsePointcutExpression("org.aspectj.weaver.tools.Java15PointcutExpressionTest.UsesArrays.pc(d,s,ss)",UsesArrays.class,params);
++	}
++	
+ 	protected void setUp() throws Exception {
+ 		super.setUp();
+ 		parser = PointcutParser.getPointcutParserSupportingAllPrimitivesAndUsingSpecifiedClassloaderForResolution(this.getClass().getClassLoader());
+@@ -370,6 +379,13 @@ public class Java15PointcutExpressionTest extends TestCase {
+ 	  public void d() {}
+ 
+ 	}
++	
++	private static class UsesArrays {
++		
++		@Pointcut("execution(* *(..)) && args(d,s,ss)")
++		public void pc(Date d, String s, String[] ss) {}
++		
++	}
+ }
+ 
+ 
+@@ -390,7 +390,7 @@ public class PointcutParser {
+     	if (formalParameters == null) formalParameters = new PointcutParameter[0];
+     	FormalBinding[] formalBindings = new FormalBinding[formalParameters.length];
+     	for (int i = 0; i < formalBindings.length; i++) {
+-			formalBindings[i] = new FormalBinding(UnresolvedType.forName(formalParameters[i].getType().getName()),formalParameters[i].getName(),i);			
++			formalBindings[i] = new FormalBinding(toUnresolvedType(formalParameters[i].getType()),formalParameters[i].getName(),i);			
+ 		}
+     	if (inScope == null) {
+     		return new SimpleScope(getWorld(),formalBindings);
+@@ -412,6 +412,14 @@ public class PointcutParser {
+     	}
+     }
+ 
++    private UnresolvedType toUnresolvedType(Class clazz) {
++    	if (clazz.isArray()) {
++			return UnresolvedType.forSignature(clazz.getName().replace('.','/'));
++    	} else {
++    		return UnresolvedType.forName(clazz.getName());
++    	}
++    }
++    
+     private void validateAgainstSupportedPrimitives(Pointcut pc, String expression) {
+         switch(pc.getPointcutKind()) {
+         	case Pointcut.AND:
+@@ -257,7 +257,7 @@ public class Java15ReflectionBasedReferenceTypeDelegate extends
+ 				AjType<?>[] ptypes = pcs[i].getParameterTypes();
+ 				UnresolvedType[] weaverPTypes = new UnresolvedType[ptypes.length];
+ 				for (int j = 0; j < weaverPTypes.length; j++) {
+-					weaverPTypes[j] = UnresolvedType.forName(ptypes[j].getName());
++					weaverPTypes[j] = this.typeConverter.fromType(ptypes[j].getJavaClass()) ;
+ 				}
+ 				pointcuts[i] = new DeferredResolvedPointcutDefinition(getResolvedTypeX(),pcs[i].getModifiers(),pcs[i].getName(),weaverPTypes);				
+ 			}
+@@ -14,6 +14,7 @@ package org.aspectj.weaver.tools;
+ import java.lang.annotation.Retention;
+ import java.lang.annotation.RetentionPolicy;
+ import java.lang.reflect.Method;
++import java.util.Date;
+ import java.util.List;
+ 
+ import org.aspectj.lang.annotation.Pointcut;
+@@ -299,6 +300,14 @@ public class Java15PointcutExpressionTest extends TestCase {
+ 		assertTrue("does not match",sm.neverMatches());		
+ 	}
+ 
++	public void testArrayTypeInArgs() throws Exception {
++		PointcutParameter[] params = new PointcutParameter[3];
++		params[0] = parser.createPointcutParameter("d", Date.class);
++		params[1] = parser.createPointcutParameter("s", String.class);
++		params[2] = parser.createPointcutParameter("ss", String[].class);
++		PointcutExpression ex = parser.parsePointcutExpression("org.aspectj.weaver.tools.Java15PointcutExpressionTest.UsesArrays.pc(d,s,ss)",UsesArrays.class,params);
++	}
++	
+ 	protected void setUp() throws Exception {
+ 		super.setUp();
+ 		parser = PointcutParser.getPointcutParserSupportingAllPrimitivesAndUsingSpecifiedClassloaderForResolution(this.getClass().getClassLoader());
+@@ -370,6 +379,13 @@ public class Java15PointcutExpressionTest extends TestCase {
+ 	  public void d() {}
+ 
+ 	}
++	
++	private static class UsesArrays {
++		
++		@Pointcut("execution(* *(..)) && args(d,s,ss)")
++		public void pc(Date d, String s, String[] ss) {}
++		
++	}
+ }
+ 
+ 

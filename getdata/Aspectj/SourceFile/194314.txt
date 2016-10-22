@@ -1,0 +1,1195 @@
+@@ -24,6 +24,106 @@ import org.aspectj.testing.XMLBasedAjcTestCase;
+ 
+ public class Ajc164Tests extends org.aspectj.testing.XMLBasedAjcTestCase {
+ 
++	// 
++	public void testBrokenLVT_pr194314_1() throws Exception {
++		runTest("broken lvt - 1");
++		Method m = getMethodFromClass(getClassFrom(ajc.getSandboxDirectory(), "Service"), "method_aroundBody1$advice");
++		if (m.getLocalVariableTable() == null) {
++			fail("Local variable table should not be null");
++		}
++		// Method:
++		// private static final void method_aroundBody1$advice(Service, long, JoinPoint, ServiceInterceptor, ProceedingJoinPoint);
++		LocalVariable[] lvt = m.getLocalVariableTable().getLocalVariableTable();
++		assertEquals(7, lvt.length); // no aroundClosure compared to second version of this test
++		assertEquals("LService; this(0) start=0 len=86", stringify(m.getLocalVariableTable(), 0));
++		assertEquals("J l(1) start=0 len=86", stringify(m.getLocalVariableTable(), 1));
++		assertEquals("Lorg/aspectj/lang/JoinPoint; thisJoinPoint(3) start=0 len=86", stringify(m.getLocalVariableTable(), 2));
++		assertEquals("LServiceInterceptor; ajc$aspectInstance(4) start=0 len=86", stringify(m.getLocalVariableTable(), 3));
++		assertEquals("Lorg/aspectj/lang/ProceedingJoinPoint; pjp(5) start=0 len=86", stringify(m.getLocalVariableTable(), 4));
++		assertEquals("[Ljava/lang/Object; args(6) start=9 len=77", stringify(m.getLocalVariableTable(), 5));
++		assertEquals("J id(7) start=21 len=65", stringify(m.getLocalVariableTable(), 6));
++
++	}
++
++	public void testBrokenLVT_pr194314_2() throws Exception {
++		runTest("broken lvt - 2");
++		Method m = getMethodFromClass(getClassFrom(ajc.getSandboxDirectory(), "Service"), "method_aroundBody1$advice");
++		if (m.getLocalVariableTable() == null) {
++			fail("Local variable table should not be null");
++		}
++		System.out.println(m.getLocalVariableTable());
++		LocalVariable[] lvt = m.getLocalVariableTable().getLocalVariableTable();
++		assertEquals(8, lvt.length);
++		// private static final void method_aroundBody1$advice(Service, long, JoinPoint, ServiceInterceptorCodeStyle, AroundClosure,
++		// JoinPoint);
++		assertEquals("LService; this(0) start=0 len=68", stringify(m.getLocalVariableTable(), 0));
++		assertEquals("J l(1) start=0 len=68", stringify(m.getLocalVariableTable(), 1));
++		assertEquals("Lorg/aspectj/lang/JoinPoint; thisJoinPoint(3) start=0 len=68", stringify(m.getLocalVariableTable(), 2));
++		assertEquals("LServiceInterceptorCodeStyle; ajc$aspectInstance(4) start=0 len=68", stringify(m.getLocalVariableTable(), 3));
++		assertEquals("Lorg/aspectj/runtime/internal/AroundClosure; ajc$aroundClosure(5) start=0 len=68", stringify(m
++				.getLocalVariableTable(), 4));
++		assertEquals("Lorg/aspectj/lang/JoinPoint; thisJoinPoint(6) start=0 len=68", stringify(m.getLocalVariableTable(), 5));
++		assertEquals("[Ljava/lang/Object; args(7) start=9 len=59", stringify(m.getLocalVariableTable(), 6));
++		assertEquals("J id(8) start=21 len=47", stringify(m.getLocalVariableTable(), 7));
++	}
++
++	/**
++	 * This test checks that local variable table for the interMethodDispatcher is built correctly, for the related code see
++	 * IntertypeMethodDeclaration.generateDispatchMethod(). It checks non-static and static ITDs. Once the information here is
++	 * correct then around advice on ITDs can also be correct.
++	 */
++	public void testBrokenLVT_pr194314_3() throws Exception {
++		runTest("broken lvt - 3");
++		// Check intermethoddispatchers have the lvts correct
++		// first ITD: public void I.foo(String s,int i,String[] ss) {}
++
++		Method m = getMethodFromClass(getClassFrom(ajc.getSandboxDirectory(), "X"), "ajc$interMethodDispatch1$X$I$foo");
++		LocalVariableTable lvt = m.getLocalVariableTable();
++		assertNotNull(lvt);
++		assertEquals("LI; ajc$this_(0) start=0 len=10", stringify(lvt, 0));
++		assertEquals("Ljava/lang/String; s(1) start=0 len=10", stringify(lvt, 1));
++		assertEquals("I i(2) start=0 len=10", stringify(lvt, 2));
++		assertEquals("[Ljava/lang/String; ss(3) start=0 len=10", stringify(lvt, 3));
++
++		// second ITD: public void I.fooStatic(Long l,int i,String[] ss) {}
++		m = getMethodFromClass(getClassFrom(ajc.getSandboxDirectory(), "X"), "ajc$interMethodDispatch1$X$C$fooStatic");
++		lvt = m.getLocalVariableTable();
++		assertNotNull(lvt);
++		assertEquals("J l(0) start=0 len=7", stringify(lvt, 0));
++		assertEquals("I i(2) start=0 len=7", stringify(lvt, 1));
++		assertEquals("[Ljava/lang/String; ss(3) start=0 len=7", stringify(lvt, 2));
++
++		// Now let's check the around advice on the calls to those ITDs
++
++		// non-static:
++
++		m = getMethodFromClass(getClassFrom(ajc.getSandboxDirectory(), "C"), "foo_aroundBody1$advice");
++		lvt = m.getLocalVariableTable();
++		assertNotNull(lvt);
++
++		assertEquals("LC; this(0) start=0 len=0", stringify(lvt, 0));
++		assertEquals("LI; target(1) start=0 len=0", stringify(lvt, 1));
++		assertEquals("Ljava/lang/String; s(2) start=0 len=0", stringify(lvt, 2));
++		assertEquals("I i(3) start=0 len=0", stringify(lvt, 3));
++		assertEquals("[Ljava/lang/String; ss(4) start=0 len=0", stringify(lvt, 4));
++		assertEquals("LX; ajc$aspectInstance(5) start=0 len=0", stringify(lvt, 5));
++		assertEquals("Lorg/aspectj/runtime/internal/AroundClosure; ajc$aroundClosure(6) start=0 len=0", stringify(lvt, 6));
++
++		// static:
++
++		m = getMethodFromClass(getClassFrom(ajc.getSandboxDirectory(), "C"), "fooStatic_aroundBody3$advice");
++		lvt = m.getLocalVariableTable();
++		assertNotNull(lvt);
++
++		assertEquals("LC; this(0) start=0 len=0", stringify(lvt, 0));
++		assertEquals("J l(1) start=0 len=0", stringify(lvt, 1));
++		assertEquals("I i(3) start=0 len=0", stringify(lvt, 2));
++		assertEquals("[Ljava/lang/String; ss(4) start=0 len=0", stringify(lvt, 3));
++		assertEquals("LX; ajc$aspectInstance(5) start=0 len=0", stringify(lvt, 4));
++		assertEquals("Lorg/aspectj/runtime/internal/AroundClosure; ajc$aroundClosure(6) start=0 len=0", stringify(lvt, 5));
++
++	}
++
+ 	// Single piece of advice on before execution of a method with a this and a parameter
+ 	public void testDebuggingBeforeAdvice_pr262509() {
+ 		runTest("debugging before advice");
+@@ -13,6 +13,7 @@
+ package org.aspectj.weaver.bcel;
+ 
+ import java.io.IOException;
++import java.util.ArrayList;
+ 
+ import org.aspectj.apache.bcel.generic.InstructionFactory;
+ import org.aspectj.weaver.NameMangler;
+@@ -38,7 +39,7 @@ public class MoveInstructionsWeaveTestCase extends WeaveTestCase {
+ 				BcelShadow shadow = (BcelShadow) s;
+ 				LazyMethodGen newMethod = shadow.extractShadowInstructionsIntoNewMethod(NameMangler.getExtractableName(shadow
+ 						.getSignature())
+-						+ "_extracted", 0, this.getSourceLocation());
++						+ "_extracted", 0, this.getSourceLocation(), new ArrayList());
+ 				shadow.getRange().append(shadow.makeCallToCallback(newMethod));
+ 
+ 				if (!shadow.isFallsThrough()) {
+@@ -64,7 +65,7 @@ public class MoveInstructionsWeaveTestCase extends WeaveTestCase {
+ 				BcelShadow shadow = (BcelShadow) s;
+ 				LazyMethodGen newMethod = shadow.extractShadowInstructionsIntoNewMethod(NameMangler.getExtractableName(shadow
+ 						.getSignature())
+-						+ "_extracted" + counter++, 0, this.getSourceLocation());
++						+ "_extracted" + counter++, 0, this.getSourceLocation(), new ArrayList());
+ 				shadow.getRange().append(shadow.makeCallToCallback(newMethod));
+ 
+ 				if (!shadow.isFallsThrough()) {
+@@ -2082,6 +2082,7 @@ public class BcelShadow extends Shadow {
+ 					WeaverMessages.CANT_FIND_TYPE_DURING_AROUND_WEAVE, declaringAspectType.getClassName()) }, getSourceLocation(),
+ 					new ISourceLocation[] { munger.getSourceLocation() });
+ 		}
++
+ 		// ??? might want some checks here to give better errors
+ 		ResolvedType rt = (declaringAspectType.isParameterizedType() ? declaringAspectType.getGenericType() : declaringAspectType);
+ 		BcelObjectType ot = BcelWorld.getBcelObjectType(rt);
+@@ -2134,8 +2135,9 @@ public class BcelShadow extends Shadow {
+ 		// Parameters are: this if there is one, target if there is one and its different to this, then original arguments
+ 		// at the shadow, then tjp
+ 		String extractedShadowMethodName = NameMangler.aroundShadowMethodName(getSignature(), shadowClass.getNewGeneratedNameTag());
++		List parameterNames = new ArrayList();
+ 		LazyMethodGen extractedShadowMethod = extractShadowInstructionsIntoNewMethod(extractedShadowMethodName, Modifier.PRIVATE,
+-				munger.getSourceLocation());
++				munger.getSourceLocation(), parameterNames);
+ 
+ 		List argsToCallLocalAdviceMethodWith = new ArrayList();
+ 		List proceedVarList = new ArrayList();
+@@ -2181,11 +2183,11 @@ public class BcelShadow extends Shadow {
+ 		adviceMethod.getArgumentTypes();
+ 
+ 		Type[] extractedMethodParameterTypes = extractedShadowMethod.getArgumentTypes();
++
+ 		Type[] parameterTypes = new Type[extractedMethodParameterTypes.length + adviceParameterTypes.length + 1];
+ 		int parameterIndex = 0;
+ 		System.arraycopy(extractedMethodParameterTypes, 0, parameterTypes, parameterIndex, extractedMethodParameterTypes.length);
+ 		parameterIndex += extractedMethodParameterTypes.length;
+-
+ 		parameterTypes[parameterIndex++] = BcelWorld.makeBcelType(adviceMethod.getEnclosingClass().getType());
+ 		System.arraycopy(adviceParameterTypes, 0, parameterTypes, parameterIndex, adviceParameterTypes.length);
+ 
+@@ -2315,6 +2317,41 @@ public class BcelShadow extends Shadow {
+ 				curr = next;
+ 			}
+ 		}
++
++		// if (parameterNames.size() == 0) {
++		// On return we have inserted the advice body into the local advice method. We have remapped all the local variables
++		// that were referenced in the advice as we did the copy, and so the local variable table for localAdviceMethod is
++		// now lacking any information about all the initial variables.
++		InstructionHandle start = localAdviceMethod.getBody().getStart();
++		InstructionHandle end = localAdviceMethod.getBody().getEnd();
++
++		// Find the real start and end
++		while (start.getInstruction().opcode == Constants.IMPDEP1) {
++			start = start.getNext();
++		}
++		while (end.getInstruction().opcode == Constants.IMPDEP1) {
++			end = end.getPrev();
++		}
++		Type[] args = localAdviceMethod.getArgumentTypes();
++		int i = 0;
++		for (int slot = 0; slot < extraParamOffset; i++) {
++			String argumentName = null;
++			if (i >= args.length || parameterNames.size() == 0 || i >= parameterNames.size()) {
++				// this should be unnecessary as I think all known joinpoints and helper methods
++				// propagate the parameter names around correctly - but just in case let us do this
++				// rather than fail. If a bug is raised reporting unknown as a local variable name
++				// then investigate the joinpoint giving rise to the ResolvedMember and why it has
++				// no parameter names specified
++				argumentName = new StringBuffer("unknown").append(i).toString();
++			} else {
++				argumentName = (String) parameterNames.get(i);
++			}
++			String argumentSignature = args[i].getSignature();
++			LocalVariableTag lvt = new LocalVariableTag(argumentSignature, argumentName, slot, 0);
++			start.addTargeter(lvt);
++			end.addTargeter(lvt);
++			slot += args[slot].getSize();
++		}
+ 	}
+ 
+ 	private InstructionList getRedoneProceedCall(InstructionFactory fact, LazyMethodGen callbackMethod, BcelAdvice munger,
+@@ -2682,7 +2719,7 @@ public class BcelShadow extends Shadow {
+ 		int linenumber = getSourceLine();
+ 		// MOVE OUT ALL THE INSTRUCTIONS IN MY SHADOW INTO ANOTHER METHOD!
+ 		LazyMethodGen callbackMethod = extractShadowInstructionsIntoNewMethod(NameMangler.aroundShadowMethodName(getSignature(),
+-				getEnclosingClass().getNewGeneratedNameTag()), 0, munger.getSourceLocation());
++				getEnclosingClass().getNewGeneratedNameTag()), 0, munger.getSourceLocation(), new ArrayList());
+ 
+ 		BcelVar[] adviceVars = munger.getExposedStateAsBcelVars(true);
+ 
+@@ -2965,20 +3002,19 @@ public class BcelShadow extends Shadow {
+ 	 * @param adviceSourceLocation source location of the advice affecting the shadow
+ 	 */
+ 	LazyMethodGen extractShadowInstructionsIntoNewMethod(String extractedMethodName, int extractedMethodVisibilityModifier,
+-			ISourceLocation adviceSourceLocation) {
++			ISourceLocation adviceSourceLocation, List parameterNames) {
+ 		// LazyMethodGen.assertGoodBody(range.getBody(), extractedMethodName);
+ 		if (!getKind().allowsExtraction()) {
+ 			throw new BCException("Attempt to extract method from a shadow kind (" + getKind()
+ 					+ ") that does not support this operation");
+ 		}
+-		LazyMethodGen newMethod = createShadowMethodGen(extractedMethodName, extractedMethodVisibilityModifier);
++		LazyMethodGen newMethod = createShadowMethodGen(extractedMethodName, extractedMethodVisibilityModifier, parameterNames);
+ 		IntMap remapper = makeRemap();
+ 		range.extractInstructionsInto(newMethod, remapper, (getKind() != PreInitialization) && isFallsThrough());
+ 		if (getKind() == PreInitialization) {
+ 			addPreInitializationReturnCode(newMethod, getSuperConstructorParameterTypes());
+ 		}
+ 		getEnclosingClass().addMethodGen(newMethod, adviceSourceLocation);
+-
+ 		return newMethod;
+ 	}
+ 
+@@ -3071,10 +3107,9 @@ public class BcelShadow extends Shadow {
+ 	 * The new method always static. It may take some extra arguments: this, target. If it's argsOnStack, then it must take both
+ 	 * this/target If it's argsOnFrame, it shares this and target. ??? rewrite this to do less array munging, please
+ 	 */
+-	private LazyMethodGen createShadowMethodGen(String newMethodName, int visibilityModifier) {
++	private LazyMethodGen createShadowMethodGen(String newMethodName, int visibilityModifier, List parameterNames) {
+ 		Type[] shadowParameterTypes = BcelWorld.makeBcelTypes(getArgTypes());
+ 		int modifiers = Modifier.FINAL | Modifier.STATIC | visibilityModifier;
+-
+ 		if (targetVar != null && targetVar != thisVar) {
+ 			UnresolvedType targetType = getTargetType();
+ 			targetType = ensureTargetTypeIsCorrect(targetType);
+@@ -3104,27 +3139,40 @@ public class BcelShadow extends Shadow {
+ 					targetType = getThisType();
+ 				}
+ 			}
++			parameterNames.add("target");
++			// There is a 'target' and it is not the same as 'this', so add it to the parameter list
+ 			shadowParameterTypes = addTypeToFront(BcelWorld.makeBcelType(targetType), shadowParameterTypes);
+ 		}
++
+ 		if (thisVar != null) {
+ 			UnresolvedType thisType = getThisType();
++			parameterNames.add(0, "this");
+ 			shadowParameterTypes = addTypeToFront(BcelWorld.makeBcelType(thisType), shadowParameterTypes);
+ 		}
+ 
++		if (this.getKind() == Shadow.FieldSet || this.getKind() == Shadow.FieldGet) {
++			parameterNames.add(getSignature().getName());
++		} else {
++			String[] pnames = getSignature().getParameterNames(world);
++			if (pnames != null) {
++				for (int i = 0; i < pnames.length; i++) {
++					parameterNames.add(pnames[i]);
++				}
++			}
++		}
++
+ 		// We always want to pass down thisJoinPoint in case we have already woven
+ 		// some advice in here. If we only have a single piece of around advice on a
+ 		// join point, it is unnecessary to accept (and pass) tjp.
+ 		if (thisJoinPointVar != null) {
++			parameterNames.add("thisJoinPoint");
+ 			shadowParameterTypes = addTypeToEnd(LazyClassGen.tjpType, shadowParameterTypes);
+-			// FIXME ALEX? which one
+-			// parameterTypes = addTypeToEnd(LazyClassGen.proceedingTjpType, parameterTypes);
+ 		}
+ 
+ 		UnresolvedType returnType;
+ 		if (getKind() == PreInitialization) {
+ 			returnType = UnresolvedType.OBJECTARRAY;
+ 		} else {
+-
+ 			if (getKind() == ConstructorCall) {
+ 				returnType = getSignature().getDeclaringType();
+ 			} else if (getKind() == FieldSet) {
+@@ -2145,6 +2145,21 @@ class BcelClassWeaver implements IClassWeaver {
+ 					Tag fresh = (Tag) tagMap.get(oldTag);
+ 					if (fresh == null) {
+ 						fresh = oldTag.copy();
++						if (old instanceof LocalVariableTag) {
++							// LocalVariable
++							LocalVariableTag lvTag = (LocalVariableTag) old;
++							LocalVariableTag lvTagFresh = (LocalVariableTag) fresh;
++							if (lvTag.getSlot() == 0) {
++								fresh = new LocalVariableTag(lvTag.getRealType().getSignature(), "ajc$aspectInstance", frameEnv
++										.get(lvTag.getSlot()), 0);
++							} else {
++								// // Do not move it - when copying the code from the aspect to the affected target, 'this' is
++								// // going to change from aspect to affected type. So just fix the type
++								// System.out.println("For local variable tag at instruction " + src + " changing slot from "
++								// + lvTag.getSlot() + " > " + frameEnv.get(lvTag.getSlot()));
++								lvTagFresh.updateSlot(frameEnv.get(lvTag.getSlot()));
++							}
++						}
+ 						tagMap.put(oldTag, fresh);
+ 					}
+ 					dest.addTargeter(fresh);
+@@ -2458,6 +2473,7 @@ class BcelClassWeaver implements IClassWeaver {
+ 					// in the effective signature
+ 					// would mean keeping two sets up to date (no way!!)
+ 
++					fixParameterNamesForResolvedMember(rm, mg.getMemberView());
+ 					fixAnnotationsForResolvedMember(rm, mg.getMemberView());
+ 
+ 					enclosingShadow = BcelShadow.makeShadowForMethod(world, mg, effective.getShadowKind(), rm);
+@@ -2828,6 +2844,41 @@ class BcelClassWeaver implements IClassWeaver {
+ 	 * @param rm the sig we want it to pretend to be 'int A.m()' or somesuch ITD like thing
+ 	 * @param declaredSig the real sig 'blah.ajc$xxx'
+ 	 */
++	private void fixParameterNamesForResolvedMember(ResolvedMember rm, ResolvedMember declaredSig) {
++
++		UnresolvedType memberHostType = declaredSig.getDeclaringType();
++		String methodName = declaredSig.getName();
++		String[] pnames = null;
++		if (rm.getKind() == Member.METHOD && !rm.isAbstract()) {
++			if (methodName.startsWith("ajc$inlineAccessMethod") || methodName.startsWith("ajc$superDispatch")) {
++				ResolvedMember resolvedDooberry = world.resolve(declaredSig);
++				pnames = resolvedDooberry.getParameterNames();
++			} else {
++				ResolvedMember realthing = AjcMemberMaker.interMethodDispatcher(rm.resolve(world), memberHostType).resolve(world);
++				ResolvedMember theRealMember = findResolvedMemberNamed(memberHostType.resolve(world), realthing.getName());
++				if (theRealMember != null) {
++					pnames = theRealMember.getParameterNames();
++					// static ITDs don't need any parameter shifting
++					if (pnames.length > 0 && pnames[0].equals("ajc$this_")) {
++						String[] pnames2 = new String[pnames.length - 1];
++						System.arraycopy(pnames, 1, pnames2, 0, pnames2.length);
++						pnames = pnames2;
++					}
++				}
++			}
++			// i think ctors are missing from here... copy code from below...
++		}
++		rm.setParameterNames(pnames);
++	}
++
++	/**
++	 * For a given resolvedmember, this will discover the real annotations for it. <b>Should only be used when the resolvedmember is
++	 * the contents of an effective signature attribute, as thats the only time when the annotations aren't stored directly in the
++	 * resolvedMember</b>
++	 * 
++	 * @param rm the sig we want it to pretend to be 'int A.m()' or somesuch ITD like thing
++	 * @param declaredSig the real sig 'blah.ajc$xxx'
++	 */
+ 	private void fixAnnotationsForResolvedMember(ResolvedMember rm, ResolvedMember declaredSig) {
+ 		try {
+ 			UnresolvedType memberHostType = declaredSig.getDeclaringType();
+@@ -2916,7 +2967,7 @@ class BcelClassWeaver implements IClassWeaver {
+ 					return;
+ 
+ 				ResolvedMember rm = effectiveSig.getEffectiveSignature();
+-
++				fixParameterNamesForResolvedMember(rm, declaredSig);
+ 				fixAnnotationsForResolvedMember(rm, declaredSig); // abracadabra
+ 
+ 				if (canMatch(effectiveSig.getShadowKind()))
+@@ -2,6 +2,19 @@
+ 
+ <suite>
+ 
++
++    <ajc-test dir="bugs164/pr194314" title="broken lvt - 1">
++      <compile files="Service.java IService.java Main.java ServiceInterceptor.java" options="-1.5"/>
++    </ajc-test>
++    
++    <ajc-test dir="bugs164/pr194314" title="broken lvt - 2">
++      <compile files="Service.java IService.java Main.java ServiceInterceptorCodeStyle.java" options="-1.5"/>
++    </ajc-test>
++    
++    <ajc-test dir="bugs164/pr194314" title="broken lvt - 3">
++      <compile files="ITDOne.java" options="-1.5"/>
++    </ajc-test>
++    
+     <ajc-test dir="bugs164/pr262509" title="debugging before advice">
+       <compile files="Foo.java" options="-1.5"/>
+     </ajc-test> 
+@@ -10,7 +10,6 @@
+  *     PARC     initial implementation 
+  * ******************************************************************/
+ 
+-
+ package org.aspectj.ajdt.internal.compiler.ast;
+ 
+ import java.lang.reflect.Modifier;
+@@ -20,6 +19,7 @@ import org.aspectj.ajdt.internal.compiler.lookup.EclipseTypeMunger;
+ import org.aspectj.ajdt.internal.compiler.problem.AjProblemReporter;
+ import org.aspectj.org.eclipse.jdt.internal.compiler.ClassFile;
+ import org.aspectj.org.eclipse.jdt.internal.compiler.CompilationResult;
++import org.aspectj.org.eclipse.jdt.internal.compiler.ast.Argument;
+ import org.aspectj.org.eclipse.jdt.internal.compiler.ast.CompilationUnitDeclaration;
+ import org.aspectj.org.eclipse.jdt.internal.compiler.ast.TypeReference;
+ import org.aspectj.org.eclipse.jdt.internal.compiler.classfmt.ClassFileConstants;
+@@ -28,6 +28,7 @@ import org.aspectj.org.eclipse.jdt.internal.compiler.flow.FlowInfo;
+ import org.aspectj.org.eclipse.jdt.internal.compiler.flow.InitializationFlowContext;
+ import org.aspectj.org.eclipse.jdt.internal.compiler.lookup.ClassScope;
+ import org.aspectj.org.eclipse.jdt.internal.compiler.lookup.ExtraCompilerModifiers;
++import org.aspectj.org.eclipse.jdt.internal.compiler.lookup.LocalVariableBinding;
+ import org.aspectj.org.eclipse.jdt.internal.compiler.lookup.MethodBinding;
+ import org.aspectj.org.eclipse.jdt.internal.compiler.lookup.ReferenceBinding;
+ import org.aspectj.org.eclipse.jdt.internal.compiler.lookup.SourceTypeBinding;
+@@ -47,7 +48,7 @@ import org.aspectj.weaver.UnresolvedType;
+ 
+ /**
+  * An inter-type method declaration.
+- *
++ * 
+  * @author Jim Hugunin
+  */
+ public class InterTypeMethodDeclaration extends InterTypeDeclaration {
+@@ -62,203 +63,214 @@ public class InterTypeMethodDeclaration extends InterTypeDeclaration {
+ 			parser.parse(this, unit);
+ 		}
+ 	}
+-	
++
+ 	protected char[] getPrefix() {
+ 		return (NameMangler.ITD_PREFIX + "interMethod$").toCharArray();
+ 	}
+-	
++
+ 	public boolean isFinal() {
+-		return  (declaredModifiers & ClassFileConstants.AccFinal) != 0;		
++		return (declaredModifiers & ClassFileConstants.AccFinal) != 0;
+ 	}
+ 
+-	public void analyseCode(
+-		ClassScope currentScope,
+-		InitializationFlowContext flowContext,
+-		FlowInfo flowInfo)
+-	{
+-		if (Modifier.isAbstract(declaredModifiers)) return;
+-		
++	public void analyseCode(ClassScope currentScope, InitializationFlowContext flowContext, FlowInfo flowInfo) {
++		if (Modifier.isAbstract(declaredModifiers))
++			return;
++
+ 		super.analyseCode(currentScope, flowContext, flowInfo);
+ 	}
+-	
++
+ 	public void resolve(ClassScope upperScope) {
+-		if (munger == null) ignoreFurtherInvestigation = true;
++		if (munger == null)
++			ignoreFurtherInvestigation = true;
+ 		if (binding == null)
+-            ignoreFurtherInvestigation = true;
+-		if (ignoreFurtherInvestigation) return;
+-		
++			ignoreFurtherInvestigation = true;
++		if (ignoreFurtherInvestigation)
++			return;
++
+ 		if (!Modifier.isStatic(declaredModifiers)) {
+-			this.arguments = AstUtil.insert(
+-				AstUtil.makeFinalArgument("ajc$this_".toCharArray(), onTypeBinding),
+-				this.arguments);
+-			binding.parameters  = AstUtil.insert(onTypeBinding, binding.parameters);
++			this.arguments = AstUtil.insert(AstUtil.makeFinalArgument("ajc$this_".toCharArray(), onTypeBinding), this.arguments);
++			binding.parameters = AstUtil.insert(onTypeBinding, binding.parameters);
+ 		}
+-			
++
+ 		super.resolve(upperScope);
+ 	}
+-	
+-	
++
+ 	public void resolveStatements() {
+ 		checkAndSetModifiersForMethod();
+-        if ((modifiers & ExtraCompilerModifiers.AccSemicolonBody) != 0) {
+-            if ((declaredModifiers & ClassFileConstants.AccAbstract) == 0)
+-                scope.problemReporter().methodNeedBody(this);
+-        } else {
+-            // the method HAS a body --> abstract native modifiers are forbiden
+-            if (((declaredModifiers & ClassFileConstants.AccAbstract) != 0))
+-                scope.problemReporter().methodNeedingNoBody(this);
+-        }        
+-
+-        // XXX AMC we need to do this, but I'm not 100% comfortable as I don't
+-        // know why the return type is wrong in this case. Also, we don't seem to need
+-        // to do it for args...
+-        if (munger.getSignature().getReturnType().isRawType()) {
+-        	if (!binding.returnType.isRawType()) {
++		if ((modifiers & ExtraCompilerModifiers.AccSemicolonBody) != 0) {
++			if ((declaredModifiers & ClassFileConstants.AccAbstract) == 0)
++				scope.problemReporter().methodNeedBody(this);
++		} else {
++			// the method HAS a body --> abstract native modifiers are forbiden
++			if (((declaredModifiers & ClassFileConstants.AccAbstract) != 0))
++				scope.problemReporter().methodNeedingNoBody(this);
++		}
++
++		// XXX AMC we need to do this, but I'm not 100% comfortable as I don't
++		// know why the return type is wrong in this case. Also, we don't seem to need
++		// to do it for args...
++		if (munger.getSignature().getReturnType().isRawType()) {
++			if (!binding.returnType.isRawType()) {
+ 				EclipseFactory world = EclipseFactory.fromScopeLookupEnvironment(scope);
+-        		binding.returnType = world.makeTypeBinding(munger.getSignature().getReturnType()); 
+-        	}
+-        }
+-        
+-        // check @Override annotation - based on MethodDeclaration.resolveStatements() @Override processing
++				binding.returnType = world.makeTypeBinding(munger.getSignature().getReturnType());
++			}
++		}
++
++		// check @Override annotation - based on MethodDeclaration.resolveStatements() @Override processing
+ 		checkOverride: {
+-			if (this.binding == null) break checkOverride;
+-			if (this.scope.compilerOptions().sourceLevel < ClassFileConstants.JDK1_5) break checkOverride;
++			if (this.binding == null)
++				break checkOverride;
++			if (this.scope.compilerOptions().sourceLevel < ClassFileConstants.JDK1_5)
++				break checkOverride;
+ 			boolean hasOverrideAnnotation = (this.binding.tagBits & TagBits.AnnotationOverride) != 0;
+-			
++
+ 			// Need to verify
+ 			if (hasOverrideAnnotation) {
+-				
++
+ 				// Work out the real method binding that we can use for comparison
+ 				EclipseFactory world = EclipseFactory.fromScopeLookupEnvironment(scope);
+-				MethodBinding realthing = world.makeMethodBinding(munger.getSignature(),munger.getTypeVariableAliases());
+-				
+-				boolean reportError = true;				
++				MethodBinding realthing = world.makeMethodBinding(munger.getSignature(), munger.getTypeVariableAliases());
++
++				boolean reportError = true;
+ 				// Go up the hierarchy, looking for something we override
+ 				ReferenceBinding supertype = onTypeBinding.superclass();
+-				while (supertype!=null && reportError) {
++				while (supertype != null && reportError) {
+ 					MethodBinding[] possibles = supertype.getMethods(declaredSelector);
+ 					for (int i = 0; i < possibles.length; i++) {
+ 						MethodBinding mb = possibles[i];
+ 
+ 						boolean couldBeMatch = true;
+-						if (mb.parameters.length!=realthing.parameters.length) couldBeMatch=false;
++						if (mb.parameters.length != realthing.parameters.length)
++							couldBeMatch = false;
+ 						else {
+ 							for (int j = 0; j < mb.parameters.length && couldBeMatch; j++) {
+-								if (!mb.parameters[j].equals(realthing.parameters[j])) couldBeMatch=false;
++								if (!mb.parameters[j].equals(realthing.parameters[j]))
++									couldBeMatch = false;
+ 							}
+ 						}
+ 						// return types compatible? (allow for covariance)
+-						if (couldBeMatch && !returnType.resolvedType.isCompatibleWith(mb.returnType)) couldBeMatch=false;
+-						if (couldBeMatch) reportError = false;
++						if (couldBeMatch && !returnType.resolvedType.isCompatibleWith(mb.returnType))
++							couldBeMatch = false;
++						if (couldBeMatch)
++							reportError = false;
+ 					}
+ 					supertype = supertype.superclass(); // superclass of object is null
+ 				}
+ 				// If we couldn't find something we override, report the error
+-				if (reportError) ((AjProblemReporter)this.scope.problemReporter()).itdMethodMustOverride(this,realthing);			
++				if (reportError)
++					((AjProblemReporter) this.scope.problemReporter()).itdMethodMustOverride(this, realthing);
+ 			}
+ 		}
+-        
+-		if (!Modifier.isAbstract(declaredModifiers)) super.resolveStatements();
++
++		if (!Modifier.isAbstract(declaredModifiers))
++			super.resolveStatements();
+ 		if (Modifier.isStatic(declaredModifiers)) {
+ 			// Check the target for ITD is not an interface
+ 			if (onTypeBinding.isInterface()) {
+-				scope.problemReporter().signalError(sourceStart, sourceEnd,
+-					"methods in interfaces cannot be declared static");
++				scope.problemReporter().signalError(sourceStart, sourceEnd, "methods in interfaces cannot be declared static");
+ 			}
+ 		}
+ 	}
+-	
+-	
+ 
+ 	public EclipseTypeMunger build(ClassScope classScope) {
+ 		EclipseFactory factory = EclipseFactory.fromScopeLookupEnvironment(classScope);
+-		
++
+ 		resolveOnType(classScope);
+-		if (ignoreFurtherInvestigation) return null;
++		if (ignoreFurtherInvestigation)
++			return null;
+ 
+ 		binding = classScope.referenceContext.binding.resolveTypesFor(binding);
+ 		if (binding == null) {
+ 			// if binding is null, we failed to find a type used in the method params, this error
+ 			// has already been reported.
+ 			this.ignoreFurtherInvestigation = true;
+-			//return null;
+-			throw new AbortCompilationUnit(compilationResult,null);
++			// return null;
++			throw new AbortCompilationUnit(compilationResult, null);
+ 		}
+ 
+-		if (isTargetAnnotation(classScope,"method")) return null; // Error message output in isTargetAnnotation
+-		if (isTargetEnum(classScope,"method")) return null; // Error message output in isTargetEnum
+-		
+-		if (interTypeScope==null) return null; // We encountered a problem building the scope, don't continue - error already reported
+-		
++		if (isTargetAnnotation(classScope, "method"))
++			return null; // Error message output in isTargetAnnotation
++		if (isTargetEnum(classScope, "method"))
++			return null; // Error message output in isTargetEnum
++
++		if (interTypeScope == null)
++			return null; // We encountered a problem building the scope, don't continue - error already reported
++
+ 		// This signature represents what we want consumers of the targetted type to 'see'
+ 		// must use the factory method to build it since there may be typevariables from the binding
+ 		// referred to in the parameters/returntype
+-		ResolvedMember sig = factory.makeResolvedMemberForITD(binding,onTypeBinding,interTypeScope.getRecoveryAliases());
++		ResolvedMember sig = factory.makeResolvedMemberForITD(binding, onTypeBinding, interTypeScope.getRecoveryAliases());
+ 		sig.resetName(new String(declaredSelector));
+ 		int resetModifiers = declaredModifiers;
+-		if (binding.isVarargs())  resetModifiers = resetModifiers | Constants.ACC_VARARGS;
+-		sig.resetModifiers(resetModifiers); 
++		if (binding.isVarargs())
++			resetModifiers = resetModifiers | Constants.ACC_VARARGS;
++		sig.resetModifiers(resetModifiers);
+ 		NewMethodTypeMunger myMunger = new NewMethodTypeMunger(sig, null, typeVariableAliases);
+ 		setMunger(myMunger);
+ 		ResolvedType aspectType = factory.fromEclipse(classScope.referenceContext.binding);
+-		ResolvedMember me =
+-			myMunger.getInterMethodBody(aspectType);
++		ResolvedMember me = myMunger.getInterMethodBody(aspectType);
+ 		this.selector = binding.selector = me.getName().toCharArray();
+ 		return new EclipseTypeMunger(factory, myMunger, aspectType, this);
+ 	}
+-	
+-	
++
+ 	private AjAttribute makeAttribute() {
+ 		return new AjAttribute.TypeMunger(munger);
+ 	}
+-	
+-	
++
+ 	public void generateCode(ClassScope classScope, ClassFile classFile) {
+ 		if (ignoreFurtherInvestigation) {
+-			//System.err.println("no code for " + this);
++			// System.err.println("no code for " + this);
+ 			return;
+ 		}
+-		
++
+ 		classFile.extraAttributes.add(new EclipseAttributeAdapter(makeAttribute()));
+-		
++
+ 		if (!Modifier.isAbstract(declaredModifiers)) {
+ 			super.generateCode(classScope, classFile); // this makes the interMethodBody
+ 		}
+-		
+-		// annotations on the ITD declaration get put on this method 
++
++		// annotations on the ITD declaration get put on this method
+ 		generateDispatchMethod(classScope, classFile);
+ 	}
+-	
++
+ 	public void generateDispatchMethod(ClassScope classScope, ClassFile classFile) {
+ 		EclipseFactory world = EclipseFactory.fromScopeLookupEnvironment(classScope);
+-		
++
+ 		UnresolvedType aspectType = world.fromBinding(classScope.referenceContext.binding);
+ 		ResolvedMember signature = munger.getSignature();
+-		
+-		ResolvedMember dispatchMember = 
+-			AjcMemberMaker.interMethodDispatcher(signature, aspectType);
+-		MethodBinding dispatchBinding = world.makeMethodBinding(dispatchMember,munger.getTypeVariableAliases(),munger.getSignature().getDeclaringType());
+-		MethodBinding introducedMethod = 
+-			world.makeMethodBinding(AjcMemberMaker.interMethod(signature, aspectType, onTypeBinding.isInterface()),munger.getTypeVariableAliases());
+-		
++
++		ResolvedMember dispatchMember = AjcMemberMaker.interMethodDispatcher(signature, aspectType);
++		MethodBinding dispatchBinding = world.makeMethodBinding(dispatchMember, munger.getTypeVariableAliases(), munger
++				.getSignature().getDeclaringType());
++		MethodBinding introducedMethod = world.makeMethodBinding(AjcMemberMaker.interMethod(signature, aspectType, onTypeBinding
++				.isInterface()), munger.getTypeVariableAliases());
++
+ 		classFile.generateMethodInfoHeader(dispatchBinding);
+ 		int methodAttributeOffset = classFile.contentsOffset;
+-		
+-		
+-		// Watch out!  We are passing in 'binding' here (instead of dispatchBinding) so that
++
++		// Watch out! We are passing in 'binding' here (instead of dispatchBinding) so that
+ 		// the dispatch binding attributes will include the annotations from the 'binding'.
+ 		// There is a chance that something else on the binding (e.g. throws clause) might
+ 		// damage the attributes generated for the dispatch binding.
+-		int attributeNumber = classFile.generateMethodInfoAttribute(binding,
+-				false,
+-				makeEffectiveSignatureAttribute(signature, Shadow.MethodCall, false));
++		int attributeNumber = classFile.generateMethodInfoAttribute(binding, false, makeEffectiveSignatureAttribute(signature,
++				Shadow.MethodCall, false));
+ 		int codeAttributeOffset = classFile.contentsOffset;
+ 		classFile.generateCodeAttributeHeader();
+ 		CodeStream codeStream = classFile.codeStream;
+ 		codeStream.reset(this, classFile);
+-		
+ 		codeStream.initializeMaxLocals(dispatchBinding);
+-		
++
++		Argument[] itdArgs = this.arguments;
++		if (itdArgs != null) {
++			for (int a = 0; a < itdArgs.length; a++) {
++				LocalVariableBinding lvb = itdArgs[a].binding;
++				LocalVariableBinding lvbCopy = new LocalVariableBinding(lvb.name, lvb.type, lvb.modifiers, true);
++				codeStream.record(lvbCopy);
++				lvbCopy.recordInitializationStartPC(0);
++				lvbCopy.resolvedPosition = lvb.resolvedPosition;
++			}
++		}
++
+ 		MethodBinding methodBinding = introducedMethod;
+ 		TypeBinding[] parameters = methodBinding.parameters;
+ 		int length = parameters.length;
+@@ -276,11 +288,11 @@ public class InterTypeMethodDeclaration extends InterTypeDeclaration {
+ 			else
+ 				resolvedPosition++;
+ 		}
+-//		TypeBinding type;
++		// TypeBinding type;
+ 		if (methodBinding.isStatic())
+ 			codeStream.invokestatic(methodBinding);
+ 		else {
+-			if (methodBinding.declaringClass.isInterface()){
++			if (methodBinding.declaringClass.isInterface()) {
+ 				codeStream.invokeinterface(methodBinding);
+ 			} else {
+ 				codeStream.invokevirtual(methodBinding);
+@@ -288,23 +300,28 @@ public class InterTypeMethodDeclaration extends InterTypeDeclaration {
+ 		}
+ 		AstUtil.generateReturn(dispatchBinding.returnType, codeStream);
+ 
++		// tag the local variables as used throughout the method
++		if (itdArgs != null) {
++			for (int a = 0; a < itdArgs.length; a++) {
++				codeStream.locals[a].recordInitializationEndPC(codeStream.position);
++			}
++		}
+ 		classFile.completeCodeAttribute(codeAttributeOffset);
+ 		attributeNumber++;
+ 		classFile.completeMethodInfo(methodAttributeOffset, attributeNumber);
+ 	}
+ 
+-	
+ 	protected Shadow.Kind getShadowKindForBody() {
+ 		return Shadow.MethodExecution;
+ 	}
+-	
++
+ 	// XXX this code is copied from MethodScope, with a few adjustments for ITDs...
+ 	private void checkAndSetModifiersForMethod() {
+-		
++
+ 		// for reported problems, we want the user to see the declared selector
+ 		char[] realSelector = this.selector;
+ 		this.selector = declaredSelector;
+-		
++
+ 		final ReferenceBinding declaringClass = this.binding.declaringClass;
+ 		if ((declaredModifiers & ExtraCompilerModifiers.AccAlternateModifierProblem) != 0)
+ 			scope.problemReporter().duplicateModifierForMethod(onTypeBinding, this);
+@@ -314,14 +331,16 @@ public class InterTypeMethodDeclaration extends InterTypeDeclaration {
+ 
+ 		// check for abnormal modifiers
+ 		int unexpectedModifiers = ~(ClassFileConstants.AccPublic | ClassFileConstants.AccPrivate | ClassFileConstants.AccProtected
+-			| ClassFileConstants.AccAbstract | ClassFileConstants.AccStatic | ClassFileConstants.AccFinal | ClassFileConstants.AccSynchronized | ClassFileConstants.AccNative | ClassFileConstants.AccStrictfp);
++				| ClassFileConstants.AccAbstract | ClassFileConstants.AccStatic | ClassFileConstants.AccFinal
++				| ClassFileConstants.AccSynchronized | ClassFileConstants.AccNative | ClassFileConstants.AccStrictfp);
+ 		if ((realModifiers & unexpectedModifiers) != 0) {
+ 			scope.problemReporter().illegalModifierForMethod(this);
+ 			declaredModifiers &= ~ExtraCompilerModifiers.AccJustFlag | ~unexpectedModifiers;
+ 		}
+ 
+ 		// check for incompatible modifiers in the visibility bits, isolate the visibility bits
+-		int accessorBits = realModifiers & (ClassFileConstants.AccPublic | ClassFileConstants.AccProtected | ClassFileConstants.AccPrivate);
++		int accessorBits = realModifiers
++				& (ClassFileConstants.AccPublic | ClassFileConstants.AccProtected | ClassFileConstants.AccPrivate);
+ 		if ((accessorBits & (accessorBits - 1)) != 0) {
+ 			scope.problemReporter().illegalVisibilityModifierCombinationForMethod(onTypeBinding, this);
+ 
+@@ -338,18 +357,18 @@ public class InterTypeMethodDeclaration extends InterTypeDeclaration {
+ 
+ 		// check for modifiers incompatible with abstract modifier
+ 		if ((declaredModifiers & ClassFileConstants.AccAbstract) != 0) {
+-			int incompatibleWithAbstract = ClassFileConstants.AccStatic | ClassFileConstants.AccFinal | ClassFileConstants.AccSynchronized | ClassFileConstants.AccNative | ClassFileConstants.AccStrictfp;
++			int incompatibleWithAbstract = ClassFileConstants.AccStatic | ClassFileConstants.AccFinal
++					| ClassFileConstants.AccSynchronized | ClassFileConstants.AccNative | ClassFileConstants.AccStrictfp;
+ 			if ((declaredModifiers & incompatibleWithAbstract) != 0)
+ 				scope.problemReporter().illegalAbstractModifierCombinationForMethod(onTypeBinding, this);
+ 			if (!onTypeBinding.isAbstract())
+ 				scope.problemReporter().abstractMethodInAbstractClass((SourceTypeBinding) onTypeBinding, this);
+ 		}
+ 
+-		/* DISABLED for backward compatibility with javac (if enabled should also mark private methods as final)
+-		// methods from a final class are final : 8.4.3.3 
+-		if (methodBinding.declaringClass.isFinal())
+-			modifiers |= AccFinal;
+-		*/
++		/*
++		 * DISABLED for backward compatibility with javac (if enabled should also mark private methods as final) // methods from a
++		 * final class are final : 8.4.3.3 if (methodBinding.declaringClass.isFinal()) modifiers |= AccFinal;
++		 */
+ 		// native methods cannot also be tagged as strictfp
+ 		if ((declaredModifiers & ClassFileConstants.AccNative) != 0 && (declaredModifiers & ClassFileConstants.AccStrictfp) != 0)
+ 			scope.problemReporter().nativeMethodsCannotBeStrictfp(onTypeBinding, this);
+@@ -359,6 +378,6 @@ public class InterTypeMethodDeclaration extends InterTypeDeclaration {
+ 			scope.problemReporter().unexpectedStaticModifierForMethod(onTypeBinding, this);
+ 
+ 		// restore the true selector now that any problems have been reported
+-		this.selector = realSelector;		
++		this.selector = realSelector;
+ 	}
+ }
+@@ -331,7 +331,7 @@ public class AdviceDeclaration extends AjMethodDeclaration {
+ 		}
+ 
+ 		if (kind == AdviceKind.Around) {
+-			extraArgument = makeFinalArgument("ajc_aroundClosure", AjTypeConstants.getAroundClosureType());
++			extraArgument = makeFinalArgument("ajc$aroundClosure", AjTypeConstants.getAroundClosureType());
+ 		}
+ 
+ 		int addedArguments = 3;
+@@ -475,6 +475,7 @@ public class AjcMemberMaker {
+ 		ResolvedMemberImpl rmi = new ResolvedMemberImpl(Member.METHOD, meth.getDeclaringType(), modifiers, meth.getReturnType(),
+ 				NameMangler.interMethod(meth.getModifiers(), aspectType, meth.getDeclaringType(), meth.getName()), meth
+ 						.getParameterTypes(), meth.getExceptions());
++		rmi.setParameterNames(meth.getParameterNames());
+ 		rmi.setTypeVariables(meth.getTypeVariables());
+ 		return rmi;
+ 	}
+@@ -527,7 +528,7 @@ public class AjcMemberMaker {
+ 
+ 		ResolvedMemberImpl rmi = new ResolvedMemberImpl(Member.METHOD, aspectType, PUBLIC_STATIC, meth.getReturnType(), NameMangler
+ 				.interMethodDispatcher(aspectType, meth.getDeclaringType(), meth.getName()), paramTypes, meth.getExceptions());
+-
++		rmi.setParameterNames(meth.getParameterNames());
+ 		rmi.setTypeVariables(meth.getTypeVariables());
+ 
+ 		return rmi;
+@@ -549,6 +550,7 @@ public class AjcMemberMaker {
+ 
+ 		ResolvedMemberImpl rmi = new ResolvedMemberImpl(Member.METHOD, aspectType, modifiers, meth.getReturnType(), NameMangler
+ 				.interMethodBody(aspectType, meth.getDeclaringType(), meth.getName()), paramTypes, meth.getExceptions());
++		rmi.setParameterNames(meth.getParameterNames());
+ 		rmi.setTypeVariables(meth.getTypeVariables());
+ 		return rmi;
+ 	}
+@@ -0,0 +1,4 @@
++
++public interface IService {
++    void method(long l) throws Exception;
++}
+@@ -0,0 +1,18 @@
++interface I {
++
++} 
++
++class C implements I {
++
++  public void m() {
++    foo(null,1,null);
++    fooStatic(6,1,null);
++  }
++}
++
++aspect X {
++  void around(): call(* foo(..)) {}
++  public void I.foo(String s,int i,String[] ss) {}
++  void around(): call(* fooStatic(..)) {}
++  public static void C.fooStatic(long l,int i,String[] ss) {}
++}
+@@ -0,0 +1,15 @@
++interface I {
++
++} 
++
++class C implements I {
++
++  public void m() {
++    foo(null,1,null);
++  }
++}
++
++aspect X {
++  void around(): call(* foo(..)) {}
++  public void I.foo(String s,int i,String[] ss) {}
++}
+@@ -0,0 +1,8 @@
++
++public class Main {
++
++    public static void main(String[] args) throws Exception {
++        IService service = new Service();
++        service.method(42L);
++    }
++}
+@@ -0,0 +1,7 @@
++
++public class Service implements IService {
++
++    public void method(long l) throws Exception {
++        System.err.println("Original impl of service method, arg " + l);
++    }
++}
+@@ -0,0 +1,17 @@
++
++import org.aspectj.lang.ProceedingJoinPoint;
++import org.aspectj.lang.annotation.Around;
++import org.aspectj.lang.annotation.Aspect;
++
++@Aspect
++public class ServiceInterceptor {
++
++    @Around("execution(void Service.method(long))")
++    public void method(ProceedingJoinPoint pjp) throws Throwable {
++        Object[] args = pjp.getArgs();
++        long id = (Long) args[0];
++        System.out.println("in advice, arg = " + id + " (before proceed)");
++        pjp.proceed(pjp.getArgs());
++        System.out.println("in advice (after proceed)");
++    }
++}
+@@ -0,0 +1,15 @@
++
++import org.aspectj.lang.ProceedingJoinPoint;
++import org.aspectj.lang.annotation.Around;
++import org.aspectj.lang.annotation.Aspect;
++
++public aspect ServiceInterceptorCodeStyle {
++
++    void around(): execution(void Service.method(long)) {
++        Object[] args = thisJoinPoint.getArgs();
++        long id = (Long) args[0];
++        System.out.println("in advice, arg = " + id + " (before proceed)");
++        proceed();
++        System.out.println("in advice (after proceed)");
++    }
++}
+@@ -1818,6 +1818,13 @@ public abstract class ResolvedType extends UnresolvedType implements AnnotatedEl
+ 			if (member.getKind() == Member.CONSTRUCTOR) {
+ 				ResolvedMemberImpl ret = new ResolvedMemberImpl(Member.CONSTRUCTOR, this, Modifier.PUBLIC, ResolvedType.VOID,
+ 						"<init>", world.resolve(member.getParameterTypes()));
++				// Give the parameters names - they are going to be the dimensions uses to build the array (dim0 > dimN)
++				int count = ret.getParameterTypes().length;
++				String[] paramNames = new String[count];
++				for (int i = 0; i < count; i++) {
++					paramNames[i] = new StringBuffer("dim").append(i).toString();
++				}
++				ret.setParameterNames(paramNames);
+ 				return ret;
+ 			}
+ 		}
+@@ -0,0 +1,4 @@
++
++public interface IService {
++    void method(long l) throws Exception;
++}
+@@ -0,0 +1,8 @@
++
++public class Main {
++
++    public static void main(String[] args) throws Exception {
++        IService service = new Service();
++        service.method(42L);
++    }
++}
+@@ -0,0 +1,7 @@
++
++public class Service implements IService {
++
++    public void method(long l) throws Exception {
++        System.err.println("Original impl of service method, arg " + l);
++    }
++}
+@@ -0,0 +1,17 @@
++
++import org.aspectj.lang.ProceedingJoinPoint;
++import org.aspectj.lang.annotation.Around;
++import org.aspectj.lang.annotation.Aspect;
++
++@Aspect
++public class ServiceInterceptor {
++
++    @Around("execution(void test.Service.method(long))")
++    public void method(ProceedingJoinPoint pjp) throws Throwable {
++        Object[] args = pjp.getArgs();
++        long id = (Long) args[0];
++        System.out.println("in advice, arg = " + id + " (before proceed)");
++        pjp.proceed(pjp.getArgs());
++        System.out.println("in advice (after proceed)");
++    }
++}
+@@ -0,0 +1,15 @@
++
++import org.aspectj.lang.ProceedingJoinPoint;
++import org.aspectj.lang.annotation.Around;
++import org.aspectj.lang.annotation.Aspect;
++
++public aspect ServiceInterceptorCodeStyle {
++
++    void around(): execution(void Service.method(long)) {
++        Object[] args = thisJoinPoint.getArgs();
++        long id = (Long) args[0];
++        System.out.println("in advice, arg = " + id + " (before proceed)");
++        proceed();
++        System.out.println("in advice (after proceed)");
++    }
++}
+@@ -23,6 +23,59 @@ import org.aspectj.testing.XMLBasedAjcTestCase;
+ 
+ public class Ajc163Tests extends org.aspectj.testing.XMLBasedAjcTestCase {
+ 
++	public void testBrokenLVT_pr194314_1() {
++		runTest("broken lvt - 1");
++		JavaClass jc = Utils.getClassFrom(ajc.getSandboxDirectory().getAbsolutePath(), "Service");
++		Method[] ms = jc.getMethods();
++		Method m = null;
++		for (int i = 0; i < ms.length; i++) {
++			if (ms[i].getName().equals("method_aroundBody1$advice")) {
++				m = ms[i];
++			}
++		}
++		if (m.getLocalVariableTable() == null) {
++			fail("Local variable table should not be null");
++		}
++		System.out.println(m.getLocalVariableTable());
++		LocalVariable[] lvt = m.getLocalVariableTable().getLocalVariableTable();
++		assertEquals(8, lvt.length);
++	}
++
++	public void testBrokenLVT_pr194314_2() throws Exception {
++		runTest("broken lvt - 2");
++		JavaClass jc = Utils.getClassFrom(ajc.getSandboxDirectory().getAbsolutePath(), "Service");
++		Method[] ms = jc.getMethods();
++		Method m = null;
++		for (int i = 0; i < ms.length; i++) {
++			if (ms[i].getName().equals("method_aroundBody1$advice")) {
++				m = ms[i];
++			}
++		}
++		if (m.getLocalVariableTable() == null) {
++			fail("Local variable table should not be null");
++		}
++		System.out.println(m.getLocalVariableTable());
++		LocalVariable[] lvt = m.getLocalVariableTable().getLocalVariableTable();
++		assertEquals(8, lvt.length);
++		// assertEquals(2, m.getLocalVariableTable().getLocalVariableTable().length);
++
++		// Before I've started any work on this:
++		// LocalVariable(start_pc = 0, length = 68, index = 0:ServiceInterceptorCodeStyle this)
++		// LocalVariable(start_pc = 0, length = 68, index = 1:org.aspectj.runtime.internal.AroundClosure ajc_aroundClosure)
++		// LocalVariable(start_pc = 0, length = 68, index = 2:org.aspectj.lang.JoinPoint thisJoinPoint)
++		// LocalVariable(start_pc = 9, length = 59, index = 3:Object[] args)
++		// LocalVariable(start_pc = 21, length = 47, index = 4:long id)
++
++		// Method signature:
++		// private static final void method_aroundBody1$advice(Service, long, org.aspectj.lang.JoinPoint,
++		// ServiceInterceptorCodeStyle, org.aspectj.runtime.internal.AroundClosure, org.aspectj.lang.JoinPoint);
++		//
++		// Service, JoinPoint, ServiceInterceptorCodeStyle, AroundClosure, JoinPoint
++
++		// args should be in slot 7 and the long in position 8
++
++	}
++
+ 	public void testDontAddMethodBodiesToInterface_pr163005() {
+ 		runTest("do not add method bodies to an interface");
+ 	}
+@@ -3,6 +3,14 @@
+ <suite>
+ 
+ 
++    <ajc-test dir="bugs163/pr194314" title="broken lvt - 1">
++      <compile files="Service.java IService.java Main.java ServiceInterceptor.java" options="-1.5"/>
++    </ajc-test>
++    
++    <ajc-test dir="bugs163/pr194314" title="broken lvt - 2">
++      <compile files="Service.java IService.java Main.java ServiceInterceptorCodeStyle.java" options="-1.5"/>
++    </ajc-test>
++
+     <ajc-test dir="bugs163/pr163005" title="do not add method bodies to an interface">
+       <compile files="Code.java" options="-1.4">
+         <message kind="warning" text="The joinpoint 'method-call(java.lang.Class java.lang.Class.forName(java.lang.String))' cannot be advised"/>
+@@ -187,6 +187,18 @@ public abstract class Shadow {
+         return getSignature()
+             .getParameterTypes().length;
+     }
++    
++    /**
++     * Return name of the argument at position 'i' at this shadow.  This does not
++     * make sense for all shadows - but can be useful in the case of, for example,
++     * method-execution.
++     * @return null if it cannot be determined
++     */
++    public String getArgName(int i,World w) {
++    	String [] names = getSignature().getParameterNames(w);
++    	if (names==null || i>=names.length) return null;
++    	return names[i];
++    }
+ 
+ 	public abstract UnresolvedType getEnclosingType();	
+ 
+@@ -3,6 +3,9 @@
+ <!-- AspectJ v1.6.0 Tests -->
+ <suite>
+ 
++   <ajc-test dir="bugs154/pr194314" title="broken lvt for woven at aspectj around advice">
++     <compile options="-1.5" files="test/IService.java,test/Main.java,test/Service.java,test/ServiceInterceptor.java"/>
++   </ajc-test>
+ 
+    <ajc-test dir="bugs154/pr148381/simple" title="argNames does not work - simple">
+      <!-- this compile is just to get code.jar into the sandbox, all the code is already precompiled in code.jar -->
+@@ -0,0 +1,6 @@
++package test;
++
++
++public interface IService {
++    void method(long l) throws Exception;
++}
+@@ -0,0 +1,9 @@
++package test;
++
++public class Main {
++
++    public static void main(String[] args) throws Exception {
++        IService service = new Service();
++        service.method(42L);
++    }
++}
+@@ -0,0 +1,8 @@
++package test;
++
++public class Service implements IService {
++
++    public void method(long l) throws Exception {
++        System.err.println("Original impl of service method, arg " + l);
++    }
++}
+@@ -0,0 +1,26 @@
++package test;
++
++import org.aspectj.lang.ProceedingJoinPoint;
++import org.aspectj.lang.annotation.Around;
++import org.aspectj.lang.annotation.Aspect;
++
++ @Aspect public class ServiceInterceptor {
++//public aspect ServiceInterceptor {
++	
++//	void around(): execution(void test.Service.method(long)) {
++//        Object[] args = thisJoinPoint.getArgs();
++//        long id = (Long) args[0];
++//        System.out.println("in advice, arg = " + id + " (before proceed)");
++//        proceed();
++//        System.out.println("in advice (after proceed)");
++//    }
++	
++    @Around("execution(void test.Service.method(long))")
++    public void method(ProceedingJoinPoint pjp) throws Throwable {
++        Object[] args = pjp.getArgs();
++        long id = (Long) args[0];
++        System.out.println("in advice, arg = " + id + " (before proceed)");
++        pjp.proceed(pjp.getArgs());
++        System.out.println("in advice (after proceed)");
++    }
++}

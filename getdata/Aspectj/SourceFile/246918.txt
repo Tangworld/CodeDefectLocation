@@ -1,0 +1,2332 @@
+@@ -17,61 +17,166 @@ import junit.framework.Test;
+ import org.aspectj.testing.XMLBasedAjcTestCase;
+ 
+ public class Ajc162Tests extends org.aspectj.testing.XMLBasedAjcTestCase {
+-	
+-	// AspectJ1.6.2	 
+-	public void testAnnoValueBinding_pr246264() { runTest("anno value binding"); }
+-	public void testAroundAdviceProceed_pr211607() { runTest("around advice proceed"); }
+-//	public void testAdvisingInterfaces_pr163005() { runTest("advising joinpoints in interfaces"); }
+-	public void testChainedItds_pr176905() { runTest("chained itds"); }
+-	public void testDecAtAnnoDecP_pr198341() { runTest("dec atanno and decp"); }
+-//	public void testStarInAnnoStyle_pr209951() { runTest("asterisk in at aj pointcut"); }
+-	public void testMissingMarkers_pr197720() { runTest("missing markers on inherited annotated method"); }
+-	public void testLostGenericsSigOnItd_pr211146() { runTest("lost generic sig on itd"); }
+-	public void testLostGenericsSigOnItd_pr211146_2() { runTest("lost generic sig on itd - 2"); }
+-	public void testLostGenericsSigOnItd_pr211146_3() { runTest("lost generic sig on itd - 3"); }
+-	public void testLostGenericsSigOnItd_pr211146_4() { runTest("lost generic sig on itd - 4"); }
+-	public void testLostGenericsSigOnItd_pr211146_5() { runTest("lost generic sig on itd - 5"); }
+-	public void testMissingContext_pr194429() { runTest("missing context"); }
+-	public void testWarningsForLimitations_pr210114() { runTest("warnings for limitations"); }
+-	public void testPTW_pr244830() { runTest("ptw initFailureCause"); }
+-	public void testGenericItdsOverrides_pr222648() { runTest("generic itds - overrides"); }
+-	public void testGenericItdsOverrides_pr222648_2() { runTest("generic itds - overrides - 2"); }
+-    public void testItdCallingGenericMethod_pr145391() { runTest("itd calling generic method");}
+-    public void testItdCallingGenericMethod_pr145391_2() { runTest("itd calling generic method - 2");}
+-	public void testPublicPointcut_pr239539() { runTest("public pointcut"); }
+-	public void testGenericDecp_pr241047() { runTest("generic decp"); }
+-	public void testGenericDecp_pr241047_2() { runTest("generic decp - 2"); }
+-	public void testGenericItds_pr242797_1() { runTest("generic itds - 1"); }
+-	public void testGenericItds_pr242797_2() { runTest("generic itds - 2"); }
+-	public void testGenericItds_pr242797_3() { runTest("generic itds - 3"); }
+-	public void testPrivilegedGenerics_pr240693() { runTest("privileged generics"); }
+-//	public void testParamAnnosPipelining_pr241847() { runTest("param annos pipelining");}
+-//	public void testParamAnnoInner_pr241861() { runTest("param annotation inner class"); }
+-	public void testAnnotationDecp_pr239441() { runTest("annotation decp"); }
+-	public void testAtAspectJPerTarget_pr198181() { runTest("ataspectj ltw pertarget"); }
+-	public void testAnnotationValueDecp_pr238992() { runTest("annotation value decp"); }
+-	public void testAnnotationValueDecp_pr238992_2() { runTest("annotation value decp - 2"); }
+-	public void testAnnotationValueDecp_pr238992_3() { runTest("annotation value decp - 3"); }
+-	public void testAnnotationValueDecp_pr238992_4() { runTest("annotation value decp - 4"); }
+-	public void testAnnotationValueDecp_pr238992_5() { runTest("annotation value decp - 5"); }
+-	
++
++	// AspectJ1.6.2
++	public void testPerClause() {
++		runTest("ltw perclause");
++	}
++
++	public void testPerClause2() {
++		runTest("ltw perclause - 2");
++	}
++
++	public void testPerClause3() {
++		runTest("ltw perclause - 3");
++	}
++
++	public void testPerClause4_IncorrectPerClause() {
++		runTest("ltw perclause - 4");
++	}
++
++	public void testAnnoValueBinding_pr246264() {
++		runTest("anno value binding");
++	}
++
++	public void testAroundAdviceProceed_pr211607() {
++		runTest("around advice proceed");
++	}
++
++	// public void testAdvisingInterfaces_pr163005() { runTest("advising joinpoints in interfaces"); }
++	public void testChainedItds_pr176905() {
++		runTest("chained itds");
++	}
++
++	public void testDecAtAnnoDecP_pr198341() {
++		runTest("dec atanno and decp");
++	}
++
++	// public void testStarInAnnoStyle_pr209951() { runTest("asterisk in at aj pointcut"); }
++	public void testMissingMarkers_pr197720() {
++		runTest("missing markers on inherited annotated method");
++	}
++
++	public void testLostGenericsSigOnItd_pr211146() {
++		runTest("lost generic sig on itd");
++	}
++
++	public void testLostGenericsSigOnItd_pr211146_2() {
++		runTest("lost generic sig on itd - 2");
++	}
++
++	public void testLostGenericsSigOnItd_pr211146_3() {
++		runTest("lost generic sig on itd - 3");
++	}
++
++	public void testLostGenericsSigOnItd_pr211146_4() {
++		runTest("lost generic sig on itd - 4");
++	}
++
++	public void testLostGenericsSigOnItd_pr211146_5() {
++		runTest("lost generic sig on itd - 5");
++	}
++
++	public void testMissingContext_pr194429() {
++		runTest("missing context");
++	}
++
++	public void testWarningsForLimitations_pr210114() {
++		runTest("warnings for limitations");
++	}
++
++	public void testPTW_pr244830() {
++		runTest("ptw initFailureCause");
++	}
++
++	public void testGenericItdsOverrides_pr222648() {
++		runTest("generic itds - overrides");
++	}
++
++	public void testGenericItdsOverrides_pr222648_2() {
++		runTest("generic itds - overrides - 2");
++	}
++
++	public void testItdCallingGenericMethod_pr145391() {
++		runTest("itd calling generic method");
++	}
++
++	public void testItdCallingGenericMethod_pr145391_2() {
++		runTest("itd calling generic method - 2");
++	}
++
++	public void testPublicPointcut_pr239539() {
++		runTest("public pointcut");
++	}
++
++	public void testGenericDecp_pr241047() {
++		runTest("generic decp");
++	}
++
++	public void testGenericDecp_pr241047_2() {
++		runTest("generic decp - 2");
++	}
++
++	public void testGenericItds_pr242797_1() {
++		runTest("generic itds - 1");
++	}
++
++	public void testGenericItds_pr242797_2() {
++		runTest("generic itds - 2");
++	}
++
++	public void testGenericItds_pr242797_3() {
++		runTest("generic itds - 3");
++	}
++
++	public void testPrivilegedGenerics_pr240693() {
++		runTest("privileged generics");
++	}
++
++	// public void testParamAnnosPipelining_pr241847() { runTest("param annos pipelining");}
++	// public void testParamAnnoInner_pr241861() { runTest("param annotation inner class"); }
++	public void testAnnotationDecp_pr239441() {
++		runTest("annotation decp");
++	}
++
++	public void testAtAspectJPerTarget_pr198181() {
++		runTest("ataspectj ltw pertarget");
++	}
++
++	public void testAnnotationValueDecp_pr238992() {
++		runTest("annotation value decp");
++	}
++
++	public void testAnnotationValueDecp_pr238992_2() {
++		runTest("annotation value decp - 2");
++	}
++
++	public void testAnnotationValueDecp_pr238992_3() {
++		runTest("annotation value decp - 3");
++	}
++
++	public void testAnnotationValueDecp_pr238992_4() {
++		runTest("annotation value decp - 4");
++	}
++
++	public void testAnnotationValueDecp_pr238992_5() {
++		runTest("annotation value decp - 5");
++	}
++
+ 	/*
+-	 * test plan
+-	 * execution(* *(..,String,..))
+-	 * args(..,String,..)
+-	 * @args(..,Foo,..)
++	 * test plan execution((..,String,..)) args(..,String,..)
+ 	 * 
++	 * @args(..,Foo,..)
+ 	 */
+-//	public void testParameterSubsettingMatching_pr233718_Matching() { runTest("parameter subsetting - matching");}
+-//	public void testParameterSubsettingMatching_pr233718_ArgsMatching() { runTest("parameter subsetting - args matching");}
+-//	public void testParameterSubsettingMatching_pr233718_ArgsBinding() { runTest("parameter subsetting - args binding");}
+-
++	// public void testParameterSubsettingMatching_pr233718_Matching() { runTest("parameter subsetting - matching");}
++	// public void testParameterSubsettingMatching_pr233718_ArgsMatching() { runTest("parameter subsetting - args matching");}
++	// public void testParameterSubsettingMatching_pr233718_ArgsBinding() { runTest("parameter subsetting - args binding");}
+ 	public static Test suite() {
+-      return XMLBasedAjcTestCase.loadSuite(Ajc162Tests.class);
+-    }
++		return XMLBasedAjcTestCase.loadSuite(Ajc162Tests.class);
++	}
++
++	protected File getSpecFile() {
++		return new File("../tests/src/org/aspectj/systemtest/ajc162/ajc162.xml");
++	}
+ 
+-    protected File getSpecFile() {
+-      return new File("../tests/src/org/aspectj/systemtest/ajc162/ajc162.xml");
+-    }
+-  
+ }
+\ No newline at end of file
+@@ -3,6 +3,49 @@
+ <!-- AspectJ v1.6.2 Tests -->
+ <suite>
+ 
++   <ajc-test dir="bugs162/pr246918" title="ltw perclause">
++     <compile options="-1.5" files="Code.java Dode.java" outjar="code.jar"/>
++     <compile options="-1.5 -Xlint:ignore" files="Base.java" outjar="aspects.jar"/>
++     <run class="Code" classpath="aspects.jar;code.jar" ltw="aop1.xml">
++       <stderr>
++         <line text="advice fired class Code"/>
++         <line text="advice fired class Dode"/>
++       </stderr>
++     </run>
++   </ajc-test>
++   
++   <ajc-test dir="bugs162/pr246918" title="ltw perclause - 2">
++     <compile options="-1.5" files="Code.java Dode.java" outjar="code.jar"/>
++     <compile options="-1.5 -Xlint:ignore" files="Base.java" outjar="aspects.jar"/>
++     <run class="Code" classpath="aspects.jar;code.jar" ltw="aop2.xml">
++       <stderr>
++         <line text="advice fired class Dode"/>
++       </stderr>
++     </run>
++   </ajc-test>
++   
++   <ajc-test dir="bugs162/pr246918" title="ltw perclause - 3">
++     <compile options="-1.5" files="Code.java Dode.java" outjar="code.jar"/>
++     <compile options="-1.5 -Xlint:ignore" files="Base2.java" outjar="aspects.jar"/>
++     <run class="Code" classpath="aspects.jar;code.jar" ltw="aop3.xml">
++       <stderr>
++         <line text="advice fired class Dode"/>
++       </stderr>
++     </run>
++   </ajc-test>
++   
++   <ajc-test dir="bugs162/pr246918" title="ltw perclause - 4">
++     <compile options="-1.5" files="Code.java Dode.java" outjar="code.jar"/>
++     <compile options="-1.5 -Xlint:ignore" files="Base2.java" outjar="aspects.jar"/>
++     <run class="Code" classpath="aspects.jar;code.jar" ltw="aop4.xml">
++       <stderr>
++         <line text="Unrecognized per clause specified"/>
++         <line text="Concrete-aspect 'SubAspect' could not be registered"/>
++         <line text="warning failure(s) registering aspects."/>
++       </stderr>
++     </run>
++   </ajc-test>
++   
+    <ajc-test dir="bugs162/pr246264" title="anno value binding">
+      <compile options="-1.5" files="A.java"/>
+      <run class="A"/>
+@@ -0,0 +1,158 @@
++/* *******************************************************************
++ * Copyright (c) 2008 Contributors.
++ * All rights reserved. 
++ * This program and the accompanying materials are made available 
++ * under the terms of the Eclipse Public License v1.0 
++ * which accompanies this distribution and is available at 
++ * http://eclipse.org/legal/epl-v10.html 
++ *
++ * ******************************************************************/
++package org.aspectj.weaver;
++
++import java.util.Collection;
++
++import org.aspectj.weaver.patterns.PerClause;
++
++/**
++ * A delegate that can sit in the ReferenceType instance created for an aspect generated from aop.xml. Only answers the minimal set
++ * of information required as the type is processed.
++ * 
++ * @author Andy Clement
++ */
++public class GeneratedReferenceTypeDelegate extends AbstractReferenceTypeDelegate {
++
++	private ResolvedType superclass;
++
++	public GeneratedReferenceTypeDelegate(ReferenceType backing) {
++		super(backing, false);
++	}
++
++	public void addAnnotation(AnnotationAJ annotationX) {
++		throw new UnsupportedOperationException("Not supported for GeneratedReferenceTypeDelegate");
++	}
++
++	public boolean isAspect() {
++		throw new UnsupportedOperationException("Not supported for GeneratedReferenceTypeDelegate");
++	}
++
++	public boolean isAnnotationStyleAspect() {
++		throw new UnsupportedOperationException("Not supported for GeneratedReferenceTypeDelegate");
++	}
++
++	public boolean isInterface() {
++		throw new UnsupportedOperationException("Not supported for GeneratedReferenceTypeDelegate");
++	}
++
++	public boolean isEnum() {
++		throw new UnsupportedOperationException("Not supported for GeneratedReferenceTypeDelegate");
++	}
++
++	public boolean isAnnotation() {
++		throw new UnsupportedOperationException("Not supported for GeneratedReferenceTypeDelegate");
++	}
++
++	public boolean isAnnotationWithRuntimeRetention() {
++		throw new UnsupportedOperationException("Not supported for GeneratedReferenceTypeDelegate");
++	}
++
++	public boolean isAnonymous() {
++		throw new UnsupportedOperationException("Not supported for GeneratedReferenceTypeDelegate");
++	}
++
++	public boolean isNested() {
++		throw new UnsupportedOperationException("Not supported for GeneratedReferenceTypeDelegate");
++	}
++
++	public ResolvedType getOuterClass() {
++		throw new UnsupportedOperationException("Not supported for GeneratedReferenceTypeDelegate");
++	}
++
++	public String getRetentionPolicy() {
++		throw new UnsupportedOperationException("Not supported for GeneratedReferenceTypeDelegate");
++	}
++
++	public boolean canAnnotationTargetType() {
++		throw new UnsupportedOperationException("Not supported for GeneratedReferenceTypeDelegate");
++	}
++
++	public AnnotationTargetKind[] getAnnotationTargetKinds() {
++		throw new UnsupportedOperationException("Not supported for GeneratedReferenceTypeDelegate");
++	}
++
++	public boolean isGeneric() {
++		throw new UnsupportedOperationException("Not supported for GeneratedReferenceTypeDelegate");
++	}
++
++	public String getDeclaredGenericSignature() {
++		throw new UnsupportedOperationException("Not supported for GeneratedReferenceTypeDelegate");
++	}
++
++	public boolean hasAnnotation(UnresolvedType ofType) {
++		throw new UnsupportedOperationException("Not supported for GeneratedReferenceTypeDelegate");
++	}
++
++	public AnnotationAJ[] getAnnotations() {
++		throw new UnsupportedOperationException("Not supported for GeneratedReferenceTypeDelegate");
++	}
++
++	public ResolvedType[] getAnnotationTypes() {
++		throw new UnsupportedOperationException("Not supported for GeneratedReferenceTypeDelegate");
++	}
++
++	public ResolvedMember[] getDeclaredFields() {
++		throw new UnsupportedOperationException("Not supported for GeneratedReferenceTypeDelegate");
++	}
++
++	public ResolvedType[] getDeclaredInterfaces() {
++		return ResolvedType.NONE;
++	}
++
++	public ResolvedMember[] getDeclaredMethods() {
++		throw new UnsupportedOperationException("Not supported for GeneratedReferenceTypeDelegate");
++	}
++
++	public ResolvedMember[] getDeclaredPointcuts() {
++		throw new UnsupportedOperationException("Not supported for GeneratedReferenceTypeDelegate");
++	}
++
++	public PerClause getPerClause() {
++		throw new UnsupportedOperationException("Not supported for GeneratedReferenceTypeDelegate");
++	}
++
++	public Collection getDeclares() {
++		throw new UnsupportedOperationException("Not supported for GeneratedReferenceTypeDelegate");
++	}
++
++	public Collection getTypeMungers() {
++		throw new UnsupportedOperationException("Not supported for GeneratedReferenceTypeDelegate");
++	}
++
++	public Collection getPrivilegedAccesses() {
++		throw new UnsupportedOperationException("Not supported for GeneratedReferenceTypeDelegate");
++	}
++
++	public int getModifiers() {
++		throw new UnsupportedOperationException("Not supported for GeneratedReferenceTypeDelegate");
++	}
++
++	public void setSuperclass(ResolvedType superclass) {
++		this.superclass = superclass;
++	}
++
++	public ResolvedType getSuperclass() {
++		return this.superclass;
++	}
++
++	public WeaverStateInfo getWeaverState() {
++		throw new UnsupportedOperationException("Not supported for GeneratedReferenceTypeDelegate");
++	}
++
++	public TypeVariable[] getTypeVariables() {
++		throw new UnsupportedOperationException("Not supported for GeneratedReferenceTypeDelegate");
++	}
++
++	public void ensureDelegateConsistent() {
++		throw new UnsupportedOperationException("Not supported for GeneratedReferenceTypeDelegate");
++	}
++
++}
+\ No newline at end of file
+@@ -30,572 +30,539 @@ import org.aspectj.weaver.UnresolvedType;
+ import org.aspectj.weaver.patterns.PerClause;
+ 
+ /**
+- * Adds aspectOf, hasAspect etc to the annotation defined aspects
+- *
+- * @author <a href="mailto:alex AT gnilux DOT com">Alexandre Vasseur</a>
++ * Adds aspectOf(), hasAspect() etc to the annotation defined aspects
++ * 
++ * @author Alexandre Vasseur
++ * @author Andy Clement
+  */
+ public class BcelPerClauseAspectAdder extends BcelTypeMunger {
+ 
+-    private PerClause.Kind kind;
+-
+-    private boolean hasGeneratedInner = false;
+-
+-    public BcelPerClauseAspectAdder(ResolvedType aspect, PerClause.Kind kind) {
+-        super(null,aspect);
+-        this.kind = kind;
+-        if (kind == PerClause.SINGLETON || kind == PerClause.PERTYPEWITHIN || kind == PerClause.PERCFLOW) {
+-            // no inner needed
+-            hasGeneratedInner = true;
+-        }
+-    }
+-
+-    public boolean munge(BcelClassWeaver weaver) {
+-        LazyClassGen gen = weaver.getLazyClassGen();
+-
+-        doAggressiveInner(gen);
+-
+-        // Only munge the aspect type
+-         if (!gen.getType().equals(aspectType)) {
+-             return false;
+-         }
+-
+-        return doMunge(gen, true);
+-    }
+-
+-    public boolean forceMunge(LazyClassGen gen, boolean checkAlreadyThere) {
+-        doAggressiveInner(gen);
+-        return doMunge(gen, checkAlreadyThere);
+-    }
+-
+-    private void doAggressiveInner(LazyClassGen gen) {
+-        // agressively generate the inner interface if any
+-        // Note: we do so because of the bug #75442 that leads to have this interface implemented by all classes and not
+-        // only those matched by the per clause, which fails under LTW since the very first class
+-        // gets weaved and impl this interface that is still not defined.
+-        if (!hasGeneratedInner) {
+-            if (kind == PerClause.PEROBJECT) {//redundant test - see constructor, but safer
+-                //inner class
+-                UnresolvedType interfaceTypeX = AjcMemberMaker.perObjectInterfaceType(aspectType);
+-                LazyClassGen interfaceGen = new LazyClassGen(
+-                        interfaceTypeX.getName(),
+-                        "java.lang.Object",
+-                        null,
+-                        Constants.ACC_INTERFACE + Constants.ACC_PUBLIC + Constants.ACC_ABSTRACT,
+-                        new String[0],
+-                        getWorld()
+-                );
+-                interfaceGen.addMethodGen(makeMethodGen(interfaceGen, AjcMemberMaker.perObjectInterfaceGet(aspectType)));
+-                interfaceGen.addMethodGen(makeMethodGen(interfaceGen, AjcMemberMaker.perObjectInterfaceSet(aspectType)));
+-                //not really an inner class of it but that does not matter, we pass back to the LTW
+-                gen.addGeneratedInner(interfaceGen);
+-            }
+-            hasGeneratedInner = true;
+-        }
+-    }
+-
+-    private boolean doMunge(LazyClassGen gen, boolean checkAlreadyThere) {
+-        if (checkAlreadyThere && hasPerClauseMembersAlready(gen)) {
+-            return false;
+-        }
+-
+-        generatePerClauseMembers(gen);
+-
+-        if (kind == PerClause.SINGLETON) {
+-            generatePerSingletonAspectOfMethod(gen);
+-            generatePerSingletonHasAspectMethod(gen);
+-            generatePerSingletonAjcClinitMethod(gen);
+-        } else if (kind == PerClause.PEROBJECT) {
+-            generatePerObjectAspectOfMethod(gen);
+-            generatePerObjectHasAspectMethod(gen);
+-            generatePerObjectBindMethod(gen);
+-            // these will be added by the PerObjectInterface munger that affects the type - pr144602
+-//            generatePerObjectGetSetMethods(gen); 
+-        } else if (kind == PerClause.PERCFLOW) {
+-            generatePerCflowAspectOfMethod(gen);
+-            generatePerCflowHasAspectMethod(gen);
+-            generatePerCflowPushMethod(gen);
+-            generatePerCflowAjcClinitMethod(gen);
+-        } else if (kind == PerClause.PERTYPEWITHIN) {
+-            generatePerTWAspectOfMethod(gen);
+-            generatePerTWHasAspectMethod(gen);
+-            generatePerTWGetInstanceMethod(gen);
+-            generatePerTWCreateAspectInstanceMethod(gen);
+-            generatePerTWGetWithinTypeNameMethod(gen);
+-        } else {
+-            throw new Error("should not happen - not such kind " + kind.getName());
+-        }
+-        return true;
+-    }
+-
+-
+-    public ResolvedMember getMatchingSyntheticMember(Member member) {
+-        return null;
+-    }
+-
+-    public ResolvedMember getSignature() {
+-        return null;
+-    }
+-
+-    public boolean matches(ResolvedType onType) {
+-    	// cannot always do the right thing because may need to eagerly generate ajcMightHaveAspect interface for LTW (says Alex)
+-    	if (hasGeneratedInner) { // pr237419 - not always going to generate the marker interface
+-    		return aspectType.equals(onType);
+-    	} else {
+-    		return true;
+-    	}
+-    }
+-
+-    private boolean hasPerClauseMembersAlready(LazyClassGen classGen) {
+-        ResolvedMember[] methods = classGen.getBcelObjectType().getDeclaredMethods();
+-        for (int i = 0; i < methods.length; i++) {
+-            ResolvedMember method = methods[i];
+-            if ("aspectOf".equals(method.getName())) {
+-                if ("()".equals(method.getParameterSignature()) && (kind == PerClause.SINGLETON || kind == PerClause.PERCFLOW)) {
+-                    return true;
+-                } else if ("(Ljava/lang/Object;)".equals(method.getParameterSignature()) && kind == PerClause.PEROBJECT) {
+-                    return true;
+-                } else if ("(Ljava/lang/Class;)".equals(method.getParameterSignature()) && kind == PerClause.PERTYPEWITHIN) {
+-                    return true;
+-                }
+-            }
+-        }
+-        return false;
+-    }
+-
+-    private void generatePerClauseMembers(LazyClassGen classGen) {
+-        //FIXME Alex handle when field already there - or handle it with / similar to isAnnotationDefinedAspect()
+-        // for that use aspectType and iterate on the fields.
+-
+-        //FIXME Alex percflowX is not using this one but AJ code style does generate it so..
+-        ResolvedMember failureFieldInfo = AjcMemberMaker.initFailureCauseField(aspectType);
+-        if (kind == PerClause.SINGLETON) {
+-        	classGen.addField(makeFieldGen(classGen, failureFieldInfo), null);
+-        }
+-
+-        if (kind == PerClause.SINGLETON) {
+-            ResolvedMember perSingletonFieldInfo = AjcMemberMaker.perSingletonField(aspectType);
+-            classGen.addField(makeFieldGen(classGen, perSingletonFieldInfo), null);
+-// pr144602 - don't need to do this, PerObjectInterface munger will do it
+-//        } else if (kind == PerClause.PEROBJECT) {
+-//           ResolvedMember perObjectFieldInfo = AjcMemberMaker.perObjectField(aspectType, aspectType);
+-//            classGen.addField(makeFieldGen(classGen, perObjectFieldInfo).(), null);
+-//            // if lazy generation of the inner interface MayHaveAspect works on LTW (see previous note)
+-//            // it should be done here.
+-        } else if (kind == PerClause.PERCFLOW) {
+-            ResolvedMember perCflowFieldInfo = AjcMemberMaker.perCflowField(aspectType);
+-            classGen.addField(makeFieldGen(classGen, perCflowFieldInfo), null);
+-        } else if (kind == PerClause.PERTYPEWITHIN) {
+-            ResolvedMember perTypeWithinForField = AjcMemberMaker.perTypeWithinWithinTypeField(aspectType, aspectType);
+-            classGen.addField(makeFieldGen(classGen, perTypeWithinForField), null);
+-//        } else {
+-//            throw new Error("Should not happen - no such kind " + kind.toString());
+-        }
+-    }
+-
+-    private void generatePerSingletonAspectOfMethod(LazyClassGen classGen) {
+-        InstructionFactory factory = classGen.getFactory();
+-        LazyMethodGen method = makeMethodGen(classGen, AjcMemberMaker.perSingletonAspectOfMethod(aspectType));
+-        flagAsSynthetic(method, false);
+-        classGen.addMethodGen(method);
+-
+-        InstructionList il = method.getBody();
+-        il.append(Utility.createGet(factory, AjcMemberMaker.perSingletonField(aspectType)));
+-        InstructionBranch ifNotNull = InstructionFactory.createBranchInstruction(Constants.IFNONNULL, null);
+-        il.append(ifNotNull);
+-        il.append(factory.createNew(AjcMemberMaker.NO_ASPECT_BOUND_EXCEPTION.getName()));
+-        il.append(InstructionConstants.DUP);
+-        il.append(InstructionFactory.PUSH(classGen.getConstantPool(), aspectType.getName()));
+-        il.append(Utility.createGet(factory, AjcMemberMaker.initFailureCauseField(aspectType)));
+-        il.append(factory.createInvoke(AjcMemberMaker.NO_ASPECT_BOUND_EXCEPTION.getName(), "<init>", Type.VOID, new Type[] { Type.STRING, new ObjectType("java.lang.Throwable") }, Constants.INVOKESPECIAL));
+-        il.append(InstructionConstants.ATHROW);
+-        InstructionHandle ifElse = il.append(Utility.createGet(factory, AjcMemberMaker.perSingletonField(aspectType)));
+-        il.append(InstructionFactory.createReturn(Type.OBJECT));
+-        ifNotNull.setTarget(ifElse);
+-    }
+-
+-    private void generatePerSingletonHasAspectMethod(LazyClassGen classGen) {
+-        InstructionFactory factory = classGen.getFactory();
+-        LazyMethodGen method = makeMethodGen(classGen, AjcMemberMaker.perSingletonHasAspectMethod(aspectType));
+-        flagAsSynthetic(method, false);
+-        classGen.addMethodGen(method);
+-
+-        InstructionList il = method.getBody();
+-        il.append(Utility.createGet(factory, AjcMemberMaker.perSingletonField(aspectType)));
+-        InstructionBranch ifNull = InstructionFactory.createBranchInstruction(Constants.IFNULL, null);
+-        il.append(ifNull);
+-        il.append(InstructionFactory.PUSH(classGen.getConstantPool(), true));
+-        il.append(InstructionFactory.createReturn(Type.INT));
+-        InstructionHandle ifElse = il.append(InstructionFactory.PUSH(classGen.getConstantPool(), false));
+-        il.append(InstructionFactory.createReturn(Type.INT));
+-        ifNull.setTarget(ifElse);
+-    }
+-
+-
+-    private void generatePerSingletonAjcClinitMethod(LazyClassGen classGen) {
+-        InstructionFactory factory = classGen.getFactory();
+-        LazyMethodGen method = makeMethodGen(classGen, AjcMemberMaker.ajcPostClinitMethod(aspectType));
+-        flagAsSynthetic(method, true);
+-        classGen.addMethodGen(method);
+-
+-        InstructionList il = method.getBody();
+-        il.append(factory.createNew(aspectType.getName()));
+-        il.append(InstructionConstants.DUP);
+-        il.append(factory.createInvoke(aspectType.getName(), "<init>", Type.VOID, Type.NO_ARGS, Constants.INVOKESPECIAL));
+-        il.append(Utility.createSet(factory,  AjcMemberMaker.perSingletonField(aspectType)));
+-        il.append(InstructionFactory.createReturn(Type.VOID));
+-
+-        // patch <clinit> to delegate to ajc$postClinit at the end
+-        LazyMethodGen clinit = classGen.getStaticInitializer();
+-        il = new InstructionList();
+-        InstructionHandle tryStart = il.append(factory.createInvoke(aspectType.getName(), NameMangler.AJC_POST_CLINIT_NAME, Type.VOID, Type.NO_ARGS, Constants.INVOKESTATIC));
+-        InstructionBranch tryEnd = InstructionFactory.createBranchInstruction(Constants.GOTO, null);
+-        il.append(tryEnd);
+-        InstructionHandle handler = il.append(InstructionConstants.ASTORE_0);
+-        il.append(InstructionConstants.ALOAD_0);
+-        il.append(Utility.createSet(factory, AjcMemberMaker.initFailureCauseField(aspectType)));
+-        il.append(InstructionFactory.createReturn(Type.VOID));
+-        tryEnd.setTarget(il.getEnd());
+-
+-        // replace the original "return" with a "nop"
+-        //TODO AV - a bit odd, looks like Bcel alters bytecode and has a IMPDEP1 in its representation
+-        if (clinit.getBody().getEnd().getInstruction().opcode == Constants.IMPDEP1) {
+-            clinit.getBody().getEnd().getPrev().setInstruction(InstructionConstants.NOP);
+-        }
+-        clinit.getBody().getEnd().setInstruction(InstructionConstants.NOP);
+-        clinit.getBody().append(il);
+-
+-        clinit.addExceptionHandler(
+-            tryStart, handler.getPrev(), handler, new ObjectType("java.lang.Throwable"), false
+-        );
+-    }
+-
+-    private void generatePerObjectAspectOfMethod(LazyClassGen classGen) {
+-        InstructionFactory factory = classGen.getFactory();
+-        ReferenceType interfaceType = (ReferenceType) BcelWorld.makeBcelType(AjcMemberMaker.perObjectInterfaceType(aspectType));
+-        LazyMethodGen method = makeMethodGen(classGen, AjcMemberMaker.perObjectAspectOfMethod(aspectType));
+-        flagAsSynthetic(method, false);
+-        classGen.addMethodGen(method);
+-
+-        InstructionList il = method.getBody();
+-        il.append(InstructionConstants.ALOAD_0);
+-        il.append(factory.createInstanceOf(interfaceType));
+-        InstructionBranch ifEq = InstructionFactory.createBranchInstruction(Constants.IFEQ, null);
+-        il.append(ifEq);
+-        il.append(InstructionConstants.ALOAD_0);
+-        il.append(factory.createCheckCast(interfaceType));
+-        il.append(Utility.createInvoke(factory, Constants.INVOKEINTERFACE, AjcMemberMaker.perObjectInterfaceGet(aspectType)));
+-        il.append(InstructionConstants.DUP);
+-        InstructionBranch ifNull = InstructionFactory.createBranchInstruction(Constants.IFNULL, null);
+-        il.append(ifNull);
+-        il.append(InstructionFactory.createReturn(BcelWorld.makeBcelType(aspectType)));
+-        InstructionHandle ifNullElse = il.append(InstructionConstants.POP);
+-        ifNull.setTarget(ifNullElse);
+-        InstructionHandle ifEqElse = il.append(factory.createNew(AjcMemberMaker.NO_ASPECT_BOUND_EXCEPTION.getName()));
+-        ifEq.setTarget(ifEqElse);
+-        il.append(InstructionConstants.DUP);
+-        il.append(factory.createInvoke(AjcMemberMaker.NO_ASPECT_BOUND_EXCEPTION.getName(), "<init>", Type.VOID, Type.NO_ARGS, Constants.INVOKESPECIAL));
+-        il.append(InstructionConstants.ATHROW);
+-    }
+-
+-    private void generatePerObjectHasAspectMethod(LazyClassGen classGen) {
+-        InstructionFactory factory = classGen.getFactory();
+-        ReferenceType interfaceType = (ReferenceType) BcelWorld.makeBcelType(AjcMemberMaker.perObjectInterfaceType(aspectType));
+-        LazyMethodGen method = makeMethodGen(classGen, AjcMemberMaker.perObjectHasAspectMethod(aspectType));
+-        flagAsSynthetic(method, false);
+-        classGen.addMethodGen(method);
+-
+-        InstructionList il = method.getBody();
+-        il.append(InstructionConstants.ALOAD_0);
+-        il.append(factory.createInstanceOf(interfaceType));
+-        InstructionBranch ifEq = InstructionFactory.createBranchInstruction(Constants.IFEQ, null);
+-        il.append(ifEq);
+-        il.append(InstructionConstants.ALOAD_0);
+-        il.append(factory.createCheckCast(interfaceType));
+-        il.append(Utility.createInvoke(factory, Constants.INVOKEINTERFACE, AjcMemberMaker.perObjectInterfaceGet(aspectType)));
+-        InstructionBranch ifNull = InstructionFactory.createBranchInstruction(Constants.IFNULL, null);
+-        il.append(ifNull);
+-        il.append(InstructionConstants.ICONST_1);
+-        il.append(InstructionFactory.createReturn(Type.INT));
+-        InstructionHandle ifEqElse = il.append(InstructionConstants.ICONST_0);
+-        ifEq.setTarget(ifEqElse);
+-        ifNull.setTarget(ifEqElse);
+-        il.append(InstructionFactory.createReturn(Type.INT));
+-    }
+-
+-    private void generatePerObjectBindMethod(LazyClassGen classGen) {
+-        InstructionFactory factory = classGen.getFactory();
+-        ReferenceType interfaceType = (ReferenceType) BcelWorld.makeBcelType(AjcMemberMaker.perObjectInterfaceType(aspectType));
+-        LazyMethodGen method = makeMethodGen(classGen, AjcMemberMaker.perObjectBind(aspectType));
+-        flagAsSynthetic(method, true);
+-        classGen.addMethodGen(method);
+-
+-        InstructionList il = method.getBody();
+-        il.append(InstructionConstants.ALOAD_0);
+-        il.append(factory.createInstanceOf(interfaceType));
+-        InstructionBranch ifEq = InstructionFactory.createBranchInstruction(Constants.IFEQ, null);
+-        il.append(ifEq);
+-        il.append(InstructionConstants.ALOAD_0);
+-        il.append(factory.createCheckCast(interfaceType));
+-        il.append(Utility.createInvoke(factory, Constants.INVOKEINTERFACE, AjcMemberMaker.perObjectInterfaceGet(aspectType)));
+-        InstructionBranch ifNonNull = InstructionFactory.createBranchInstruction(Constants.IFNONNULL, null);
+-        il.append(ifNonNull);
+-        il.append(InstructionConstants.ALOAD_0);
+-        il.append(factory.createCheckCast(interfaceType));
+-        il.append(factory.createNew(aspectType.getName()));
+-        il.append(InstructionConstants.DUP);
+-        il.append(factory.createInvoke(aspectType.getName(), "<init>", Type.VOID, Type.NO_ARGS, Constants.INVOKESPECIAL));
+-        il.append(Utility.createInvoke(factory, Constants.INVOKEINTERFACE, AjcMemberMaker.perObjectInterfaceSet(aspectType)));
+-        InstructionHandle end = il.append(InstructionFactory.createReturn(Type.VOID));
+-        ifEq.setTarget(end);
+-        ifNonNull.setTarget(end);
+-    }
+-
+-//    private void generatePerObjectGetSetMethods(LazyClassGen classGen) {
+-//        InstructionFactory factory = classGen.getFactory();
+-//
+-//        LazyMethodGen methodGet = makeMethodGen(classGen, AjcMemberMaker.perObjectInterfaceGet(aspectType));
+-//        flagAsSynthetic(methodGet, true);
+-//        classGen.addMethodGen(methodGet);
+-//        InstructionList ilGet = methodGet.getBody();
+-//        ilGet = new InstructionList();
+-//        ilGet.append(InstructionConstants.ALOAD_0);
+-//        ilGet.append(Utility.createGet(factory, AjcMemberMaker.perObjectField(aspectType, aspectType)));
+-//        ilGet.append(InstructionFactory.createReturn(Type.OBJECT));
+-//
+-//        LazyMethodGen methodSet = makeMethodGen(classGen, AjcMemberMaker.perObjectInterfaceSet(aspectType));
+-//        flagAsSynthetic(methodSet, true);
+-//        classGen.addMethodGen(methodSet);
+-//        InstructionList ilSet = methodSet.getBody();
+-//        ilSet = new InstructionList();
+-//        ilSet.append(InstructionConstants.ALOAD_0);
+-//        ilSet.append(InstructionConstants.ALOAD_1);
+-//        ilSet.append(Utility.createSet(factory, AjcMemberMaker.perObjectField(aspectType, aspectType)));
+-//        ilSet.append(InstructionFactory.createReturn(Type.VOID));
+-//    }
+-
+-    private void generatePerCflowAspectOfMethod(LazyClassGen classGen) {
+-        InstructionFactory factory = classGen.getFactory();
+-        LazyMethodGen method = makeMethodGen(classGen, AjcMemberMaker.perCflowAspectOfMethod(aspectType));
+-        flagAsSynthetic(method, false);
+-        classGen.addMethodGen(method);
+-
+-        InstructionList il = method.getBody();
+-        il.append(Utility.createGet(factory, AjcMemberMaker.perCflowField(aspectType)));
+-        il.append(Utility.createInvoke(factory, Constants.INVOKEVIRTUAL, AjcMemberMaker.cflowStackPeekInstance()));
+-        il.append(factory.createCheckCast((ReferenceType)BcelWorld.makeBcelType(aspectType)));
+-        il.append(InstructionFactory.createReturn(Type.OBJECT));
+-    }
+-
+-    private void generatePerCflowHasAspectMethod(LazyClassGen classGen) {
+-        InstructionFactory factory = classGen.getFactory();
+-        LazyMethodGen method = makeMethodGen(classGen, AjcMemberMaker.perCflowHasAspectMethod(aspectType));
+-        flagAsSynthetic(method, false);
+-        classGen.addMethodGen(method);
+-
+-        InstructionList il = method.getBody();
+-        il.append(Utility.createGet(factory, AjcMemberMaker.perCflowField(aspectType)));
+-        il.append(Utility.createInvoke(factory, Constants.INVOKEVIRTUAL, AjcMemberMaker.cflowStackIsValid()));
+-        il.append(InstructionFactory.createReturn(Type.INT));
+-    }
+-
+-    private void generatePerCflowPushMethod(LazyClassGen classGen) {
+-        InstructionFactory factory = classGen.getFactory();
+-        LazyMethodGen method = makeMethodGen(classGen, AjcMemberMaker.perCflowPush(aspectType));
+-        flagAsSynthetic(method, true);
+-        classGen.addMethodGen(method);
+-
+-        InstructionList il = method.getBody();
+-        il.append(Utility.createGet(factory, AjcMemberMaker.perCflowField(aspectType)));
+-        il.append(factory.createNew(aspectType.getName()));
+-        il.append(InstructionConstants.DUP);
+-        il.append(factory.createInvoke(aspectType.getName(), "<init>", Type.VOID, Type.NO_ARGS, Constants.INVOKESPECIAL));
+-        il.append(Utility.createInvoke(factory, Constants.INVOKEVIRTUAL, AjcMemberMaker.cflowStackPushInstance()));
+-        il.append(InstructionFactory.createReturn(Type.VOID));
+-    }
+-
+-    private void generatePerCflowAjcClinitMethod(LazyClassGen classGen) {
+-        InstructionFactory factory = classGen.getFactory();
+-        LazyMethodGen method = makeMethodGen(classGen, AjcMemberMaker.ajcPreClinitMethod(aspectType));
+-        flagAsSynthetic(method, true);
+-        classGen.addMethodGen(method);
+-
+-        InstructionList il = method.getBody();
+-        il.append(factory.createNew(AjcMemberMaker.CFLOW_STACK_TYPE.getName()));
+-        il.append(InstructionConstants.DUP);
+-        il.append(factory.createInvoke(AjcMemberMaker.CFLOW_STACK_TYPE.getName(), "<init>", Type.VOID, Type.NO_ARGS, Constants.INVOKESPECIAL));
+-        il.append(Utility.createSet(factory,  AjcMemberMaker.perCflowField(aspectType)));
+-        il.append(InstructionFactory.createReturn(Type.VOID));
+-
+-        // patch <clinit> to delegate to ajc$preClinit at the beginning
+-        LazyMethodGen clinit = classGen.getStaticInitializer();
+-        il = new InstructionList();
+-        il.append(factory.createInvoke(aspectType.getName(), NameMangler.AJC_PRE_CLINIT_NAME, Type.VOID, Type.NO_ARGS, Constants.INVOKESTATIC));
+-        clinit.getBody().insert(il);
+-    }
+-
+-    private void generatePerTWAspectOfMethod(LazyClassGen classGen) {
+-        InstructionFactory factory = classGen.getFactory();
+-        LazyMethodGen method = makeMethodGen(classGen, AjcMemberMaker.perTypeWithinAspectOfMethod(aspectType,classGen.getWorld().isInJava5Mode()));
+-        flagAsSynthetic(method, false);
+-        classGen.addMethodGen(method);
+-
+-        InstructionList il = method.getBody();
+-        InstructionHandle tryStart = il.append(InstructionConstants.ALOAD_0);
+-
+-        il.append(Utility.createInvoke(
+-                factory,
+-                Constants.INVOKESTATIC,
+-                AjcMemberMaker.perTypeWithinGetInstance(aspectType)
+-        ));
+-        il.append(InstructionConstants.ASTORE_1);
+-        il.append(InstructionConstants.ALOAD_1);
+-        InstructionBranch ifNonNull = InstructionFactory.createBranchInstruction(Constants.IFNONNULL, null);
+-        il.append(ifNonNull);
+-        il.append(factory.createNew(AjcMemberMaker.NO_ASPECT_BOUND_EXCEPTION.getName()));
+-        il.append(InstructionConstants.DUP);
+-        il.append(InstructionFactory.PUSH(classGen.getConstantPool(), aspectType.getName()));
+-        il.append(InstructionConstants.ACONST_NULL);
+-        il.append(factory.createInvoke(AjcMemberMaker.NO_ASPECT_BOUND_EXCEPTION.getName(), "<init>", Type.VOID, new Type[] { Type.STRING, new ObjectType("java.lang.Throwable") }, Constants.INVOKESPECIAL));
+-        il.append(InstructionConstants.ATHROW);
+-        InstructionHandle ifElse = il.append(InstructionConstants.ALOAD_1);
+-        ifNonNull.setTarget(ifElse);
+-        il.append(InstructionFactory.createReturn(Type.OBJECT));
+-
+-        InstructionHandle handler = il.append(InstructionConstants.ASTORE_1);
+-        il.append(factory.createNew(AjcMemberMaker.NO_ASPECT_BOUND_EXCEPTION.getName()));
+-        il.append(InstructionConstants.DUP);
+-        il.append(factory.createInvoke(AjcMemberMaker.NO_ASPECT_BOUND_EXCEPTION.getName(), "<init>", Type.VOID, Type.NO_ARGS, Constants.INVOKESPECIAL));
+-        il.append(InstructionConstants.ATHROW);
+-
+-        method.addExceptionHandler(
+-            tryStart, handler.getPrev(), handler, new ObjectType("java.lang.Exception"), false
+-        );
+-    }
+-
+-    // Create 'public String getWithinTypeName() { return ajc$withinType;}'
+-    private void generatePerTWGetWithinTypeNameMethod(LazyClassGen classGen) {
+-        InstructionFactory factory = classGen.getFactory();
+-        LazyMethodGen method = makeMethodGen(classGen, AjcMemberMaker.perTypeWithinGetWithinTypeNameMethod(aspectType,classGen.getWorld().isInJava5Mode()));
+-        flagAsSynthetic(method, false);
+-        classGen.addMethodGen(method);
+-		//        	   0:   aload_0
+-		//        	   1:   getfield        #14; //Field ajc$withinType:Ljava/lang/String;
+-		//        	   4:   areturn
+-        InstructionList il = method.getBody();
+-        il.append(InstructionConstants.ALOAD_0);
+-        il.append(Utility.createGet(factory, AjcMemberMaker.perTypeWithinWithinTypeField(aspectType, aspectType)));
+-        il.append(InstructionConstants.ARETURN);
+-    }
+-
+-    private void generatePerTWHasAspectMethod(LazyClassGen classGen) {
+-        InstructionFactory factory = classGen.getFactory();
+-        LazyMethodGen method = makeMethodGen(classGen, AjcMemberMaker.perTypeWithinHasAspectMethod(aspectType,classGen.getWorld().isInJava5Mode()));
+-        flagAsSynthetic(method, false);
+-        classGen.addMethodGen(method);
+-
+-        InstructionList il = method.getBody();
+-        InstructionHandle tryStart = il.append(InstructionConstants.ALOAD_0);
+-        il.append(Utility.createInvoke(
+-                factory,
+-                Constants.INVOKESTATIC,
+-                AjcMemberMaker.perTypeWithinGetInstance(aspectType)
+-        ));
+-        InstructionBranch ifNull = InstructionFactory.createBranchInstruction(Constants.IFNULL, null);
+-        il.append(ifNull);
+-        il.append(InstructionConstants.ICONST_1);
+-        il.append(InstructionConstants.IRETURN);
+-        InstructionHandle ifElse = il.append(InstructionConstants.ICONST_0);
+-        ifNull.setTarget(ifElse);
+-        il.append(InstructionConstants.IRETURN);
+-
+-        InstructionHandle handler = il.append(InstructionConstants.ASTORE_1);
+-        il.append(InstructionConstants.ICONST_0);
+-        il.append(InstructionConstants.IRETURN);
+-
+-        method.addExceptionHandler(
+-            tryStart, handler.getPrev(), handler, new ObjectType("java.lang.Exception"), false
+-        );
+-    }
+-
+-    private void generatePerTWGetInstanceMethod(LazyClassGen classGen) {
+-        InstructionFactory factory = classGen.getFactory();
+-        LazyMethodGen method = makeMethodGen(classGen, AjcMemberMaker.perTypeWithinGetInstance(aspectType));
+-        flagAsSynthetic(method, true);
+-        classGen.addMethodGen(method);
+-
+-        InstructionList il = method.getBody();
+-        InstructionHandle tryStart = il.append(InstructionConstants.ALOAD_0);
+-        il.append(InstructionFactory.PUSH(factory.getConstantPool(), NameMangler.perTypeWithinLocalAspectOf(aspectType)));
+-        il.append(InstructionConstants.ACONST_NULL);//Class[] for "getDeclaredMethod"
+-        il.append(factory.createInvoke(
+-                "java/lang/Class",
+-                "getDeclaredMethod",
+-                Type.getType("Ljava/lang/reflect/Method;"),
+-                new Type[]{Type.getType("Ljava/lang/String;"), Type.getType("[Ljava/lang/Class;")},
+-                Constants.INVOKEVIRTUAL
+-        ));
+-        il.append(InstructionConstants.ACONST_NULL);//Object for "invoke", static method
+-        il.append(InstructionConstants.ACONST_NULL);//Object[] for "invoke", no arg
+-        il.append(factory.createInvoke(
+-                "java/lang/reflect/Method",
+-                "invoke",
+-                Type.OBJECT,
+-                new Type[]{Type.getType("Ljava/lang/Object;"), Type.getType("[Ljava/lang/Object;")},
+-                Constants.INVOKEVIRTUAL
+-        ));
+-        il.append(factory.createCheckCast((ReferenceType) BcelWorld.makeBcelType(aspectType)));
+-        il.append(InstructionConstants.ARETURN);
+-
+-        InstructionHandle handler = il.append(InstructionConstants.ASTORE_1);
+-        il.append(InstructionConstants.ACONST_NULL);
+-        il.append(InstructionConstants.ARETURN);
+-
+-        method.addExceptionHandler(
+-            tryStart, handler.getPrev(), handler, new ObjectType("java.lang.Exception"), false
+-        );
+-    }
+-
+-    private void generatePerTWCreateAspectInstanceMethod(LazyClassGen classGen) {
+-        InstructionFactory factory = classGen.getFactory();
+-        LazyMethodGen method = makeMethodGen(classGen, AjcMemberMaker.perTypeWithinCreateAspectInstance(aspectType));
+-        flagAsSynthetic(method, true);
+-        classGen.addMethodGen(method);
+-
+-        InstructionList il = method.getBody();
+-        il.append(factory.createNew(aspectType.getName()));
+-        il.append(InstructionConstants.DUP);
+-        il.append(factory.createInvoke(
+-                aspectType.getName(), "<init>", Type.VOID, Type.NO_ARGS, Constants.INVOKESPECIAL
+-        ));
+-        il.append(InstructionConstants.ASTORE_1);
+-        il.append(InstructionConstants.ALOAD_1);
+-        il.append(InstructionConstants.ALOAD_0);
+-        il.append(Utility.createSet(
+-                factory,
+-                AjcMemberMaker.perTypeWithinWithinTypeField(aspectType, aspectType)
+-        ));
+-        il.append(InstructionConstants.ALOAD_1);
+-        il.append(InstructionConstants.ARETURN);
+-    }
+-
+-    /**
+-     * Add standard Synthetic (if wished) and AjSynthetic (always) attributes
+-     * @param methodGen
+-     * @param makeJavaSynthetic true if standard Synthetic attribute must be set as well (invisible to user)
+-     */
+-    private static void flagAsSynthetic(LazyMethodGen methodGen, boolean makeJavaSynthetic) {
+-        if (makeJavaSynthetic) {
+-            methodGen.makeSynthetic();
+-        }
+-        methodGen.addAttribute(
+-                Utility.bcelAttribute(
+-                        new AjAttribute.AjSynthetic(),
+-                        methodGen.getEnclosingClass().getConstantPool()
+-                )
+-        );
+-    }
+-
+-//    public boolean isLateTypeMunger() {
+-  //  	return true;
+-    //}
++	private final PerClause.Kind kind;
++
++	private boolean hasGeneratedInner = false;
++
++	public BcelPerClauseAspectAdder(ResolvedType aspect, PerClause.Kind kind) {
++		super(null, aspect);
++		this.kind = kind;
++		if (kind == PerClause.SINGLETON || kind == PerClause.PERTYPEWITHIN || kind == PerClause.PERCFLOW) {
++			// no inner needed
++			hasGeneratedInner = true;
++		}
++	}
++
++	public boolean munge(BcelClassWeaver weaver) {
++		LazyClassGen gen = weaver.getLazyClassGen();
++
++		doAggressiveInner(gen);
++
++		// Only munge the aspect type
++		if (!gen.getType().equals(aspectType)) {
++			return false;
++		}
++
++		return doMunge(gen, true);
++	}
++
++	public boolean forceMunge(LazyClassGen gen, boolean checkAlreadyThere) {
++		doAggressiveInner(gen);
++		return doMunge(gen, checkAlreadyThere);
++	}
++
++	private void doAggressiveInner(LazyClassGen gen) {
++		// agressively generate the inner interface if any
++		// Note: we do so because of the bug #75442 that leads to have this interface implemented by all classes and not
++		// only those matched by the per clause, which fails under LTW since the very first class
++		// gets weaved and impl this interface that is still not defined.
++		if (!hasGeneratedInner) {
++			if (kind == PerClause.PEROBJECT) {// redundant test - see constructor, but safer
++				// inner class
++				UnresolvedType interfaceTypeX = AjcMemberMaker.perObjectInterfaceType(aspectType);
++				LazyClassGen interfaceGen = new LazyClassGen(interfaceTypeX.getName(), "java.lang.Object", null,
++						Constants.ACC_INTERFACE + Constants.ACC_PUBLIC + Constants.ACC_ABSTRACT, new String[0], getWorld());
++				interfaceGen.addMethodGen(makeMethodGen(interfaceGen, AjcMemberMaker.perObjectInterfaceGet(aspectType)));
++				interfaceGen.addMethodGen(makeMethodGen(interfaceGen, AjcMemberMaker.perObjectInterfaceSet(aspectType)));
++				// not really an inner class of it but that does not matter, we pass back to the LTW
++				gen.addGeneratedInner(interfaceGen);
++			}
++			hasGeneratedInner = true;
++		}
++	}
++
++	private boolean doMunge(LazyClassGen gen, boolean checkAlreadyThere) {
++		if (checkAlreadyThere && hasPerClauseMembersAlready(gen)) {
++			return false;
++		}
++
++		generatePerClauseMembers(gen);
++
++		if (kind == PerClause.SINGLETON) {
++			generatePerSingletonAspectOfMethod(gen);
++			generatePerSingletonHasAspectMethod(gen);
++			generatePerSingletonAjcClinitMethod(gen);
++		} else if (kind == PerClause.PEROBJECT) {
++			generatePerObjectAspectOfMethod(gen);
++			generatePerObjectHasAspectMethod(gen);
++			generatePerObjectBindMethod(gen);
++			// these will be added by the PerObjectInterface munger that affects the type - pr144602
++			// generatePerObjectGetSetMethods(gen);
++		} else if (kind == PerClause.PERCFLOW) {
++			generatePerCflowAspectOfMethod(gen);
++			generatePerCflowHasAspectMethod(gen);
++			generatePerCflowPushMethod(gen);
++			generatePerCflowAjcClinitMethod(gen);
++		} else if (kind == PerClause.PERTYPEWITHIN) {
++			generatePerTWAspectOfMethod(gen);
++			generatePerTWHasAspectMethod(gen);
++			generatePerTWGetInstanceMethod(gen);
++			generatePerTWCreateAspectInstanceMethod(gen);
++			generatePerTWGetWithinTypeNameMethod(gen);
++		} else {
++			throw new Error("should not happen - not such kind " + kind.getName());
++		}
++		return true;
++	}
++
++	public ResolvedMember getMatchingSyntheticMember(Member member) {
++		return null;
++	}
++
++	public ResolvedMember getSignature() {
++		return null;
++	}
++
++	public boolean matches(ResolvedType onType) {
++		// cannot always do the right thing because may need to eagerly generate ajcMightHaveAspect interface for LTW (says Alex)
++		if (hasGeneratedInner) { // pr237419 - not always going to generate the marker interface
++			return aspectType.equals(onType);
++		} else {
++			return true;
++		}
++	}
++
++	private boolean hasPerClauseMembersAlready(LazyClassGen classGen) {
++		ResolvedMember[] methods = classGen.getBcelObjectType().getDeclaredMethods();
++		for (int i = 0; i < methods.length; i++) {
++			ResolvedMember method = methods[i];
++			if ("aspectOf".equals(method.getName())) {
++				if ("()".equals(method.getParameterSignature()) && (kind == PerClause.SINGLETON || kind == PerClause.PERCFLOW)) {
++					return true;
++				} else if ("(Ljava/lang/Object;)".equals(method.getParameterSignature()) && kind == PerClause.PEROBJECT) {
++					return true;
++				} else if ("(Ljava/lang/Class;)".equals(method.getParameterSignature()) && kind == PerClause.PERTYPEWITHIN) {
++					return true;
++				}
++			}
++		}
++		return false;
++	}
++
++	private void generatePerClauseMembers(LazyClassGen classGen) {
++		// FIXME Alex handle when field already there - or handle it with / similar to isAnnotationDefinedAspect()
++		// for that use aspectType and iterate on the fields.
++
++		// FIXME Alex percflowX is not using this one but AJ code style does generate it so..
++		ResolvedMember failureFieldInfo = AjcMemberMaker.initFailureCauseField(aspectType);
++		if (kind == PerClause.SINGLETON) {
++			classGen.addField(makeFieldGen(classGen, failureFieldInfo), null);
++		}
++
++		if (kind == PerClause.SINGLETON) {
++			ResolvedMember perSingletonFieldInfo = AjcMemberMaker.perSingletonField(aspectType);
++			classGen.addField(makeFieldGen(classGen, perSingletonFieldInfo), null);
++			// pr144602 - don't need to do this, PerObjectInterface munger will do it
++			// } else if (kind == PerClause.PEROBJECT) {
++			// ResolvedMember perObjectFieldInfo = AjcMemberMaker.perObjectField(aspectType, aspectType);
++			// classGen.addField(makeFieldGen(classGen, perObjectFieldInfo).(), null);
++			// // if lazy generation of the inner interface MayHaveAspect works on LTW (see previous note)
++			// // it should be done here.
++		} else if (kind == PerClause.PERCFLOW) {
++			ResolvedMember perCflowFieldInfo = AjcMemberMaker.perCflowField(aspectType);
++			classGen.addField(makeFieldGen(classGen, perCflowFieldInfo), null);
++		} else if (kind == PerClause.PERTYPEWITHIN) {
++			ResolvedMember perTypeWithinForField = AjcMemberMaker.perTypeWithinWithinTypeField(aspectType, aspectType);
++			classGen.addField(makeFieldGen(classGen, perTypeWithinForField), null);
++		}
++	}
++
++	private void generatePerSingletonAspectOfMethod(LazyClassGen classGen) {
++		InstructionFactory factory = classGen.getFactory();
++		LazyMethodGen method = makeMethodGen(classGen, AjcMemberMaker.perSingletonAspectOfMethod(aspectType));
++		flagAsSynthetic(method, false);
++		classGen.addMethodGen(method);
++
++		InstructionList il = method.getBody();
++		il.append(Utility.createGet(factory, AjcMemberMaker.perSingletonField(aspectType)));
++		InstructionBranch ifNotNull = InstructionFactory.createBranchInstruction(Constants.IFNONNULL, null);
++		il.append(ifNotNull);
++		il.append(factory.createNew(AjcMemberMaker.NO_ASPECT_BOUND_EXCEPTION.getName()));
++		il.append(InstructionConstants.DUP);
++		il.append(InstructionFactory.PUSH(classGen.getConstantPool(), aspectType.getName()));
++		il.append(Utility.createGet(factory, AjcMemberMaker.initFailureCauseField(aspectType)));
++		il.append(factory.createInvoke(AjcMemberMaker.NO_ASPECT_BOUND_EXCEPTION.getName(), "<init>", Type.VOID, new Type[] {
++				Type.STRING, new ObjectType("java.lang.Throwable") }, Constants.INVOKESPECIAL));
++		il.append(InstructionConstants.ATHROW);
++		InstructionHandle ifElse = il.append(Utility.createGet(factory, AjcMemberMaker.perSingletonField(aspectType)));
++		il.append(InstructionFactory.createReturn(Type.OBJECT));
++		ifNotNull.setTarget(ifElse);
++	}
++
++	private void generatePerSingletonHasAspectMethod(LazyClassGen classGen) {
++		InstructionFactory factory = classGen.getFactory();
++		LazyMethodGen method = makeMethodGen(classGen, AjcMemberMaker.perSingletonHasAspectMethod(aspectType));
++		flagAsSynthetic(method, false);
++		classGen.addMethodGen(method);
++
++		InstructionList il = method.getBody();
++		il.append(Utility.createGet(factory, AjcMemberMaker.perSingletonField(aspectType)));
++		InstructionBranch ifNull = InstructionFactory.createBranchInstruction(Constants.IFNULL, null);
++		il.append(ifNull);
++		il.append(InstructionFactory.PUSH(classGen.getConstantPool(), true));
++		il.append(InstructionFactory.createReturn(Type.INT));
++		InstructionHandle ifElse = il.append(InstructionFactory.PUSH(classGen.getConstantPool(), false));
++		il.append(InstructionFactory.createReturn(Type.INT));
++		ifNull.setTarget(ifElse);
++	}
++
++	private void generatePerSingletonAjcClinitMethod(LazyClassGen classGen) {
++		InstructionFactory factory = classGen.getFactory();
++		LazyMethodGen method = makeMethodGen(classGen, AjcMemberMaker.ajcPostClinitMethod(aspectType));
++		flagAsSynthetic(method, true);
++		classGen.addMethodGen(method);
++
++		InstructionList il = method.getBody();
++		il.append(factory.createNew(aspectType.getName()));
++		il.append(InstructionConstants.DUP);
++		il.append(factory.createInvoke(aspectType.getName(), "<init>", Type.VOID, Type.NO_ARGS, Constants.INVOKESPECIAL));
++		il.append(Utility.createSet(factory, AjcMemberMaker.perSingletonField(aspectType)));
++		il.append(InstructionFactory.createReturn(Type.VOID));
++
++		// patch <clinit> to delegate to ajc$postClinit at the end
++		LazyMethodGen clinit = classGen.getStaticInitializer();
++		il = new InstructionList();
++		InstructionHandle tryStart = il.append(factory.createInvoke(aspectType.getName(), NameMangler.AJC_POST_CLINIT_NAME,
++				Type.VOID, Type.NO_ARGS, Constants.INVOKESTATIC));
++		InstructionBranch tryEnd = InstructionFactory.createBranchInstruction(Constants.GOTO, null);
++		il.append(tryEnd);
++		InstructionHandle handler = il.append(InstructionConstants.ASTORE_0);
++		il.append(InstructionConstants.ALOAD_0);
++		il.append(Utility.createSet(factory, AjcMemberMaker.initFailureCauseField(aspectType)));
++		il.append(InstructionFactory.createReturn(Type.VOID));
++		tryEnd.setTarget(il.getEnd());
++
++		// replace the original "return" with a "nop"
++		// TODO AV - a bit odd, looks like Bcel alters bytecode and has a IMPDEP1 in its representation
++		if (clinit.getBody().getEnd().getInstruction().opcode == Constants.IMPDEP1) {
++			clinit.getBody().getEnd().getPrev().setInstruction(InstructionConstants.NOP);
++		}
++		clinit.getBody().getEnd().setInstruction(InstructionConstants.NOP);
++		clinit.getBody().append(il);
++
++		clinit.addExceptionHandler(tryStart, handler.getPrev(), handler, new ObjectType("java.lang.Throwable"), false);
++	}
++
++	private void generatePerObjectAspectOfMethod(LazyClassGen classGen) {
++		InstructionFactory factory = classGen.getFactory();
++		ReferenceType interfaceType = (ReferenceType) BcelWorld.makeBcelType(AjcMemberMaker.perObjectInterfaceType(aspectType));
++		LazyMethodGen method = makeMethodGen(classGen, AjcMemberMaker.perObjectAspectOfMethod(aspectType));
++		flagAsSynthetic(method, false);
++		classGen.addMethodGen(method);
++
++		InstructionList il = method.getBody();
++		il.append(InstructionConstants.ALOAD_0);
++		il.append(factory.createInstanceOf(interfaceType));
++		InstructionBranch ifEq = InstructionFactory.createBranchInstruction(Constants.IFEQ, null);
++		il.append(ifEq);
++		il.append(InstructionConstants.ALOAD_0);
++		il.append(factory.createCheckCast(interfaceType));
++		il.append(Utility.createInvoke(factory, Constants.INVOKEINTERFACE, AjcMemberMaker.perObjectInterfaceGet(aspectType)));
++		il.append(InstructionConstants.DUP);
++		InstructionBranch ifNull = InstructionFactory.createBranchInstruction(Constants.IFNULL, null);
++		il.append(ifNull);
++		il.append(InstructionFactory.createReturn(BcelWorld.makeBcelType(aspectType)));
++		InstructionHandle ifNullElse = il.append(InstructionConstants.POP);
++		ifNull.setTarget(ifNullElse);
++		InstructionHandle ifEqElse = il.append(factory.createNew(AjcMemberMaker.NO_ASPECT_BOUND_EXCEPTION.getName()));
++		ifEq.setTarget(ifEqElse);
++		il.append(InstructionConstants.DUP);
++		il.append(factory.createInvoke(AjcMemberMaker.NO_ASPECT_BOUND_EXCEPTION.getName(), "<init>", Type.VOID, Type.NO_ARGS,
++				Constants.INVOKESPECIAL));
++		il.append(InstructionConstants.ATHROW);
++	}
++
++	private void generatePerObjectHasAspectMethod(LazyClassGen classGen) {
++		InstructionFactory factory = classGen.getFactory();
++		ReferenceType interfaceType = (ReferenceType) BcelWorld.makeBcelType(AjcMemberMaker.perObjectInterfaceType(aspectType));
++		LazyMethodGen method = makeMethodGen(classGen, AjcMemberMaker.perObjectHasAspectMethod(aspectType));
++		flagAsSynthetic(method, false);
++		classGen.addMethodGen(method);
++
++		InstructionList il = method.getBody();
++		il.append(InstructionConstants.ALOAD_0);
++		il.append(factory.createInstanceOf(interfaceType));
++		InstructionBranch ifEq = InstructionFactory.createBranchInstruction(Constants.IFEQ, null);
++		il.append(ifEq);
++		il.append(InstructionConstants.ALOAD_0);
++		il.append(factory.createCheckCast(interfaceType));
++		il.append(Utility.createInvoke(factory, Constants.INVOKEINTERFACE, AjcMemberMaker.perObjectInterfaceGet(aspectType)));
++		InstructionBranch ifNull = InstructionFactory.createBranchInstruction(Constants.IFNULL, null);
++		il.append(ifNull);
++		il.append(InstructionConstants.ICONST_1);
++		il.append(InstructionFactory.createReturn(Type.INT));
++		InstructionHandle ifEqElse = il.append(InstructionConstants.ICONST_0);
++		ifEq.setTarget(ifEqElse);
++		ifNull.setTarget(ifEqElse);
++		il.append(InstructionFactory.createReturn(Type.INT));
++	}
++
++	private void generatePerObjectBindMethod(LazyClassGen classGen) {
++		InstructionFactory factory = classGen.getFactory();
++		ReferenceType interfaceType = (ReferenceType) BcelWorld.makeBcelType(AjcMemberMaker.perObjectInterfaceType(aspectType));
++		LazyMethodGen method = makeMethodGen(classGen, AjcMemberMaker.perObjectBind(aspectType));
++		flagAsSynthetic(method, true);
++		classGen.addMethodGen(method);
++
++		InstructionList il = method.getBody();
++		il.append(InstructionConstants.ALOAD_0);
++		il.append(factory.createInstanceOf(interfaceType));
++		InstructionBranch ifEq = InstructionFactory.createBranchInstruction(Constants.IFEQ, null);
++		il.append(ifEq);
++		il.append(InstructionConstants.ALOAD_0);
++		il.append(factory.createCheckCast(interfaceType));
++		il.append(Utility.createInvoke(factory, Constants.INVOKEINTERFACE, AjcMemberMaker.perObjectInterfaceGet(aspectType)));
++		InstructionBranch ifNonNull = InstructionFactory.createBranchInstruction(Constants.IFNONNULL, null);
++		il.append(ifNonNull);
++		il.append(InstructionConstants.ALOAD_0);
++		il.append(factory.createCheckCast(interfaceType));
++		il.append(factory.createNew(aspectType.getName()));
++		il.append(InstructionConstants.DUP);
++		il.append(factory.createInvoke(aspectType.getName(), "<init>", Type.VOID, Type.NO_ARGS, Constants.INVOKESPECIAL));
++		il.append(Utility.createInvoke(factory, Constants.INVOKEINTERFACE, AjcMemberMaker.perObjectInterfaceSet(aspectType)));
++		InstructionHandle end = il.append(InstructionFactory.createReturn(Type.VOID));
++		ifEq.setTarget(end);
++		ifNonNull.setTarget(end);
++	}
++
++	// private void generatePerObjectGetSetMethods(LazyClassGen classGen) {
++	// InstructionFactory factory = classGen.getFactory();
++	//
++	// LazyMethodGen methodGet = makeMethodGen(classGen, AjcMemberMaker.perObjectInterfaceGet(aspectType));
++	// flagAsSynthetic(methodGet, true);
++	// classGen.addMethodGen(methodGet);
++	// InstructionList ilGet = methodGet.getBody();
++	// ilGet = new InstructionList();
++	// ilGet.append(InstructionConstants.ALOAD_0);
++	// ilGet.append(Utility.createGet(factory, AjcMemberMaker.perObjectField(aspectType, aspectType)));
++	// ilGet.append(InstructionFactory.createReturn(Type.OBJECT));
++	//
++	// LazyMethodGen methodSet = makeMethodGen(classGen, AjcMemberMaker.perObjectInterfaceSet(aspectType));
++	// flagAsSynthetic(methodSet, true);
++	// classGen.addMethodGen(methodSet);
++	// InstructionList ilSet = methodSet.getBody();
++	// ilSet = new InstructionList();
++	// ilSet.append(InstructionConstants.ALOAD_0);
++	// ilSet.append(InstructionConstants.ALOAD_1);
++	// ilSet.append(Utility.createSet(factory, AjcMemberMaker.perObjectField(aspectType, aspectType)));
++	// ilSet.append(InstructionFactory.createReturn(Type.VOID));
++	// }
++
++	private void generatePerCflowAspectOfMethod(LazyClassGen classGen) {
++		InstructionFactory factory = classGen.getFactory();
++		LazyMethodGen method = makeMethodGen(classGen, AjcMemberMaker.perCflowAspectOfMethod(aspectType));
++		flagAsSynthetic(method, false);
++		classGen.addMethodGen(method);
++
++		InstructionList il = method.getBody();
++		il.append(Utility.createGet(factory, AjcMemberMaker.perCflowField(aspectType)));
++		il.append(Utility.createInvoke(factory, Constants.INVOKEVIRTUAL, AjcMemberMaker.cflowStackPeekInstance()));
++		il.append(factory.createCheckCast((ReferenceType) BcelWorld.makeBcelType(aspectType)));
++		il.append(InstructionFactory.createReturn(Type.OBJECT));
++	}
++
++	private void generatePerCflowHasAspectMethod(LazyClassGen classGen) {
++		InstructionFactory factory = classGen.getFactory();
++		LazyMethodGen method = makeMethodGen(classGen, AjcMemberMaker.perCflowHasAspectMethod(aspectType));
++		flagAsSynthetic(method, false);
++		classGen.addMethodGen(method);
++
++		InstructionList il = method.getBody();
++		il.append(Utility.createGet(factory, AjcMemberMaker.perCflowField(aspectType)));
++		il.append(Utility.createInvoke(factory, Constants.INVOKEVIRTUAL, AjcMemberMaker.cflowStackIsValid()));
++		il.append(InstructionFactory.createReturn(Type.INT));
++	}
++
++	private void generatePerCflowPushMethod(LazyClassGen classGen) {
++		InstructionFactory factory = classGen.getFactory();
++		LazyMethodGen method = makeMethodGen(classGen, AjcMemberMaker.perCflowPush(aspectType));
++		flagAsSynthetic(method, true);
++		classGen.addMethodGen(method);
++
++		InstructionList il = method.getBody();
++		il.append(Utility.createGet(factory, AjcMemberMaker.perCflowField(aspectType)));
++		il.append(factory.createNew(aspectType.getName()));
++		il.append(InstructionConstants.DUP);
++		il.append(factory.createInvoke(aspectType.getName(), "<init>", Type.VOID, Type.NO_ARGS, Constants.INVOKESPECIAL));
++		il.append(Utility.createInvoke(factory, Constants.INVOKEVIRTUAL, AjcMemberMaker.cflowStackPushInstance()));
++		il.append(InstructionFactory.createReturn(Type.VOID));
++	}
++
++	private void generatePerCflowAjcClinitMethod(LazyClassGen classGen) {
++		InstructionFactory factory = classGen.getFactory();
++		LazyMethodGen method = makeMethodGen(classGen, AjcMemberMaker.ajcPreClinitMethod(aspectType));
++		flagAsSynthetic(method, true);
++		classGen.addMethodGen(method);
++
++		InstructionList il = method.getBody();
++		il.append(factory.createNew(AjcMemberMaker.CFLOW_STACK_TYPE.getName()));
++		il.append(InstructionConstants.DUP);
++		il.append(factory.createInvoke(AjcMemberMaker.CFLOW_STACK_TYPE.getName(), "<init>", Type.VOID, Type.NO_ARGS,
++				Constants.INVOKESPECIAL));
++		il.append(Utility.createSet(factory, AjcMemberMaker.perCflowField(aspectType)));
++		il.append(InstructionFactory.createReturn(Type.VOID));
++
++		// patch <clinit> to delegate to ajc$preClinit at the beginning
++		LazyMethodGen clinit = classGen.getStaticInitializer();
++		il = new InstructionList();
++		il.append(factory.createInvoke(aspectType.getName(), NameMangler.AJC_PRE_CLINIT_NAME, Type.VOID, Type.NO_ARGS,
++				Constants.INVOKESTATIC));
++		clinit.getBody().insert(il);
++	}
++
++	private void generatePerTWAspectOfMethod(LazyClassGen classGen) {
++		InstructionFactory factory = classGen.getFactory();
++		LazyMethodGen method = makeMethodGen(classGen, AjcMemberMaker.perTypeWithinAspectOfMethod(aspectType, classGen.getWorld()
++				.isInJava5Mode()));
++		flagAsSynthetic(method, false);
++		classGen.addMethodGen(method);
++
++		InstructionList il = method.getBody();
++		InstructionHandle tryStart = il.append(InstructionConstants.ALOAD_0);
++
++		il.append(Utility.createInvoke(factory, Constants.INVOKESTATIC, AjcMemberMaker.perTypeWithinGetInstance(aspectType)));
++		il.append(InstructionConstants.ASTORE_1);
++		il.append(InstructionConstants.ALOAD_1);
++		InstructionBranch ifNonNull = InstructionFactory.createBranchInstruction(Constants.IFNONNULL, null);
++		il.append(ifNonNull);
++		il.append(factory.createNew(AjcMemberMaker.NO_ASPECT_BOUND_EXCEPTION.getName()));
++		il.append(InstructionConstants.DUP);
++		il.append(InstructionFactory.PUSH(classGen.getConstantPool(), aspectType.getName()));
++		il.append(InstructionConstants.ACONST_NULL);
++		il.append(factory.createInvoke(AjcMemberMaker.NO_ASPECT_BOUND_EXCEPTION.getName(), "<init>", Type.VOID, new Type[] {
++				Type.STRING, new ObjectType("java.lang.Throwable") }, Constants.INVOKESPECIAL));
++		il.append(InstructionConstants.ATHROW);
++		InstructionHandle ifElse = il.append(InstructionConstants.ALOAD_1);
++		ifNonNull.setTarget(ifElse);
++		il.append(InstructionFactory.createReturn(Type.OBJECT));
++
++		InstructionHandle handler = il.append(InstructionConstants.ASTORE_1);
++		il.append(factory.createNew(AjcMemberMaker.NO_ASPECT_BOUND_EXCEPTION.getName()));
++		il.append(InstructionConstants.DUP);
++		il.append(factory.createInvoke(AjcMemberMaker.NO_ASPECT_BOUND_EXCEPTION.getName(), "<init>", Type.VOID, Type.NO_ARGS,
++				Constants.INVOKESPECIAL));
++		il.append(InstructionConstants.ATHROW);
++
++		method.addExceptionHandler(tryStart, handler.getPrev(), handler, new ObjectType("java.lang.Exception"), false);
++	}
++
++	// Create 'public String getWithinTypeName() { return ajc$withinType;}'
++	private void generatePerTWGetWithinTypeNameMethod(LazyClassGen classGen) {
++		InstructionFactory factory = classGen.getFactory();
++		LazyMethodGen method = makeMethodGen(classGen, AjcMemberMaker.perTypeWithinGetWithinTypeNameMethod(aspectType, classGen
++				.getWorld().isInJava5Mode()));
++		flagAsSynthetic(method, false);
++		classGen.addMethodGen(method);
++		// 0: aload_0
++		// 1: getfield #14; //Field ajc$withinType:Ljava/lang/String;
++		// 4: areturn
++		InstructionList il = method.getBody();
++		il.append(InstructionConstants.ALOAD_0);
++		il.append(Utility.createGet(factory, AjcMemberMaker.perTypeWithinWithinTypeField(aspectType, aspectType)));
++		il.append(InstructionConstants.ARETURN);
++	}
++
++	private void generatePerTWHasAspectMethod(LazyClassGen classGen) {
++		InstructionFactory factory = classGen.getFactory();
++		LazyMethodGen method = makeMethodGen(classGen, AjcMemberMaker.perTypeWithinHasAspectMethod(aspectType, classGen.getWorld()
++				.isInJava5Mode()));
++		flagAsSynthetic(method, false);
++		classGen.addMethodGen(method);
++
++		InstructionList il = method.getBody();
++		InstructionHandle tryStart = il.append(InstructionConstants.ALOAD_0);
++		il.append(Utility.createInvoke(factory, Constants.INVOKESTATIC, AjcMemberMaker.perTypeWithinGetInstance(aspectType)));
++		InstructionBranch ifNull = InstructionFactory.createBranchInstruction(Constants.IFNULL, null);
++		il.append(ifNull);
++		il.append(InstructionConstants.ICONST_1);
++		il.append(InstructionConstants.IRETURN);
++		InstructionHandle ifElse = il.append(InstructionConstants.ICONST_0);
++		ifNull.setTarget(ifElse);
++		il.append(InstructionConstants.IRETURN);
++
++		InstructionHandle handler = il.append(InstructionConstants.ASTORE_1);
++		il.append(InstructionConstants.ICONST_0);
++		il.append(InstructionConstants.IRETURN);
++
++		method.addExceptionHandler(tryStart, handler.getPrev(), handler, new ObjectType("java.lang.Exception"), false);
++	}
++
++	private void generatePerTWGetInstanceMethod(LazyClassGen classGen) {
++		InstructionFactory factory = classGen.getFactory();
++		LazyMethodGen method = makeMethodGen(classGen, AjcMemberMaker.perTypeWithinGetInstance(aspectType));
++		flagAsSynthetic(method, true);
++		classGen.addMethodGen(method);
++
++		InstructionList il = method.getBody();
++		InstructionHandle tryStart = il.append(InstructionConstants.ALOAD_0);
++		il.append(InstructionFactory.PUSH(factory.getConstantPool(), NameMangler.perTypeWithinLocalAspectOf(aspectType)));
++		il.append(InstructionConstants.ACONST_NULL);// Class[] for "getDeclaredMethod"
++		il.append(factory.createInvoke("java/lang/Class", "getDeclaredMethod", Type.getType("Ljava/lang/reflect/Method;"),
++				new Type[] { Type.getType("Ljava/lang/String;"), Type.getType("[Ljava/lang/Class;") }, Constants.INVOKEVIRTUAL));
++		il.append(InstructionConstants.ACONST_NULL);// Object for "invoke", static method
++		il.append(InstructionConstants.ACONST_NULL);// Object[] for "invoke", no arg
++		il.append(factory.createInvoke("java/lang/reflect/Method", "invoke", Type.OBJECT, new Type[] {
++				Type.getType("Ljava/lang/Object;"), Type.getType("[Ljava/lang/Object;") }, Constants.INVOKEVIRTUAL));
++		il.append(factory.createCheckCast((ReferenceType) BcelWorld.makeBcelType(aspectType)));
++		il.append(InstructionConstants.ARETURN);
++
++		InstructionHandle handler = il.append(InstructionConstants.ASTORE_1);
++		il.append(InstructionConstants.ACONST_NULL);
++		il.append(InstructionConstants.ARETURN);
++
++		method.addExceptionHandler(tryStart, handler.getPrev(), handler, new ObjectType("java.lang.Exception"), false);
++	}
++
++	private void generatePerTWCreateAspectInstanceMethod(LazyClassGen classGen) {
++		InstructionFactory factory = classGen.getFactory();
++		LazyMethodGen method = makeMethodGen(classGen, AjcMemberMaker.perTypeWithinCreateAspectInstance(aspectType));
++		flagAsSynthetic(method, true);
++		classGen.addMethodGen(method);
++
++		InstructionList il = method.getBody();
++		il.append(factory.createNew(aspectType.getName()));
++		il.append(InstructionConstants.DUP);
++		il.append(factory.createInvoke(aspectType.getName(), "<init>", Type.VOID, Type.NO_ARGS, Constants.INVOKESPECIAL));
++		il.append(InstructionConstants.ASTORE_1);
++		il.append(InstructionConstants.ALOAD_1);
++		il.append(InstructionConstants.ALOAD_0);
++		il.append(Utility.createSet(factory, AjcMemberMaker.perTypeWithinWithinTypeField(aspectType, aspectType)));
++		il.append(InstructionConstants.ALOAD_1);
++		il.append(InstructionConstants.ARETURN);
++	}
++
++	/**
++	 * Add standard Synthetic (if wished) and AjSynthetic (always) attributes
++	 * 
++	 * @param methodGen
++	 * @param makeJavaSynthetic true if standard Synthetic attribute must be set as well (invisible to user)
++	 */
++	private static void flagAsSynthetic(LazyMethodGen methodGen, boolean makeJavaSynthetic) {
++		if (makeJavaSynthetic) {
++			methodGen.makeSynthetic();
++		}
++		methodGen.addAttribute(Utility
++				.bcelAttribute(new AjAttribute.AjSynthetic(), methodGen.getEnclosingClass().getConstantPool()));
++	}
++
++	// public boolean isLateTypeMunger() {
++	// return true;
++	// }
+ }
+@@ -128,6 +128,7 @@ concrete-aspect
+     name CDATA #REQUIRED
+     extends CDATA #REQUIRED
+     precedence CDATA #IMPLIED
++    perclause CDATA #IMPLIED
+ >
+ <!--*****************************************************************************************************************************
+ pointcut
+@@ -33,6 +33,7 @@ import org.aspectj.apache.bcel.generic.Type;
+ import org.aspectj.bridge.IMessage;
+ import org.aspectj.bridge.Message;
+ import org.aspectj.weaver.AnnotationAJ;
++import org.aspectj.weaver.GeneratedReferenceTypeDelegate;
+ import org.aspectj.weaver.ReferenceType;
+ import org.aspectj.weaver.ResolvedMember;
+ import org.aspectj.weaver.ResolvedType;
+@@ -48,13 +49,14 @@ import org.aspectj.weaver.patterns.PerClause;
+ import org.aspectj.weaver.patterns.PerSingleton;
+ 
+ /**
+- * Generates bytecode for concrete-aspect <p/> The concrete aspect is @AspectJ
+- * code generated. As it is build during aop.xml definitions registration we
+- * perform the type munging for perclause ie aspectOf artifact directly, instead
+- * of waiting for it to go thru the weaver (that we are in the middle of
+- * configuring).
++ * Generates bytecode for concrete-aspect.
++ * <p>
++ * The concrete aspect is @AspectJ code generated. As it is build during aop.xml definitions registration we perform the type
++ * munging for perclause, ie. aspectOf() artifact directly, instead of waiting for it to go thru the weaver (that we are in the
++ * middle of configuring).
+  * 
+- * @author <a href="mailto:alex AT gnilux DOT com">Alexandre Vasseur</a>
++ * @author Alexandre Vasseur
++ * @author Andy Clement
+  */
+ public class ConcreteAspectCodeGen {
+ 
+@@ -64,27 +66,27 @@ public class ConcreteAspectCodeGen {
+ 	/**
+ 	 * Concrete aspect definition we build for
+ 	 */
+-	private final Definition.ConcreteAspect m_concreteAspect;
++	private final Definition.ConcreteAspect concreteAspect;
+ 
+ 	/**
+ 	 * World for which we build for
+ 	 */
+-	private final World m_world;
++	private final World world;
+ 
+ 	/**
+ 	 * Set to true when all is checks are verified
+ 	 */
+-	private boolean m_isValid = false;
++	private boolean isValid = false;
+ 
+ 	/**
+ 	 * The parent aspect, not concretized
+ 	 */
+-	private ResolvedType m_parent;
++	private ResolvedType parent;
+ 
+ 	/**
+ 	 * Aspect perClause, used for direct munging of aspectOf artifacts
+ 	 */
+-	private PerClause m_perClause;
++	private PerClause perclause;
+ 
+ 	/**
+ 	 * Create a new compiler for a concrete aspect
+@@ -93,8 +95,8 @@ public class ConcreteAspectCodeGen {
+ 	 * @param world
+ 	 */
+ 	ConcreteAspectCodeGen(Definition.ConcreteAspect concreteAspect, World world) {
+-		m_concreteAspect = concreteAspect;
+-		m_world = world;
++		this.concreteAspect = concreteAspect;
++		this.world = world;
+ 	}
+ 
+ 	/**
+@@ -103,7 +105,7 @@ public class ConcreteAspectCodeGen {
+ 	 * @return true if ok, false otherwise
+ 	 */
+ 	public boolean validate() {
+-		if (!(m_world instanceof BcelWorld)) {
++		if (!(world instanceof BcelWorld)) {
+ 			reportError("Internal error: world must be of type BcelWorld");
+ 			return false;
+ 		}
+@@ -111,62 +113,57 @@ public class ConcreteAspectCodeGen {
+ 		// name must be undefined so far
+ 		// TODO only convert the name to signature once, probably earlier than
+ 		// this
+-		ResolvedType current = m_world.lookupBySignature(UnresolvedType
+-				.forName(m_concreteAspect.name).getSignature());
++		ResolvedType current = world.lookupBySignature(UnresolvedType.forName(concreteAspect.name).getSignature());
+ 
+ 		if (current != null && !current.isMissing()) {
+-			reportError("Attempt to concretize but chosen aspect name already defined: "
+-					+ stringify());
++			reportError("Attempt to concretize but chosen aspect name already defined: " + stringify());
+ 			return false;
+ 		}
+ 
+ 		// it can happen that extends is null, for precedence only declaration
+-		if (m_concreteAspect.extend == null
+-				&& m_concreteAspect.precedence != null) {
+-			if (m_concreteAspect.pointcuts.isEmpty()) {
+-				m_isValid = true;
+-				m_perClause = new PerSingleton();
+-				m_parent = null;
++		if (concreteAspect.extend == null && concreteAspect.precedence != null) {
++			if (concreteAspect.pointcuts.isEmpty()) {
++				isValid = true;
++				// m_perClause = new PerSingleton();
++				parent = null;
+ 				return true;// no need to checks more in that special case
+ 			} else {
+-				reportError("Attempt to use nested pointcuts without extends clause: "
+-						+ stringify());
++				reportError("Attempt to use nested pointcuts without extends clause: " + stringify());
+ 				return false;
+ 			}
+ 		}
+ 
+-		m_parent = m_world.resolve(m_concreteAspect.extend, true);
++		parent = world.resolve(concreteAspect.extend, true);
+ 		// handle inner classes
+-		if (m_parent.isMissing()) {
++		if (parent.isMissing()) {
+ 			// fallback on inner class lookup mechanism
+-			String fixedName = m_concreteAspect.extend;
++			String fixedName = concreteAspect.extend;
+ 			int hasDot = fixedName.lastIndexOf('.');
+ 			while (hasDot > 0) {
+ 				char[] fixedNameChars = fixedName.toCharArray();
+ 				fixedNameChars[hasDot] = '$';
+ 				fixedName = new String(fixedNameChars);
+ 				hasDot = fixedName.lastIndexOf('.');
+-				m_parent = m_world.resolve(UnresolvedType.forName(fixedName),
+-						true);
+-				if (!m_parent.isMissing()) {
++				parent = world.resolve(UnresolvedType.forName(fixedName), true);
++				if (!parent.isMissing()) {
+ 					break;
+ 				}
+ 			}
+ 		}
+-		if (m_parent.isMissing()) {
++
++		if (parent.isMissing()) {
+ 			reportError("Cannot find m_parent aspect for: " + stringify());
+ 			return false;
+ 		}
+ 
+ 		// extends must be abstract
+-		if (!m_parent.isAbstract()) {
+-			reportError("Attempt to concretize a non-abstract aspect: "
+-					+ stringify());
++		if (!parent.isAbstract()) {
++			reportError("Attempt to concretize a non-abstract aspect: " + stringify());
+ 			return false;
+ 		}
+ 
+ 		// m_parent must be aspect
+-		if (!m_parent.isAspect()) {
++		if (!parent.isAspect()) {
+ 			reportError("Attempt to concretize a non aspect: " + stringify());
+ 			return false;
+ 		}
+@@ -174,64 +171,66 @@ public class ConcreteAspectCodeGen {
+ 		// must have all abstractions defined
+ 		List elligibleAbstractions = new ArrayList();
+ 
+-		Collection abstractMethods = getOutstandingAbstractMethods(m_parent);
++		Collection abstractMethods = getOutstandingAbstractMethods(parent);
+ 		for (Iterator iter = abstractMethods.iterator(); iter.hasNext();) {
+ 			ResolvedMember method = (ResolvedMember) iter.next();
+ 			if ("()V".equals(method.getSignature())) {
+ 				String n = method.getName();
+-				if (n.startsWith("ajc$pointcut")) { // Allow for the abstract
+-					// pointcut being from a
+-					// code style aspect
+-					// compiled with
+-					// -1.5 (see test for 128744)
++				// Allow for the abstract pointcut being from a code style aspect compiled with -1.5 (see test for 128744)
++				if (n.startsWith("ajc$pointcut")) {
+ 					n = n.substring(14);
+ 					n = n.substring(0, n.indexOf("$"));
+ 					elligibleAbstractions.add(n);
+ 				} else if (hasPointcutAnnotation(method)) {
+ 					elligibleAbstractions.add(method.getName());
+ 				} else {
+-					// error, an outstanding abstract method that can't be
+-					// concretized in XML
+-					reportError("Abstract method '" + method.toString()
+-							+ "' cannot be concretized in XML: " + stringify());
++					// error, an outstanding abstract method that can't be concretized in XML
++					reportError("Abstract method '" + method.toString() + "' cannot be concretized in XML: " + stringify());
+ 					return false;
+ 				}
+ 			} else {
+-				if (method.getName().startsWith("ajc$pointcut")
+-						|| hasPointcutAnnotation(method)) {
+-					// it may be a pointcut but it doesn't meet the requirements
+-					// for XML concretization
++				if (method.getName().startsWith("ajc$pointcut") || hasPointcutAnnotation(method)) {
++					// it may be a pointcut but it doesn't meet the requirements for XML concretization
+ 					reportError("Abstract method '"
+ 							+ method.toString()
+ 							+ "' cannot be concretized as a pointcut (illegal signature, must have no arguments, must return void): "
+ 							+ stringify());
+ 					return false;
+ 				} else {
+-					// error, an outstanding abstract method that can't be
+-					// concretized in XML
+-					reportError("Abstract method '" + method.toString()
+-							+ "' cannot be concretized in XML: " + stringify());
++					// error, an outstanding abstract method that can't be concretized in XML
++					reportError("Abstract method '" + method.toString() + "' cannot be concretized in XML: " + stringify());
+ 					return false;
+ 				}
+ 			}
+ 		}
+ 		List pointcutNames = new ArrayList();
+-		for (Iterator it = m_concreteAspect.pointcuts.iterator(); it.hasNext();) {
++		for (Iterator it = concreteAspect.pointcuts.iterator(); it.hasNext();) {
+ 			Definition.Pointcut abstractPc = (Definition.Pointcut) it.next();
+ 			pointcutNames.add(abstractPc.name);
+ 		}
+ 		for (Iterator it = elligibleAbstractions.iterator(); it.hasNext();) {
+ 			String elligiblePc = (String) it.next();
+ 			if (!pointcutNames.contains(elligiblePc)) {
+-				reportError("Abstract pointcut '" + elligiblePc
+-						+ "' not configured: " + stringify());
++				reportError("Abstract pointcut '" + elligiblePc + "' not configured: " + stringify());
+ 				return false;
+ 			}
+ 		}
+ 
+-		m_perClause = m_parent.getPerClause();
+-		m_isValid = true;
+-		return m_isValid;
++		if (concreteAspect.perclause != null) {
++			String perclauseString = concreteAspect.perclause;
++			if (perclauseString.startsWith("persingleton")) {
++			} else if (perclauseString.startsWith("percflow")) {
++			} else if (perclauseString.startsWith("pertypewithin")) {
++			} else if (perclauseString.startsWith("perthis")) {
++			} else if (perclauseString.startsWith("pertarget")) {
++			} else if (perclauseString.startsWith("percflowbelow")) {
++			} else {
++				reportError("Unrecognized per clause specified " + stringify());
++				return false;
++			}
++		}
++		isValid = true;
++		return isValid;
+ 	}
+ 
+ 	private Collection getOutstandingAbstractMethods(ResolvedType type) {
+@@ -246,15 +245,13 @@ public class ConcreteAspectCodeGen {
+ 	// We are trying to determine abstract methods left over at the bottom of a
+ 	// hierarchy that have not been
+ 	// concretized.
+-	private void getOutstandingAbstractMethodsHelper(ResolvedType type,
+-			Map collector) {
++	private void getOutstandingAbstractMethodsHelper(ResolvedType type, Map collector) {
+ 		if (type == null)
+ 			return;
+ 		// Get to the top
+ 		if (!type.equals(ResolvedType.OBJECT)) {
+ 			if (type.getSuperclass() != null)
+-				getOutstandingAbstractMethodsHelper(type.getSuperclass(),
+-						collector);
++				getOutstandingAbstractMethodsHelper(type.getSuperclass(), collector);
+ 		}
+ 		ResolvedMember[] rms = type.getDeclaredMethods();
+ 		if (rms != null) {
+@@ -271,16 +268,17 @@ public class ConcreteAspectCodeGen {
+ 	}
+ 
+ 	/**
+-	 * Rebuild the XML snip that defines this concrete aspect, for log error
+-	 * purpose
++	 * Rebuild the XML snip that defines this concrete aspect, for log error purpose
+ 	 * 
+ 	 * @return string repr.
+ 	 */
+ 	private String stringify() {
+ 		StringBuffer sb = new StringBuffer("<concrete-aspect name='");
+-		sb.append(m_concreteAspect.name);
++		sb.append(concreteAspect.name);
+ 		sb.append("' extends='");
+-		sb.append(m_concreteAspect.extend);
++		sb.append(concreteAspect.extend);
++		sb.append("' perclause='");
++		sb.append(concreteAspect.perclause);
+ 		sb.append("'/> in aop.xml");
+ 		return sb.toString();
+ 	}
+@@ -290,8 +288,7 @@ public class ConcreteAspectCodeGen {
+ 		if (as == null || as.length == 0)
+ 			return false;
+ 		for (int i = 0; i < as.length; i++) {
+-			if (as[i].getTypeSignature().equals(
+-					"Lorg/aspectj/lang/annotation/Pointcut;")) {
++			if (as[i].getTypeSignature().equals("Lorg/aspectj/lang/annotation/Pointcut;")) {
+ 				return true;
+ 			}
+ 		}
+@@ -299,7 +296,7 @@ public class ConcreteAspectCodeGen {
+ 	}
+ 
+ 	public String getClassName() {
+-		return m_concreteAspect.name;
++		return concreteAspect.name;
+ 	}
+ 
+ 	/**
+@@ -308,9 +305,32 @@ public class ConcreteAspectCodeGen {
+ 	 * @return concrete aspect bytecode
+ 	 */
+ 	public byte[] getBytes() {
+-		if (!m_isValid) {
++		if (!isValid) {
+ 			throw new RuntimeException("Must validate first");
+ 		}
++		PerClause parentPerClause = (parent != null ? parent.getPerClause() : null);
++		if (parentPerClause == null) {
++			parentPerClause = new PerSingleton();
++		}
++		PerClause.Kind perclauseKind = PerClause.SINGLETON;
++		String perclauseString = null;
++
++		if (concreteAspect.perclause != null) {
++			perclauseString = concreteAspect.perclause;
++			if (perclauseString.startsWith("persingleton")) {
++				perclauseKind = PerClause.SINGLETON;
++			} else if (perclauseString.startsWith("percflow")) {
++				perclauseKind = PerClause.PERCFLOW;
++			} else if (perclauseString.startsWith("pertypewithin")) {
++				perclauseKind = PerClause.PERTYPEWITHIN;
++			} else if (perclauseString.startsWith("perthis")) {
++				perclauseKind = PerClause.PEROBJECT;
++			} else if (perclauseString.startsWith("pertarget")) {
++				perclauseKind = PerClause.PEROBJECT;
++			} else if (perclauseString.startsWith("percflowbelow")) {
++				perclauseKind = PerClause.PERCFLOW;
++			}
++		}
+ 
+ 		// TODO AV - abstract away from BCEL...
+ 		// @Aspect //inherit clause from m_parent
+@@ -321,63 +341,55 @@ public class ConcreteAspectCodeGen {
+ 		// }
+ 
+ 		// @Aspect public class ...
+-		LazyClassGen cg = new LazyClassGen(m_concreteAspect.name.replace('.',
+-				'/'), (m_parent == null) ? "java/lang/Object" : m_parent
++		LazyClassGen cg = new LazyClassGen(concreteAspect.name.replace('.', '/'), (parent == null) ? "java/lang/Object" : parent
+ 				.getName().replace('.', '/'), null,// TODO AV - we could point
+ 				// to the aop.xml that
+ 				// defines it and use
+ 				// JSR-45
+-				Modifier.PUBLIC + Constants.ACC_SUPER, EMPTY_STRINGS, m_world);
+-		AnnotationGen ag = new AnnotationGen(new ObjectType(
+-				"org/aspectj/lang/annotation/Aspect"), Collections.EMPTY_LIST,
+-				true, cg.getConstantPool());
+-		cg.addAnnotation(ag);
+-		if (m_concreteAspect.precedence != null) {
+-			SimpleElementValueGen svg = new SimpleElementValueGen(
+-					ElementValueGen.STRING, cg.getConstantPool(),
+-					m_concreteAspect.precedence);
+-			List elems = new ArrayList();
+-			elems.add(new ElementNameValuePairGen("value", svg, cg
+-					.getConstantPool()));
+-			AnnotationGen agprec = new AnnotationGen(new ObjectType(
+-					"org/aspectj/lang/annotation/DeclarePrecedence"), elems,
++				Modifier.PUBLIC + Constants.ACC_SUPER, EMPTY_STRINGS, world);
++		if (perclauseString == null) {
++			AnnotationGen ag = new AnnotationGen(new ObjectType("org/aspectj/lang/annotation/Aspect"), Collections.EMPTY_LIST,
+ 					true, cg.getConstantPool());
++			cg.addAnnotation(ag);
++		} else {
++			// List elems = new ArrayList();
++			List elems = new ArrayList();
++			elems.add(new ElementNameValuePairGen("value", new SimpleElementValueGen(ElementValueGen.STRING, cg.getConstantPool(),
++					perclauseString), cg.getConstantPool()));
++			AnnotationGen ag = new AnnotationGen(new ObjectType("org/aspectj/lang/annotation/Aspect"), elems, true, cg
++					.getConstantPool());
++			cg.addAnnotation(ag);
++		}
++		if (concreteAspect.precedence != null) {
++			SimpleElementValueGen svg = new SimpleElementValueGen(ElementValueGen.STRING, cg.getConstantPool(),
++					concreteAspect.precedence);
++			List elems = new ArrayList();
++			elems.add(new ElementNameValuePairGen("value", svg, cg.getConstantPool()));
++			AnnotationGen agprec = new AnnotationGen(new ObjectType("org/aspectj/lang/annotation/DeclarePrecedence"), elems, true,
++					cg.getConstantPool());
+ 			cg.addAnnotation(agprec);
+ 		}
+ 
+ 		// default constructor
+-		LazyMethodGen init = new LazyMethodGen(Modifier.PUBLIC, Type.VOID,
+-				"<init>", EMPTY_TYPES, EMPTY_STRINGS, cg);
++		LazyMethodGen init = new LazyMethodGen(Modifier.PUBLIC, Type.VOID, "<init>", EMPTY_TYPES, EMPTY_STRINGS, cg);
+ 		InstructionList cbody = init.getBody();
+ 		cbody.append(InstructionConstants.ALOAD_0);
+-		cbody.append(cg.getFactory().createInvoke(
+-				(m_parent == null) ? "java/lang/Object" : m_parent.getName()
+-						.replace('.', '/'), "<init>", Type.VOID, EMPTY_TYPES,
+-				Constants.INVOKESPECIAL));
++		cbody.append(cg.getFactory().createInvoke((parent == null) ? "java/lang/Object" : parent.getName().replace('.', '/'),
++				"<init>", Type.VOID, EMPTY_TYPES, Constants.INVOKESPECIAL));
+ 		cbody.append(InstructionConstants.RETURN);
+ 		cg.addMethodGen(init);
+ 
+-		for (Iterator it = m_concreteAspect.pointcuts.iterator(); it.hasNext();) {
++		for (Iterator it = concreteAspect.pointcuts.iterator(); it.hasNext();) {
+ 			Definition.Pointcut abstractPc = (Definition.Pointcut) it.next();
+-
+-			LazyMethodGen mg = new LazyMethodGen(Modifier.PUBLIC,// TODO AV -
+-					// respect
+-					// visibility
+-					// instead
+-					// of
+-					// opening
+-					// up?
+-					Type.VOID, abstractPc.name, EMPTY_TYPES, EMPTY_STRINGS, cg);
+-			SimpleElementValueGen svg = new SimpleElementValueGen(
+-					ElementValueGen.STRING, cg.getConstantPool(),
++			// TODO AV - respect visibility instead of opening up as public?
++			LazyMethodGen mg = new LazyMethodGen(Modifier.PUBLIC, Type.VOID, abstractPc.name, EMPTY_TYPES, EMPTY_STRINGS, cg);
++			SimpleElementValueGen svg = new SimpleElementValueGen(ElementValueGen.STRING, cg.getConstantPool(),
+ 					abstractPc.expression);
+ 			List elems = new ArrayList();
+-			elems.add(new ElementNameValuePairGen("value", svg, cg
+-					.getConstantPool()));
+-			AnnotationGen mag = new AnnotationGen(new ObjectType(
+-					"org/aspectj/lang/annotation/Pointcut"), elems, true, cg
++			elems.add(new ElementNameValuePairGen("value", svg, cg.getConstantPool()));
++			AnnotationGen mag = new AnnotationGen(new ObjectType("org/aspectj/lang/annotation/Pointcut"), elems, true, cg
+ 					.getConstantPool());
+-			AnnotationAJ max = new BcelAnnotation(mag, m_world);
++			AnnotationAJ max = new BcelAnnotation(mag, world);
+ 			mg.addAnnotation(max);
+ 
+ 			InstructionList body = mg.getBody();
+@@ -387,17 +399,19 @@ public class ConcreteAspectCodeGen {
+ 		}
+ 
+ 		// handle the perClause
+-		ReferenceType rt = new ReferenceType(ResolvedType.forName(
+-				m_concreteAspect.name).getSignature(), m_world);
+-		BcelPerClauseAspectAdder perClauseMunger = new BcelPerClauseAspectAdder(
+-				rt, m_perClause.getKind());
++		ReferenceType rt = new ReferenceType(ResolvedType.forName(concreteAspect.name).getSignature(), world);
++		GeneratedReferenceTypeDelegate grtd = new GeneratedReferenceTypeDelegate(rt);
++		grtd.setSuperclass(parent);
++		rt.setDelegate(grtd);
++
++		BcelPerClauseAspectAdder perClauseMunger = new BcelPerClauseAspectAdder(rt, perclauseKind);
+ 		perClauseMunger.forceMunge(cg, false);
+ 
+ 		// TODO AV - unsafe cast
+ 		// register the fresh new class into the world repository as it does not
+ 		// exist on the classpath anywhere
+-		JavaClass jc = cg.getJavaClass((BcelWorld) m_world);
+-		((BcelWorld) m_world).addSourceObjectType(jc);
++		JavaClass jc = cg.getJavaClass((BcelWorld) world);
++		((BcelWorld) world).addSourceObjectType(jc);
+ 
+ 		return jc.getBytes();
+ 	}
+@@ -408,7 +422,6 @@ public class ConcreteAspectCodeGen {
+ 	 * @param message
+ 	 */
+ 	private void reportError(String message) {
+-		m_world.getMessageHandler().handleMessage(
+-				new Message(message, IMessage.ERROR, null, null));
++		world.getMessageHandler().handleMessage(new Message(message, IMessage.ERROR, null, null));
+ 	}
+ }
+@@ -16,47 +16,48 @@ import java.util.List;
+ 
+ /**
+  * A POJO that contains raw strings from the XML (sort of XMLBean for our simple LTW DTD)
+- *
++ * 
+  * @author <a href="mailto:alex AT gnilux DOT com">Alexandre Vasseur</a>
+  */
+ public class Definition {
+ 
+-    private StringBuffer m_weaverOptions;
++	private final StringBuffer m_weaverOptions;
++
++	private final List m_dumpPatterns;
+ 
+-    private List m_dumpPatterns;
+-    private boolean m_dumpBefore;
++	private boolean m_dumpBefore;
+ 
+-    private List m_includePatterns;
++	private final List m_includePatterns;
+ 
+-    private List m_excludePatterns;
++	private final List m_excludePatterns;
+ 
+-    private List m_aspectClassNames;
++	private final List m_aspectClassNames;
+ 
+-    private List m_aspectExcludePatterns;
++	private final List m_aspectExcludePatterns;
+ 
+-    private List m_aspectIncludePatterns;
++	private final List m_aspectIncludePatterns;
+ 
+-    private List m_concreteAspects;
++	private final List m_concreteAspects;
+ 
+-    public Definition() {
+-        m_weaverOptions = new StringBuffer();
+-        m_dumpBefore = false;
+-        m_dumpPatterns = new ArrayList(0);
+-        m_includePatterns = new ArrayList(0);
+-        m_excludePatterns = new ArrayList(0);
+-        m_aspectClassNames = new ArrayList();
+-        m_aspectExcludePatterns = new ArrayList(0);
+-        m_aspectIncludePatterns = new ArrayList(0);
+-        m_concreteAspects = new ArrayList(0);
+-    }
++	public Definition() {
++		m_weaverOptions = new StringBuffer();
++		m_dumpBefore = false;
++		m_dumpPatterns = new ArrayList(0);
++		m_includePatterns = new ArrayList(0);
++		m_excludePatterns = new ArrayList(0);
++		m_aspectClassNames = new ArrayList();
++		m_aspectExcludePatterns = new ArrayList(0);
++		m_aspectIncludePatterns = new ArrayList(0);
++		m_concreteAspects = new ArrayList(0);
++	}
+ 
+-    public String getWeaverOptions() {
+-        return m_weaverOptions.toString();
+-    }
++	public String getWeaverOptions() {
++		return m_weaverOptions.toString();
++	}
+ 
+-    public List getDumpPatterns() {
+-        return m_dumpPatterns;
+-    }
++	public List getDumpPatterns() {
++		return m_dumpPatterns;
++	}
+ 
+ 	public void setDumpBefore(boolean b) {
+ 		m_dumpBefore = b;
+@@ -66,67 +67,70 @@ public class Definition {
+ 		return m_dumpBefore;
+ 	}
+ 
+-    public List getIncludePatterns() {
+-        return m_includePatterns;
+-    }
+-
+-    public List getExcludePatterns() {
+-        return m_excludePatterns;
+-    }
+-
+-    public List getAspectClassNames() {
+-        return m_aspectClassNames;
+-    }
+-
+-    public List getAspectExcludePatterns() {
+-        return m_aspectExcludePatterns;
+-    }
+-
+-    public List getAspectIncludePatterns() {
+-        return m_aspectIncludePatterns;
+-    }
+-
+-    public List getConcreteAspects() {
+-        return m_concreteAspects;
+-    }
+-
+-    public static class ConcreteAspect {
+-        public final String name;
+-        public final String extend;
+-        public final String precedence;
+-        public final List pointcuts;
+-
+-        public ConcreteAspect(String name, String extend) {
+-            this(name, extend,  null);
+-        }
+-
+-        public ConcreteAspect(String name, String extend, String precedence) {
+-            this.name = name;
+-            // make sure extend set to null if ""
+-            if (extend == null || extend.length() == 0) {
+-                this.extend = null;
+-                if (precedence == null || precedence.length() == 0) {
+-                    throw new RuntimeException("Not allowed");
+-                }
+-            } else {
+-                this.extend = extend;
+-            }
+-            this.precedence = precedence;
+-            this.pointcuts = new ArrayList();
+-        }
+-    }
+-
+-    public static class Pointcut {
+-        public final String name;
+-        public final String expression;
+-        public Pointcut(String name, String expression) {
+-            this.name = name;
+-            this.expression = expression;
+-        }
+-    }
+-
+-    public void appendWeaverOptions(String option) {
+-        m_weaverOptions.append(option.trim()).append(' ');
+-    }
++	public List getIncludePatterns() {
++		return m_includePatterns;
++	}
++
++	public List getExcludePatterns() {
++		return m_excludePatterns;
++	}
++
++	public List getAspectClassNames() {
++		return m_aspectClassNames;
++	}
++
++	public List getAspectExcludePatterns() {
++		return m_aspectExcludePatterns;
++	}
++
++	public List getAspectIncludePatterns() {
++		return m_aspectIncludePatterns;
++	}
++
++	public List getConcreteAspects() {
++		return m_concreteAspects;
++	}
++
++	public static class ConcreteAspect {
++		public final String name;
++		public final String extend;
++		public final String precedence;
++		public final List pointcuts;
++		public final String perclause;
++
++		public ConcreteAspect(String name, String extend) {
++			this(name, extend, null, null);
++		}
++
++		public ConcreteAspect(String name, String extend, String precedence, String perclause) {
++			this.name = name;
++			// make sure extend set to null if ""
++			if (extend == null || extend.length() == 0) {
++				this.extend = null;
++				if (precedence == null || precedence.length() == 0) {
++					throw new RuntimeException("Not allowed");
++				}
++			} else {
++				this.extend = extend;
++			}
++			this.precedence = precedence;
++			this.pointcuts = new ArrayList();
++			this.perclause = perclause;
++		}
++	}
++
++	public static class Pointcut {
++		public final String name;
++		public final String expression;
++
++		public Pointcut(String name, String expression) {
++			this.name = name;
++			this.expression = expression;
++		}
++	}
++
++	public void appendWeaverOptions(String option) {
++		m_weaverOptions.append(option.trim()).append(' ');
++	}
+ 
+ }
+@@ -61,6 +61,7 @@ public class DocumentParser extends DefaultHandler {
+ 	private final static String NAME_ATTRIBUTE = "name";
+ 	private final static String EXTEND_ATTRIBUTE = "extends";
+ 	private final static String PRECEDENCE_ATTRIBUTE = "precedence";
++	private final static String PERCLAUSE_ATTRIBUTE = "perclause";
+ 	private final static String POINTCUT_ELEMENT = "pointcut";
+ 	private final static String WITHIN_ATTRIBUTE = "within";
+ 	private final static String EXPRESSION_ATTRIBUTE = "expression";
+@@ -161,13 +162,15 @@ public class DocumentParser extends DefaultHandler {
+ 			String name = attributes.getValue(NAME_ATTRIBUTE);
+ 			String extend = attributes.getValue(EXTEND_ATTRIBUTE);
+ 			String precedence = attributes.getValue(PRECEDENCE_ATTRIBUTE);
++			String perclause = attributes.getValue(PERCLAUSE_ATTRIBUTE);
+ 			if (!isNull(name)) {
+-				if (isNull(precedence) && !isNull(extend)) {// if no precedence, then extends must be there
+-					m_lastConcreteAspect = new Definition.ConcreteAspect(name, extend);
+-				} else if (!isNull(precedence)) {
+-					// wether a pure precedence def, or an extendsANDprecedence def.
+-					m_lastConcreteAspect = new Definition.ConcreteAspect(name, extend, precedence);
+-				}
++				m_lastConcreteAspect = new Definition.ConcreteAspect(name, extend, precedence, perclause);
++				// if (isNull(precedence) && !isNull(extend)) {// if no precedence, then extends must be there
++				// m_lastConcreteAspect = new Definition.ConcreteAspect(name, extend);
++				// } else if (!isNull(precedence)) {
++				// // wether a pure precedence def, or an extendsANDprecedence def.
++				// m_lastConcreteAspect = new Definition.ConcreteAspect(name, extend, precedence, perclause);
++				// }
+ 				m_definition.getConcreteAspects().add(m_lastConcreteAspect);
+ 			}
+ 		} else if (POINTCUT_ELEMENT.equals(qName) && m_lastConcreteAspect != null) {
+@@ -0,0 +1,6 @@
++public abstract aspect Base pertypewithin(*) {
++  before(): execution(* *(..)) && !within(Base+) { 
++    System.err.println("advice fired "+thisJoinPoint.getSourceLocation().getWithinType());
++  }
++}
++
+@@ -0,0 +1,8 @@
++public abstract aspect Base2 pertypewithin(*) {
++  abstract pointcut scope();
++
++  before(): execution(* *(..)) && !within(Base2+) && scope() { 
++    System.err.println("advice fired "+thisJoinPoint.getSourceLocation().getWithinType());
++  }
++}
++
+@@ -0,0 +1,5 @@
++public class Code {
++  public static void main(String[] argv) {
++    new Dode().foo();
++  }
++}
+@@ -0,0 +1,3 @@
++public class Dode {
++  public void foo() {}
++}
+@@ -0,0 +1,10 @@
++<aspectj>
++  <aspects>
++    <concrete-aspect name="SubAspect" extends="Base" >
++      <pointcut name="scope" expression="within(*)"/>
++    </concrete-aspect>
++  </aspects>
++  <!-- weaver options="-verbose -showWeaveInfo -debug"-->
++  <weaver options="">
++  </weaver>
++</aspectj>
+@@ -0,0 +1,9 @@
++<aspectj>
++  <aspects>
++    <concrete-aspect name="SubAspect" extends="Base" perclause="pertypewithin(D*)">
++    
++    </concrete-aspect>
++  </aspects>
++  <weaver>
++  </weaver>
++</aspectj>
+@@ -0,0 +1,10 @@
++<aspectj>
++  <aspects>
++    <concrete-aspect name="SubAspect" extends="Base2" perclause="pertypewithin(*)">
++      <pointcut name="scope" expression="within(D*)"/>
++    </concrete-aspect>
++  </aspects>
++  <!-- weaver options="-verbose -showWeaveInfo -debug"-->
++  <weaver options="">
++  </weaver>
++</aspectj>
+@@ -0,0 +1,10 @@
++<aspectj>
++  <aspects>
++    <concrete-aspect name="SubAspect" extends="Base2" perclause="persausage(*)">
++      <pointcut name="scope" expression="within(D*)"/>
++    </concrete-aspect>
++  </aspects>
++  <!-- weaver options="-verbose -showWeaveInfo -debug"-->
++  <weaver options="">
++  </weaver>
++</aspectj>
+@@ -0,0 +1,3 @@
++aop1 - ptw base aspect with concrete aspect including single pointcut
++aop2 - ptw sub aspect limiting application to D* type (no xml pointcut)
++aop3 - ptw sub aspect, concretized scope in sub aspect

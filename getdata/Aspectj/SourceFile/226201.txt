@@ -1,0 +1,66 @@
+@@ -0,0 +1,23 @@
++
++abstract aspect GenAsp<T> {
++    public abstract T transform(T x);
++    T around() : execution(T *(*)) {return transform(proceed());}
++}
++
++aspect IntAsp extends GenAsp<Integer> {
++	
++    public Integer transform(Integer x) {return x;} // identity transformation
++}
++
++public class IntAspTest {
++    static Integer mylength(String x) {return x.length();}
++
++    public static void main(String[] args) {
++    	try {
++    		System.out.println(mylength(""));
++    	} catch (StackOverflowError soe) {
++    		
++    	}
++    }
++}
++
+@@ -23,6 +23,7 @@ import org.aspectj.testing.XMLBasedAjcTestCase;
+ public class Ajc161Tests extends org.aspectj.testing.XMLBasedAjcTestCase {
+ 
+ 	// AspectJ1.6.1
++	public void testGenericAspectAroundAdvice_pr226201() { runTest("generic aspect around advice");}
+ 	public void testCrazyGenericsInnerTypes_pr235829() { runTest("crazy generics and inner types");}
+ 	public void testAnnotationExposureGenerics_pr235597() { runTest("annotation exposure and generics");}
+     public void testIncorrectRelationship_pr235204() {
+@@ -3,6 +3,13 @@
+ <!-- AspectJ v1.6.1 Tests -->
+ <suite>
+ 
++	<ajc-test dir="bugs161/pr226201" title="generic aspect around advice">
++    	<compile files="IntAspTest.java" options="-1.5"/>
++    	<run class="IntAspTest">
++    	</run>
++    </ajc-test>
++    
++
+ 	<ajc-test dir="bugs161/pr235829" title="crazy generics and inner types">
+     	<compile files="Main.java a/Adapter.java a/b/Adapter.java" options="-1.5"/>
+     	<run class="Main"/>
+@@ -3035,10 +3035,18 @@ public class BcelShadow extends Shadow {
+ 					stateRTX);
+ 			}
+ 		} else {
++		    // pr226201
++			Member mungerSignature = munger.getSignature();
++			if (munger.getSignature() instanceof ResolvedMember) {
++				if (((ResolvedMember)mungerSignature).hasBackingGenericMember()) {
++					mungerSignature = ((ResolvedMember)mungerSignature).getBackingGenericMember();
++				}
++			}
++			UnresolvedType returnType = mungerSignature.getReturnType();
+ 	        returnConversionCode = 
+ 	            Utility.createConversion(
+ 	                getFactory(), 
+-	                BcelWorld.makeBcelType(munger.getSignature().getReturnType()), 
++	                BcelWorld.makeBcelType(returnType), 
+ 	                callbackMethod.getReturnType(),world.isInJava5Mode());
+ 			if (!isFallsThrough()) {
+ 				returnConversionCode.append(

@@ -1,0 +1,220 @@
+@@ -0,0 +1,7 @@
++package org.othtests;
++
++public aspect AddSomeAnnotation {
++
++	declare @method : public String MyClass+.do*(..) : @Deprecated;
++	
++}
+@@ -0,0 +1,5 @@
++package org.othtests;
++
++public class MyClass {
++	
++}
+@@ -0,0 +1,13 @@
++package org.othtests;
++
++public class MySubClass extends MyClass {
++
++	public String doOne() {
++		return "one";
++	}
++	
++	public String doTwo() {
++		return "two";
++	}
++	
++}
+@@ -18,9 +18,9 @@ import org.aspectj.testing.XMLBasedAjcTestCase;
+ 
+ public class Ajc166Tests extends org.aspectj.testing.XMLBasedAjcTestCase {
+ 
+-	// public void testITDannos_288049() {
+-	// runTest("itd decanno");
+-	// }
++	public void testITDannos_288049() {
++		runTest("itd decanno");
++	}
+ 
+ 	public void testVerifyErrorAnnoStyle_288712() {
+ 		runTest("verifyerror anno style");
+@@ -2,15 +2,18 @@
+ 
+ <suite>
+ 
++  <ajc-test dir="bugs166/pr288049" title="itd decanno">
++     <compile files="org/othtests/MyClass.java org/othtests/MySubClass.java org/othtests/AddSomeAnnotation.java" options="-1.5 -showWeaveInfo">
++     <message kind="weave" text="'public java.lang.String org.othtests.MySubClass.doOne()' (MySubClass.java:5) is annotated with"/>
++     <message kind="weave" text="'public java.lang.String org.othtests.MySubClass.doTwo()' (MySubClass.java:9) is annotated with"/>
++     </compile>
++  </ajc-test>
++  
+   <ajc-test dir="bugs166/pr288712" title="verifyerror anno style">
+     <compile files="answers/Answer2h.java figures/FigureElement.java figures/Line.java figures/Point.java figures/ShapeFigureElement.java Main.java" options="-1.5"/>
+     <run class="Main"/>
+   </ajc-test>
+ 
+-  <ajc-test dir="bugs166/pr288049" title="itd decanno">
+-     <compile files="org/tests/AClass.java org/tests/ASubClass.java org/tests/DeclareAnns.aj" options="-1.5"/>
+-  </ajc-test>
+-  
+   <ajc-test dir="bugs166/pr288635" title="munger cce">
+      <compile files="org/tests/atann/AddAnnotations.aj org/tests/atann/AddITDDoMethod.aj org/tests/atann/InterceptTraceds.aj org/tests/atann/TestClass.java org/tests/atann/Traced.java" options="-1.5"/>
+      <run class="org.tests.atann.TestClass"/>
+@@ -111,7 +111,7 @@ class BcelClassWeaver implements IClassWeaver {
+ 	// --------------------------------------------
+ 
+ 	private final LazyClassGen clazz;
+-	private final List shadowMungers;
++	private final List<ShadowMunger> shadowMungers;
+ 	private final List typeMungers;
+ 	private final List lateTypeMungers;
+ 
+@@ -1394,8 +1394,15 @@ class BcelClassWeaver implements IClassWeaver {
+ 			DeclareAnnotation declA = (DeclareAnnotation) iter.next();
+ 
+ 			// Error if an exact type pattern was specified
+-			if ((declA.isExactPattern() || (declA.getSignaturePattern().getDeclaringType() instanceof ExactTypePattern))
+-					&& (!declA.getSignaturePattern().getName().isAny() || (declA.getKind() == DeclareAnnotation.AT_CONSTRUCTOR))) {
++			boolean shouldCheck = declA.isExactPattern()
++					|| declA.getSignaturePattern().getDeclaringType() instanceof ExactTypePattern;
++			if (shouldCheck && declA.getKind() != DeclareAnnotation.AT_CONSTRUCTOR) {
++				ExactTypePattern declaringTypePattern = (ExactTypePattern) declA.getSignaturePattern().getDeclaringType();
++				if (declA.getSignaturePattern().getName().isAny() || declaringTypePattern.isIncludeSubtypes()) {
++					shouldCheck = false;
++				}
++			}
++			if (shouldCheck) {
+ 
+ 				// Quickly check if an ITD supplies the 'missing' member
+ 				boolean itdMatch = false;
+@@ -3032,8 +3039,7 @@ class BcelClassWeaver implements IClassWeaver {
+ 			ContextToken shadowMatchToken = CompilationAndWeavingContext.enteringPhase(
+ 					CompilationAndWeavingContext.MATCHING_SHADOW, shadow);
+ 			boolean isMatched = false;
+-			for (Iterator i = shadowMungers.iterator(); i.hasNext();) {
+-				ShadowMunger munger = (ShadowMunger) i.next();
++			for (ShadowMunger munger : shadowMungers) {
+ 				ContextToken mungerMatchToken = CompilationAndWeavingContext.enteringPhase(
+ 						CompilationAndWeavingContext.MATCHING_POINTCUT, munger.getPointcut());
+ 				if (munger.match(shadow, world)) {
+@@ -3100,7 +3106,7 @@ class BcelClassWeaver implements IClassWeaver {
+ 		return clazz;
+ 	}
+ 
+-	public List getShadowMungers() {
++	public List<ShadowMunger> getShadowMungers() {
+ 		return shadowMungers;
+ 	}
+ 
+@@ -0,0 +1,7 @@
++package org.othtests;
++
++public aspect AddSomeAnnotation {
++
++	declare @method : public String MyClass+.do*(..) : @Deprecated;
++	
++}
+@@ -0,0 +1,5 @@
++package org.othtests;
++
++public class MyClass {
++	
++}
+@@ -0,0 +1,13 @@
++package org.othtests;
++
++public class MySubClass extends MyClass {
++
++	public String doOne() {
++		return "one";
++	}
++	
++	public String doTwo() {
++		return "two";
++	}
++	
++}
+@@ -18,9 +18,9 @@ import org.aspectj.testing.XMLBasedAjcTestCase;
+ 
+ public class Ajc166Tests extends org.aspectj.testing.XMLBasedAjcTestCase {
+ 
+-	// public void testITDannos_288049() {
+-	// runTest("itd decanno");
+-	// }
++	public void testITDannos_288049() {
++		runTest("itd decanno");
++	}
+ 
+ 	public void testVerifyErrorAnnoStyle_288712() {
+ 		runTest("verifyerror anno style");
+@@ -2,15 +2,18 @@
+ 
+ <suite>
+ 
++  <ajc-test dir="bugs166/pr288049" title="itd decanno">
++     <compile files="org/othtests/MyClass.java org/othtests/MySubClass.java org/othtests/AddSomeAnnotation.java" options="-1.5 -showWeaveInfo">
++     <message kind="weave" text="'public java.lang.String org.othtests.MySubClass.doOne()' (MySubClass.java:5) is annotated with"/>
++     <message kind="weave" text="'public java.lang.String org.othtests.MySubClass.doTwo()' (MySubClass.java:9) is annotated with"/>
++     </compile>
++  </ajc-test>
++  
+   <ajc-test dir="bugs166/pr288712" title="verifyerror anno style">
+     <compile files="answers/Answer2h.java figures/FigureElement.java figures/Line.java figures/Point.java figures/ShapeFigureElement.java Main.java" options="-1.5"/>
+     <run class="Main"/>
+   </ajc-test>
+ 
+-  <ajc-test dir="bugs166/pr288049" title="itd decanno">
+-     <compile files="org/tests/AClass.java org/tests/ASubClass.java org/tests/DeclareAnns.aj" options="-1.5"/>
+-  </ajc-test>
+-  
+   <ajc-test dir="bugs166/pr288635" title="munger cce">
+      <compile files="org/tests/atann/AddAnnotations.aj org/tests/atann/AddITDDoMethod.aj org/tests/atann/InterceptTraceds.aj org/tests/atann/TestClass.java org/tests/atann/Traced.java" options="-1.5"/>
+      <run class="org.tests.atann.TestClass"/>
+@@ -111,7 +111,7 @@ class BcelClassWeaver implements IClassWeaver {
+ 	// --------------------------------------------
+ 
+ 	private final LazyClassGen clazz;
+-	private final List shadowMungers;
++	private final List<ShadowMunger> shadowMungers;
+ 	private final List typeMungers;
+ 	private final List lateTypeMungers;
+ 
+@@ -1394,8 +1394,15 @@ class BcelClassWeaver implements IClassWeaver {
+ 			DeclareAnnotation declA = (DeclareAnnotation) iter.next();
+ 
+ 			// Error if an exact type pattern was specified
+-			if ((declA.isExactPattern() || (declA.getSignaturePattern().getDeclaringType() instanceof ExactTypePattern))
+-					&& (!declA.getSignaturePattern().getName().isAny() || (declA.getKind() == DeclareAnnotation.AT_CONSTRUCTOR))) {
++			boolean shouldCheck = declA.isExactPattern()
++					|| declA.getSignaturePattern().getDeclaringType() instanceof ExactTypePattern;
++			if (shouldCheck && declA.getKind() != DeclareAnnotation.AT_CONSTRUCTOR) {
++				ExactTypePattern declaringTypePattern = (ExactTypePattern) declA.getSignaturePattern().getDeclaringType();
++				if (declA.getSignaturePattern().getName().isAny() || declaringTypePattern.isIncludeSubtypes()) {
++					shouldCheck = false;
++				}
++			}
++			if (shouldCheck) {
+ 
+ 				// Quickly check if an ITD supplies the 'missing' member
+ 				boolean itdMatch = false;
+@@ -3032,8 +3039,7 @@ class BcelClassWeaver implements IClassWeaver {
+ 			ContextToken shadowMatchToken = CompilationAndWeavingContext.enteringPhase(
+ 					CompilationAndWeavingContext.MATCHING_SHADOW, shadow);
+ 			boolean isMatched = false;
+-			for (Iterator i = shadowMungers.iterator(); i.hasNext();) {
+-				ShadowMunger munger = (ShadowMunger) i.next();
++			for (ShadowMunger munger : shadowMungers) {
+ 				ContextToken mungerMatchToken = CompilationAndWeavingContext.enteringPhase(
+ 						CompilationAndWeavingContext.MATCHING_POINTCUT, munger.getPointcut());
+ 				if (munger.match(shadow, world)) {
+@@ -3100,7 +3106,7 @@ class BcelClassWeaver implements IClassWeaver {
+ 		return clazz;
+ 	}
+ 
+-	public List getShadowMungers() {
++	public List<ShadowMunger> getShadowMungers() {
+ 		return shadowMungers;
+ 	}
+ 

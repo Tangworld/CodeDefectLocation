@@ -1,0 +1,140 @@
+Binary files differ
+Binary files differ
+@@ -48,7 +48,7 @@ class ConstructorSignatureImpl extends CodeSignatureImpl implements ConstructorS
+ 	public Constructor getConstructor() {
+ 		if (constructor == null) {
+ 			try {
+-				constructor = declaringType.getDeclaredConstructor(getParameterTypes());
++				constructor = getDeclaringType().getDeclaredConstructor(getParameterTypes());
+ 			} catch (Exception ex) {
+ 				; // nothing we can do, caller will see null
+ 			}
+@@ -55,7 +55,7 @@ public class FieldSignatureImpl extends MemberSignatureImpl implements FieldSign
+ 	public Field getField() {
+ 		if (field == null) {
+ 			try {
+-				field = declaringType.getDeclaredField(getName());
++				field = getDeclaringType().getDeclaredField(getName());
+ 			} catch (Exception ex) {
+ 				; // nothing we can do, caller will see null
+ 			}
+@@ -50,7 +50,7 @@ class InitializerSignatureImpl extends CodeSignatureImpl implements InitializerS
+ 	public Constructor getInitializer() {
+ 		if (constructor == null) {
+ 			try {
+-				constructor = declaringType.getDeclaredConstructor(getParameterTypes());
++				constructor = getDeclaringType().getDeclaredConstructor(getParameterTypes());
+ 			} catch (Exception ex) {
+ 				; // nothing we can do, caller will see null
+ 			}
+@@ -0,0 +1,8 @@
++
++public class ConstructorTest {
++
++	public static void main(String[] args) {
++		new ConstructorTest();
++	}
++
++}
+@@ -0,0 +1,9 @@
++public class FieldTest {
++	
++	private static int intField;
++	
++	public static void main(String[] args) {
++		intField = 999;
++	}
++	
++}
+@@ -0,0 +1,8 @@
++
++public class InitializerTest {
++
++	
++	public static void main(String[] args) {
++	}
++
++}
+@@ -0,0 +1,30 @@
++
++
++import java.lang.reflect.Member;
++
++import org.aspectj.lang.reflect.ConstructorSignature;
++import org.aspectj.lang.reflect.FieldSignature;
++import org.aspectj.lang.reflect.InitializerSignature;
++
++public aspect SignatureImplAspect {
++	before () : (execution(ConstructorTest.new(..))) {
++		//thisJoinPointStaticPart.getSignature().getDeclaringType();
++		Member m = ((ConstructorSignature) thisJoinPointStaticPart
++				.getSignature()).getConstructor();
++		System.out.println(m.getName());
++	}
++	
++	before() : set(int FieldTest.intField) {
++		//thisJoinPointStaticPart.getSignature().getDeclaringType();
++		Member m = ((FieldSignature) thisJoinPointStaticPart
++				.getSignature()).getField();
++		System.out.println(m.getName());
++	}
++	
++	before() : staticinitialization(InitializerTest) {
++		//thisJoinPointStaticPart.getSignature().getDeclaringType();
++		Member m = ((InitializerSignature) thisJoinPointStaticPart
++				.getSignature()).getInitializer();
++		System.out.println(m.getName());
++	}
++}
+@@ -71,6 +71,18 @@ public class Ajc153Tests extends org.aspectj.testing.XMLBasedAjcTestCase {
+ 	  runTest("reweavableAspectNotRegistered error");
+   }
+ 
++  public void testNPEinConstructorSignatureImpl_pr155972 () {
++	  runTest("NPE in ConstructorSignatureImpl");
++  }
++  
++  public void testNPEinFieldSignatureImpl_pr155972 () {
++	  runTest("NPE in FieldSignatureImpl");
++  }
++  
++  public void testNPEinInitializerSignatureImpl_pr155972 () {
++	  runTest("NPE in InitializerSignatureImpl");
++  }
++  
+   /////////////////////////////////////////
+   public static Test suite() {
+     return XMLBasedAjcTestCase.loadSuite(Ajc153Tests.class);
+@@ -356,4 +356,31 @@
+       </run>
+     </ajc-test>
+ 
++    <ajc-test dir="bugs153/pr155972" title="NPE in ConstructorSignatureImpl">
++      <compile files="ConstructorTest.java, SignatureImplAspect.aj" options="-Xlint:ignore"/>
++      <run class="ConstructorTest">
++        <stdout>
++          <line text="ConstructorTest"/>
++        </stdout>
++      </run>
++    </ajc-test>
++    
++    <ajc-test dir="bugs153/pr155972" title="NPE in FieldSignatureImpl">
++      <compile files="FieldTest.java, SignatureImplAspect.aj" options="-Xlint:ignore"/>
++      <run class="FieldTest">
++        <stdout>
++          <line text="intField"/>
++        </stdout>
++      </run>
++    </ajc-test>
++    
++    <ajc-test dir="bugs153/pr155972" title="NPE in InitializerSignatureImpl">
++      <compile files="InitializerTest.java, SignatureImplAspect.aj" options="-Xlint:ignore"/>
++      <run class="InitializerTest">
++        <stdout>
++          <line text="InitializerTest"/>
++        </stdout>
++      </run>
++    </ajc-test>
++    
+ </suite>
+\ No newline at end of file

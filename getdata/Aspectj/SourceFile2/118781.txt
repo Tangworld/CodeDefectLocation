@@ -1,0 +1,96 @@
+@@ -0,0 +1,13 @@
++package blah;
++
++public aspect MyAspect {
++
++       pointcut callPointCut(): call(public * blah.MyClass+.*(..));
++
++       Object around() : callPointCut() {
++               System.out.println("start of around");
++               Object result = proceed();
++               System.out.println("end of around");
++               return result;
++       }
++}
+@@ -0,0 +1,21 @@
++package blah;
++
++import java.util.Random;
++
++public class MyClass {
++       public Integer[] getRandomInt(String[][] param)
++       {
++               for (int i = 0; i < param.length; i++)
++               {
++                       System.out.print("[" + i + "] = [");
++                       for (int j = 0; j < param[i].length; j++)
++                       {
++                               System.out.print(param[i][j]);
++                               if (j != param[i].length-1)
++                                       System.out.print(',');
++                       }
++                       System.out.println(']');
++               }
++               return new Integer[] { new Integer(new Random().nextInt())};
++       }
++}
+@@ -0,0 +1,15 @@
++package blah;
++
++/** */
++public class MyMain {
++
++       /**
++        * @param args
++        */
++       public static void main(String[] args)
++       {
++               MyClass mc = new MyClass();
++               mc.getRandomInt(new String[][]{{ "a", "b",
++"c"},{"x","y","z"}});
++       }
++}
+@@ -50,9 +50,9 @@ public class Ajc150Tests extends org.aspectj.testing.XMLBasedAjcTestCase {
+   */
+   public void testGeneratingCodeForAnOldRuntime_pr116679_1() { runTest("generating code for a 1.2.1 runtime - 1");}
+   public void testGeneratingCodeForAnOldRuntime_pr116679_2() { runTest("generating code for a 1.2.1 runtime - 2");}
+-  
+   public void testAmbiguousMethod_pr118599_1() { runTest("ambiguous method when binary weaving - 1");}
+   public void testAmbiguousMethod_pr118599_2() { runTest("ambiguous method when binary weaving - 2");}
++  public void testAroundAdviceArrayAdviceSigs_pr118781()     { runTest("verify error with around advice array sigs");}
+   public void testAtDeclareParents_pr117681() { runTest("at declare parents");}
+   public void testPrivilegeProblem_pr87525() { runTest("privilege problem with switch");}
+   public void testGenericAspects_pr115237() { runTest("aspectOf and generic aspects");}
+@@ -92,6 +92,11 @@
+      <compile files="Pr112756.aj" options="-warn:assertIdentifier -Xdev:Pinpoint"/>
+     </ajc-test>
+ 
++    <ajc-test dir="bugs150/pr118781" pr="118781" title="verify error with around advice array sigs">
++     <compile files="MyMain.java,MyAspect.java,MyClass.java" options="-XnoInline"/>
++     <run class="blah.MyMain"/>
++    </ajc-test>
++    
+     <ajc-test dir="bugs150/pr117681" pr="117681" title="at declare parents">
+      <compile files="Test.java,TestAspect.java,Audit.java,AuditImpl.java" options="-1.5"/>
+      <run class="Test"/>
+@@ -209,8 +209,8 @@ public abstract class World implements Dump.INode {
+         // no existing resolved type, create one
+         if (ty.isArray()) {
+         	ResolvedType componentType = resolve(ty.getComponentType(),allowMissing);
+-        	String brackets = signature.substring(0,signature.lastIndexOf("[")+1);
+-            ret = new ResolvedType.Array(signature, brackets+componentType.getErasureSignature(),
++        	//String brackets = signature.substring(0,signature.lastIndexOf("[")+1);
++            ret = new ResolvedType.Array(signature, "["+componentType.getErasureSignature(),
+             		                     this, 
+             		                     componentType);
+         } else {
+@@ -690,6 +690,9 @@ public abstract class World implements Dump.INode {
+ 		 * method/ctor as opposed to those you see declared on a generic type.
+ 		 */
+ 		public ResolvedType put(String key, ResolvedType type) { 
++			if (key.indexOf("String")!=-1) {
++				int stop=1;
++			}
+ 			if (type.isParameterizedType() && type.isParameterizedWithAMemberTypeVariable()) {
+ 				if (debug) 
+ 					System.err.println("Not putting a parameterized type that utilises member declared type variables into the typemap: key="+key+" type="+type);

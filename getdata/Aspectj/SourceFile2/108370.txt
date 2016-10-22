@@ -1,0 +1,57 @@
+Binary files differ
+Binary files differ
+@@ -0,0 +1,19 @@
++public aspect EnumTest {
++    public static enum Test {
++	A,B,C
++    }
++
++    public void et.Q.foo(Test t) {
++	switch (t) {
++	case B:
++		System.out.println("B!");
++	    break;
++	}
++    }
++    
++    public static void main(String[] args) {
++    	et.Q q = new et.Q();
++    	q.foo(Test.B);
++    	q.foo(Test.C);
++    }
++}
+\ No newline at end of file
+@@ -0,0 +1,2 @@
++package et;
++public class Q {}
+\ No newline at end of file
+@@ -314,6 +314,10 @@ public class Ajc150Tests extends org.aspectj.testing.XMLBasedAjcTestCase {
+ 	  runTest("type variable with type variable bound");
+   }
+ 
++  public void testEnumSwitchInITD() {
++	  runTest("switch on enum inside ITD method");
++  }
++  
+   // helper methods.....
+ 
+   public SyntheticRepository createRepos(File cpentry) {
+@@ -367,7 +367,17 @@
+         <compile files="pr108054.aj" options="-1.5"/>
+         <compile files="ISequence.java,ICounter.java,ASequence.java" options="-1.5"/>
+     </ajc-test>
+-        
++
++    <ajc-test dir="bugs150/pr108370" pr="108370" title="switch on enum inside ITD method">
++        <compile files="et/Q.java" options="-1.5"/>
++        <compile files="EnumTest.aj" options="-1.5 -inpath et"/>
++        <run class="EnumTest">
++            <stdout>
++                <line text="B!"/>
++            </stdout>
++        </run>
++    </ajc-test>
++                
+     <!-- ============================================================================ -->
+     <!-- ============================================================================ -->
+ 

@@ -1,0 +1,252 @@
+@@ -0,0 +1,32 @@
++=== MODEL STATUS REPORT ========= After a batch build
++<root>  [java source file] 
++  test  [package] 
++    Simple.java  [java source file] TEST_SANDBOX\Simple.java:1:
++      import declarations  [import reference] 
++      Simple  [class] TEST_SANDBOX\Simple.java:3:
++        Simple()  [constructor] TEST_SANDBOX\Simple.java:5:
++  pkg  [package] 
++    AbstractBeanConfigurerAspect.class (binary)  [class] TEST_SANDBOX\aspects.jar!pkg\AbstractBeanConfigurerAspect.class:1:
++      import declarations  [import reference] 
++      AbstractBeanConfigurerAspect  [aspect] TEST_SANDBOX\aspects.jar!pkg\AbstractBeanConfigurerAspect.class:1:
++        beanCreation()  [pointcut] TEST_SANDBOX\aspects.jar!pkg\AbstractBeanConfigurerAspect.class:1:
++        afterReturning(): beanCreation..  [advice] TEST_SANDBOX\aspects.jar!pkg\AbstractBeanConfigurerAspect.class:6:
++        before(): beanCreation..  [advice] TEST_SANDBOX\aspects.jar!pkg\AbstractBeanConfigurerAspect.class:11:
++=== END OF MODEL REPORT =========
++=== RELATIONSHIPS REPORT ========= After a batch build
++(targets=1) <pkg[AbstractBeanConfigurerAspect.class (binary)}AbstractBeanConfigurerAspect&afterReturning (advises) <test{Simple.java[Simple~Simple
++(targets=1) <pkg[AbstractBeanConfigurerAspect.class (binary)}AbstractBeanConfigurerAspect&before (advises) <test{Simple.java[Simple~Simple
++(targets=2) <test{Simple.java[Simple~Simple (advised by) <pkg[AbstractBeanConfigurerAspect.class (binary)}AbstractBeanConfigurerAspect&afterReturning
++(targets=2) <test{Simple.java[Simple~Simple (advised by) <pkg[AbstractBeanConfigurerAspect.class (binary)}AbstractBeanConfigurerAspect&before
++=== END OF RELATIONSHIPS REPORT ==
++=== Properties of the model and relationships map =====
++import reference=2
++aspect=1
++constructor=1
++class=2
++advice=2
++pointcut=1
++RelationshipMapSize=3
++FileMapSize=1
++package=2
++java source file=2
+@@ -0,0 +1,29 @@
++=== MODEL STATUS REPORT ========= After a batch build
++<root>  [java source file] 
++  test  [package] 
++    Simple.java  [java source file] TEST_SANDBOX\Simple.java:1:
++      import declarations  [import reference] 
++      Simple  [class] TEST_SANDBOX\Simple.java:3:
++        Simple()  [constructor] TEST_SANDBOX\Simple.java:5:
++  pkg  [package] 
++    AbstractBeanConfigurerAspect.class (binary)  [class] TEST_SANDBOX\aspects.jar!pkg\AbstractBeanConfigurerAspect.class:1:
++      import declarations  [import reference] 
++      AbstractBeanConfigurerAspect  [aspect] TEST_SANDBOX\aspects.jar!pkg\AbstractBeanConfigurerAspect.class:1:
++        beanCreation()  [pointcut] TEST_SANDBOX\aspects.jar!pkg\AbstractBeanConfigurerAspect.class:1:
++        declare warning: "warning"  [declare warning] TEST_SANDBOX\aspects.jar!pkg\AbstractBeanConfigurerAspect.class:7:
++=== END OF MODEL REPORT =========
++=== RELATIONSHIPS REPORT ========= After a batch build
++(targets=1) <pkg[AbstractBeanConfigurerAspect.class (binary)}AbstractBeanConfigurerAspect`declare warning (matched by) <test{Simple.java[Simple~Simple
++(targets=1) <test{Simple.java[Simple~Simple (matches declare) <pkg[AbstractBeanConfigurerAspect.class (binary)}AbstractBeanConfigurerAspect`declare warning
++=== END OF RELATIONSHIPS REPORT ==
++=== Properties of the model and relationships map =====
++import reference=2
++aspect=1
++declare warning=1
++constructor=1
++class=2
++pointcut=1
++RelationshipMapSize=2
++FileMapSize=1
++package=2
++java source file=2
+@@ -0,0 +1,14 @@
++package pkg;
++
++public abstract aspect AbstractBeanConfigurerAspect {
++
++	// advice starts on line 6
++	after() returning : beanCreation() {
++	}
++	
++	protected abstract pointcut beanCreation();
++
++	before() : beanCreation() {
++		
++	}	
++}
+@@ -0,0 +1,7 @@
++package pkg;
++
++public aspect AnnotationBeanConfigurerAspect extends AbstractBeanConfigurerAspect {
++	
++	// pointcut is on line 6
++	protected pointcut beanCreation() : initialization(*.new(..)) && !within(pkg.*);
++}
+@@ -0,0 +1,3 @@
++to regenerate the jar file in this directory:
++
++ajc AbstractBeanConfigurerAspect.aj AnnotationBeanConfigurerAspect.aj -outjar aspects.jar
+@@ -0,0 +1,8 @@
++package test;
++
++public class Simple {
++
++	public Simple() {	
++	}
++	
++}
+Binary files differ
+@@ -0,0 +1,9 @@
++package pkg;
++
++public abstract aspect AbstractBeanConfigurerAspect {
++	
++	protected abstract pointcut beanCreation();
++
++	declare warning : beanCreation() : "warning";
++	
++}
+@@ -0,0 +1,6 @@
++package pkg;
++
++public aspect AnnotationBeanConfigurerAspect extends AbstractBeanConfigurerAspect {
++	
++	protected pointcut beanCreation() : initialization(*.new(..)) && !within(pkg.*);
++}
+@@ -0,0 +1,3 @@
++to regenerate the jar file in this directory:
++
++ajc AbstractBeanConfigurerAspect.aj AnnotationBeanConfigurerAspect.aj -outjar aspects.jar
+@@ -0,0 +1,8 @@
++package test;
++
++public class Simple {
++
++	public Simple() {	
++	}
++	
++}
+Binary files differ
+@@ -67,6 +67,8 @@ public class ModelTests extends ModelTestCase {
+ 	public void testAspectInDefaultPackage_pr145963() {runModelTest("aspect in default package", "pr145963_3");}
+ 	public void testAspectInJavaFile_pr145963() {runModelTest("aspect in java file", "pr145963_4");}
+ 
++	public void testAbstractAspectsAndAdvice_pr160469() {runModelTest("ensure advice from abstract aspects appear correctly in the model","pr160469_1");}
++	public void testAbstractAspectsAndDeow_pr160469() {runModelTest("ensure deow from abstract aspects appear correctly in the model","pr160469_2");}
+ 
+ 	/////////////////////////////////////////
+ 	public static Test suite() {
+@@ -54,6 +54,15 @@
+       <compile files="A.aj, C.aj" options="-emacssym"/>
+     </ajc-test>
+ 
++	<ajc-test dir="model/pr160469_1" title="ensure advice from abstract aspects appear correctly in the model">
++      <compile files="Simple.java" options="-emacssym" aspectpath="aspects.jar"/>
++    </ajc-test>
++
++	<ajc-test dir="model/pr160469_2" title="ensure deow from abstract aspects appear correctly in the model">
++      <compile files="Simple.java" options="-emacssym" aspectpath="aspects.jar">
++		<message kind="warning" line="5" text="warning"/>
++      </compile>
++    </ajc-test>
+ 
+ <!-- AspectJ 5 specific tests -->
+ 
+@@ -364,6 +364,7 @@ public abstract class Advice extends ShadowMunger {
+ 		Advice munger = world.createAdviceMunger(attribute, p, signature);
+ 		munger.concreteAspect = fromType;
+ 		munger.bindingParameterTypes = this.bindingParameterTypes;
++		munger.setDeclaringType(getDeclaringType());
+     	//System.err.println("concretizing here " + p + " with clause " + clause);
+         return munger;
+     }
+@@ -431,9 +432,4 @@ public abstract class Advice extends ShadowMunger {
+ 		return concreteAspect;
+ 	}
+ 
+-	public ResolvedType getResolvedDeclaringAspect() {
+-		// The aspect which declares this piece of advice 
+-		// is 'concreteAspect' since 'declaringType' is null
+-		return ((concreteAspect != null) ? concreteAspect : getDeclaringType());
+-	}
+ }
+@@ -135,8 +135,4 @@ public class Checker extends ShadowMunger {
+ 		return isError;
+ 	}
+ 
+-	public ResolvedType getResolvedDeclaringAspect() {
+-		// The aspect which declares this deow is the declaring type
+-		return getDeclaringType();
+-	}
+ }
+@@ -157,12 +157,6 @@ public abstract class ShadowMunger implements PartialOrder.PartialComparable, IH
+     public abstract boolean mustCheckExceptions();
+ 
+     /**
+-     * Returns the ResolvedType corresponding to the aspect in which this
+-     * shadowMunger is declared. This is different for deow's and advice.
+-     */
+-    public abstract ResolvedType getResolvedDeclaringAspect();
+-    
+-    /**
+      * Creates the hierarchy for binary aspects
+      */
+     public void createHierarchy() {
+@@ -177,7 +171,7 @@ public abstract class ShadowMunger implements PartialOrder.PartialComparable, IH
+ 			return;
+ 		}
+ 
+-    	ResolvedType aspect = getResolvedDeclaringAspect();
++    	ResolvedType aspect = getDeclaringType();
+ 
+     	// create the class file node
+     	IProgramElement classFileNode = new ProgramElement(
+@@ -261,10 +255,14 @@ public abstract class ShadowMunger implements PartialOrder.PartialComparable, IH
+ 			ResolvedMember pcd = children[i];
+ 			if (pcd instanceof ResolvedPointcutDefinition) {
+ 				ResolvedPointcutDefinition rpcd = (ResolvedPointcutDefinition)pcd;
++				ISourceLocation sLoc = rpcd.getPointcut().getSourceLocation();
++				if (sLoc == null) {
++					sLoc = rpcd.getSourceLocation();
++				}
+ 				parent.addChild(new ProgramElement(
+ 						pcd.getName(),
+ 						IProgramElement.Kind.POINTCUT,
+-					    getBinarySourceLocation(rpcd.getPointcut().getSourceLocation()),
++					    getBinarySourceLocation(sLoc),
+ 						pcd.getModifiers(),
+ 						null,
+ 						Collections.EMPTY_LIST));
+@@ -341,8 +339,8 @@ public abstract class ShadowMunger implements PartialOrder.PartialComparable, IH
+     private ISourceLocation getBinarySourceLocation(ISourceLocation sl) {
+     	if (sl == null) return null;
+     	String sourceFileName = null;
+-    	if (getResolvedDeclaringAspect() instanceof ReferenceType) {
+-			String s = ((ReferenceType)getResolvedDeclaringAspect()).getDelegate().getSourcefilename();
++    	if (getDeclaringType() instanceof ReferenceType) {
++			String s = ((ReferenceType)getDeclaringType()).getDelegate().getSourcefilename();
+ 			int i = s.lastIndexOf('/');
+ 			if (i != -1) {
+ 				sourceFileName = s.substring(i+1);
+@@ -369,8 +367,8 @@ public abstract class ShadowMunger implements PartialOrder.PartialComparable, IH
+      */
+     private File getBinaryFile() {
+     	if (binaryFile == null) {
+-    		String s = getResolvedDeclaringAspect().getBinaryPath();
+-    		File f = getResolvedDeclaringAspect().getSourceLocation().getSourceFile();
++    		String s = getDeclaringType().getBinaryPath();
++    		File f = getDeclaringType().getSourceLocation().getSourceFile();
+     		int i = f.getPath().lastIndexOf('.');
+     		String path = f.getPath().substring(0,i) + ".class";
+     		binaryFile =  new File(s + "!" + path);
+@@ -386,7 +384,7 @@ public abstract class ShadowMunger implements PartialOrder.PartialComparable, IH
+      */
+     protected boolean isBinary() {
+     	if (!checkedIsBinary) {
+-        	ResolvedType rt = getResolvedDeclaringAspect();
++        	ResolvedType rt = getDeclaringType();
+         	if (rt != null) {
+     			isBinary = ((rt.getBinaryPath() == null) ? false : true);
+         	}

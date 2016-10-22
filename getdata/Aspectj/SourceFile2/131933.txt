@@ -1,0 +1,48 @@
+@@ -0,0 +1,11 @@
++import java.util.List;
++
++aspect Slide71 {
++        before(): GenericType<String>.foo() {}
++        before(): GenericType<MyList>.foo() {}
++        //before(): GenericType.foo() {}
++}
++
++class GenericType<T> {
++        public pointcut foo(): execution(* T.*(..));
++}
+@@ -107,6 +107,11 @@ public class Ajc151Tests extends org.aspectj.testing.XMLBasedAjcTestCase {
+   public void testSwallowedExceptionIgnored() {
+ 	  runTest("swallowed exceptions with xlint");
+   }
++  
++  public void testGenericAspectWithUnknownType_pr131933() {
++	  runTest("no ClassCastException with generic aspect and unknown type");
++  }
++  
+   /*
+    * @AspectJ bugs and enhancements
+    */
+@@ -246,6 +246,13 @@
+         </compile>
+     </ajc-test>
+ 
++    <ajc-test dir="bugs151" title="no ClassCastException with generic aspect and unknown type">
++        <compile files="pr131933.aj" options="-1.5">
++          <message kind="error" line="5" text="can't bind type name 'MyList'"/>
++        </compile>
++    </ajc-test> 
++
++
+     <!-- New features down here... when they arent big enough to have their own test file -->
+ 
+     <ajc-test dir="features151/ptw" title="exposing withintype">
+@@ -188,8 +188,7 @@ public abstract class TypePattern extends PatternNode {
+ 
+ 	public UnresolvedType resolveExactType(IScope scope, Bindings bindings) {
+ 		TypePattern p = resolveBindings(scope, bindings, false, true);
+-		if (p == NO) return ResolvedType.MISSING;
+-		
++		if (!(p instanceof ExactTypePattern)) return ResolvedType.MISSING;
+ 		return ((ExactTypePattern)p).getType();
+ 	}
+ 

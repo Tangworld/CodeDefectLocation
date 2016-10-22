@@ -1,0 +1,88 @@
+@@ -0,0 +1,15 @@
++import java.util.*;
++
++public class Test<T extends Integer> {
++       Set<T> ints = new HashSet<T>();
++
++       public Set<T> foo() {
++               return ints;
++       }
++
++
++       public static void main(String[] args) {
++               Test<Integer> t2 = new Test<Integer>();
++               Set<Integer> ints2 = t2.foo();
++       }
++}
+@@ -0,0 +1,10 @@
++import java.util.*;
++
++public privileged aspect TestAspect {
++
++   pointcut gettingMemberCollection() : get(Set<Number+> *);
++
++   after() : gettingMemberCollection() {
++     System.err.println("GO Aspects!  "+thisJoinPoint);
++   }
++}
+@@ -24,6 +24,7 @@ public class Ajc151Tests extends org.aspectj.testing.XMLBasedAjcTestCase {
+   public void testHasMemberPackageProblem_pr124105() { runTest("hasMember problems with packages");}
+   public void testDifferentNumbersofTVars_pr124803() { runTest("generics and different numbers of type variables");}
+   public void testDifferentNumbersofTVars_pr124803_2() { runTest("generics and different numbers of type variables - classes");}
++  public void testParameterizedCollectionFieldMatching_pr124808() { runTest("parameterized collection fields matched via pointcut");}
+ 
+   /////////////////////////////////////////
+   public static Test suite() {
+@@ -44,5 +44,14 @@
+           </stderr>
+         </run>
+     </ajc-test>
++    
++    <ajc-test dir="bugs151/pr124808" title="parameterized collection fields matched via pointcut">
++        <compile files="Test.java,TestAspect.java" options="-1.5"/>
++        <run class="Test">
++          <stderr>
++             <line text="GO Aspects!  get(Set Test.ints)"/>
++          </stderr>
++        </run>
++    </ajc-test>
+ 
+ </suite>
+\ No newline at end of file
+@@ -110,7 +110,9 @@ public class ExactTypePattern extends TypePattern {
+ 	}
+ 
+ 	private boolean matchesTypeVariable(TypeVariableReferenceType matchType) {
+-		return false;
++	    // was this method previously coded to return false *on purpose* ??  pr124808
++		return this.type.equals(((TypeVariableReference)matchType).getTypeVariable().getFirstBound());
++		//return false;
+ 	}
+ 
+ 	protected boolean matchesExactly(ResolvedType matchType, ResolvedType annotatedType) {
+@@ -25,6 +25,7 @@ import org.aspectj.weaver.BCException;
+ import org.aspectj.weaver.ISourceContext;
+ import org.aspectj.weaver.IntMap;
+ import org.aspectj.weaver.ResolvedType;
++import org.aspectj.weaver.TypeVariableReference;
+ import org.aspectj.weaver.UnresolvedType;
+ import org.aspectj.weaver.VersionedDataInputStream;
+ import org.aspectj.weaver.WeaverMessages;
+@@ -152,9 +153,16 @@ public abstract class TypePattern extends PatternNode {
+ 			//System.out.println("    true");
+ 			return true;
+ 		}
++		// pr124808
++		Iterator typesIterator = null;
++		if (type.isTypeVariableReference()) {
++			typesIterator = ((TypeVariableReference)type).getTypeVariable().getFirstBound().resolve(type.getWorld()).getDirectSupertypes();
++		} else {
++			typesIterator = type.getDirectSupertypes();
++		}
+ 
+ 		// FuzzyBoolean ret = FuzzyBoolean.NO; // ??? -eh
+-		for (Iterator i = type.getDirectSupertypes(); i.hasNext(); ) {
++		for (Iterator i = typesIterator; i.hasNext(); ) {
+ 			ResolvedType superType = (ResolvedType)i.next();
+ 			// TODO asc generics, temporary whilst matching isnt aware..
+ 			//if (superType.isParameterizedType()) superType = superType.getRawType().resolve(superType.getWorld());

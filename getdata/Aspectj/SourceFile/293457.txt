@@ -1,0 +1,167 @@
+@@ -0,0 +1,11 @@
++ package com.citi.gdos.smart.applib.service.cache;
++	
++	 import org.springmodules.cache.annotations.Cacheable;
++	
++	 public aspect CachingIntroduction {
++	
++	        declare @method: public * *..I*Dao+.set*(..): @Setter; 
++	        declare @method: !@Setter public * *..I*Dao+.*(..):
++	                @Cacheable(modelId="fooModel");
++	
++	 }
+\ No newline at end of file
+@@ -0,0 +1,5 @@
++package org.springmodules.cache.annotations;
++
++public @interface Cacheable {
++
++}
+@@ -18,6 +18,10 @@ import org.aspectj.testing.XMLBasedAjcTestCase;
+ 
+ public class Ajc167Tests extends org.aspectj.testing.XMLBasedAjcTestCase {
+ 
++	public void testHierarchyBuilderNPE_pr293457() {
++		runTest("hierarchy builder npe");
++	}
++	
+ 	public void testTimers_1() {
+ 		runTest("timers - 1");
+ 	}
+@@ -0,0 +1,77 @@
++/*******************************************************************************
++ * Copyright (c) 2008 Contributors 
++ * All rights reserved. This program and the accompanying materials
++ * are made available under the terms of the Eclipse Public License v1.0
++ * which accompanies this distribution, and is available at
++ * http://www.eclipse.org/legal/epl-v10.html
++ *
++ * Contributors:
++ *    Andy Clement - initial API and implementation
++ *******************************************************************************/
++package org.aspectj.systemtest.ajc167;
++
++import java.io.File;
++
++import junit.framework.Test;
++
++import org.aspectj.testing.XMLBasedAjcTestCase;
++
++/**
++ * Tests for the new all singing all dancing intertype syntax.
++ * 
++ * @author Andy Clement
++ */
++public class IntertypeTests extends org.aspectj.testing.XMLBasedAjcTestCase {
++
++	// absolutely trivial, just parse something and dont crash
++	public void testSimple() {
++		runTest("simple");
++	}
++	
++	// simple field inside the intertype scope
++	public void testSimpleWithField() {
++		runTest("simple with field");
++	}
++
++	// simple field inside the intertype scope and method after the intertype scope
++	public void testSimpleWithField2() {
++		runTest("simple with field2");
++	}
++	
++	// now a method that new's up an instance of the type targetted by the intertype scope
++	public void testNewInstance() {
++		runTest("new instance");
++	}
++
++	// now aspect method attempts to new up target of the itd scope and access something introduced by it
++	public void testNewInstanceAndAccess() {
++		runTest("new instance and access");
++	}
++	
++	// two fields
++	public void testNewInstanceAndAccess2() {
++		runTest("new instance and access to two fields");
++	}
++	
++	// more tests:
++	// intertype X { int a,b,c=4; }
++	// intertype X { int a=4,b=3; } // can we say that?
++
++	// extends/implements on the intertype become declare parents
++	// annotations on the intertype become declare @type
++	
++	// what about recovery when we have a problem leaving the scope of the intertype block? How do we make sure 
++	// we don't accidentally use the activeScope for ordinary methods? Can we even check that...
++	
++	
++	// --
++
++	public static Test suite() {
++		return XMLBasedAjcTestCase.loadSuite(IntertypeTests.class);
++	}
++
++	protected File getSpecFile() {
++		return new File("../tests/src/org/aspectj/systemtest/ajc167/intertype.xml");
++	}
++
++}
+\ No newline at end of file
+@@ -2,6 +2,14 @@
+ 
+ <suite>
+ 
++  <ajc-test dir="bugs167/pr293457" title="hierarchy builder npe">
++     <compile files="com/citi/gdos/smart/applib/service/cache/CachingIntroduction.aj org/springmodules/cache/annotations/Cacheable.java" options="-1.5 -emacssym">
++     <message kind="warning" text="no match for this type name: Setter"/>
++     <message kind="error" text="Setter cannot be resolved to a type"/>
++     <message kind="error" text="The attribute modelId is undefined for the"/>
++     </compile>
++  </ajc-test>
++  
+   <ajc-test dir="features167/timers/one" title="timers - 1">
+     <compile files="Code.java Code2.java" outjar="code.jar" options="-1.5 -Xlint:ignore"/>
+     <compile files="Asp.java" options="-1.5 -Xlint:ignore" outjar="asp.jar"/>
+@@ -0,0 +1,41 @@
++<!DOCTYPE suite SYSTEM "../tests/ajcTestSuite.dtd"[]>
++
++<suite>
++   
++   <ajc-test dir="features167/intertype" title="simple">
++     <compile files="Simple.java" options="-1.5"/>
++   </ajc-test>
++   
++   <ajc-test dir="features167/intertype" title="simple with field">
++     <compile files="Two.java" options="-1.5"/>
++   </ajc-test>
++   
++   <ajc-test dir="features167/intertype" title="simple with field2">
++     <compile files="Three.java" options="-1.5"/>
++   </ajc-test>
++   
++   <ajc-test dir="features167/intertype" title="new instance">
++     <compile files="Four.java" options="-1.5"/>
++   </ajc-test>
++   
++   <ajc-test dir="features167/intertype" title="new instance and access">
++     <compile files="Five.java" options="-1.5"/>
++     <run class="Five">
++       <stdout>
++         <line text="5"/>
++       </stdout>
++     </run>
++   </ajc-test>
++   
++   <ajc-test dir="features167/intertype" title="new instance and access to two fields">
++     <compile files="Six.java" options="-1.5"/>
++     <run class="Six">
++       <stdout>
++         <line text="5"/>
++       </stdout>
++     </run>
++   </ajc-test>
++   
++   
++
++</suite>
+\ No newline at end of file

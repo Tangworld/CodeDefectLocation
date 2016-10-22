@@ -1,0 +1,35 @@
+@@ -254,7 +254,17 @@ public abstract class ResolvedType extends UnresolvedType implements AnnotatedEl
+ 				} 
+ 			}
+       }
+-      if (!rtx.equals(ResolvedType.OBJECT)) addAndRecurse(knowninterfaces,collector,rtx.getSuperclass(),includeITDs); // Recurse if we aren't at the top
++      if (!rtx.equals(ResolvedType.OBJECT)) {
++    	  ResolvedType superType = rtx.getSuperclass();
++    	  if (rtx == null || rtx == ResolvedType.MISSING) {
++    		  // can't find type message - with context!
++    		  world.showMessage(Message.ERROR,
++					WeaverMessages.format(WeaverMessages.CANT_FIND_PARENT_TYPE,rtx.getSignature()),
++					null,null);
++    	  } else {
++    		  addAndRecurse(knowninterfaces,collector,superType,includeITDs); // Recurse if we aren't at the top
++    	  }
++      }
+       ResolvedType[] interfaces = rtx.getDeclaredInterfaces(); // Go through the interfaces on the way back down
+       for (int i = 0; i < interfaces.length; i++) {
+ 		ResolvedType iface = interfaces[i];
+@@ -79,6 +79,7 @@ public class WeaverMessages {
+     public static final String CANT_FIND_TYPE_DURING_AROUND_WEAVE_PREINIT = "cftDuringAroundWeavePreinit";
+     public static final String CANT_FIND_TYPE_EXCEPTION_TYPE = "cftExceptionType";
+     public static final String CANT_FIND_TYPE_ARG_TYPE = "cftArgType";
++    public static final String CANT_FIND_PARENT_TYPE = "cantFindParentType";
+ 
+ 	public static final String DECP_BINARY_LIMITATION = "decpBinaryLimitation";
+ 	public static final String OVERWRITE_JSR45 = "overwriteJSR45";
+@@ -82,6 +82,7 @@ cftDuringAroundWeave=Can't find type {0} whilst applying around advice
+ cftDuringAroundWeavePreinit=Can't find type {0} whilst applying around advice to preinitialization join point
+ cftExceptionType=Can't find exception type {0} whilst processing advice
+ cftArgType=Can't find type {0} whilst processing args() pcd
++cantFindParentType=can''t find supertype of {0} whilst finding all methods in {0}
+ 
+ # Implementation limitations...
+ decpBinaryLimitation=can''t use declare parents to change superclass of binary form ''{0}'' (implementation limitation)

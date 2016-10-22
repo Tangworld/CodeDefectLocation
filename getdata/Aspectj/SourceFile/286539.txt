@@ -1,0 +1,696 @@
+@@ -403,4 +403,14 @@ public interface IProgramElement extends Serializable {
+ 	public void setAnnotationStyleDeclaration(boolean b);
+ 
+ 	public boolean isAnnotationStyleDeclaration();
++
++	/**
++	 * @param fullyQualifiedannotationType the annotation type, eg. p.q.r.Foo
++	 */
++	public void setAnnotationType(String fullyQualifiedannotationType);
++
++	/**
++	 * @return the fully qualified annotation type, eg. p.q.r.Foo
++	 */
++	public String getAnnotationType();
+ }
+\ No newline at end of file
+@@ -356,6 +356,23 @@ public class ProgramElement implements IProgramElement {
+ 		return (List) (kvpairs == null ? null : kvpairs.get("parentTypes"));
+ 	}
+ 
++	/**
++	 * {@inheritDoc}
++	 */
++	public void setAnnotationType(String fullyQualifiedAnnotationType) {
++		if (kvpairs == Collections.EMPTY_MAP) {
++			kvpairs = new HashMap();
++		}
++		kvpairs.put("annotationType", fullyQualifiedAnnotationType);
++	}
++
++	/**
++	 * {@inheritDoc}
++	 */
++	public String getAnnotationType() {
++		return (String) (kvpairs == null ? null : kvpairs.get("annotationType"));
++	}
++
+ 	public String getCorrespondingType() {
+ 		return getCorrespondingType(false);
+ 	}
+@@ -0,0 +1,26 @@
++package p.q.r;
++import java.lang.annotation.*;
++
++aspect Asp {
++
++declare parents: C implements p.q.r.Int;
++declare parents: C implements Int;
++declare @type: C: @Foo;
++declare @type: C: @p.q.r.Goo;
++
++declare @field: int C.i: @Foo;
++declare @method: void C.m(): @Foo;
++declare @constructor: new(): @Foo;
++
++}
++
++@Retention(RetentionPolicy.RUNTIME) @interface Foo {}
++@Retention(RetentionPolicy.RUNTIME) @interface Goo {}
++
++interface Int {}
++
++class C {
++  int i;
++  void m() {}
++  C() {}
++}
+@@ -138,6 +138,45 @@ public class MultiProjectIncrementalTests extends AbstractMultiProjectIncrementa
+ 	// printModel(cli);
+ 	// }
+ 
++	// Testing that declare annotation model entries preserve the fully qualified type of the annotation
++	public void testDecAnnoState_pr286539() throws Exception {
++		String p = "pr286539";
++		initialiseProject(p);
++		build(p);
++		printModel(p);
++		IProgramElement decpPE = getModelFor(p).getHierarchy().findElementForHandle(
++				"=pr286539<p.q.r{Aspect.java}Asp`declare parents");
++		assertNotNull(decpPE);
++		String s = (String) (((List) decpPE.getParentTypes()).get(0));
++		assertEquals("p.q.r.Int", s);
++
++		decpPE = getModelFor(p).getHierarchy().findElementForHandle("=pr286539<p.q.r{Aspect.java}Asp`declare parents!2");
++		assertNotNull(decpPE);
++		s = (String) (((List) decpPE.getParentTypes()).get(0));
++		assertEquals("p.q.r.Int", s);
++
++		IProgramElement decaPE = getModelFor(p).getHierarchy().findElementForHandle(
++				"=pr286539<p.q.r{Aspect.java}Asp`declare \\@type");
++		assertNotNull(decaPE);
++		assertEquals("p.q.r.Foo", decaPE.getAnnotationType());
++
++		decaPE = getModelFor(p).getHierarchy().findElementForHandle("=pr286539<p.q.r{Aspect.java}Asp`declare \\@type!2");
++		assertNotNull(decaPE);
++		assertEquals("p.q.r.Goo", decaPE.getAnnotationType());
++
++		decaPE = getModelFor(p).getHierarchy().findElementForHandle("=pr286539<p.q.r{Aspect.java}Asp`declare \\@field");
++		assertNotNull(decaPE);
++		assertEquals("p.q.r.Foo", decaPE.getAnnotationType());
++
++		decaPE = getModelFor(p).getHierarchy().findElementForHandle("=pr286539<p.q.r{Aspect.java}Asp`declare \\@method");
++		assertNotNull(decaPE);
++		assertEquals("p.q.r.Foo", decaPE.getAnnotationType());
++
++		decaPE = getModelFor(p).getHierarchy().findElementForHandle("=pr286539<p.q.r{Aspect.java}Asp`declare \\@constructor");
++		assertNotNull(decaPE);
++		assertEquals("p.q.r.Foo", decaPE.getAnnotationType());
++	}
++
+ 	// just simple incremental build - no code change, just the aspect touched
+ 	public void testIncrementalFqItds_280380() throws Exception {
+ 		String p = "pr280380";
+@@ -42,6 +42,7 @@ public class DeclareAnnotation extends Declare {
+ 	private String annotationString = "@<annotation>";
+ 	private ResolvedType containingAspect;
+ 	private AnnotationAJ annotation;
++	private ResolvedType annotationType;
+ 
+ 	/**
+ 	 * Captures type of declare annotation (method/type/field/constructor)
+@@ -309,7 +310,13 @@ public class DeclareAnnotation extends Declare {
+ 					// if weaving broken code, this can happen
+ 					return;
+ 				}
+-				annotation = annos[0];
++				int idx = 0;
++				if (annos.length > 0
++						&& annos[0].getType().getSignature().equals("Lorg/aspectj/internal/lang/annotation/ajcDeclareAnnotation;")) {
++					idx = 1;
++				}
++				annotation = annos[idx];
++				break;
+ 			}
+ 		}
+ 	}
+@@ -351,11 +358,28 @@ public class DeclareAnnotation extends Declare {
+ 	}
+ 
+ 	/**
+-	 * @return UnresolvedType for the annotation
++	 * @return the type of the annotation
+ 	 */
+-	public UnresolvedType getAnnotationTypeX() {
+-		ensureAnnotationDiscovered();
+-		return (this.annotation == null ? null : this.annotation.getType());
++	public ResolvedType getAnnotationType() {
++		if (annotationType == null) {
++			for (Iterator iter = containingAspect.getMethods(); iter.hasNext();) {
++				ResolvedMember member = (ResolvedMember) iter.next();
++				if (member.getName().equals(annotationMethod)) {
++					ResolvedType[] annoTypes = member.getAnnotationTypes();
++					if (annoTypes == null) {
++						// if weaving broken code, this can happen
++						return null;
++					}
++					int idx = 0;
++					if (annoTypes[0].getSignature().equals("Lorg/aspectj/internal/lang/annotation/ajcDeclareAnnotation;")) {
++						idx = 1;
++					}
++					annotationType = annoTypes[idx];
++					break;
++				}
++			}
++		}
++		return annotationType;
+ 	}
+ 
+ 	/**
+@@ -65,10 +65,12 @@ import org.aspectj.util.LangUtil;
+ import org.aspectj.weaver.BCException;
+ import org.aspectj.weaver.Member;
+ import org.aspectj.weaver.ResolvedMember;
++import org.aspectj.weaver.ResolvedType;
+ import org.aspectj.weaver.UnresolvedType;
+ import org.aspectj.weaver.World;
+ import org.aspectj.weaver.patterns.AndPointcut;
+ import org.aspectj.weaver.patterns.Declare;
++import org.aspectj.weaver.patterns.DeclareAnnotation;
+ import org.aspectj.weaver.patterns.DeclareParents;
+ import org.aspectj.weaver.patterns.OrPointcut;
+ import org.aspectj.weaver.patterns.Pointcut;
+@@ -163,8 +165,7 @@ public class AsmHierarchyBuilder extends ASTVisitor {
+ 
+ 			// container for import declarations - this may move to position 1 in the child list, if there
+ 			// is a package declaration
+-			cuNode.addChild(new ProgramElement(structureModel, "", IProgramElement.Kind.IMPORT_REFERENCE, null,
+-					0, null, null));
++			cuNode.addChild(new ProgramElement(structureModel, "", IProgramElement.Kind.IMPORT_REFERENCE, null, 0, null, null));
+ 
+ 			final IProgramElement addToNode = genAddToNode(file, unit, structureModel);
+ 
+@@ -186,7 +187,6 @@ public class AsmHierarchyBuilder extends ASTVisitor {
+ 			stack.push(cuNode);
+ 			unit.traverse(this, unit.scope);
+ 
+-			
+ 			// -- update file map (XXX do this before traversal?)
+ 			try {
+ 				structureModel.getHierarchy().addToFileMap(file.getCanonicalPath(), cuNode);
+@@ -327,7 +327,8 @@ public class AsmHierarchyBuilder extends ASTVisitor {
+ 								IProgramElement.Kind.IMPORT_REFERENCE, makeLocation(importRef), 0, null, null);
+ 						ceNode.setSourceSignature(genSourceSignature(importRef));
+ 						// Add Element to Imports of Current Class
+-						ProgramElement imports = getImportReferencesRoot();//(ProgramElement) ((IProgramElement) stack.peek()).getChildren().get(0);
++						ProgramElement imports = getImportReferencesRoot();// (ProgramElement) ((IProgramElement)
++						// stack.peek()).getChildren().get(0);
+ 						imports.addChild(0, ceNode);
+ 					}
+ 				}
+@@ -349,26 +350,25 @@ public class AsmHierarchyBuilder extends ASTVisitor {
+ 		stack.push(peNode);
+ 		return true;
+ 	}
+-	
+-	
++
+ 	public void endVisit(TypeDeclaration typeDeclaration, CompilationUnitScope scope) {
+ 		// Is there a package declaration to insert into the model?
+-		if (packageDecl!=null) {
++		if (packageDecl != null) {
+ 			int dotIndex = packageDecl.toString().lastIndexOf('.');
+ 			String packageString = packageDecl.toString();
+ 			if (dotIndex != -1) {
+ 				packageString = packageDecl.toString().substring(0, dotIndex);
+ 			}
+ 			ProgramElement packageDeclaration = new ProgramElement(activeStructureModel, packageString,
+-					IProgramElement.Kind.PACKAGE_DECLARATION, makeLocation(packageDecl),0,null,null);
++					IProgramElement.Kind.PACKAGE_DECLARATION, makeLocation(packageDecl), 0, null, null);
+ 			StringBuffer packageSourceDeclaration = new StringBuffer();
+ 			packageSourceDeclaration.append("package ");
+ 			packageSourceDeclaration.append(packageString);
+ 			packageSourceDeclaration.append(";");
+ 			packageDeclaration.setSourceSignature(packageSourceDeclaration.toString());
+ 			stack.pop();
+-			ProgramElement containingTypeElement = (ProgramElement)stack.peek();
+-			containingTypeElement.addChild(0,packageDeclaration);
++			ProgramElement containingTypeElement = (ProgramElement) stack.peek();
++			containingTypeElement.addChild(0, packageDeclaration);
+ 			packageDecl = null;
+ 		} else {
+ 			stack.pop();
+@@ -390,7 +390,6 @@ public class AsmHierarchyBuilder extends ASTVisitor {
+ 		else if (typeDeclarationKind == TypeDeclaration.ANNOTATION_TYPE_DECL)
+ 			kind = IProgramElement.Kind.ANNOTATION;
+ 
+-
+ 		boolean isAnnotationStyleAspect = false;
+ 		// @AJ support
+ 		if (memberTypeDeclaration.annotations != null) {
+@@ -451,7 +450,7 @@ public class AsmHierarchyBuilder extends ASTVisitor {
+ 			kind = IProgramElement.Kind.ANNOTATION;
+ 
+ 		// @AJ support
+-		boolean isAnnotationStyleAspect= false;
++		boolean isAnnotationStyleAspect = false;
+ 		if (memberTypeDeclaration.annotations != null) {
+ 			for (int i = 0; i < memberTypeDeclaration.annotations.length; i++) {
+ 				Annotation annotation = memberTypeDeclaration.annotations[i];
+@@ -544,6 +543,10 @@ public class AsmHierarchyBuilder extends ASTVisitor {
+ 				}
+ 				peNode.setParentTypes(parents);
+ 			}
++			if (decl instanceof DeclareAnnotation) {
++				ResolvedType annotationType = ((DeclareAnnotation) decl).getAnnotationType();
++				peNode.setAnnotationType(annotationType.getName());
++			}
+ 		}
+ 		if (methodDeclaration.returnType != null) {
+ 			// if we don't make the distinction between ITD fields and other
+@@ -752,7 +755,7 @@ public class AsmHierarchyBuilder extends ASTVisitor {
+ 		if (((IProgramElement) stack.peek()).getPackageName().equals(currPackageImport)) {
+ 			packageDecl = importRef;
+ 		} else {
+-		
++
+ 			ProgramElement peNode = new ProgramElement(activeStructureModel, new String(importRef.toString()),
+ 					IProgramElement.Kind.IMPORT_REFERENCE, makeLocation(importRef), 0,// could set static here, but for
+ 					// some reason the info is
+@@ -765,18 +768,18 @@ public class AsmHierarchyBuilder extends ASTVisitor {
+ 			// create Source signature for import
+ 			peNode.setSourceSignature(genSourceSignature(importRef));
+ 
+-			IProgramElement containingTypeElement = (IProgramElement)stack.peek();
++			IProgramElement containingTypeElement = (IProgramElement) stack.peek();
+ 			ProgramElement imports = getImportReferencesRoot();
+ 			imports.addChild(0, peNode);
+ 			stack.push(peNode);
+ 		}
+ 		return true;
+ 	}
+-	
++
+ 	private ProgramElement getImportReferencesRoot() {
+-		IProgramElement element = (IProgramElement)stack.peek();
+-		boolean hasPackageDeclaration = ((IProgramElement)element.getChildren().get(0)).getKind().isPackageDeclaration();
+-		return (ProgramElement)element.getChildren().get(hasPackageDeclaration?1:0);
++		IProgramElement element = (IProgramElement) stack.peek();
++		boolean hasPackageDeclaration = ((IProgramElement) element.getChildren().get(0)).getKind().isPackageDeclaration();
++		return (ProgramElement) element.getChildren().get(hasPackageDeclaration ? 1 : 0);
+ 	}
+ 
+ 	public void endVisit(ImportReference importRef, CompilationUnitScope scope) {
+@@ -790,9 +793,6 @@ public class AsmHierarchyBuilder extends ASTVisitor {
+ 		}
+ 	}
+ 
+-
+-
+-	
+ 	private String genSourceSignature(ImportReference importreference) {
+ 		StringBuffer output = new StringBuffer();
+ 		output.append("import ");
+@@ -896,13 +896,11 @@ public class AsmHierarchyBuilder extends ASTVisitor {
+ 		}
+ 
+ 		output.append(" = ");
+-		if (fieldDeclaration.initialization != null && 
+-				(  fieldDeclaration.initialization instanceof Literal 
+-				|| fieldDeclaration.initialization instanceof OperatorExpression
+-				|| fieldDeclaration.initialization instanceof Reference)) {
++		if (fieldDeclaration.initialization != null
++				&& (fieldDeclaration.initialization instanceof Literal
++						|| fieldDeclaration.initialization instanceof OperatorExpression || fieldDeclaration.initialization instanceof Reference)) {
+ 			fieldDeclaration.initialization.printExpression(0, output);
+-		} 
+-		else {
++		} else {
+ 			output.append("null");
+ 		}
+ 		output.append(";\n");
+@@ -1154,8 +1154,8 @@ class BcelClassWeaver implements IClassWeaver {
+ 						modificationOccured = true;
+ 						forRemoval.add(decaF);
+ 					}
+-					worthRetrying.removeAll(forRemoval);
+ 				}
++				worthRetrying.removeAll(forRemoval);
+ 			}
+ 		}
+ 		return isChanged;
+@@ -1444,13 +1444,13 @@ class BcelClassWeaver implements IClassWeaver {
+ 	 * Check if a resolved member (field/method/ctor) already has an annotation, if it does then put out a warning and return true
+ 	 */
+ 	private boolean doesAlreadyHaveAnnotation(ResolvedMember rm, DeclareAnnotation deca, List reportedProblems) {
+-		if (rm.hasAnnotation(deca.getAnnotationTypeX())) {
++		if (rm.hasAnnotation(deca.getAnnotationType())) {
+ 			if (world.getLint().elementAlreadyAnnotated.isEnabled()) {
+ 				Integer uniqueID = new Integer(rm.hashCode() * deca.hashCode());
+ 				if (!reportedProblems.contains(uniqueID)) {
+ 					reportedProblems.add(uniqueID);
+ 					world.getLint().elementAlreadyAnnotated.signal(new String[] { rm.toString(),
+-							deca.getAnnotationTypeX().toString() }, rm.getSourceLocation(), new ISourceLocation[] { deca
++							deca.getAnnotationType().toString() }, rm.getSourceLocation(), new ISourceLocation[] { deca
+ 							.getSourceLocation() });
+ 				}
+ 			}
+@@ -1461,14 +1461,14 @@ class BcelClassWeaver implements IClassWeaver {
+ 
+ 	private boolean doesAlreadyHaveAnnotation(LazyMethodGen rm, ResolvedMember itdfieldsig, DeclareAnnotation deca,
+ 			List reportedProblems) {
+-		if (rm != null && rm.hasAnnotation(deca.getAnnotationTypeX())) {
++		if (rm != null && rm.hasAnnotation(deca.getAnnotationType())) {
+ 			if (world.getLint().elementAlreadyAnnotated.isEnabled()) {
+ 				Integer uniqueID = new Integer(rm.hashCode() * deca.hashCode());
+ 				if (!reportedProblems.contains(uniqueID)) {
+ 					reportedProblems.add(uniqueID);
+ 					reportedProblems.add(new Integer(itdfieldsig.hashCode() * deca.hashCode()));
+ 					world.getLint().elementAlreadyAnnotated.signal(new String[] { itdfieldsig.toString(),
+-							deca.getAnnotationTypeX().toString() }, rm.getSourceLocation(), new ISourceLocation[] { deca
++							deca.getAnnotationType().toString() }, rm.getSourceLocation(), new ISourceLocation[] { deca
+ 							.getSourceLocation() });
+ 				}
+ 			}
+@@ -13,159 +13,187 @@
+ 
+ package org.aspectj.bridge;
+ 
+-
+ import java.io.File;
+ 
+ import org.aspectj.util.LangUtil;
+ 
+ /**
+- * Immutable source location.
+- * This guarantees that the source file is not null
+- * and that the numeric values are positive and line <= endLine.
++ * Immutable source location. This guarantees that the source file is not null and that the numeric values are positive and line <=
++ * endLine.
++ * 
+  * @see org.aspectj.lang.reflect.SourceLocation
+  * @see org.aspectj.compiler.base.parser.SourceInfo
+  * @see org.aspectj.tools.ide.SourceLine
+  * @see org.aspectj.testing.harness.ErrorLine
+  */
+ public class SourceLocation implements ISourceLocation, java.io.Serializable {
+-    
++
+ 	private static final long serialVersionUID = -5434765814401009794L;
+ 
++	private transient int cachedHashcode = -1;
++
+ 	/** used when SourceLocation is not available */
+-    public static final ISourceLocation UNKNOWN 
+-        = new SourceLocation(ISourceLocation.NO_FILE, 0, 0, 0);
+-    
+-    /** @throws IllegalArgumentException if the input would not be a valid line */
+-    public static final void validLine(int line) {
+-        if (line < 0) {
+-            throw new IllegalArgumentException("negative line: " + line);
+-        } else if (line > ISourceLocation.MAX_LINE) {
+-            throw new IllegalArgumentException("line too large: " + line);
+-        }
+-    }
+-    
+-    /** @throws IllegalArgumentException if the input would not be a valid column */
+-    public static final void validColumn(int column) {
+-        if (column < 0) {
+-            throw new IllegalArgumentException("negative column: " + column);
+-        } else if (column > ISourceLocation.MAX_COLUMN) {
+-            throw new IllegalArgumentException("column too large: " + column);
+-        }
+-    }
+-
+-    private final File sourceFile;
+-    private final int startLine;
+-    private final int column;
+-    private final int endLine;
+-    private int offset;
+-    private final String context;
+-    private boolean noColumn;
+-    private String sourceFileName;
+-
+-    /** 
+-     * Same as SourceLocation(file, line, line, 0),
+-     * except that column is not rendered during toString()
+-     */    
+-    public SourceLocation(File file, int line) {
+-        this(file, line, line, NO_COLUMN);
+-    }
+-
+-    /** same as SourceLocation(file, line, endLine, ISourceLocation.NO_COLUMN) */
+-    public SourceLocation(File file, int line, int endLine) {
+-        this(file, line, endLine, ISourceLocation.NO_COLUMN);
+-    }
+-    
+-    /**
+-     * @param file File of the source; if null, use ISourceLocation.NO_FILE, not null
+-     * @param line int starting line of the location - positive number
+-     * @param endLine int ending line of the location - <= starting line
+-     * @param column int character position of starting location - positive number
+-     */
+-    public SourceLocation(File file, int line, int endLine, int column) {
+-        this(file, line, endLine, column, (String) null);
+-    }
+-
+-    public SourceLocation(File file, int line, int endLine, int column, String context) {
+-        if (column == NO_COLUMN) {
+-            column = 0;
+-            noColumn = true;
+-        }
+-        if (null == file) {
+-            file = ISourceLocation.NO_FILE;
+-        }
+-        validLine(line);
+-        validLine(endLine);
+-        LangUtil.throwIaxIfFalse(line <= endLine , line + " > " + endLine);
+-        LangUtil.throwIaxIfFalse(column >= 0, "negative column: " + column);
+-        this.sourceFile = file;
+-        this.startLine = line;
+-        this.column = column;
+-        this.endLine = endLine;
+-        this.context = context;
+-    }
+-    
+-    public SourceLocation(File file, int line, int endLine, int column, String context, String sourceFileName) {
+-    	this(file,line,endLine,column,context);
+-    	this.sourceFileName = sourceFileName;
+-    }
+-    
+-    public File getSourceFile() {
+-        return sourceFile;
+-    }
+-    public int getLine() {
+-        return startLine;
+-    }
+-    
+-    /**
+-     * @return int actual column or 0 if not available per constructor treatment
+-     *         of ISourceLocation.NO_COLUMN 
+-     */
+-    public int getColumn() {
+-        return column;
+-    }
+-    
+-    public int getEndLine() {
+-        return endLine;
+-    }
+-    
+-    /** @return null String or application-specific context */
+-    public String getContext() {
+-        return context;
+-    }
+-    
+-    /** @return String {context\n}{file:}line{:column} */
+-    public String toString() {
+-        StringBuffer sb = new StringBuffer();
+-        if (null != context) {
+-            sb.append(context);
+-            sb.append(LangUtil.EOL);
+-        }
+-        if (sourceFile != ISourceLocation.NO_FILE) {
+-            sb.append(sourceFile.getPath());
+-        }
+-        if (startLine > 0) {
+-            sb.append(":");
+-            sb.append(startLine); //"" + startLine + "-" + endLine);        	
+-        }
+-        if (!noColumn) {
+-            sb.append(":" + column);
+-        }
+-        if (offset>=0) {
+-        	sb.append("::"+offset);
+-        }
+-        return sb.toString();
+-    }
+-    
+-    // XXX Ctors for this type should know about an offset, rather than
+-    // it being set through these methods - but there are just too many
+-    // ctors at the moment! It needs sorting out.
+-    public int getOffset() { return offset;}
+-    public void setOffset(int i) { offset=i;}
++	public static final ISourceLocation UNKNOWN = new SourceLocation(ISourceLocation.NO_FILE, 0, 0, 0);
++
++	/** @throws IllegalArgumentException if the input would not be a valid line */
++	public static final void validLine(int line) {
++		if (line < 0) {
++			throw new IllegalArgumentException("negative line: " + line);
++		} else if (line > ISourceLocation.MAX_LINE) {
++			throw new IllegalArgumentException("line too large: " + line);
++		}
++	}
++
++	/** @throws IllegalArgumentException if the input would not be a valid column */
++	public static final void validColumn(int column) {
++		if (column < 0) {
++			throw new IllegalArgumentException("negative column: " + column);
++		} else if (column > ISourceLocation.MAX_COLUMN) {
++			throw new IllegalArgumentException("column too large: " + column);
++		}
++	}
++
++	private final File sourceFile;
++	private final int startLine;
++	private final int column;
++	private final int endLine;
++	private int offset;
++	private final String context;
++	private boolean noColumn;
++	private String sourceFileName;
++
++	/**
++	 * Same as SourceLocation(file, line, line, 0), except that column is not rendered during toString()
++	 */
++	public SourceLocation(File file, int line) {
++		this(file, line, line, NO_COLUMN);
++	}
++
++	/** same as SourceLocation(file, line, endLine, ISourceLocation.NO_COLUMN) */
++	public SourceLocation(File file, int line, int endLine) {
++		this(file, line, endLine, ISourceLocation.NO_COLUMN);
++	}
++
++	/**
++	 * @param file File of the source; if null, use ISourceLocation.NO_FILE, not null
++	 * @param line int starting line of the location - positive number
++	 * @param endLine int ending line of the location - <= starting line
++	 * @param column int character position of starting location - positive number
++	 */
++	public SourceLocation(File file, int line, int endLine, int column) {
++		this(file, line, endLine, column, (String) null);
++	}
++
++	public SourceLocation(File file, int line, int endLine, int column, String context) {
++		if (column == NO_COLUMN) {
++			column = 0;
++			noColumn = true;
++		}
++		if (null == file) {
++			file = ISourceLocation.NO_FILE;
++		}
++		validLine(line);
++		validLine(endLine);
++		LangUtil.throwIaxIfFalse(line <= endLine, line + " > " + endLine);
++		LangUtil.throwIaxIfFalse(column >= 0, "negative column: " + column);
++		this.sourceFile = file;
++		this.startLine = line;
++		this.column = column;
++		this.endLine = endLine;
++		this.context = context;
++	}
++
++	public SourceLocation(File file, int line, int endLine, int column, String context, String sourceFileName) {
++		this(file, line, endLine, column, context);
++		this.sourceFileName = sourceFileName;
++	}
++
++	public File getSourceFile() {
++		return sourceFile;
++	}
++
++	public int getLine() {
++		return startLine;
++	}
++
++	/**
++	 * @return int actual column or 0 if not available per constructor treatment of ISourceLocation.NO_COLUMN
++	 */
++	public int getColumn() {
++		return column;
++	}
++
++	public int getEndLine() {
++		return endLine;
++	}
++
++	/** @return null String or application-specific context */
++	public String getContext() {
++		return context;
++	}
++
++	/** @return String {context\n}{file:}line{:column} */
++	public String toString() {
++		StringBuffer sb = new StringBuffer();
++		if (null != context) {
++			sb.append(context);
++			sb.append(LangUtil.EOL);
++		}
++		if (sourceFile != ISourceLocation.NO_FILE) {
++			sb.append(sourceFile.getPath());
++		}
++		if (startLine > 0) {
++			sb.append(":");
++			sb.append(startLine); // "" + startLine + "-" + endLine);
++		}
++		if (!noColumn) {
++			sb.append(":" + column);
++		}
++		if (offset >= 0) {
++			sb.append("::" + offset);
++		}
++		return sb.toString();
++	}
++
++	// XXX Ctors for this type should know about an offset, rather than
++	// it being set through these methods - but there are just too many
++	// ctors at the moment! It needs sorting out.
++	public int getOffset() {
++		return offset;
++	}
++
++	public void setOffset(int i) {
++		cachedHashcode = -1;
++		offset = i;
++	}
+ 
+ 	public String getSourceFileName() {
+ 		return sourceFileName;
+ 	}
+ 
++	public boolean equals(Object obj) {
++		if (!(obj instanceof SourceLocation)) {
++			return false;
++		}
++		SourceLocation o = (SourceLocation) obj;
++		return startLine == o.startLine && column == o.column && endLine == o.endLine && offset == o.offset
++				&& (sourceFile == null ? o.sourceFile == null : sourceFile.equals(o.sourceFile))
++				&& (context == null ? o.context == null : context.equals(o.context)) && noColumn == o.noColumn
++				&& (sourceFileName == null ? o.sourceFileName == null : sourceFileName.equals(o.sourceFileName));
++	}
+ 
++	public int hashCode() {
++		if (cachedHashcode == -1) {
++			cachedHashcode = (sourceFile == null ? 0 : sourceFile.hashCode());
++			cachedHashcode = cachedHashcode * 37 + startLine;
++			cachedHashcode = cachedHashcode * 37 + column;
++			cachedHashcode = cachedHashcode * 37 + endLine;
++			cachedHashcode = cachedHashcode * 37 + offset;
++			cachedHashcode = cachedHashcode * 37 + (context == null ? 0 : context.hashCode());
++			cachedHashcode = cachedHashcode * 37 + (noColumn ? 0 : 1);
++			cachedHashcode = cachedHashcode * 37 + (sourceFileName == null ? 0 : sourceFileName.hashCode());
++		}
++		return cachedHashcode;
++	}
+ 
+ }

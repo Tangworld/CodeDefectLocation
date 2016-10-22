@@ -1,0 +1,185 @@
+@@ -179,7 +179,7 @@ public class AjBuildManager implements IOutputClassFileNameProvider,IBinarySourc
+         boolean batch) throws IOException, AbortException {
+         boolean ret = true;
+     	batchCompile = batch;
+-    	
++    	wasFullBuild = batch;
+     	if (baseHandler instanceof ILifecycleAware) {
+     		((ILifecycleAware)baseHandler).buildStarting(!batch);
+     	}
+@@ -319,7 +319,7 @@ public class AjBuildManager implements IOutputClassFileNameProvider,IBinarySourc
+ 
+             // have to tell state we succeeded or next is not incremental
+             state.successfulCompile(buildConfig,batch);
+-            wasFullBuild = batch;
++
+             copyResourcesToDestination();
+ 
+             if (buildConfig.getOutxmlName() != null) {
+@@ -133,6 +133,7 @@ public class AjBuildManager implements IOutputClassFileNameProvider,IBinarySourc
+ 	private IHierarchy structureModel;
+ 	public AjBuildConfig buildConfig;
+ 	private boolean ignoreOutxml;
++	private boolean wasFullBuild = true; // true if last build was a full build rather than an incremental build
+ 
+ 	AjState state = new AjState(this);
+ 
+@@ -318,7 +319,7 @@ public class AjBuildManager implements IOutputClassFileNameProvider,IBinarySourc
+ 
+             // have to tell state we succeeded or next is not incremental
+             state.successfulCompile(buildConfig,batch);
+-
++            wasFullBuild = batch;
+             copyResourcesToDestination();
+ 
+             if (buildConfig.getOutxmlName() != null) {
+@@ -1278,5 +1279,9 @@ public class AjBuildManager implements IOutputClassFileNameProvider,IBinarySourc
+ 		}
+ 
+ 	}
++
++	public boolean wasFullBuild() {
++		return wasFullBuild;
++	}
+ }
+ 
+@@ -61,5 +61,5 @@ public interface BuildProgressMonitor {
+     /**
+      * Jump the progress bar to the end and finish progress monitoring.
+      */
+-    public void finish();
++    public void finish(boolean wasFullBuild);
+ }
+@@ -202,7 +202,7 @@ public class AspectJBuildManager implements BuildManager {
+                 Ajde.getDefault().getErrorHandler().handleError("Compile error, caught Throwable: " + e.toString(), e);
+             } finally {
+                 warnings = compilerMessages.hasWarning();
+-				progressMonitor.finish();
++				progressMonitor.finish(compilerAdapter.wasFullBuild());
+             }
+             notifyCompileFinished(configFile, lastCompileTime, succeeded, warnings);
+         }
+@@ -646,4 +646,8 @@ public class CompilerAdapter {
+ 		buildManager.setState(buildState);	
+ 		buildManager.setStructureModel(buildState.getStructureModel());
+ 	}
++
++	public boolean wasFullBuild() {
++		return buildManager.wasFullBuild();
++	}
+ } 
+@@ -92,7 +92,7 @@ public class DefaultBuildProgressMonitor extends Thread implements BuildProgress
+     /**
+      * Jump the progress bar to the end and finish progress monitoring.
+      */
+-    public void finish() {
++    public void finish(boolean wasFullBuild) {
+ 		progressDialog.finish();
+ 		dialog.dispose();    	
+     }
+@@ -345,7 +345,7 @@ public class BuildCancellingTest extends AjdeTestCase {
+ 			return 100; // Causes setProgressBarVal() to be fed what are effectively percentages
+ 		}
+ 
+-		public void finish() {
++		public void finish(boolean b) {
+ 		}
+ 
+ 	}
+@@ -38,7 +38,7 @@ public class NullIdeProgressMonitor implements BuildProgressMonitor {
+ 		return 0;
+ 	}
+ 
+-	public void finish() {
++	public void finish(boolean b) {
+ 
+ 	}
+ 
+@@ -406,7 +406,7 @@ public class ReweavableTestCase extends AjdeTestCase {
+ 					return 0;
+ 				}
+ 
+-				public void finish() {}
++				public void finish(boolean b) {}
+ 
+ 	}
+ 
+@@ -320,7 +320,7 @@ public class ShowWeaveMessagesTestCase extends AjdeTestCase {
+ 					return 0;
+ 				}
+ 
+-				public void finish() {}
++				public void finish(boolean b) {}
+ 
+ 	}
+ 
+@@ -114,8 +114,8 @@ public class CompileCommand implements ICommand {
+         TaskListManager taskListManager = myHandler;
+         BuildProgressMonitor buildProgressMonitor =
+             new DefaultBuildProgressMonitor(new Frame()) {
+-            public void finish() {
+-                super.finish();
++            public void finish(boolean b) {
++                super.finish(b);
+                 setEndTime(System.currentTimeMillis());
+             }
+         };
+@@ -280,6 +280,10 @@ class MyTaskListManager
+             hasWarning = true;
+         }
+     }
++	public void buildSuccessful(boolean wasFullBuild) {
++		// TODO Auto-generated method stub
++		
++	}
+ }
+ 
+ class VoidInvocationHandler implements InvocationHandler {
+@@ -272,6 +272,8 @@ public class AjdeInteractionTestbed extends TestCase {
+ 
+ 
+ 	public boolean wasFullBuild() {
++	// alternatives: statelistener is debug interface, progressmonitor is new proper interface (see pr145689)
++//		return MyBuildProgressMonitor.wasFullBuild();
+ 		return MyStateListener.wasFullBuild();
+ 	}
+ 
+@@ -543,6 +545,7 @@ public class AjdeInteractionTestbed extends TestCase {
+ 
+ 		public static void reset() {
+ 			_instance.finished = false;
++			_instance.wasFullBuild=true;
+ 			_instance.compiledFiles.clear();
+ 			_instance.wovenClasses.clear();
+ 		}
+@@ -559,6 +562,7 @@ public class AjdeInteractionTestbed extends TestCase {
+ 		private long starttime = 0;
+ 		private long totaltimetaken = 0;
+ 		private boolean finished = false;
++		private boolean wasFullBuild = true;
+ 
+ 		public void start(String configFile) {
+ 			starttime = System.currentTimeMillis();
+@@ -593,9 +597,10 @@ public class AjdeInteractionTestbed extends TestCase {
+ 			return 100;
+ 		}
+ 
+-		public void finish() {
++		public void finish(boolean b) {
+ 			log("BuildProgressMonitor.finish()");
+ 			_instance.finished=true;
++			_instance.wasFullBuild = b;
+ 			_instance.totaltimetaken=(System.currentTimeMillis()-starttime);
+ 		}
+ 
+@@ -607,6 +612,10 @@ public class AjdeInteractionTestbed extends TestCase {
+ 			if (VERBOSE) System.out.println(s);
+ 		}
+ 
++		public static boolean wasFullBuild() {
++			return _instance.wasFullBuild;
++		}
++		
+ 
+ 	}
+ 

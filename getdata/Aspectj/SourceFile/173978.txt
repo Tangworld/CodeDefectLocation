@@ -1,0 +1,250 @@
+@@ -894,7 +894,7 @@ public final class LazyMethodGen implements Traceable {
+ 		if (newAnnotations != null) {
+ 			for (Iterator iter = newAnnotations.iterator(); iter.hasNext();) {
+ 				AnnotationAJ element = (AnnotationAJ) iter.next();
+-				gen.addAnnotation(new AnnotationGen(((BcelAnnotation)element).getBcelAnnotation(), gen.getConstantPool(), true));
++				gen.addAnnotation(new AnnotationGen(((BcelAnnotation) element).getBcelAnnotation(), gen.getConstantPool(), true));
+ 			}
+ 		}
+ 
+@@ -1028,7 +1028,15 @@ public final class LazyMethodGen implements Traceable {
+ 		}
+ 
+ 		addExceptionHandlers(gen, map, exceptionList);
+-		addLocalVariables(gen, localVariables);
++		if (localVariables.size() == 0) {
++			// Might be a case of 173978 where around advice on an execution join point
++			// has caused everything to be extracted from the method and thus we
++			// are left with no local variables, not even the ones for 'this' and
++			// parameters passed to the method
++			createNewLocalVariables(gen);
++		} else {
++			addLocalVariables(gen, localVariables);
++		}
+ 
+ 		// JAVAC adds line number tables (with just one entry) to generated
+ 		// accessor methods - this
+@@ -1042,6 +1050,37 @@ public final class LazyMethodGen implements Traceable {
+ 		}
+ 	}
+ 
++	private void createNewLocalVariables(MethodGen gen) {
++		gen.removeLocalVariables();
++		// ignore <clinit> or <init> for now
++		if (!getName().startsWith("<")) {
++			int slot = 0;
++			InstructionHandle start = gen.getInstructionList().getStart();
++			InstructionHandle end = gen.getInstructionList().getEnd();
++			// Add a 'this' if non-static
++			if (!isStatic()) {
++				String cname = this.enclosingClass.getClassName();
++				if (cname == null) {
++					return; // give up for now
++				}
++				Type enclosingType = BcelWorld.makeBcelType(UnresolvedType.forName(cname));
++				gen.addLocalVariable("this", enclosingType, slot++, start, end);
++			}
++			// Add entries for the method arguments
++			String[] paramNames = (memberView == null ? null : memberView.getParameterNames());
++			if (paramNames != null) {
++				for (int i = 0; i < argumentTypes.length; i++) {
++					String pname = paramNames[i];
++					if (pname == null) {
++						pname = "arg" + i;
++					}
++					gen.addLocalVariable(pname, argumentTypes[i], slot, start, end);
++					slot += argumentTypes[i].getSize();
++				}
++			}
++		}
++	}
++
+ 	/*
+ 	 * Optimized packing that does a 'local packing' of the code rather than building a brand new method and packing into it. Only
+ 	 * usable when the packing is going to be done just once.
+@@ -1132,7 +1171,15 @@ public final class LazyMethodGen implements Traceable {
+ 			}
+ 		}
+ 		gen.setInstructionList(theBody);
+-		addLocalVariables(gen, localVariables);
++		if (localVariables.size() == 0) {
++			// Might be a case of 173978 where around advice on an execution join point
++			// has caused everything to be extracted from the method and thus we
++			// are left with no local variables, not even the ones for 'this' and
++			// parameters passed to the method
++			createNewLocalVariables(gen);
++		} else {
++			addLocalVariables(gen, localVariables);
++		}
+ 
+ 		// JAVAC adds line number tables (with just one entry) to generated
+ 		// accessor methods - this
+@@ -1403,14 +1450,16 @@ public final class LazyMethodGen implements Traceable {
+ 	 * A good body is a body with the following properties:
+ 	 * 
+ 	 * <ul>
+-	 * <li> For each branch instruction S in body, target T of S is in body. <li> For each branch instruction S in body, target T of
+-	 * S has S as a targeter. <li> For each instruction T in body, for each branch instruction S that is a targeter of T, S is in
+-	 * body. <li> For each non-range-handle instruction T in body, for each instruction S that is a targeter of T, S is either a
+-	 * branch instruction, an exception range or a tag <li> For each range-handle instruction T in body, there is exactly one
+-	 * targeter S that is a range. <li> For each range-handle instruction T in body, the range R targeting T is in body. <li> For
+-	 * each instruction T in body, for each exception range R targeting T, R is in body. <li> For each exception range R in body,
+-	 * let T := R.handler. T is in body, and R is one of T's targeters <li> All ranges are properly nested: For all ranges Q and R,
+-	 * if Q.start preceeds R.start, then R.end preceeds Q.end.
++	 * <li>For each branch instruction S in body, target T of S is in body.
++	 * <li>For each branch instruction S in body, target T of S has S as a targeter.
++	 * <li>For each instruction T in body, for each branch instruction S that is a targeter of T, S is in body.
++	 * <li>For each non-range-handle instruction T in body, for each instruction S that is a targeter of T, S is either a branch
++	 * instruction, an exception range or a tag
++	 * <li>For each range-handle instruction T in body, there is exactly one targeter S that is a range.
++	 * <li>For each range-handle instruction T in body, the range R targeting T is in body.
++	 * <li>For each instruction T in body, for each exception range R targeting T, R is in body.
++	 * <li>For each exception range R in body, let T := R.handler. T is in body, and R is one of T's targeters
++	 * <li>All ranges are properly nested: For all ranges Q and R, if Q.start preceeds R.start, then R.end preceeds Q.end.
+ 	 * </ul>
+ 	 * 
+ 	 * Where the shorthand "R is in body" means "R.start is in body, R.end is in body, and any InstructionHandle stored in a field
+@@ -0,0 +1,7 @@
++public class Test{
++  public void sayHello(String message){
++    System.out.println(message);
++  }
++}
++
++
+@@ -0,0 +1,6 @@
++public aspect TestAroundAspect{
++  void around(): execution(void Test.sayHello(String)){
++    proceed();
++  }
++}
++
+@@ -16,8 +16,6 @@ import java.util.Set;
+ 
+ import junit.framework.Test;
+ 
+-import org.aspectj.apache.bcel.classfile.LocalVariable;
+-import org.aspectj.apache.bcel.classfile.LocalVariableTable;
+ import org.aspectj.asm.AsmManager;
+ import org.aspectj.asm.IRelationshipMap;
+ import org.aspectj.testing.XMLBasedAjcTestCase;
+@@ -154,28 +152,6 @@ public class Ajc161Tests extends org.aspectj.testing.XMLBasedAjcTestCase {
+ 		}
+ 	}
+ 
+-	// public void testLVTableAround_pr173978() throws Exception {
+-	// runTest("lv table for around");
+-	// JavaClass jc = Utils.getClassFrom(ajc.getSandboxDirectory().getAbsolutePath(),"Test");
+-	// Method[] ms = jc.getMethods();
+-	// Method m = null;
+-	// for (int i = 0; i < ms.length; i++) {
+-	// if (ms[i].getName().equals("sayHello")) {
+-	// m = ms[i];
+-	// }
+-	// }
+-	// if (m.getLocalVariableTable()==null) fail("Local variable table should not be null");
+-	// print(m.getLocalVariableTable());
+-	// }
+-
+-	private void print(LocalVariableTable localVariableTable) {
+-		LocalVariable[] lvs = localVariableTable.getLocalVariableTable();
+-		for (int i = 0; i < lvs.length; i++) {
+-			LocalVariable localVariable = lvs[i];
+-			System.out.println(localVariable);
+-		}
+-	}
+-
+ 	public void testITDPrecedence_pr233838_1() {
+ 		runTest("itd precedence - 1");
+ 	}
+@@ -14,10 +14,48 @@ import java.io.File;
+ 
+ import junit.framework.Test;
+ 
++import org.aspectj.apache.bcel.classfile.JavaClass;
++import org.aspectj.apache.bcel.classfile.LocalVariable;
++import org.aspectj.apache.bcel.classfile.LocalVariableTable;
++import org.aspectj.apache.bcel.classfile.Method;
++import org.aspectj.testing.Utils;
+ import org.aspectj.testing.XMLBasedAjcTestCase;
+ 
+ public class Ajc163Tests extends org.aspectj.testing.XMLBasedAjcTestCase {
+ 
++	public void testMissingLocalVariableTableEntriesOnAroundAdvice_pr173978() throws Exception {
++		runTest("missing local variable table on around advice");
++		JavaClass jc = Utils.getClassFrom(ajc.getSandboxDirectory().getAbsolutePath(), "Test");
++		Method[] ms = jc.getMethods();
++		Method m = null;
++		for (int i = 0; i < ms.length; i++) {
++			if (ms[i].getName().equals("sayHello")) {
++				m = ms[i];
++			}
++		}
++		if (m.getLocalVariableTable() == null) {
++			fail("Local variable table should not be null");
++		}
++		assertEquals(2, m.getLocalVariableTable().getLocalVariableTable().length);
++		// LocalVariableTable:
++		// Start Length Slot Name Signature
++		// 0 12 0 this LTest;
++		// 0 12 1 message Ljava/lang/String;
++		LocalVariable lv = m.getLocalVariableTable().getLocalVariable(0);
++		assertNotNull(lv);
++		assertEquals("this", lv.getName());
++		assertEquals(0, lv.getStartPC(), 0);
++		assertEquals(12, lv.getLength(), 12);
++		assertEquals("LTest;", lv.getSignature());
++		lv = m.getLocalVariableTable().getLocalVariable(1);
++		assertNotNull(lv);
++		assertEquals("message", lv.getName());
++		assertEquals(0, lv.getStartPC(), 0);
++		assertEquals(12, lv.getLength(), 12);
++		assertEquals("Ljava/lang/String;", lv.getSignature());
++		// print(m.getLocalVariableTable());
++	}
++
+ 	public void testTerminateAfterCompilation_pr249710() {
+ 		runTest("terminateAfterCompilation");
+ 	}
+@@ -50,4 +88,14 @@ public class Ajc163Tests extends org.aspectj.testing.XMLBasedAjcTestCase {
+ 		return new File("../tests/src/org/aspectj/systemtest/ajc163/ajc163.xml");
+ 	}
+ 
++	// ---
++
++	private void print(LocalVariableTable localVariableTable) {
++		LocalVariable[] lvs = localVariableTable.getLocalVariableTable();
++		for (int i = 0; i < lvs.length; i++) {
++			LocalVariable localVariable = lvs[i];
++			System.out.println(localVariable);
++		}
++	}
++
+ }
+\ No newline at end of file
+@@ -18,6 +18,10 @@
+         <message kind="error" line="4" text="Syntax error"/>
+       </compile>
+     </ajc-test>
++    
++    <ajc-test dir="bugs163/pr173978" title="missing local variable table on around advice">
++      <compile files="Test.java TestAroundAspect.java" options="-1.5"/>
++    </ajc-test>
+ 
+     <ajc-test dir="bugs163/pr249710" title="terminateAfterCompilation">
+       <compile files="Foo.java" options="-1.5">
+@@ -0,0 +1,7 @@
++public class Test{
++  public void sayHello(String message){
++    System.out.println(message);
++  }
++}
++
++
+@@ -0,0 +1,6 @@
++public aspect TestAroundAspect{
++  void around(): execution(void Test.sayHello(String)){
++    proceed();
++  }
++}
++

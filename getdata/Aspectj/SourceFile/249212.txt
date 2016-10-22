@@ -1,0 +1,119 @@
+@@ -1017,7 +1017,13 @@ public class AjBuildManager implements IOutputClassFileNameProvider, IBinarySour
+ 						filename = filename.replace('/', File.separatorChar) + ".class";
+ 						try {
+ 							if (buildConfig.getOutputJar() == null) {
+-								writeDirectoryEntry(unitResult, classFile, filename);
++								String outfile = writeDirectoryEntry(unitResult, classFile, filename);
++								if (environmentSupportsIncrementalCompilation) {
++									ResolvedType type = getBcelWorld().resolve(classname);
++									if (type.isAspect()) {
++										state.recordAspectClassFile(outfile);
++									}
++								}
+ 							} else {
+ 								writeZipEntry(classFile, filename);
+ 							}
+@@ -1030,6 +1036,7 @@ public class AjBuildManager implements IOutputClassFileNameProvider, IBinarySour
+ 						}
+ 
+ 					}
++					state.noteNewResult(unitResult);
+ 					unitResult.compiledTypes.clear(); // free up references to AjClassFile instances
+ 				}
+ 
+@@ -1043,7 +1050,8 @@ public class AjBuildManager implements IOutputClassFileNameProvider, IBinarySour
+ 
+ 			}
+ 
+-			private void writeDirectoryEntry(CompilationResult unitResult, ClassFile classFile, String filename) throws IOException {
++			private String writeDirectoryEntry(CompilationResult unitResult, ClassFile classFile, String filename)
++					throws IOException {
+ 				File destinationPath = buildConfig.getOutputDir();
+ 				if (buildConfig.getCompilationResultDestinationManager() != null) {
+ 					destinationPath = buildConfig.getCompilationResultDestinationManager().getOutputLocationForClass(
+@@ -1059,6 +1067,7 @@ public class AjBuildManager implements IOutputClassFileNameProvider, IBinarySour
+ 				BufferedOutputStream os = FileUtil.makeOutputStream(new File(outFile));
+ 				os.write(classFile.getBytes());
+ 				os.close();
++				return outFile;
+ 			}
+ 
+ 			private void writeZipEntry(ClassFile classFile, String name) throws IOException {
+@@ -146,6 +146,11 @@ public class AjState implements CompilerConfigurationChangeFlags {
+ 	private final Map/* <File,List<ClassFile> */inputClassFilesBySource = new HashMap();
+ 
+ 	/**
++	 * A list of the .class files created by this state that contain aspects.
++	 */
++	private final List/* <String> */aspectClassFiles = new ArrayList();
++
++	/**
+ 	 * Holds structure information on types as they were at the end of the last build. It would be nice to get rid of this too, but
+ 	 * can't see an easy way to do that right now.
+ 	 */
+@@ -492,11 +497,8 @@ public class AjState implements CompilerConfigurationChangeFlags {
+ 		return CLASS_FILE_NO_CHANGES;
+ 	}
+ 
+-	private boolean isAspect(File file) {
+-		if (aspectsFromFileNames == null) {
+-			return false;
+-		}
+-		return aspectsFromFileNames.containsKey(file);
++	private boolean isAspect(File file) {	
++		return aspectClassFiles.contains(file.getAbsolutePath());
+ 	}
+ 
+ 	public static class SoftHashMap extends AbstractMap {
+@@ -1164,6 +1166,35 @@ public class AjState implements CompilerConfigurationChangeFlags {
+ 		recordFQNsResultingFromCompilationUnit(sourceFile, result);
+ 	}
+ 
++	public void noteNewResult(CompilationResult cr) {
++		// if (!maybeIncremental()) {
++		// return;
++		// }
++		//
++		// // File sourceFile = new File(result.fileName());
++		// // CompilationResult cr = result.result();
++		// if (new String(cr.getFileName()).indexOf("C") != -1) {
++		// cr.references.put(new String(cr.getFileName()),
++		// new ReferenceCollection(cr.qualifiedReferences, cr.simpleNameReferences));
++		// int stop = 1;
++		// }
++
++		// references.put(sourceFile, new ReferenceCollection(cr.qualifiedReferences, cr.simpleNameReferences));
++		//
++		// UnwovenClassFile[] unwovenClassFiles = cr.unwovenClassFiles();
++		// for (int i = 0; i < unwovenClassFiles.length; i++) {
++		// File lastTimeRound = (File) classesFromName.get(unwovenClassFiles[i].getClassName());
++		// recordClassFile(unwovenClassFiles[i], lastTimeRound);
++		// classesFromName.put(unwovenClassFiles[i].getClassName(), new File(unwovenClassFiles[i].getFilename()));
++		// }
++
++		// need to do this before types are deleted from the World...
++		// recordWhetherCompilationUnitDefinedAspect(sourceFile, cr);
++		// deleteTypesThatWereInThisCompilationUnitLastTimeRoundButHaveBeenDeletedInThisIncrement(sourceFile, unwovenClassFiles);
++		//
++		// recordFQNsResultingFromCompilationUnit(sourceFile, result);
++	}
++
+ 	/**
+ 	 * @param sourceFile
+ 	 * @param unwovenClassFiles
+@@ -1824,4 +1855,15 @@ public class AjState implements CompilerConfigurationChangeFlags {
+ 	public void setNameEnvironment(INameEnvironment nameEnvironment) {
+ 		this.nameEnvironment = nameEnvironment;
+ 	}
++
++	/**
++	 * Record an aspect that came in on the aspect path. When a .class file changes on the aspect path we can then recognize it as
++	 * an aspect and know to do more than just a tiny incremental build. <br>
++	 * TODO but this doesn't allow for a new aspect created on the aspectpath?
++	 * 
++	 * @param aspectFile path to the file, eg. c:/temp/foo/Fred.class
++	 */
++	public void recordAspectClassFile(String aspectFile) {
++		aspectClassFiles.add(aspectFile);
++	}
+ }

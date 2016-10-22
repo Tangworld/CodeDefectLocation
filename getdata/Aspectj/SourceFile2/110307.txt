@@ -1,0 +1,499 @@
+@@ -12,13 +12,13 @@ interface AssociationSource<T> {
+ 
+ }
+ aspect ExtendProduct {
+-       Link<T> AssociationSource._target = null;
++       Link<Q> AssociationSource<Q>._target = null;
+ 
+-       public Link<T> AssociationSource.getTarget() {
++       public Link<Q> AssociationSource<Q>.getTarget() {
+            return _target;
+        }
+ 
+-       public void AssociationSource.setTarget(Link<T> _target) {
++       public void AssociationSource<Q>.setTarget(Link<Q> _target) {
+            this._target = _target;
+        }
+ 
+@@ -0,0 +1,59 @@
++import java.lang.annotation.*;
++import java.lang.ref.*;
++import java.util.*;
++
++public class Case7 {
++
++  public static void main(String []argv) {
++    String  s = "hello";
++    Integer i = 35;
++    List    l = new ArrayList();
++    List<String> ls = new ArrayList<String>();
++    List<Number> ln = new ArrayList<Number>();
++    List<List>   ll = new ArrayList<List>();
++
++    A a = new A();
++    a.setN(ls,s);
++    String s2 = a.getN(ls);
++    System.err.println("in="+s+" out="+s2);
++
++    B b = new B();
++    b.setN(ln,i);
++    System.err.println("in="+i+" out="+b.getN(ln));
++
++    C c = new C();
++    c.setN(ll,l);
++    List l2 = c.getN(ll);
++    System.err.println("in="+l+" out="+l2);
++
++  }
++
++}
++
++
++interface I<N> {
++  N getN(List<N> ns);
++
++  void setN(List<N> ns,N n);
++}
++
++aspect X {
++  Q I<Q>.value;
++
++  public P I<P>.getN(List<P> ps) {
++    return value;
++  }
++
++  public void I<Q>.setN(List<Q> ns,N n) {
++    this.value = n;
++  }
++
++  declare parents : A implements I<String>;
++  declare parents : B implements I<Number>;
++  declare parents : C implements I<List>;
++}
++
++
++class A { }
++class B { }
++class C { }
+@@ -49,6 +49,7 @@ public class Ajc150Tests extends org.aspectj.testing.XMLBasedAjcTestCase {
+   public void testCunningDeclareParents_pr92311() { runTest("cunning declare parents");}
+   public void testGenericITDsAndAbstractMethodError_pr102357() { runTest("generic itds and abstract method error");}
+   */
++  
+   public void testBadDecp_pr110788_1() { runTest("bad generic decp - 1");}
+   public void testBadDecp_pr110788_2() { runTest("bad generic decp - 2");}
+   public void testBadDecp_pr110788_3() { runTest("bad generic decp - 3");}
+@@ -482,12 +483,17 @@ public class Ajc150Tests extends org.aspectj.testing.XMLBasedAjcTestCase {
+ 	  runTest("parameterized generic methods");
+   }
+ 
+-//  public void testCantProvideDefaultImplViaITD_pr110307_1() {runTest("Cant provide default implementation via ITD - 1");}
+-//  public void testCantProvideDefaultImplViaITD_pr110307_2() {runTest("Cant provide default implementation via ITD - 2");}
+-//  public void testCantProvideDefaultImplViaITD_pr110307_3() {runTest("Cant provide default implementation via ITD - 3");}
++  public void testCantProvideDefaultImplViaITD_pr110307_1() {runTest("Cant provide default implementation via ITD - 1");}
++  public void testCantProvideDefaultImplViaITD_pr110307_2() {runTest("Cant provide default implementation via ITD - 2");}
++  public void testCantProvideDefaultImplViaITD_pr110307_3() {runTest("Cant provide default implementation via ITD - 3");}
+   public void testCantProvideDefaultImplViaITD_pr110307_4() {runTest("Cant provide default implementation via ITD - 4");}
+-//  public void testCantProvideDefaultImplViaITD_pr110307_5() {runTest("Cant provide default implementation via ITD - 5");}
+-//  public void testCantProvideDefaultImplViaITD_pr110307_6() {runTest("Cant provide default implementation via ITD - 6");}
++  public void testCantProvideDefaultImplViaITD_pr110307_5() {runTest("Cant provide default implementation via ITD - 5");}
++  
++  // Needs a change in the compiler so that getType() can be overridden in the intertype scope - thats
++  // where we can police whether a type variable has been used without being specified appropriately.
++  //public void testCantProvideDefaultImplViaITD_pr110307_6() {runTest("Cant provide default implementation via ITD - 6");}
++
++  public void testCantProvideDefaultImplViaITD_pr110307_7() {runTest("Cant provide default implementation via ITD - 7");}
+ 
+   public void testCallJoinPointsInAnonymousInnerClasses() {
+ 	  runTest("call join points in anonymous inner classes");
+@@ -5062,12 +5062,21 @@
+ 
+    <ajc-test dir="bugs150/pr110307" title="Cant provide default implementation via ITD - 6">
+      <compile files="Case6.java" options="-1.5">
+-       <!--message kind="error" line="8" text="N cannot be resolved to a type"/-->
++       <message kind="error" line="8" text="N cannot be resolved to a type"/>
+        <!--message kind="error" line="7" text="T cannot be resolved to a type"/-->
+      </compile>
+    </ajc-test>
+ 
+-  
++   <ajc-test dir="bugs150/pr110307" title="Cant provide default implementation via ITD - 7">
++     <compile files="Case7.java" options="-1.5"/>
++     <run class="Case7">
++       <stderr> 
++         <line text="in=hello out=hello"/>
++         <line text="in=35 out=35"/>
++         <line text="in=[] out=[]"/>
++       </stderr>
++     </run>
++   </ajc-test>  
+ 
+    <!-- generic ITDs -->
+ 
+@@ -0,0 +1,42 @@
++import java.lang.annotation.*;
++import java.lang.ref.*;
++
++class Product{}
++class ProductType{}
++
++interface AssociationSource<T> {
++
++  Link<T> getTarget();
++
++  void setTarget(Link<T> _target);
++
++}
++aspect ExtendProduct {
++       Link<T> AssociationSource._target = null;
++
++       public Link<T> AssociationSource.getTarget() {
++           return _target;
++       }
++
++       public void AssociationSource.setTarget(Link<T> _target) {
++           this._target = _target;
++       }
++
++       declare parents : ProductType implements AssociationSource<Product>;
++       declare parents : Product     implements AssociationSource<Branch>;
++       declare parents : Branch      implements AssociationSource<Revision>;
++}
++
++class Link<T> extends SoftReference {
++
++   @SuppressWarnings("unchecked")
++   Link(List<T> endPoints) {
++       super(endPoints);
++   }
++
++   @SuppressWarnings("unchecked")
++   public List<T> getEndPoints() {
++       return (List<T>)get();
++   }
++
++}
+@@ -0,0 +1,48 @@
++import java.util.*;
++import java.lang.annotation.*;
++import java.lang.ref.*;
++
++class Product {}
++class ProductType{}
++class Branch {}
++class Revision {}
++
++interface AssociationSource<T> {
++
++  Link<T> getTarget();
++
++  void setTarget(Link<T> _target);
++
++}
++aspect ExtendProduct {
++       Link<T> AssociationSource<T>._target = null;
++
++       public Link<T> AssociationSource<T>.getTarget() {
++           return _target;
++       }
++
++       public void AssociationSource<T>.setTarget(Link<T> _target) {
++         this._target = _target;
++       }
++
++       declare parents : ProductType implements AssociationSource<Product>;
++/*
++       declare parents : Product     implements AssociationSource<Branch>;
++       declare parents : Branch      implements AssociationSource<Revision>;
++*/
++}
++
++class Link<T> {//extends SoftReference {
++
++/*   @SuppressWarnings("unchecked")
++   Link(List<T> endPoints) {
++       super(endPoints);
++   }
++
++   @SuppressWarnings("unchecked")
++   public List<T> getEndPoints() {
++       return (List<T>)get();
++   }
++*/
++
++}
+@@ -0,0 +1,16 @@
++import java.util.*;
++import java.lang.annotation.*;
++import java.lang.ref.*;
++
++interface I<T> {
++}
++
++class A {
++}
++
++aspect X {
++
++  List<T> I<T>.foo() { return null; }  // should be ok...
++
++  declare parents: A implements I<String>;
++}
+@@ -0,0 +1,17 @@
++import java.util.*;
++import java.lang.annotation.*;
++import java.lang.ref.*;
++
++interface I<T> {
++}
++
++class A {
++  List<String> foo() { return null; }
++}
++
++aspect X {
++
++  List<T> I<T>.foo() { return null; }  // should be ok - A implements I<String>
++
++  declare parents: A implements I<String>;
++}
+@@ -0,0 +1,18 @@
++import java.util.*;
++import java.lang.annotation.*;
++import java.lang.ref.*;
++
++interface I<T> {
++}
++
++class A {
++  // error, not compatible with List<String> from supertype
++  List<Integer> foo() { return null; } 
++}
++
++aspect X {
++
++  List<T> I<T>.foo() { return null; }
++
++  declare parents: A implements I<String>;
++}
+@@ -0,0 +1,9 @@
++import java.util.*;
++
++class A<T> { } 
++
++
++aspect X {
++  List<T> A.n() { return null;}
++  List<N> A.m() { return null;}
++}
+@@ -202,8 +202,8 @@ public class Ajc150Tests extends org.aspectj.testing.XMLBasedAjcTestCase {
+   }
+ 
+ 
+-   // IfPointcut.findResidueInternal() was modified to make this test complete in a short amount
+-   // of time - if you see it hanging, someone has messed with the optimization.
++  // IfPointcut.findResidueInternal() was modified to make this test complete in a short amount
++  // of time - if you see it hanging, someone has messed with the optimization.
+   public void testIfEvaluationExplosion_pr94086() {
+ 	  runTest("Exploding compile time with if() statements in pointcut");
+   }
+@@ -482,6 +482,13 @@ public class Ajc150Tests extends org.aspectj.testing.XMLBasedAjcTestCase {
+ 	  runTest("parameterized generic methods");
+   }
+ 
++//  public void testCantProvideDefaultImplViaITD_pr110307_1() {runTest("Cant provide default implementation via ITD - 1");}
++//  public void testCantProvideDefaultImplViaITD_pr110307_2() {runTest("Cant provide default implementation via ITD - 2");}
++//  public void testCantProvideDefaultImplViaITD_pr110307_3() {runTest("Cant provide default implementation via ITD - 3");}
++//  public void testCantProvideDefaultImplViaITD_pr110307_4() {runTest("Cant provide default implementation via ITD - 4");}
++//  public void testCantProvideDefaultImplViaITD_pr110307_5() {runTest("Cant provide default implementation via ITD - 5");}
++ // public void testCantProvideDefaultImplViaITD_pr110307_6() {runTest("Cant provide default implementation via ITD - 6");}
++  
+   public void testCallJoinPointsInAnonymousInnerClasses() {
+ 	  runTest("call join points in anonymous inner classes");
+   }
+@@ -2801,7 +2801,7 @@
+         </stderr>
+       </run>
+    </ajc-test>
+-   
++
+    <ajc-test dir="java5/suppressedWarnings" title="SuppressAjWarnings raised during matching">
+        <compile files="SuppressionDuringMatching.aj" options="-1.5">
+        </compile>
+@@ -4954,7 +4954,7 @@
+    <ajc-test dir="bugs150" title="Unable to build shadows">
+      <compile files="pr109728.java" options="-1.5"/>
+    </ajc-test>
+-   
++
+    <ajc-test dir="bugs150/pr110788" title="bad generic decp - 1">
+      <compile files="Case1.java" options="-1.5">
+        <message kind="error" line="10" text="Cannot declare parent B&lt;java.lang.Number&gt; onto type C since it already has A&lt;java.lang.String&gt; in its hierarchy"/>
+@@ -4977,8 +4977,8 @@
+ 
+    <ajc-test dir="bugs150/pr110927" title="cant create signature attribute">
+      <compile files="Case1.java" options="-1.5"/>
+-   </ajc-test>
+-   
++   </ajc-test>   
++
+    <ajc-test dir="bugs150/pr72834" title="broken dispatch">
+      <compile files="Trouble.java">
+        <message kind="error" line="7" text="package visible abstract inter-type declarations are not allowed"/>
+@@ -5025,6 +5025,45 @@
+       </run>
+    </ajc-test>
+ 
++   <ajc-test dir="bugs150/pr110307" title="Cant provide default implementation via ITD - 1">
++     <compile files="Case1.java" options="-1.5">
++       <message kind="warning" line="27" text="no match for this type name: Branch [Xlint:invalidAbsoluteTypeName]"/>
++       <message kind="error" line="26" text="can't bind type name 'Branch'"/>
++       <message kind="error" line="27" text="can't bind type name 'Revision'"/>
++       <message kind="error" line="33" text="List cannot be resolved to a type"/>
++       <message kind="error" line="38" text="List cannot be resolved to a type"/>
++       <message kind="error" line="39" text="List cannot be resolved to a type"/>
++     </compile>
++   </ajc-test>
++   
++   <ajc-test dir="bugs150/pr110307" title="Cant provide default implementation via ITD - 2">
++     <compile files="Case2.java" options="-1.5"/>
++   </ajc-test>
++   
++   <ajc-test dir="bugs150/pr110307" title="Cant provide default implementation via ITD - 3">
++     <compile files="Case3.java" options="-1.5"/>
++   </ajc-test>
++   
++   <ajc-test dir="bugs150/pr110307" title="Cant provide default implementation via ITD - 4">
++     <compile files="Case4.java" options="-1.5"/>
++   </ajc-test>
++
++   <ajc-test dir="bugs150/pr110307" title="Cant provide default implementation via ITD - 5">
++     <compile files="Case5.java" options="-1.5">
++       <!-- might possibly need more diagnostics in this case to explain what has happened -->
++       <message kind="error" line="10" text="can't override java.util.List&lt;java.lang.String&gt; I.foo() with java.util.List&lt;java.lang.Integer&gt; A.foo() return types don't match"/>
++       <message kind="error" line="15" text="can't override java.util.List&lt;java.lang.String&gt; I.foo() with java.util.List&lt;java.lang.Integer&gt; A.foo() return types don't match"/>
++     </compile>
++   </ajc-test>
++   
++   <ajc-test dir="bugs150/pr110307" title="Cant provide default implementation via ITD - 6">
++     <compile files="Case6.java" options="-1.5">
++       <!--message kind="error" line="8" text="N cannot be resolved to a type"/-->
++       <!--message kind="error" line="7" text="T cannot be resolved to a type"/-->
++     </compile>
++   </ajc-test>
++
++  
+    <!-- generic ITDs -->
+ 
+    <ajc-test dir="java5/generics/itds/design" title="generic itds - design A">
+@@ -5042,4 +5081,5 @@
+    <ajc-test dir="java5/generics/itds/design" title="generic itds - design D">
+      <compile files="DesignD.java" options="-1.5,-XnoWeave"/>
+    </ajc-test>
++
+ </suite>
+\ No newline at end of file
+@@ -740,9 +740,9 @@ public class AjLookupEnvironment extends LookupEnvironment implements AnonymousC
+ 
+ 	private void addParent(SourceTypeBinding sourceType, ResolvedType parent) {
+ 		ReferenceBinding parentBinding = (ReferenceBinding)factory.makeTypeBinding(parent); 
+-		
++		if (parentBinding == null) return; // The parent is missing, it will be reported elsewhere.
+         sourceType.rememberTypeHierarchy();
+-		if (parentBinding.isClass()) {
++        if (parentBinding.isClass()) {
+ 			sourceType.superclass = parentBinding;
+ 
+             // this used to be true, but I think I've fixed it now, decp is done at weave time!			
+@@ -0,0 +1,42 @@
++import java.lang.annotation.*;
++import java.lang.ref.*;
++
++class Product{}
++class ProductType{}
++
++interface AssociationSource<T> {
++
++  Link<T> getTarget();
++
++  void setTarget(Link<T> _target);
++
++}
++aspect ExtendProduct {
++       Link<T> AssociationSource._target = null;
++
++       public Link<T> AssociationSource.getTarget() {
++           return _target;
++       }
++
++       public void AssociationSource.setTarget(Link<T> _target) {
++           this._target = _target;
++       }
++
++       declare parents : ProductType implements AssociationSource<Product>;
++       declare parents : Product     implements AssociationSource<Branch>;
++       declare parents : Branch      implements AssociationSource<Revision>;
++}
++
++class Link<T> extends SoftReference {
++
++   @SuppressWarnings("unchecked")
++   Link(List<T> endPoints) {
++       super(endPoints);
++   }
++
++   @SuppressWarnings("unchecked")
++   public List<T> getEndPoints() {
++       return (List<T>)get();
++   }
++
++}
+@@ -0,0 +1,48 @@
++import java.util.*;
++import java.lang.annotation.*;
++import java.lang.ref.*;
++
++class Product {}
++class ProductType{}
++class Branch {}
++class Revision {}
++
++interface AssociationSource<T> {
++
++  Link<T> getTarget();
++
++  void setTarget(Link<T> _target);
++
++}
++aspect ExtendProduct {
++       Link<T> AssociationSource<T>._target = null;
++
++       public Link<T> AssociationSource<T>.getTarget() {
++           return _target;
++       }
++
++       public void AssociationSource<T>.setTarget(Link<T> _target) {
++         this._target = _target;
++       }
++
++       declare parents : ProductType implements AssociationSource<Product>;
++/*
++       declare parents : Product     implements AssociationSource<Branch>;
++       declare parents : Branch      implements AssociationSource<Revision>;
++*/
++}
++
++class Link<T> {//extends SoftReference {
++
++/*   @SuppressWarnings("unchecked")
++   Link(List<T> endPoints) {
++       super(endPoints);
++   }
++
++   @SuppressWarnings("unchecked")
++   public List<T> getEndPoints() {
++       return (List<T>)get();
++   }
++*/
++
++}

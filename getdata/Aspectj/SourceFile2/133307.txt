@@ -1,0 +1,285 @@
+@@ -254,6 +254,7 @@ public class AjLookupEnvironment extends LookupEnvironment implements AnonymousC
+ 		stepCompleted = BUILD_FIELDS_AND_METHODS;
+ 		lastCompletedUnitIndex = lastUnitIndex;
+ 		AsmManager.setCompletingTypeBindings(false);
++		factory.getWorld().getCrosscuttingMembersSet().verify();
+ 		CompilationAndWeavingContext.leavingPhase(completeTypeBindingsToken);	
+ 	}
+ 
+@@ -0,0 +1,7 @@
++interface TestIF<T extends TestIF> {}
++
++class TestClass {}
++
++aspect TestAspect {
++   declare parents: TestClass implements TestIF<TestClass>;
++}
+\ No newline at end of file
+@@ -4491,7 +4491,8 @@
+    <ajc-test dir="java5/generics/genericaspects/" title="uberaspects - H">
+      <compile files="GenericAspectH.aj" options="-1.5">
+        <message kind="error" line="7" text="Type java.lang.String does not meet the specification for type parameter 1 (N extends java.lang.Number) in generic type GenericAspect$SimpleI"/>
+-       <message kind="error" line="16" text="The method m4(String) is undefined for the type Base"/>
++	   <!-- see pr133307, shame about this -->
++       <!--message kind="error" line="16" text="The method m4(String) is undefined for the type Base"/-->
+      </compile>
+    </ajc-test>
+    <ajc-test dir="java5/generics/genericaspects/" title="uberaspects - I">
+@@ -25,8 +25,9 @@ import org.aspectj.testing.XMLBasedAjcTestCase;
+ 
+ public class Ajc151Tests extends org.aspectj.testing.XMLBasedAjcTestCase {
+ 
+-//  public void testDeca() { runTest("doubly annotating a method with declare");}	
+-//  public void testDeca2() { runTest("doubly annotating a method with declare - 2");}	
++  public void testCircularGenerics_pr133307() { runTest("circular generics");}
++  //  public void testDeca() { runTest("doubly annotating a method with declare");}	
++  //  public void testDeca2() { runTest("doubly annotating a method with declare - 2");}	
+   public void testCrashingWithASM_pr132926_1() { runTest("crashing on annotation type resolving with asm - 1");}
+   public void testCrashingWithASM_pr132926_2() { runTest("crashing on annotation type resolving with asm - 2");}
+   public void testCrashingWithASM_pr132926_3() { runTest("crashing on annotation type resolving with asm - 3");}
+@@ -19,6 +19,10 @@
+      </compile>
+     </ajc-test>
+ 
++    <ajc-test dir="bugs151/pr133307" title="circular generics">
++      <compile files="Broken.aj" options="-1.5"/>
++    </ajc-test>  
++    
+     <ajc-test dir="bugs151/pr123553" title="generic advice parameters">
+         <compile files="A.java" options="-1.5"/>
+         <run class="A"/>
+@@ -23,6 +23,7 @@ import java.util.Set;
+ 
+ import org.aspectj.weaver.patterns.CflowPointcut;
+ import org.aspectj.weaver.patterns.DeclareParents;
++import org.aspectj.weaver.patterns.IVerificationRequired;
+ 
+ /**
+  * This holds on to all CrosscuttingMembers for a world.  It handles 
+@@ -45,6 +46,8 @@ public class CrosscuttingMembersSet {
+ 	private List declareAnnotationOnMethods= null; // includes ctors
+ 	private List declareDominates          = null;
+ 	private boolean changedSinceLastReset = false;
++
++	private List /*IVerificationRequired*/ verificationList = null; // List of things to be verified once the type system is 'complete'
+ 
+ 	public CrosscuttingMembersSet(World world) {
+ 		this.world = world;
+@@ -261,12 +264,36 @@ public class CrosscuttingMembersSet {
+ 	}
+ 
+ 	public void reset() {
++		verificationList=null;
+ 		changedSinceLastReset = false;
+ 	}
+ 
+ 	public boolean hasChangedSinceLastReset() {
+ 		return changedSinceLastReset;
+ 	}
++
++	/**
++	 * Record something that needs verifying when we believe the type system is complete.
++	 * Used for things that can't be verified as we go along - for example some
++	 * recursive type variable references (pr133307)
++	 */
++	public void recordNecessaryCheck(IVerificationRequired verification) {
++		if (verificationList==null) verificationList = new ArrayList();
++		verificationList.add(verification);
++	}
+ 
+ 
++	/**
++	 * Called when type bindings are complete - calls all registered verification
++	 * objects in turn.
++	 */
++	public void verify() {
++		if (verificationList==null) return;
++		for (Iterator iter = verificationList.iterator(); iter.hasNext();) {
++			IVerificationRequired element = (IVerificationRequired) iter.next();
++			element.verify();
++		}
++		verificationList = null;
++	}
++	
+ }
+@@ -0,0 +1,22 @@
++/* *******************************************************************
++ * Copyright (c) 2006 Contributors
++ * All rights reserved. 
++ * This program and the accompanying materials are made available 
++ * under the terms of the Eclipse Public License v1.0 
++ * which accompanies this distribution and is available at 
++ * http://www.eclipse.org/legal/epl-v10.html 
++ *  
++ * Contributors: 
++ *     Andy Clement IBM     initial implementation 
++ * ******************************************************************/
++package org.aspectj.weaver.patterns;
++
++
++/**
++ * Implementors provide a 'verify()' method that is invoked at the end of type
++ * binding completion.
++ * @see WildTypePattern.VerifyBoundsForTypePattern
++ */
++public interface IVerificationRequired {
++	public void verify();
++}
+\ No newline at end of file
+@@ -21,6 +21,7 @@ import java.util.Map;
+ import java.util.StringTokenizer;
+ 
+ import org.aspectj.bridge.IMessage;
++import org.aspectj.bridge.ISourceLocation;
+ import org.aspectj.bridge.Message;
+ import org.aspectj.bridge.MessageUtil;
+ import org.aspectj.util.FileUtil;
+@@ -925,46 +926,115 @@ public class WildTypePattern extends TypePattern {
+ 
+ 		// now check that each typeParameter pattern, if exact, matches the bounds
+ 		// of the type variable.
+-		return checkBoundsOK(scope,genericType,requireExactType);
+ 
+-		// return true;
++		// pr133307 - delay verification until type binding completion, these next few lines replace
++		// the call to checkBoundsOK
++		if (!boundscheckingoff) {
++			VerifyBoundsForTypePattern verification = 
++				new VerifyBoundsForTypePattern(scope,genericType,requireExactType,typeParameters,getSourceLocation());
++			scope.getWorld().getCrosscuttingMembersSet().recordNecessaryCheck(verification);
++		}
++//		return checkBoundsOK(scope,genericType,requireExactType);
++		
++		 return true;
+ 	}
+ 
+-	public boolean checkBoundsOK(IScope scope,ResolvedType genericType,boolean requireExactType) {
+-		if (boundscheckingoff) return true;
+-		TypeVariable[] tvs = genericType.getTypeVariables();
+-		TypePattern[] typeParamPatterns = typeParameters.getTypePatterns();
+-		if (typeParameters.areAllExactWithNoSubtypesAllowed()) {
+-			for (int i = 0; i < tvs.length; i++) {
+-				UnresolvedType ut = typeParamPatterns[i].getExactType();
+-				boolean continueCheck = true;
+-				// FIXME asc dont like this but ok temporary measure.  If the type parameter 
+-				// is itself a type variable (from the generic aspect) then assume it'll be
+-				// ok... (see pr112105)  Want to break this? Run GenericAspectK test.
+-				if (ut.isTypeVariableReference()) {
+-					continueCheck = false;
+-				}
+-				
+-				if (continueCheck &&	
+-						!tvs[i].canBeBoundTo(ut.resolve(scope.getWorld()))) {
+-					// issue message that type parameter does not meet specification
+-					String parameterName = ut.getName();
+-					if (ut.isTypeVariableReference()) parameterName = ((TypeVariableReference)ut).getTypeVariable().getDisplayName();
+-					String msg = 
+-						WeaverMessages.format(
+-							WeaverMessages.VIOLATES_TYPE_VARIABLE_BOUNDS,
+-							parameterName,
+-							new Integer(i+1),
+-							tvs[i].getDisplayName(),
+-							genericType.getName());
+-					if (requireExactType)  scope.message(MessageUtil.error(msg,getSourceLocation()));	
+-					else				   scope.message(MessageUtil.warn(msg,getSourceLocation()));	
+-					return false;
++	/**
++	 * By capturing the verification in this class, rather than performing it in verifyTypeParameters(),
++	 * we can cope with situations where the interactions between generics and declare parents would
++	 * otherwise cause us problems.  For example, if verifying as we go along we may report a problem
++	 * which would have been fixed by a declare parents that we haven't looked at yet.  If we
++	 * create and store a verification object, we can verify this later when the type system is
++	 * considered 'complete'
++	 */
++	static class VerifyBoundsForTypePattern implements IVerificationRequired {
++		
++		private IScope scope;
++		private ResolvedType genericType;
++		private boolean requireExactType;
++		private TypePatternList typeParameters = TypePatternList.EMPTY;
++		private ISourceLocation sLoc;
++		
++		public VerifyBoundsForTypePattern(IScope scope, ResolvedType genericType, boolean requireExactType,
++				TypePatternList typeParameters, ISourceLocation sLoc) {
++			this.scope = scope;
++			this.genericType = genericType;
++			this.requireExactType = requireExactType;
++			this.typeParameters = typeParameters;
++			this.sLoc = sLoc;
++		}
++		
++		public void verify() {
++			TypeVariable[] tvs = genericType.getTypeVariables();
++			TypePattern[] typeParamPatterns = typeParameters.getTypePatterns();
++			if (typeParameters.areAllExactWithNoSubtypesAllowed()) {
++				for (int i = 0; i < tvs.length; i++) {
++					UnresolvedType ut = typeParamPatterns[i].getExactType();
++					boolean continueCheck = true;
++					// FIXME asc dont like this but ok temporary measure.  If the type parameter 
++					// is itself a type variable (from the generic aspect) then assume it'll be
++					// ok... (see pr112105)  Want to break this? Run GenericAspectK test.
++					if (ut.isTypeVariableReference()) {
++						continueCheck = false;
++					}
++					
++					System.err.println("Verifying "+ut.getName()+" meets bounds for "+tvs[i]);
++					if (continueCheck &&	
++							!tvs[i].canBeBoundTo(ut.resolve(scope.getWorld()))) {
++						// issue message that type parameter does not meet specification
++						String parameterName = ut.getName();
++						if (ut.isTypeVariableReference()) parameterName = ((TypeVariableReference)ut).getTypeVariable().getDisplayName();
++						String msg = 
++							WeaverMessages.format(
++								WeaverMessages.VIOLATES_TYPE_VARIABLE_BOUNDS,
++								parameterName,
++								new Integer(i+1),
++								tvs[i].getDisplayName(),
++								genericType.getName());
++						if (requireExactType)  scope.message(MessageUtil.error(msg,sLoc));	
++						else				   scope.message(MessageUtil.warn(msg,sLoc));	
++					}
+ 				}
+ 			}
+ 		}
+-		return true;
+ 	}
++
++	// pr133307 - moved to verification object
++//	public boolean checkBoundsOK(IScope scope,ResolvedType genericType,boolean requireExactType) {
++//		if (boundscheckingoff) return true;
++//		TypeVariable[] tvs = genericType.getTypeVariables();
++//		TypePattern[] typeParamPatterns = typeParameters.getTypePatterns();
++//		if (typeParameters.areAllExactWithNoSubtypesAllowed()) {
++//			for (int i = 0; i < tvs.length; i++) {
++//				UnresolvedType ut = typeParamPatterns[i].getExactType();
++//				boolean continueCheck = true;
++//				// FIXME asc dont like this but ok temporary measure.  If the type parameter 
++//				// is itself a type variable (from the generic aspect) then assume it'll be
++//				// ok... (see pr112105)  Want to break this? Run GenericAspectK test.
++//				if (ut.isTypeVariableReference()) {
++//					continueCheck = false;
++//				}
++//				
++//				if (continueCheck &&	
++//						!tvs[i].canBeBoundTo(ut.resolve(scope.getWorld()))) {
++//					// issue message that type parameter does not meet specification
++//					String parameterName = ut.getName();
++//					if (ut.isTypeVariableReference()) parameterName = ((TypeVariableReference)ut).getTypeVariable().getDisplayName();
++//					String msg = 
++//						WeaverMessages.format(
++//							WeaverMessages.VIOLATES_TYPE_VARIABLE_BOUNDS,
++//							parameterName,
++//							new Integer(i+1),
++//							tvs[i].getDisplayName(),
++//							genericType.getName());
++//					if (requireExactType)  scope.message(MessageUtil.error(msg,getSourceLocation()));	
++//					else				   scope.message(MessageUtil.warn(msg,getSourceLocation()));	
++//					return false;
++//				}
++//			}
++//		}
++//		return true;
++//	}
+ 
+ 	public boolean isStar() {
+ 		boolean annPatternStar = annotationPattern == AnnotationTypePattern.ANY;

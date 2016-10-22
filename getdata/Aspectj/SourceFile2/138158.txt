@@ -1,0 +1,106 @@
+@@ -0,0 +1,27 @@
++import java.lang.annotation.*;
++
++@Retention(RetentionPolicy.RUNTIME)
++@interface Goo {}
++
++
++public class Foo {
++  public static void main(String []argv) {
++    new Foo().m(); 
++  }
++
++  @Goo
++  public void m() {
++    System.err.println("");
++  }
++  
++  public void m2() {
++	System.err.println("");
++  }
++}
++
++aspect X {
++  before(): call(* println(..)) && !@withincode(Goo) {  }
++  
++
++  before(): call(* println(..)) && @withincode(Goo) {  }
++}
+\ No newline at end of file
+@@ -17,8 +17,9 @@ import org.aspectj.testing.XMLBasedAjcTestCase;
+ 
+ public class Ajc152Tests extends org.aspectj.testing.XMLBasedAjcTestCase {
+ 
+-  //public void testNotAtWithincode_pr138158() { runTest("not at withincode");}
+-  //public void testComplexGenericDecl_pr137568() { runTest("complicated generics declaration");}
++  public void testNotAtWithincode_pr138158_1() { runTest("not at withincode - 1");}
++  public void testNotAtWithincode_pr138158_2() { runTest("not at withincode - 2");}
++//  public void testComplexGenericDecl_pr137568() { runTest("complicated generics declaration");}
+   public void testNpeOnDup_pr138143() { runTest("npe on duplicate method with ataj");}
+   public void testPointcutsAndGenerics_pr137496_1() { runTest("pointcuts and generics - B");}
+   public void testPointcutsAndGenerics_pr137496_2() { runTest("pointcuts and generics - D");}
+@@ -20,13 +20,21 @@
+       <run class="StatisticsTypeImpl"/>
+     </ajc-test>
+ 
+-    <ajc-test dir="bugs152/pr138158" title="not at withincode">
++    <ajc-test dir="bugs152/pr138158" title="not at withincode - 1">
+       <compile files="Boo.java" options="-1.5 -showWeaveInfo">
+         <message kind="weave" text="Join point 'method-call(void Boo.m())' in Type 'Boo' (Boo.java:9) advised by before advice from 'X' (Boo.java:19)"/>
+       </compile>
+       <run class="Boo"/>
+     </ajc-test>
+ 
++    <ajc-test dir="bugs152/pr138158" title="not at withincode - 2">
++      <compile files="Foo.java" options="-1.5 -showWeaveInfo">
++        <message kind="weave" text="Join point 'method-call(void java.io.PrintStream.println(java.lang.String))' in Type 'Foo' (Foo.java:14) advised by before advice from 'X' (Foo.java:26)"/>
++		<message kind="weave" text="Join point 'method-call(void java.io.PrintStream.println(java.lang.String))' in Type 'Foo' (Foo.java:18) advised by before advice from 'X' (Foo.java:23)"/>
++      </compile>
++      <run class="Foo"/>
++    </ajc-test>
++    
+     <ajc-test dir="bugs152/pr137568" title="complicated generics declaration">
+       <compile files="C.java" options="-emacssym -1.5"/>
+       <run class="C"/>
+@@ -154,11 +154,8 @@ public class WithinCodeAnnotationPointcut extends NameBindingPointcut {
+ 
+ 			state.set(btp.getFormalIndex(),var);
+ 		} 
+-		return Literal.TRUE;
+-//		if (matchInternal(shadow).alwaysTrue()) 
+-//			return Literal.TRUE;
+-//		else 
+-//			return Literal.FALSE;
++		if (matchInternal(shadow).alwaysTrue()) return Literal.TRUE;
++		else 								  return Literal.FALSE;
+ 	}
+ 
+ 
+@@ -154,10 +154,11 @@ public class WithinCodeAnnotationPointcut extends NameBindingPointcut {
+ 
+ 			state.set(btp.getFormalIndex(),var);
+ 		} 
+-		if (matchInternal(shadow).alwaysTrue()) 
+-			return Literal.TRUE;
+-		else 
+-			return Literal.FALSE;
++		return Literal.TRUE;
++//		if (matchInternal(shadow).alwaysTrue()) 
++//			return Literal.TRUE;
++//		else 
++//			return Literal.FALSE;
+ 	}
+ 
+ 
+@@ -154,7 +154,10 @@ public class WithinCodeAnnotationPointcut extends NameBindingPointcut {
+ 
+ 			state.set(btp.getFormalIndex(),var);
+ 		} 
+-		return Literal.TRUE;
++		if (matchInternal(shadow).alwaysTrue()) 
++			return Literal.TRUE;
++		else 
++			return Literal.FALSE;
+ 	}
+ 
+ 

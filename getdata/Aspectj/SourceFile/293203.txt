@@ -1,0 +1,746 @@
+@@ -111,11 +111,13 @@ class BcelMethod extends ResolvedMemberImpl {
+ 
+ 	public int getLineNumberOfFirstInstruction() {
+ 		LineNumberTable lnt = method.getLineNumberTable();
+-		if (lnt == null)
++		if (lnt == null) {
+ 			return -1;
++		}
+ 		LineNumber[] lns = lnt.getLineNumberTable();
+-		if (lns == null || lns.length == 0)
++		if (lns == null || lns.length == 0) {
+ 			return -1;
++		}
+ 		return lns[0].getLineNumber();
+ 	}
+ 
+@@ -297,10 +299,11 @@ class BcelMethod extends ResolvedMemberImpl {
+ 		if ((ret == null || ret.getLine() == 0) && hasDeclarationLineNumberInfo()) {
+ 			// lets see if we can do better
+ 			ISourceContext isc = getSourceContext();
+-			if (isc != null)
++			if (isc != null) {
+ 				ret = isc.makeSourceLocation(getDeclarationLineNumber(), getDeclarationOffset());
+-			else
++			} else {
+ 				ret = new SourceLocation(null, getDeclarationLineNumber());
++			}
+ 		}
+ 		return ret;
+ 	}
+@@ -346,11 +349,13 @@ class BcelMethod extends ResolvedMemberImpl {
+ 	@Override
+ 	public AnnotationAJ getAnnotationOfType(UnresolvedType ofType) {
+ 		ensureAnnotationsRetrieved();
+-		if ((bitflags & HAS_ANNOTATIONS) == 0)
++		if ((bitflags & HAS_ANNOTATIONS) == 0) {
+ 			return null;
++		}
+ 		for (int i = 0; i < annotations.length; i++) {
+-			if (annotations[i].getTypeName().equals(ofType.getName()))
++			if (annotations[i].getTypeName().equals(ofType.getName())) {
+ 				return annotations[i];
++			}
+ 		}
+ 		return null;
+ 	}
+@@ -407,10 +412,12 @@ class BcelMethod extends ResolvedMemberImpl {
+ 	}
+ 
+ 	private void ensureAnnotationsRetrieved() {
+-		if (method == null)
++		if (method == null) {
+ 			return; // must be ok, we have evicted it
+-		if ((bitflags & HAVE_DETERMINED_ANNOTATIONS) != 0)
++		}
++		if ((bitflags & HAVE_DETERMINED_ANNOTATIONS) != 0) {
+ 			return;
++		}
+ 		bitflags |= HAVE_DETERMINED_ANNOTATIONS;
+ 
+ 		AnnotationGen annos[] = method.getAnnotations();
+@@ -429,8 +436,9 @@ class BcelMethod extends ResolvedMemberImpl {
+ 	}
+ 
+ 	private void ensureParameterAnnotationsRetrieved() {
+-		if (method == null)
++		if (method == null) {
+ 			return; // must be ok, we have evicted it
++		}
+ 		AnnotationGen[][] pAnns = method.getParameterAnnotations();
+ 		if (parameterAnnotationTypes == null || pAnns.length != parameterAnnotationTypes.length) {
+ 			if (pAnns == Method.NO_PARAMETER_ANNOTATIONS) {
+@@ -441,12 +449,18 @@ class BcelMethod extends ResolvedMemberImpl {
+ 				parameterAnnotations = new AnnotationAJ[annos.length][];
+ 				parameterAnnotationTypes = new ResolvedType[annos.length][];
+ 				for (int i = 0; i < annos.length; i++) {
+-					parameterAnnotations[i] = new AnnotationAJ[annos[i].length];
+-					parameterAnnotationTypes[i] = new ResolvedType[annos[i].length];
+-					for (int j = 0; j < annos[i].length; j++) {
+-						parameterAnnotations[i][j] = new BcelAnnotation(annos[i][j], bcelObjectType.getWorld());
+-						parameterAnnotationTypes[i][j] = bcelObjectType.getWorld().resolve(
+-								UnresolvedType.forSignature(annos[i][j].getTypeSignature()));
++					AnnotationGen[] annosOnThisParam = annos[i];
++					if (annos[i].length == 0) {
++						parameterAnnotations[i] = AnnotationAJ.EMPTY_ARRAY;
++						parameterAnnotationTypes[i] = ResolvedType.NONE;
++					} else {
++						parameterAnnotations[i] = new AnnotationAJ[annosOnThisParam.length];
++						parameterAnnotationTypes[i] = new ResolvedType[annosOnThisParam.length];
++						for (int j = 0; j < annosOnThisParam.length; j++) {
++							parameterAnnotations[i][j] = new BcelAnnotation(annosOnThisParam[j], bcelObjectType.getWorld());
++							parameterAnnotationTypes[i][j] = bcelObjectType.getWorld().resolve(
++									UnresolvedType.forSignature(annosOnThisParam[j].getTypeSignature()));
++						}
+ 					}
+ 				}
+ 			}
+@@ -590,13 +604,15 @@ class BcelMethod extends ResolvedMemberImpl {
+ 	// Pre Java5 synthetic is an attribute 'Synthetic', post Java5 it is a
+ 	// modifier (4096 or 0x1000)
+ 	private void workOutIfSynthetic() {
+-		if ((bitflags & KNOW_IF_SYNTHETIC) != 0)
++		if ((bitflags & KNOW_IF_SYNTHETIC) != 0) {
+ 			return;
++		}
+ 		bitflags |= KNOW_IF_SYNTHETIC;
+ 		JavaClass jc = bcelObjectType.getJavaClass();
+ 		bitflags &= IS_SYNTHETIC_INVERSE; // unset the bit
+-		if (jc == null)
++		if (jc == null) {
+ 			return; // what the hell has gone wrong?
++		}
+ 		if (jc.getMajor() < 49/* Java5 */) {
+ 			// synthetic is an attribute
+ 			String[] synthetics = getAttributeNames(false);
+@@ -627,8 +643,9 @@ class BcelMethod extends ResolvedMemberImpl {
+ 	// to do a full build
+ 	@Override
+ 	public boolean isEquivalentTo(Object other) {
+-		if (!(other instanceof BcelMethod))
++		if (!(other instanceof BcelMethod)) {
+ 			return false;
++		}
+ 		BcelMethod o = (BcelMethod) other;
+ 		return getMethod().getCode().getCodeString().equals(o.getMethod().getCode().getCodeString());
+ 	}
+@@ -0,0 +1,16 @@
++public class Foo {
++  public void m(int i,@Anno String s,int j) {}
++
++  public static void main(String []argv) {
++    new Foo().m(1,"A",2);
++  }
++}
++
++@interface Anno {}
++
++aspect X {
++  before(): execution(* *(..,String,..)) {System.out.println("advice");}
++  before(): execution(* *(..,@Anno (String),..)) {System.out.println("advice");}
++  before(): execution(* *(*,@Anno (String),*)) {System.out.println("advice");}
++}
++
+@@ -18,6 +18,10 @@ import org.aspectj.testing.XMLBasedAjcTestCase;
+ 
+ public class Ajc167Tests extends org.aspectj.testing.XMLBasedAjcTestCase {
+ 
++	public void testAnnoMatching_pr293203() {
++		runTest("anno matching");
++	}
++
+ 	public void testScalaOuterClassNames_pr288064() {
+ 		runTest("outer class names - scala");
+ 	}
+@@ -32,6 +36,7 @@ public class Ajc167Tests extends org.aspectj.testing.XMLBasedAjcTestCase {
+ 		return XMLBasedAjcTestCase.loadSuite(Ajc167Tests.class);
+ 	}
+ 
++	@Override
+ 	protected File getSpecFile() {
+ 		return new File("../tests/src/org/aspectj/systemtest/ajc167/ajc167.xml");
+ 	}
+@@ -2,6 +2,17 @@
+ 
+ <suite>
+ 
++  <ajc-test dir="bugs167/pr293203" title="anno matching">
++     <compile files="Foo.java" options="-1.5"/>
++     <run class="Foo">
++       <stdout>
++         <line text="advice"/>
++         <line text="advice"/>
++         <line text="advice"/>
++       </stdout>
++     </run>
++  </ajc-test>
++  
+   <ajc-test dir="bugs167/pr288064" title="outer class names - scala">
+      <compile files="Main.java Outer.java Aspect.java" options="-1.5"/>
+      <run class="test.Main">
+@@ -10,7 +10,6 @@
+  *     PARC     initial implementation 
+  * ******************************************************************/
+ 
+-
+ package org.aspectj.weaver.patterns;
+ 
+ import java.io.DataOutputStream;
+@@ -31,13 +30,19 @@ import org.aspectj.weaver.World;
+ public class TypePatternList extends PatternNode {
+ 	private TypePattern[] typePatterns;
+ 	int ellipsisCount = 0;
+-	
+-	public static final TypePatternList EMPTY =
+-		new TypePatternList(new TypePattern[] {});
+-	
+-	public static final TypePatternList ANY =
+-	    new TypePatternList(new TypePattern[] {new EllipsisTypePattern()});  //can't use TypePattern.ELLIPSIS because of circular static dependency that introduces
+-	
++
++	public static final TypePatternList EMPTY = new TypePatternList(new TypePattern[] {});
++
++	public static final TypePatternList ANY = new TypePatternList(new TypePattern[] { new EllipsisTypePattern() }); // can't use
++
++	// TypePattern.ELLIPSIS
++	// because of
++	// circular
++	// static
++	// dependency
++	// that
++	// introduces
++
+ 	public TypePatternList() {
+ 		typePatterns = new TypePattern[0];
+ 		ellipsisCount = 0;
+@@ -45,181 +50,236 @@ public class TypePatternList extends PatternNode {
+ 
+ 	public TypePatternList(TypePattern[] arguments) {
+ 		this.typePatterns = arguments;
+-		for (int i=0; i<arguments.length; i++) {
+-			if (arguments[i] == TypePattern.ELLIPSIS) ellipsisCount++;
++		for (int i = 0; i < arguments.length; i++) {
++			if (arguments[i] == TypePattern.ELLIPSIS) {
++				ellipsisCount++;
++			}
+ 		}
+ 	}
+-	
++
+ 	public TypePatternList(List l) {
+ 		this((TypePattern[]) l.toArray(new TypePattern[l.size()]));
+ 	}
+-	
+-	public int size() { return typePatterns.length; }
+-	
++
++	public int size() {
++		return typePatterns.length;
++	}
++
+ 	public TypePattern get(int index) {
+ 		return typePatterns[index];
+ 	}
+ 
+-    public String toString() {
+-    	StringBuffer buf = new StringBuffer();
+-    	buf.append("(");
+-    	for (int i=0, len=typePatterns.length; i < len; i++) {
+-    		TypePattern type = typePatterns[i];
+-    		if (i > 0) buf.append(", ");
+-    		if (type == TypePattern.ELLIPSIS) {
+-    			buf.append("..");
+-    		} else {
+-    			buf.append(type.toString());
+-    		}
+-    	}
+-    	buf.append(")");
+-    	return buf.toString();
+-    }
+-       
+-    /*
+-     * return true iff this pattern could ever match a signature with the
+-     * given number of parameters
+-     */
+-    public boolean canMatchSignatureWithNParameters(int numParams) {
+-    	if (ellipsisCount == 0) {
+-    		return numParams == size();
+-    	} else {
+-    		return (size() -ellipsisCount) <= numParams;
+-    	}
+-    }
+-    public FuzzyBoolean matches(ResolvedType[] types, TypePattern.MatchKind kind) {
+-    	return matches(types,kind,null);
+-    }
+-    
+-    //XXX shares much code with WildTypePattern and with NamePattern
+-    /**
+-     * When called with TypePattern.STATIC this will always return either
+-     * FuzzyBoolean.YES or FuzzyBoolean.NO.
+-     * 
+-     * When called with TypePattern.DYNAMIC this could return MAYBE if
+-     * at runtime it would be possible for arguments of the given static
+-     * types to dynamically match this, but it is not known for certain.
+-     * 
+-     * This method will never return FuzzyBoolean.NEVER
+-     */ 
+-    public FuzzyBoolean matches(ResolvedType[] types, TypePattern.MatchKind kind, ResolvedType[][] parameterAnnotations) {
+-    	int nameLength = types.length;
++	@Override
++	public String toString() {
++		StringBuffer buf = new StringBuffer();
++		buf.append("(");
++		for (int i = 0, len = typePatterns.length; i < len; i++) {
++			TypePattern type = typePatterns[i];
++			if (i > 0) {
++				buf.append(", ");
++			}
++			if (type == TypePattern.ELLIPSIS) {
++				buf.append("..");
++			} else {
++				buf.append(type.toString());
++			}
++		}
++		buf.append(")");
++		return buf.toString();
++	}
++
++	/*
++	 * return true iff this pattern could ever match a signature with the given number of parameters
++	 */
++	public boolean canMatchSignatureWithNParameters(int numParams) {
++		if (ellipsisCount == 0) {
++			return numParams == size();
++		} else {
++			return (size() - ellipsisCount) <= numParams;
++		}
++	}
++
++	public FuzzyBoolean matches(ResolvedType[] types, TypePattern.MatchKind kind) {
++		return matches(types, kind, null);
++	}
++
++	// XXX shares much code with WildTypePattern and with NamePattern
++	/**
++	 * When called with TypePattern.STATIC this will always return either FuzzyBoolean.YES or FuzzyBoolean.NO.
++	 * 
++	 * When called with TypePattern.DYNAMIC this could return MAYBE if at runtime it would be possible for arguments of the given
++	 * static types to dynamically match this, but it is not known for certain.
++	 * 
++	 * This method will never return FuzzyBoolean.NEVER
++	 */
++	public FuzzyBoolean matches(ResolvedType[] types, TypePattern.MatchKind kind, ResolvedType[][] parameterAnnotations) {
++		int nameLength = types.length;
+ 		int patternLength = typePatterns.length;
+-		
++
+ 		int nameIndex = 0;
+ 		int patternIndex = 0;
+-		
++
+ 		if (ellipsisCount == 0) {
+-			if (nameLength != patternLength) return FuzzyBoolean.NO;
++			if (nameLength != patternLength) {
++				return FuzzyBoolean.NO;
++			}
+ 			FuzzyBoolean finalReturn = FuzzyBoolean.YES;
+ 			while (patternIndex < patternLength) {
+ 				ResolvedType t = types[nameIndex];
+ 				FuzzyBoolean ret = null;
+ 				try {
+-				  if (parameterAnnotations!=null) t.temporaryAnnotationTypes = parameterAnnotations[nameIndex];
+-			      ret = typePatterns[patternIndex].matches(t,kind);
++					if (parameterAnnotations != null) {
++						t.temporaryAnnotationTypes = parameterAnnotations[nameIndex];
++					}
++					ret = typePatterns[patternIndex].matches(t, kind);
+ 				} finally {
+-					t.temporaryAnnotationTypes=null;
++					t.temporaryAnnotationTypes = null;
+ 				}
+ 				patternIndex++;
+ 				nameIndex++;
+-				if (ret == FuzzyBoolean.NO) return ret;
+-				if (ret == FuzzyBoolean.MAYBE) finalReturn = ret;
++				if (ret == FuzzyBoolean.NO) {
++					return ret;
++				}
++				if (ret == FuzzyBoolean.MAYBE) {
++					finalReturn = ret;
++				}
+ 			}
+ 			return finalReturn;
+ 		} else if (ellipsisCount == 1) {
+-			if (nameLength < patternLength-1) return FuzzyBoolean.NO;
++			if (nameLength < patternLength - 1) {
++				return FuzzyBoolean.NO;
++			}
+ 			FuzzyBoolean finalReturn = FuzzyBoolean.YES;
+ 			while (patternIndex < patternLength) {
+ 				TypePattern p = typePatterns[patternIndex++];
+ 				if (p == TypePattern.ELLIPSIS) {
+-					nameIndex = nameLength - (patternLength-patternIndex);
++					nameIndex = nameLength - (patternLength - patternIndex);
+ 				} else {
+ 					ResolvedType t = types[nameIndex];
+ 					FuzzyBoolean ret = null;
+ 					try {
+-						if (parameterAnnotations!=null) t.temporaryAnnotationTypes = parameterAnnotations[nameIndex];
+-					    ret = p.matches(t, kind);
++						if (parameterAnnotations != null) {
++							t.temporaryAnnotationTypes = parameterAnnotations[nameIndex];
++						}
++						ret = p.matches(t, kind);
+ 					} finally {
+-						t.temporaryAnnotationTypes=null;
++						t.temporaryAnnotationTypes = null;
+ 					}
+ 					nameIndex++;
+-				    if (ret == FuzzyBoolean.NO) return ret;
+-				    if (ret == FuzzyBoolean.MAYBE) finalReturn = ret;
++					if (ret == FuzzyBoolean.NO) {
++						return ret;
++					}
++					if (ret == FuzzyBoolean.MAYBE) {
++						finalReturn = ret;
++					}
+ 				}
+ 			}
+ 			return finalReturn;
+ 		} else {
+-//            System.err.print("match(" + arguments + ", " + types + ") -> ");
+-            FuzzyBoolean b =  outOfStar(typePatterns, types, 0, 0, patternLength - ellipsisCount, nameLength, ellipsisCount, kind);
+-//            System.err.println(b);
+-            return b;
+-    	}
+-    }
+-    
+-    private static FuzzyBoolean outOfStar(final TypePattern[] pattern, final ResolvedType[] target, 
+-                                                  int           pi,            int    ti, 
+-                                                  int           pLeft,         int    tLeft,
+-                                           final int           starsLeft, TypePattern.MatchKind kind) {
+-        if (pLeft > tLeft) return FuzzyBoolean.NO;
+-        FuzzyBoolean finalReturn = FuzzyBoolean.YES;
+-        while (true) {
+-            // invariant: if (tLeft > 0) then (ti < target.length && pi < pattern.length) 
+-            if (tLeft == 0) return finalReturn;
+-            if (pLeft == 0) {
+-                if (starsLeft > 0) {
+-                    return finalReturn;
+-                } else {
+-                    return FuzzyBoolean.NO;
+-                }
+-            }
+-            if (pattern[pi] == TypePattern.ELLIPSIS) {
+-                return inStar(pattern, target, pi+1, ti, pLeft, tLeft, starsLeft-1, kind);
+-            }
+-            FuzzyBoolean ret = pattern[pi].matches(target[ti], kind);
+-            if (ret == FuzzyBoolean.NO) return ret;
+-            if (ret == FuzzyBoolean.MAYBE) finalReturn = ret;
+-            pi++; ti++; pLeft--; tLeft--;
+-        }
+-    }    
+-    private static FuzzyBoolean inStar(final TypePattern[] pattern, final ResolvedType[] target, 
+-                                               int           pi,             int    ti, 
+-                                         final int           pLeft,         int    tLeft,
+-                                               int    starsLeft,     TypePattern.MatchKind kind) {
+-        // invariant: pLeft > 0, so we know we'll run out of stars and find a real char in pattern
+-        TypePattern patternChar = pattern[pi];
+-        while (patternChar == TypePattern.ELLIPSIS) {
+-            starsLeft--;
+-            patternChar = pattern[++pi];
+-        }
+-        while (true) {
+-            // invariant: if (tLeft > 0) then (ti < target.length)
+-            if (pLeft > tLeft) return FuzzyBoolean.NO;
+-            FuzzyBoolean ff = patternChar.matches(target[ti], kind);
+-            if (ff.maybeTrue()) {
+-                FuzzyBoolean xx = outOfStar(pattern, target, pi+1, ti+1, pLeft-1, tLeft-1, starsLeft, kind);
+-                if (xx.maybeTrue()) return ff.and(xx);
+-            } 
+-            ti++; tLeft--;
+-        }
+-    }
+-      
+-    /**
+-     * Return a version of this type pattern list in which all type variable references
+-     * are replaced by their corresponding entry in the map
+-     * @param typeVariableMap
+-     * @return
+-     */
+-    public TypePatternList parameterizeWith(Map typeVariableMap,World w) {
+-    	TypePattern[] parameterizedPatterns = new TypePattern[typePatterns.length];
+-    	for (int i = 0; i < parameterizedPatterns.length; i++) {
+-			parameterizedPatterns[i] = typePatterns[i].parameterizeWith(typeVariableMap,w);
++			// System.err.print("match(" + arguments + ", " + types + ") -> ");
++			FuzzyBoolean b = outOfStar(typePatterns, types, 0, 0, patternLength - ellipsisCount, nameLength, ellipsisCount, kind,
++					parameterAnnotations);
++			// System.err.println(b);
++			return b;
++		}
++	}
++
++	private static FuzzyBoolean outOfStar(final TypePattern[] pattern, final ResolvedType[] target, int pi, int ti, int pLeft,
++			int tLeft, final int starsLeft, TypePattern.MatchKind kind, ResolvedType[][] parameterAnnotations) {
++		if (pLeft > tLeft) {
++			return FuzzyBoolean.NO;
++		}
++		FuzzyBoolean finalReturn = FuzzyBoolean.YES;
++		while (true) {
++			// invariant: if (tLeft > 0) then (ti < target.length && pi < pattern.length)
++			if (tLeft == 0) {
++				return finalReturn;
++			}
++			if (pLeft == 0) {
++				if (starsLeft > 0) {
++					return finalReturn;
++				} else {
++					return FuzzyBoolean.NO;
++				}
++			}
++			if (pattern[pi] == TypePattern.ELLIPSIS) {
++				return inStar(pattern, target, pi + 1, ti, pLeft, tLeft, starsLeft - 1, kind, parameterAnnotations);
++			}
++			FuzzyBoolean ret = null;
++			try {
++				if (parameterAnnotations != null) {
++					target[ti].temporaryAnnotationTypes = parameterAnnotations[ti];
++				}
++				ret = pattern[pi].matches(target[ti], kind);
++			} finally {
++				target[ti].temporaryAnnotationTypes = null;
++			}
++			if (ret == FuzzyBoolean.NO) {
++				return ret;
++			}
++			if (ret == FuzzyBoolean.MAYBE) {
++				finalReturn = ret;
++			}
++			pi++;
++			ti++;
++			pLeft--;
++			tLeft--;
++		}
++	}
++
++	private static FuzzyBoolean inStar(final TypePattern[] pattern, final ResolvedType[] target, int pi, int ti, final int pLeft,
++			int tLeft, int starsLeft, TypePattern.MatchKind kind, ResolvedType[][] parameterAnnotations) {
++		// invariant: pLeft > 0, so we know we'll run out of stars and find a real char in pattern
++		TypePattern patternChar = pattern[pi];
++		while (patternChar == TypePattern.ELLIPSIS) {
++			starsLeft--;
++			patternChar = pattern[++pi];
+ 		}
+-    	return new TypePatternList(parameterizedPatterns);
+-    }
+-    
++		while (true) {
++			// invariant: if (tLeft > 0) then (ti < target.length)
++			if (pLeft > tLeft) {
++				return FuzzyBoolean.NO;
++			}
++
++			FuzzyBoolean ff = null;
++			try {
++				if (parameterAnnotations != null) {
++					target[ti].temporaryAnnotationTypes = parameterAnnotations[ti];
++				}
++				ff = patternChar.matches(target[ti], kind);
++			} finally {
++				target[ti].temporaryAnnotationTypes = null;
++			}
++
++			if (ff.maybeTrue()) {
++				FuzzyBoolean xx = outOfStar(pattern, target, pi + 1, ti + 1, pLeft - 1, tLeft - 1, starsLeft, kind,
++						parameterAnnotations);
++				if (xx.maybeTrue()) {
++					return ff.and(xx);
++				}
++			}
++			ti++;
++			tLeft--;
++		}
++	}
++
++	/**
++	 * Return a version of this type pattern list in which all type variable references are replaced by their corresponding entry in
++	 * the map
++	 * 
++	 * @param typeVariableMap
++	 * @return
++	 */
++	public TypePatternList parameterizeWith(Map typeVariableMap, World w) {
++		TypePattern[] parameterizedPatterns = new TypePattern[typePatterns.length];
++		for (int i = 0; i < parameterizedPatterns.length; i++) {
++			parameterizedPatterns[i] = typePatterns[i].parameterizeWith(typeVariableMap, w);
++		}
++		return new TypePatternList(parameterizedPatterns);
++	}
++
+ 	public TypePatternList resolveBindings(IScope scope, Bindings bindings, boolean allowBinding, boolean requireExactType) {
+-		for (int i=0; i<typePatterns.length; i++) {
++		for (int i = 0; i < typePatterns.length; i++) {
+ 			TypePattern p = typePatterns[i];
+ 			if (p != null) {
+ 				typePatterns[i] = typePatterns[i].resolveBindings(scope, bindings, allowBinding, requireExactType);
+@@ -227,47 +287,54 @@ public class TypePatternList extends PatternNode {
+ 		}
+ 		return this;
+ 	}
+-	
++
+ 	public TypePatternList resolveReferences(IntMap bindings) {
+ 		int len = typePatterns.length;
+ 		TypePattern[] ret = new TypePattern[len];
+-		for (int i=0; i < len; i++) {
++		for (int i = 0; i < len; i++) {
+ 			ret[i] = typePatterns[i].remapAdviceFormals(bindings);
+ 		}
+ 		return new TypePatternList(ret);
+ 	}
+ 
+ 	public void postRead(ResolvedType enclosingType) {
+-		for (int i=0; i<typePatterns.length; i++) {
++		for (int i = 0; i < typePatterns.length; i++) {
+ 			TypePattern p = typePatterns[i];
+ 			p.postRead(enclosingType);
+ 		}
+ 	}
+-	
+ 
++	@Override
+ 	public boolean equals(Object other) {
+-		if (!(other instanceof TypePatternList)) return false;
+-		TypePatternList o = (TypePatternList)other;
++		if (!(other instanceof TypePatternList)) {
++			return false;
++		}
++		TypePatternList o = (TypePatternList) other;
+ 		int len = o.typePatterns.length;
+-		if (len != this.typePatterns.length) return false;
+-		for (int i=0; i<len; i++) {
+-			if (!this.typePatterns[i].equals(o.typePatterns[i])) return false;
++		if (len != this.typePatterns.length) {
++			return false;
++		}
++		for (int i = 0; i < len; i++) {
++			if (!this.typePatterns[i].equals(o.typePatterns[i])) {
++				return false;
++			}
+ 		}
+ 		return true;
+ 	}
+-    public int hashCode() {
+-        int result = 41;
+-        for (int i = 0, len = typePatterns.length; i < len; i++) {
+-            result = 37*result + typePatterns[i].hashCode();
+-        }
+-        return result;
+-    }
+-    
+-
+-	public static TypePatternList read(VersionedDataInputStream s, ISourceContext context) throws IOException  {
++
++	@Override
++	public int hashCode() {
++		int result = 41;
++		for (int i = 0, len = typePatterns.length; i < len; i++) {
++			result = 37 * result + typePatterns[i].hashCode();
++		}
++		return result;
++	}
++
++	public static TypePatternList read(VersionedDataInputStream s, ISourceContext context) throws IOException {
+ 		short len = s.readShort();
+ 		TypePattern[] arguments = new TypePattern[len];
+-		for (int i=0; i<len; i++) {
++		for (int i = 0; i < len; i++) {
+ 			arguments[i] = TypePattern.read(s, context);
+ 		}
+ 		TypePatternList ret = new TypePatternList(arguments);
+@@ -275,35 +342,40 @@ public class TypePatternList extends PatternNode {
+ 		return ret;
+ 	}
+ 
+-
++	@Override
+ 	public void write(DataOutputStream s) throws IOException {
+ 		s.writeShort(typePatterns.length);
+-		for (int i=0; i<typePatterns.length; i++) {
++		for (int i = 0; i < typePatterns.length; i++) {
+ 			typePatterns[i].write(s);
+ 		}
+ 		writeLocation(s);
+ 	}
+-    public TypePattern[] getTypePatterns() {
+-        return typePatterns;
+-    }
++
++	public TypePattern[] getTypePatterns() {
++		return typePatterns;
++	}
+ 
+ 	public Collection getExactTypes() {
+ 		ArrayList ret = new ArrayList();
+-		for (int i=0; i<typePatterns.length; i++) {
++		for (int i = 0; i < typePatterns.length; i++) {
+ 			UnresolvedType t = typePatterns[i].getExactType();
+-			if (!ResolvedType.isMissing(t)) ret.add(t);
++			if (!ResolvedType.isMissing(t)) {
++				ret.add(t);
++			}
+ 		}
+ 		return ret;
+ 	}
+ 
+-    public Object accept(PatternNodeVisitor visitor, Object data) {
+-        return visitor.visit(this, data);
+-    }
+-	
++	@Override
++	public Object accept(PatternNodeVisitor visitor, Object data) {
++		return visitor.visit(this, data);
++	}
++
++	@Override
+ 	public Object traverse(PatternNodeVisitor visitor, Object data) {
+-		Object ret = accept(visitor,data);
++		Object ret = accept(visitor, data);
+ 		for (int i = 0; i < typePatterns.length; i++) {
+-			typePatterns[i].traverse(visitor,ret);
++			typePatterns[i].traverse(visitor, ret);
+ 		}
+ 		return ret;
+ 	}
+@@ -315,19 +387,23 @@ public class TypePatternList extends PatternNode {
+ 				return false;
+ 			} else {
+ 				ExactTypePattern etp = (ExactTypePattern) array_element;
+-				if (etp.isIncludeSubtypes()) return false;
++				if (etp.isIncludeSubtypes()) {
++					return false;
++				}
+ 			}
+ 		}
+ 		return true;
+ 	}
+ 
+ 	public String[] maybeGetCleanNames() {
+-      String[] theParamNames = new String[typePatterns.length];
+-	  for (int i = 0; i < typePatterns.length; i++) {
+-		TypePattern string = typePatterns[i];
+-		if (!(string instanceof ExactTypePattern)) return null;
+-		theParamNames[i] = ((ExactTypePattern)string).getExactType().getName();
+-	  }
+-	  return theParamNames;
++		String[] theParamNames = new String[typePatterns.length];
++		for (int i = 0; i < typePatterns.length; i++) {
++			TypePattern string = typePatterns[i];
++			if (!(string instanceof ExactTypePattern)) {
++				return null;
++			}
++			theParamNames[i] = ((ExactTypePattern) string).getExactType().getName();
++		}
++		return theParamNames;
+ 	}
+ }

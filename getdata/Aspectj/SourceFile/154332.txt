@@ -1,0 +1,80 @@
+@@ -0,0 +1,45 @@
++import java.lang.annotation.*;
++
++@Deprecated @Marker
++
++public aspect Annot {
++
++ 
++
++    pointcut test() : within(@Marker *);// *);
++
++   
++
++    declare warning: staticinitialization(@Deprecated *): "deprecated";   
++
++    declare warning: staticinitialization(@Marker *): "marker";   
++
++   
++
++    public static void main(String argz[]) {
++
++        new Baz().foo();
++
++    }
++
++}
++
++ 
++
++@Deprecated @Marker
++
++class Baz {
++
++    public void foo() {}
++
++}
++
++ 
++
++@Retention(RetentionPolicy.RUNTIME)
++
++ @interface Marker {
++
++ 
++
++}
+\ No newline at end of file
+@@ -27,6 +27,7 @@ public class Ajc153Tests extends org.aspectj.testing.XMLBasedAjcTestCase {
+   // public void testArgnamesAndJavac_pr148381() { runTest("argNames and javac");}
+   // public void testCFlowXMLAspectLTW_pr149096() { runTest("cflow xml concrete aspect"); }
+   // public void testAmbiguousBinding_pr121805() { runTest("ambiguous binding");}
++	public void testIncorrectDeprecatedAnnotationProcessing_pr154332() { runTest("incorrect deprecated annotation processing");}
+   public void testPipeliningProblemWithAnnotationsDecp_pr153380_1() { runTest("pipelining decps");}
+   public void testUnwantedPointcutWarning_pr148219() { runTest("unwanted warning for pointcut");}
+   public void testDecpAndCflowadderMungerClash_pr152631() { runTest("decp and cflowadder munger clash");}
+@@ -23,6 +23,15 @@
+       </compile>
+     </ajc-test>
+ 
++    <ajc-test dir="bugs153/pr154332" title="incorrect deprecated annotation processing">
++      <compile files="Annot.java" options="-1.5">
++        <message kind="warning" line="5" text="marker"/>
++        <message kind="warning" line="31" text="marker"/>
++        <message kind="warning" line="5" text="deprecated"/>
++        <message kind="warning" line="31" text="deprecated"/>
++      </compile>
++    </ajc-test>
++    
+     <ajc-test dir="bugs153/pr148381" title="argNames and javac">
+       <!--compile files="C.java" options="-1.5"/>
+       <compile files="A.java" options="-1.5"/-->
+@@ -641,7 +641,7 @@ public class BcelObjectType extends AbstractReferenceTypeDelegate {
+ 	    		annotations     = new AnnotationX[annos.length];
+ 	    		for (int i = 0; i < annos.length; i++) {
+ 					Annotation annotation = annos[i];
+-					annotationTypes[i] = w.resolve(UnresolvedType.forName(annotation.getTypeName()));
++					annotationTypes[i] = w.resolve(UnresolvedType.forSignature(annotation.getTypeSignature()));
+ 					annotations[i]     = new AnnotationX(annotation,w);
+ 				}
+     		}

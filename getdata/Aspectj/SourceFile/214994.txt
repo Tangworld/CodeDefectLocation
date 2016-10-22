@@ -1,0 +1,56 @@
+@@ -845,6 +845,9 @@ public class EclipseFactory {
+ 		if (aliases!=null && aliases.size()!=0) {
+ 			int i=0;
+ 			ReferenceBinding aliasTarget = (ReferenceBinding)makeTypeBinding(aliasTargetType);
++			if (aliasTarget.isRawType()) {
++			    aliasTarget = ((RawTypeBinding) aliasTarget).genericType();
++            }
+ 			for (Iterator iter = aliases.iterator(); iter.hasNext();) {
+ 				String element = (String) iter.next();
+ 				typeVariableToTypeBinding.put(element,aliasTarget.typeVariables()[i++]);
+@@ -0,0 +1,22 @@
++import java.util.*;
++
++interface Item {}
++interface Container {}
++interface CompositeItem<T> {}
++interface CompositeContainer<T extends CompositeItem> {}
++
++public abstract aspect Broke<Item, Container> {
++
++  private C CompositeItem<C>.container;
++
++  public List<I> CompositeContainer<I>.itemList = new ArrayList<I>();
++
++  public CompositeContainer<I> CompositeContainer<I>.addItem(I i) {
++    itemList.add(i);
++
++    i.container = this;
++
++    return this;
++  }
++
++}
+\ No newline at end of file
+@@ -22,6 +22,9 @@ import org.aspectj.testing.XMLBasedAjcTestCase;
+ public class Ajc160Tests extends org.aspectj.testing.XMLBasedAjcTestCase {
+ 
+ 	// AspectJ1.6.0rc1
++    public void testGenericITDs_pr214994() { 
++        runTest("generic itd");
++    }
+     public void testGenericDecpLtw_pr223605() {
+         runTest("generic decp ltw");
+     }
+@@ -3,6 +3,11 @@
+ <!-- AspectJ v1.6.0 Tests -->
+ <suite>
+ 
++
++	<ajc-test dir="bugs160/pr214994" title="generic itd">
++		<compile files="Broke.java" options="-1.5"/>
++	</ajc-test>
++
+ 	<ajc-test dir="bugs160/pr223605" title="generic decp ltw">
+ 		<compile files="GenericConfigurableBugTest.java" options="-1.5"><!-- -showWeaveInfo"-->
+ 		</compile>

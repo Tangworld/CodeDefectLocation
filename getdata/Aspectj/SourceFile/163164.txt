@@ -1,0 +1,62 @@
+@@ -67,10 +67,6 @@ public class Ajc163Tests extends org.aspectj.testing.XMLBasedAjcTestCase {
+ 		runTest("param annos and at args");
+ 	}
+ 
+-	// public void testAtAspectJDecp_pr164016() {
+-	// runTest("ataspectj decp");
+-	// }
+-
+ 	public void testIncorrectArgOrdering_pr219419() {
+ 		runTest("incorrect arg ordering anno style");
+ 	}
+@@ -150,14 +150,6 @@
+    	  <compile files="Ship.java ShipAccessor.java" options="-emacssym -1.5"/>
+     </ajc-test>
+ 
+-    <ajc-test dir="bugs163/pr164016" title="ataspectj decp">
+-      <compile files="Code.aj" options="-1.5"/>
+-      <run class="test.Code"/>
+-    </ajc-test>    
+-    <ajc-test dir="bugs163/pr213751" title="mixed styles">
+-   	  <compile files="Foo.java" options="-emacssym -1.5"/>
+-    </ajc-test>
+-    
+     <ajc-test dir="bugs163/pr249216" title="handles - escaped square brackets">
+    	  <compile files="Handles.java" options="-emacssym -1.5"/>
+     </ajc-test>
+@@ -18,6 +18,14 @@ import org.aspectj.testing.XMLBasedAjcTestCase;
+ 
+ public class Ajc164Tests extends org.aspectj.testing.XMLBasedAjcTestCase {
+ 
++	// public void testAtAspectJDecp_pr164016() {
++	// runTest("ataspectj decp 164016");
++	// }
++
++	// public void testAtAspectJDecp_pr258788() {
++	// runTest("ataspectj decp 258788");
++	// }
++
+ 	public static Test suite() {
+ 		return XMLBasedAjcTestCase.loadSuite(Ajc164Tests.class);
+ 	}
+@@ -2,5 +2,18 @@
+ 
+ <suite>
+ 
+-
++    <ajc-test dir="bugs163/pr164016" title="ataspectj decp 164016">
++      <compile files="Code.aj" options="-1.5"/>
++      <run class="test.Code"/>
++    </ajc-test>    
++    
++    <ajc-test dir="bugs163/pr258788" title="ataspectj decp 258788">
++      <compile files="NameAware.java NameManager.java NameManagerImpl.java StartClass.java TargetClass.java TestAspect.java" options="-1.5"/>
++      <run class="com.StartClass"/>
++    </ajc-test>    
++    
++    <ajc-test dir="bugs163/pr213751" title="mixed styles">
++   	  <compile files="Foo.java" options="-emacssym -1.5"/>
++    </ajc-test>
++    
+ </suite>
+\ No newline at end of file

@@ -1,0 +1,199 @@
+@@ -0,0 +1,105 @@
++/*******************************************************************************
++ * Copyright (c) 2005 Contributors.
++ * All rights reserved. 
++ * This program and the accompanying materials are made available 
++ * under the terms of the Eclipse Public License v1.0 
++ * which accompanies this distribution and is available at 
++ * http://eclipse.org/legal/epl-v10.html 
++ * 
++ * Contributors:
++ *   Alexandre Vasseur         initial implementation
++ *******************************************************************************/
++package ataspectj.bugs;
++
++import ataspectj.TestHelper;
++import junit.framework.Test;
++import junit.framework.TestCase;
++import junit.framework.TestSuite;
++import org.aspectj.lang.JoinPoint;
++import org.aspectj.lang.annotation.After;
++import org.aspectj.lang.annotation.Aspect;
++import org.aspectj.lang.annotation.Before;
++import org.aspectj.lang.annotation.Pointcut;
++
++import java.io.File;
++import java.io.FileInputStream;
++import java.io.FileOutputStream;
++import java.io.ObjectInputStream;
++import java.io.ObjectOutputStream;
++import java.util.HashMap;
++import java.util.Map;
++
++/**
++ * @author <a href="mailto:alex AT gnilux DOT com">Alexandre Vasseur</a>
++ */
++public class CflowBelowStackTest extends TestCase {
++
++    public void testMe() {
++        assertTrue(true);
++    }
++
++    public static void main(String[] args) {
++        TestHelper.runAndThrowOnFailure(suite());
++    }
++
++    public static Test suite() {
++        return new TestSuite(CflowBelowStackTest.class);
++    }
++
++
++    @Aspect
++    public static class TestAspect {
++
++        @Pointcut("this(testCase) && execution(void test*())")
++        public void inTestClass(TestCase testCase) {
++        }
++
++        private Map<String, Map<String, Integer>> coverage;
++
++        @Before("cflowbelow(inTestClass(testCase)) && execution(* *(..))")
++        public void beforeMethodExecution(JoinPoint thisJoinPoint, TestCase testCase) {
++            String testname = testCase.getClass().getName();
++            String methodSignature = thisJoinPoint.getStaticPart().getSignature().toString();
++            Map<String, Integer> tests = coverage.get(methodSignature);
++            if (tests == null) {
++                tests = new HashMap<String, Integer>();
++                coverage.put(methodSignature, tests);
++            }
++            Integer count = tests.get(testname);
++            if (count == null) {
++                count = 1;
++            } else {
++                count++;
++            }
++            tests.put(testname, count);
++        }
++
++        @Before("inTestClass(testCase)")
++        public void beforeExecutingTestMethod(TestCase testCase) {
++            try {
++                File file = new File("results.ser");
++                if (file.exists()) {
++                    ObjectInputStream ois = new ObjectInputStream(new FileInputStream(file));
++                    coverage = (Map<String, Map<String, Integer>>) ois.readObject();
++                    ois.close();
++                } else {
++                    coverage = new HashMap<String, Map<String, Integer>>();
++                }
++            } catch (Exception e) {
++                e.printStackTrace();
++            }
++        }
++
++        @After("inTestClass(testCase)")
++        public void afterExecutingTestMethod(TestCase testCase) {
++            try {
++                File file = new File("results.ser");
++                ObjectOutputStream oos = new ObjectOutputStream(new FileOutputStream(file));
++                oos.writeObject(coverage);
++                oos.close();
++            } catch (Exception e) {
++                e.printStackTrace();
++            }
++        }
++    }
++}
+@@ -0,0 +1,7 @@
++<aspectj>
++    <weaver options="-1.5 -showWeaveInfo">
++    </weaver>
++    <aspects>
++        <aspect name="ataspectj.bugs.CflowBelowStackTest.TestAspect"/>
++    </aspects>
++</aspectj>
+\ No newline at end of file
+@@ -200,6 +200,10 @@ public class AtAjLTWTests extends XMLBasedAjcTestCase {
+         runTest("AppContainer");
+     }
+ 
++    public void testCflowBelowStack() {
++        runTest("CflowBelowStack");
++    }
++
+     private static class CountingFilenameFilter implements FilenameFilter {
+ 
+     	private int count;
+@@ -277,4 +277,13 @@
+             />
+         <ant file="ajc-ant.xml" target="ltw.AppContainer" verbose="true"/>
+     </ajc-test>
++
++    <ajc-test dir="java5/ataspectj" title="CflowBelowStack">
++        <compile
++            files="ataspectj/bugs/CflowBelowStackTest.java,ataspectj/TestHelper.java"
++            options="-1.5 -verbose "/>
++        <run class="ataspectj.bugs.CflowBelowStackTest" ltw="ataspectj/bugs/aop-cflowbelowstacktest.xml"/>
++    </ajc-test>
++
++
+ </suite>
+\ No newline at end of file
+@@ -595,14 +595,16 @@ public class BcelAdvice extends Advice {
+ 		}
+ 	}
+ 
+-	public BcelVar[] getExposedStateAsBcelVars() {
++	public BcelVar[] getExposedStateAsBcelVars(boolean isAround) {
+         // ATAJ aspect
+-        // the closure instantiation has the same mapping as the extracted method from wich it is called
+-        if (getConcreteAspect()!= null && getConcreteAspect().isAnnotationStyleAspect()) {
+-            return BcelVar.NONE;
++        if (isAround) {
++            // the closure instantiation has the same mapping as the extracted method from wich it is called
++            if (getConcreteAspect()!= null && getConcreteAspect().isAnnotationStyleAspect()) {
++                return BcelVar.NONE;
++            }
+         }
+ 
+-		//System.out.println("vars: " + Arrays.asList(exposedState.vars));
++        //System.out.println("vars: " + Arrays.asList(exposedState.vars));
+ 		if (exposedState == null) return BcelVar.NONE;
+ 		int len = exposedState.vars.length;
+ 		BcelVar[] ret = new BcelVar[len];
+@@ -1894,7 +1894,7 @@ public class BcelShadow extends Shadow {
+ 	      						new Type[] { }, 
+ 	      						Constants.INVOKESTATIC));
+ 			} else {
+-				BcelVar[] cflowStateVars = munger.getExposedStateAsBcelVars();
++				BcelVar[] cflowStateVars = munger.getExposedStateAsBcelVars(false);
+ 
+ 				if (cflowStateVars.length == 0) {
+ 					// This should be getting managed by a counter - lets make sure.
+@@ -1958,7 +1958,7 @@ public class BcelShadow extends Shadow {
+ 				exitInstructions.append(Utility.createGet(fact, cflowField));
+ 				if (munger.getKind() != AdviceKind.PerCflowEntry &&
+ 					munger.getKind() != AdviceKind.PerCflowBelowEntry &&
+-					munger.getExposedStateAsBcelVars().length==0) {
++					munger.getExposedStateAsBcelVars(false).length==0) {
+ 					exitInstructions
+ 					.append(
+ 						fact
+@@ -2342,7 +2342,7 @@ public class BcelShadow extends Shadow {
+ 		// we have on stack all the arguments for the ADVICE call.
+ 		// we have in frame somewhere all the arguments for the non-advice call.
+ 
+-		BcelVar[] adviceVars = munger.getExposedStateAsBcelVars();		
++		BcelVar[] adviceVars = munger.getExposedStateAsBcelVars(true);
+ 		IntMap proceedMap =  makeProceedArgumentMap(adviceVars);
+ 
+ //		System.out.println(proceedMap + " for " + this);
+@@ -2587,7 +2587,7 @@ public class BcelShadow extends Shadow {
+         		    0,
+         		    munger);
+ 
+-    	BcelVar[] adviceVars = munger.getExposedStateAsBcelVars();
++    	BcelVar[] adviceVars = munger.getExposedStateAsBcelVars(true);
+ 
+     	String closureClassName = 
+     		NameMangler.makeClosureClassName(

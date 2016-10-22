@@ -1,0 +1,2394 @@
+@@ -62,8 +62,9 @@ public class PatternParser {
+ 
+ 	public PerClause maybeParsePerClause() {
+ 		IToken tok = tokenSource.peek();
+-		if (tok == IToken.EOF)
++		if (tok == IToken.EOF) {
+ 			return null;
++		}
+ 		if (tok.isIdentifier()) {
+ 			String name = tok.getString();
+ 			if (name.equals("issingleton")) {
+@@ -196,10 +197,11 @@ public class PatternParser {
+ 		if (!isMethod && !isConstructorPattern) {
+ 			throw new ParserException("constructor signature pattern", tokenSource.peek(-1));
+ 		}
+-		if (isConstructorPattern)
++		if (isConstructorPattern) {
+ 			return new DeclareAnnotation(DeclareAnnotation.AT_CONSTRUCTOR, sp);
+-		else
++		} else {
+ 			return new DeclareAnnotation(DeclareAnnotation.AT_METHOD, sp);
++		}
+ 	}
+ 
+ 	public DeclareAnnotation parseDeclareAtField() {
+@@ -408,8 +410,9 @@ public class PatternParser {
+ 	}
+ 
+ 	private void assertNoTypeVariables(String[] tvs, String errorMessage, IToken token) {
+-		if (tvs != null)
++		if (tvs != null) {
+ 			throw new ParserException(errorMessage, token);
++		}
+ 	}
+ 
+ 	public Pointcut parseAnnotationPointcut() {
+@@ -450,8 +453,9 @@ public class PatternParser {
+ 
+ 	private SignaturePattern parseConstructorSignaturePattern() {
+ 		SignaturePattern ret = parseMethodOrConstructorSignaturePattern();
+-		if (ret.getKind() == Member.CONSTRUCTOR)
++		if (ret.getKind() == Member.CONSTRUCTOR) {
+ 			return ret;
++		}
+ 
+ 		throw new ParserException("constructor pattern required, found method pattern", ret);
+ 	}
+@@ -712,11 +716,13 @@ public class PatternParser {
+ 			}
+ 			eat(")");
+ 			boolean isVarArgs = maybeEat("...");
+-			if (isVarArgs)
++			if (isVarArgs) {
+ 				p.setIsVarArgs(isVarArgs);
++			}
+ 			boolean isIncludeSubtypes = maybeEat("+");
+-			if (isIncludeSubtypes)
++			if (isIncludeSubtypes) {
+ 				p.includeSubtypes = true; // need the test because (A+) should not set subtypes to false!
++			}
+ 			return p;
+ 		}
+ 		int startPos = tokenSource.peek().getStart();
+@@ -730,11 +736,17 @@ public class PatternParser {
+ 	private TypePattern setAnnotationPatternForTypePattern(TypePattern t, AnnotationTypePattern ap,
+ 			boolean parameterAnnotationsPattern) {
+ 		TypePattern ret = t;
+-		if (parameterAnnotationsPattern)
++		if (parameterAnnotationsPattern) {
+ 			ap.setForParameterAnnotationMatch();
++		}
+ 		if (ap != AnnotationTypePattern.ANY) {
+ 			if (t == TypePattern.ANY) {
+-				ret = new WildTypePattern(new NamePattern[] { NamePattern.ANY }, false, 0, false, null);
++				if (t.annotationPattern == AnnotationTypePattern.ANY) {
++					return new AnyWithAnnotationTypePattern(ap);
++				} else {
++					return new AnyWithAnnotationTypePattern(new AndAnnotationTypePattern(ap, t.annotationPattern));
++				}
++				// ret = new WildTypePattern(new NamePattern[] { NamePattern.ANY }, false, 0, false, null);
+ 			}
+ 			if (t.annotationPattern == AnnotationTypePattern.ANY) {
+ 				ret.setAnnotationTypePattern(ap);
+@@ -812,7 +824,7 @@ public class PatternParser {
+ 
+ 	// Parse annotation values. In an expression in @A(a=b,c=d) this method will be
+ 	// parsing the a=b,c=d.)
+-	public Map/* String,String */<String, String>parseAnnotationValues() {
++	public Map/* String,String */<String, String> parseAnnotationValues() {
+ 		Map<String, String> values = new HashMap<String, String>();
+ 		boolean seenDefaultValue = false;
+ 		do {
+@@ -844,13 +856,16 @@ public class PatternParser {
+ 	}
+ 
+ 	public TypePattern parseSingleTypePattern(boolean insideTypeParameters) {
+-		if (insideTypeParameters && maybeEat("?"))
++		if (insideTypeParameters && maybeEat("?")) {
+ 			return parseGenericsWildcardTypePattern();
++		}
+ 		if (allowHasTypePatterns) {
+-			if (maybeEatIdentifier("hasmethod"))
++			if (maybeEatIdentifier("hasmethod")) {
+ 				return parseHasMethodTypePattern();
+-			if (maybeEatIdentifier("hasfield"))
++			}
++			if (maybeEatIdentifier("hasfield")) {
+ 				return parseHasFieldTypePattern();
++			}
+ 		}
+ 
+ 		List<NamePattern> names = parseDottedNamePattern();
+@@ -875,8 +890,9 @@ public class PatternParser {
+ 		boolean isVarArgs = maybeEat("...");
+ 
+ 		// ??? what about the source location of any's????
+-		if (names.size() == 1 && names.get(0).isAny() && dim == 0 && !isVarArgs && typeParameters == null)
++		if (names.size() == 1 && names.get(0).isAny() && dim == 0 && !isVarArgs && typeParameters == null) {
+ 			return TypePattern.ANY;
++		}
+ 
+ 		// Notice we increase the dimensions if varargs is set. this is to allow type matching to
+ 		// succeed later: The actual signature at runtime of a method declared varargs is an array type of
+@@ -1031,13 +1047,15 @@ public class PatternParser {
+ 			int startPos = tokenSource.peek().getStart();
+ 			String afterDot = null;
+ 			while (true) {
+-				if (previous != null && previous.getString().equals("."))
++				if (previous != null && previous.getString().equals(".")) {
+ 					justProcessedDot = true;
++				}
+ 				tok = tokenSource.peek();
+ 				onADot = (tok.getString().equals("."));
+ 				if (previous != null) {
+-					if (!isAdjacent(previous, tok))
++					if (!isAdjacent(previous, tok)) {
+ 						break;
++					}
+ 				}
+ 				if (tok.getString() == "*" || (tok.isIdentifier() && tok.getString() != "...")) {
+ 					buf.append(tok.getString());
+@@ -1086,11 +1104,12 @@ public class PatternParser {
+ 			if (afterDot == null) {
+ 				buf.setLength(0);
+ 				// no elipsis or dotted name part
+-				if (!maybeEat("."))
++				if (!maybeEat(".")) {
+ 					break;
+-				// go on
+-				else
++					// go on
++				} else {
+ 					previous = tokenSource.peek(-1);
++				}
+ 			} else {
+ 				buf.setLength(0);
+ 				buf.append(afterDot);
+@@ -1112,22 +1131,29 @@ public class PatternParser {
+ 		while (true) {
+ 			tok = tokenSource.peek();
+ 			// keep going until we hit ')' or '=' or ','
+-			if (tok.getString() == ")" && depth == 0)
++			if (tok.getString() == ")" && depth == 0) {
+ 				break;
+-			if (tok.getString() == "=" && depth == 0)
++			}
++			if (tok.getString() == "=" && depth == 0) {
+ 				break;
+-			if (tok.getString() == "," && depth == 0)
++			}
++			if (tok.getString() == "," && depth == 0) {
+ 				break;
++			}
+ 
+ 			// keep track of nested brackets
+-			if (tok.getString() == "(")
++			if (tok.getString() == "(") {
+ 				depth++;
+-			if (tok.getString() == ")")
++			}
++			if (tok.getString() == ")") {
+ 				depth--;
+-			if (tok.getString() == "{")
++			}
++			if (tok.getString() == "{") {
+ 				depth++;
+-			if (tok.getString() == "}")
++			}
++			if (tok.getString() == "}") {
+ 				depth--;
++			}
+ 
+ 			if (tok.getString() == "." && !dotOK) {
+ 				throw new ParserException("dot not expected", tok);
+@@ -1136,10 +1162,11 @@ public class PatternParser {
+ 			tokenSource.next();
+ 			dotOK = true;
+ 		}
+-		if (buf.length() == 0)
++		if (buf.length() == 0) {
+ 			return null;
+-		else
++		} else {
+ 			return buf.toString();
++		}
+ 	}
+ 
+ 	public NamePattern parseNamePattern() {
+@@ -1150,16 +1177,18 @@ public class PatternParser {
+ 		while (true) {
+ 			tok = tokenSource.peek();
+ 			if (previous != null) {
+-				if (!isAdjacent(previous, tok))
++				if (!isAdjacent(previous, tok)) {
+ 					break;
++				}
+ 			}
+ 			if (tok.getString() == "*" || tok.isIdentifier()) {
+ 				buf.append(tok.getString());
+ 			} else if (tok.getLiteralKind() != null) {
+ 				// System.err.println("literal kind: " + tok.getString());
+ 				String s = tok.getString();
+-				if (s.indexOf('.') != -1)
++				if (s.indexOf('.') != -1) {
+ 					break;
++				}
+ 				buf.append(s); // ??? so-so
+ 			} else {
+ 				break;
+@@ -1207,12 +1236,14 @@ public class PatternParser {
+ 			isForbidden = maybeEat("!");
+ 			IToken t = tokenSource.next();
+ 			int flag = ModifiersPattern.getModifierFlag(t.getString());
+-			if (flag == -1)
++			if (flag == -1) {
+ 				break;
+-			if (isForbidden)
++			}
++			if (isForbidden) {
+ 				forbiddenFlags |= flag;
+-			else
++			} else {
+ 				requiredFlags |= flag;
++			}
+ 		}
+ 
+ 		tokenSource.setIndex(start);
+@@ -1275,10 +1306,11 @@ public class PatternParser {
+ 				boolean isForbidden = maybeEat("!");
+ 				// ???might want an error for a second ! without a paren
+ 				TypePattern p = parseTypePattern();
+-				if (isForbidden)
++				if (isForbidden) {
+ 					forbidden.add(p);
+-				else
++				} else {
+ 					required.add(p);
++				}
+ 			} while (maybeEat(","));
+ 			return new ThrowsPattern(new TypePatternList(required), new TypePatternList(forbidden));
+ 		}
+@@ -1340,14 +1372,16 @@ public class PatternParser {
+ 	private boolean maybeEatNew(TypePattern returnType) {
+ 		if (returnType instanceof WildTypePattern) {
+ 			WildTypePattern p = (WildTypePattern) returnType;
+-			if (p.maybeExtractName("new"))
++			if (p.maybeExtractName("new")) {
+ 				return true;
++			}
+ 		}
+ 		int start = tokenSource.getIndex();
+ 		if (maybeEat(".")) {
+ 			String id = maybeEatIdentifier();
+-			if (id != null && id.equals("new"))
++			if (id != null && id.equals("new")) {
+ 				return true;
++			}
+ 			tokenSource.setIndex(start);
+ 		}
+ 
+@@ -1369,8 +1403,9 @@ public class PatternParser {
+ 			name = parseNamePattern();
+ 		} else {
+ 			name = tryToExtractName(declaringType);
+-			if (name == null)
++			if (name == null) {
+ 				throw new ParserException("name pattern", tokenSource.peek());
++			}
+ 			if (declaringType.toString().equals("")) {
+ 				declaringType = TypePattern.ANY;
+ 			}
+@@ -1402,8 +1437,9 @@ public class PatternParser {
+ 	 * @return
+ 	 */
+ 	public TypeVariablePatternList maybeParseTypeVariableList() {
+-		if (!maybeEat("<"))
++		if (!maybeEat("<")) {
+ 			return null;
++		}
+ 		List<TypeVariablePattern> typeVars = new ArrayList<TypeVariablePattern>();
+ 		TypeVariablePattern t = parseTypeVariable();
+ 		typeVars.add(t);
+@@ -1419,8 +1455,9 @@ public class PatternParser {
+ 
+ 	// of the form execution<T,S,V> - allows identifiers only
+ 	public String[] maybeParseSimpleTypeVariableList() {
+-		if (!maybeEat("<"))
++		if (!maybeEat("<")) {
+ 			return null;
++		}
+ 		List<String> typeVarNames = new ArrayList<String>();
+ 		do {
+ 			typeVarNames.add(parseIdentifier());
+@@ -1432,8 +1469,9 @@ public class PatternParser {
+ 	}
+ 
+ 	public TypePatternList maybeParseTypeParameterList() {
+-		if (!maybeEat("<"))
++		if (!maybeEat("<")) {
+ 			return null;
++		}
+ 		List<TypePattern> typePats = new ArrayList<TypePattern>();
+ 		do {
+ 			TypePattern tp = parseTypePattern(true, false);
+@@ -1465,8 +1503,9 @@ public class PatternParser {
+ 			TypePattern tp = parseTypePattern();
+ 			boundsList.add(tp);
+ 		}
+-		if (boundsList.size() == 0)
++		if (boundsList.size() == 0) {
+ 			return null;
++		}
+ 		TypePattern[] ret = new TypePattern[boundsList.size()];
+ 		boundsList.toArray(ret);
+ 		return ret;
+@@ -1482,8 +1521,9 @@ public class PatternParser {
+ 		while (token.getLiteralKind().equals("string")) {
+ 			result.append(token.getString());
+ 			boolean plus = maybeEat("+");
+-			if (!plus)
++			if (!plus) {
+ 				break;
++			}
+ 			token = tokenSource.next();
+ 			if (token.getLiteralKind() == null) {
+ 				throw new ParserException("string", token);
+@@ -1515,8 +1555,9 @@ public class PatternParser {
+ 
+ 	public String parseIdentifier() {
+ 		IToken token = tokenSource.next();
+-		if (token.isIdentifier())
++		if (token.isIdentifier()) {
+ 			return token.getString();
++		}
+ 		throw new ParserException("identifier", token);
+ 	}
+ 
+@@ -112,12 +112,15 @@ public abstract class TypePattern extends PatternNode {
+ 
+ 	// answer conservatively...
+ 	protected boolean couldEverMatchSameTypesAs(TypePattern other) {
+-		if (this.includeSubtypes || other.includeSubtypes)
++		if (this.includeSubtypes || other.includeSubtypes) {
+ 			return true;
+-		if (this.annotationPattern != AnnotationTypePattern.ANY)
++		}
++		if (this.annotationPattern != AnnotationTypePattern.ANY) {
+ 			return true;
+-		if (other.annotationPattern != AnnotationTypePattern.ANY)
++		}
++		if (other.annotationPattern != AnnotationTypePattern.ANY) {
+ 			return true;
++		}
+ 		return false;
+ 	}
+ 
+@@ -135,8 +138,9 @@ public abstract class TypePattern extends PatternNode {
+ 	public final FuzzyBoolean matches(ResolvedType type, MatchKind kind) {
+ 		// FuzzyBoolean typeMatch = null;
+ 		// ??? This is part of gracefully handling missing references
+-		if (type.isMissing())
++		if (type.isMissing()) {
+ 			return FuzzyBoolean.NO;
++		}
+ 
+ 		if (kind == STATIC) {
+ 			// typeMatch = FuzzyBoolean.fromBoolean(matchesStatically(type));
+@@ -198,24 +202,27 @@ public abstract class TypePattern extends PatternNode {
+ 		// FuzzyBoolean ret = FuzzyBoolean.NO; // ??? -eh
+ 		for (Iterator i = superType.getDirectSupertypes(); i.hasNext();) {
+ 			ResolvedType superSuperType = (ResolvedType) i.next();
+-			if (matchesSubtypes(superSuperType, annotatedType))
++			if (matchesSubtypes(superSuperType, annotatedType)) {
+ 				return true;
++			}
+ 		}
+ 		return false;
+ 	}
+ 
+ 	public UnresolvedType resolveExactType(IScope scope, Bindings bindings) {
+ 		TypePattern p = resolveBindings(scope, bindings, false, true);
+-		if (!(p instanceof ExactTypePattern))
++		if (!(p instanceof ExactTypePattern)) {
+ 			return ResolvedType.MISSING;
++		}
+ 		return ((ExactTypePattern) p).getType();
+ 	}
+ 
+ 	public UnresolvedType getExactType() {
+-		if (this instanceof ExactTypePattern)
++		if (this instanceof ExactTypePattern) {
+ 			return ((ExactTypePattern) this).getType();
+-		else
++		} else {
+ 			return ResolvedType.MISSING;
++		}
+ 	}
+ 
+ 	protected TypePattern notExactType(IScope s) {
+@@ -515,6 +522,16 @@ class AnyWithAnnotationTypePattern extends TypePattern {
+ 		return b;
+ 	}
+ 
++	@Override
++	public TypePattern resolveBindings(IScope scope, Bindings bindings, boolean allowBinding, boolean requireExactType) {
++		if (requireExactType) {
++			scope.getWorld().getMessageHandler().handleMessage(
++					MessageUtil.error(WeaverMessages.format(WeaverMessages.WILDCARD_NOT_ALLOWED), getSourceLocation()));
++			return NO;
++		}
++		return super.resolveBindings(scope, bindings, allowBinding, requireExactType);
++	}
++
+ 	protected boolean matchesExactly(ResolvedType type, ResolvedType annotatedType) {
+ 		annotationPattern.resolve(type.getWorld());
+ 		return annotationPattern.matches(annotatedType).alwaysTrue();
+@@ -560,12 +577,13 @@ class AnyWithAnnotationTypePattern extends TypePattern {
+ 	}
+ 
+ 	public String toString() {
+-		return annotationPattern + " *";
++		return "(" + annotationPattern + " *)";
+ 	}
+ 
+ 	public boolean equals(Object obj) {
+-		if (!(obj instanceof AnyWithAnnotationTypePattern))
++		if (!(obj instanceof AnyWithAnnotationTypePattern)) {
+ 			return false;
++		}
+ 		AnyWithAnnotationTypePattern awatp = (AnyWithAnnotationTypePattern) obj;
+ 		return (annotationPattern.equals(awatp.annotationPattern));
+ 	}
+@@ -24,6 +24,7 @@ import org.aspectj.weaver.BCException;
+ import org.aspectj.weaver.ISourceContext;
+ import org.aspectj.weaver.ResolvedMember;
+ import org.aspectj.weaver.ResolvedType;
++import org.aspectj.weaver.UnresolvedType;
+ import org.aspectj.weaver.VersionedDataInputStream;
+ import org.aspectj.weaver.WeaverMessages;
+ import org.aspectj.weaver.World;
+@@ -31,51 +32,51 @@ import org.aspectj.weaver.AjAttribute.WeaverVersionInfo;
+ 
+ /**
+  * @author colyer
+- *
+- * TODO To change the template for this generated type comment go to
+- * Window - Preferences - Java - Code Style - Code Templates
++ * @author Andy Clement
+  */
+ public class WildAnnotationTypePattern extends AnnotationTypePattern {
+ 
+ 	private TypePattern typePattern;
+ 	private boolean resolved = false;
+ 	Map annotationValues;
+-	
+-	/**
+-	 * 
+-	 */
++
+ 	public WildAnnotationTypePattern(TypePattern typePattern) {
+ 		super();
+ 		this.typePattern = typePattern;
+ 		this.setLocation(typePattern.getSourceContext(), typePattern.start, typePattern.end);
+ 	}
+-	
++
+ 	public WildAnnotationTypePattern(TypePattern typePattern, Map annotationValues) {
+ 		super();
+ 		this.typePattern = typePattern;
+ 		this.annotationValues = annotationValues;
+ 		// PVAL make the location be from start of type pattern to end of values
+-		this.setLocation(typePattern.getSourceContext(), typePattern.start, typePattern.end);		
++		this.setLocation(typePattern.getSourceContext(), typePattern.start, typePattern.end);
+ 	}
+ 
+-    public TypePattern getTypePattern() {
+-        return typePattern;
+-    }
+-    
+-	/* (non-Javadoc)
++	public TypePattern getTypePattern() {
++		return typePattern;
++	}
++
++	/*
++	 * (non-Javadoc)
++	 * 
+ 	 * @see org.aspectj.weaver.patterns.AnnotationTypePattern#matches(org.aspectj.weaver.AnnotatedElement)
+ 	 */
+ 	public FuzzyBoolean matches(AnnotatedElement annotated) {
+-		return matches(annotated,null);
++		return matches(annotated, null);
+ 	}
+ 
+ 	/**
+ 	 * Resolve any annotation values specified, checking they are all well formed (valid names, valid values)
++	 * 
+ 	 * @param annotationType the annotation type for which the values have been specified
+ 	 * @param scope the scope within which to resolve type references (eg. Color.GREEN)
+ 	 */
+ 	protected void resolveAnnotationValues(ResolvedType annotationType, IScope scope) {
+-		if (annotationValues == null) return;
++		if (annotationValues == null) {
++			return;
++		}
+ 		// Check any values specified are OK:
+ 		// - the value names are for valid annotation fields
+ 		// - the specified values are of the correct type
+@@ -95,130 +96,117 @@ public class WildAnnotationTypePattern extends AnnotationTypePattern {
+ 						// value must be an enum reference X.Y
+ 						int pos = v.lastIndexOf(".");
+ 						if (pos == -1) {
+-							IMessage m = MessageUtil.error(
+-									WeaverMessages.format(WeaverMessages.INVALID_ANNOTATION_VALUE,v,"enum"),
+-									getSourceLocation());
+-							scope.getWorld().getMessageHandler().handleMessage(m);							
++							IMessage m = MessageUtil.error(WeaverMessages
++									.format(WeaverMessages.INVALID_ANNOTATION_VALUE, v, "enum"), getSourceLocation());
++							scope.getWorld().getMessageHandler().handleMessage(m);
+ 						} else {
+-							String typename = v.substring(0,pos);
++							String typename = v.substring(0, pos);
+ 							ResolvedType rt = scope.lookupType(typename, this).resolve(scope.getWorld());
+-							v = rt.getSignature()+v.substring(pos+1); // from 'Color.RED' to 'Lp/Color;RED'
+-							annotationValues.put(k,v);
++							v = rt.getSignature() + v.substring(pos + 1); // from 'Color.RED' to 'Lp/Color;RED'
++							annotationValues.put(k, v);
+ 						}
+ 					} else if (t.isPrimitiveType()) {
+-						if (t.getSignature()=="I") {
+-						   try {
+-							   int value = Integer.parseInt(v);
+-							   annotationValues.put(k,Integer.toString(value));
+-						   } catch (NumberFormatException nfe) {
+-							   IMessage m = MessageUtil.error(
+-										WeaverMessages.format(WeaverMessages.INVALID_ANNOTATION_VALUE,v,"int"),
+-										getSourceLocation());
+-								scope.getWorld().getMessageHandler().handleMessage(m);	
+-						   }
+-						} else if (t.getSignature()=="F") {
+-							   try {
+-								   float value = Float.parseFloat(v);
+-								   annotationValues.put(k,Float.toString(value));
+-							   } catch (NumberFormatException nfe) {
+-								   IMessage m = MessageUtil.error(
+-											WeaverMessages.format(WeaverMessages.INVALID_ANNOTATION_VALUE,v,"float"),
+-											getSourceLocation());
+-									scope.getWorld().getMessageHandler().handleMessage(m);	
+-							   }	
++						if (t.getSignature() == "I") {
++							try {
++								int value = Integer.parseInt(v);
++								annotationValues.put(k, Integer.toString(value));
++							} catch (NumberFormatException nfe) {
++								IMessage m = MessageUtil.error(WeaverMessages.format(WeaverMessages.INVALID_ANNOTATION_VALUE, v,
++										"int"), getSourceLocation());
++								scope.getWorld().getMessageHandler().handleMessage(m);
++							}
++						} else if (t.getSignature() == "F") {
++							try {
++								float value = Float.parseFloat(v);
++								annotationValues.put(k, Float.toString(value));
++							} catch (NumberFormatException nfe) {
++								IMessage m = MessageUtil.error(WeaverMessages.format(WeaverMessages.INVALID_ANNOTATION_VALUE, v,
++										"float"), getSourceLocation());
++								scope.getWorld().getMessageHandler().handleMessage(m);
++							}
+ 
+-						} else if (t.getSignature()=="Z") {
++						} else if (t.getSignature() == "Z") {
+ 							if (v.equalsIgnoreCase("true") || v.equalsIgnoreCase("false")) {
+ 								// is it ok !
+ 							} else {
+-								   IMessage m = MessageUtil.error(
+-											WeaverMessages.format(WeaverMessages.INVALID_ANNOTATION_VALUE,v,"boolean"),
+-											getSourceLocation());
+-									scope.getWorld().getMessageHandler().handleMessage(m);	
+-						   }	
+-						} else if (t.getSignature()=="S") {
+-								   try {
+-									   short value = Short.parseShort(v);
+-									   annotationValues.put(k,Short.toString(value));
+-								   } catch (NumberFormatException nfe) {
+-									   IMessage m = MessageUtil.error(
+-												WeaverMessages.format(WeaverMessages.INVALID_ANNOTATION_VALUE,v,"short"),
+-												getSourceLocation());
+-										scope.getWorld().getMessageHandler().handleMessage(m);	
+-								   }
+-						} else if (t.getSignature()=="J") {
+-							   try {
+-								   long value = Long.parseLong(v);
+-								   annotationValues.put(k,Long.toString(value));
+-							   } catch (NumberFormatException nfe) {
+-								   IMessage m = MessageUtil.error(
+-											WeaverMessages.format(WeaverMessages.INVALID_ANNOTATION_VALUE,v,"long"),
+-											getSourceLocation());
+-									scope.getWorld().getMessageHandler().handleMessage(m);	
+-							   }
+-						} else if (t.getSignature()=="D") {
+-							   try {
+-								   double value = Double.parseDouble(v);
+-								   annotationValues.put(k,Double.toString(value));
+-							   } catch (NumberFormatException nfe) {
+-								   IMessage m = MessageUtil.error(
+-											WeaverMessages.format(WeaverMessages.INVALID_ANNOTATION_VALUE,v,"double"),
+-											getSourceLocation());
+-									scope.getWorld().getMessageHandler().handleMessage(m);	
+-							   }
+-						} else if (t.getSignature()=="B") {
+-							   try {
+-								   byte value = Byte.parseByte(v);
+-								   annotationValues.put(k,Byte.toString(value));
+-							   } catch (NumberFormatException nfe) {
+-								   IMessage m = MessageUtil.error(
+-											WeaverMessages.format(WeaverMessages.INVALID_ANNOTATION_VALUE,v,"byte"),
+-											getSourceLocation());
+-									scope.getWorld().getMessageHandler().handleMessage(m);	
+-							   }
+-						} else if (t.getSignature()=="C") {
+-							if (v.length()!=3) {  // '?'
+-								  IMessage m = MessageUtil.error(
+-											WeaverMessages.format(WeaverMessages.INVALID_ANNOTATION_VALUE,v,"char"),
+-											getSourceLocation());
+-									scope.getWorld().getMessageHandler().handleMessage(m);	
++								IMessage m = MessageUtil.error(WeaverMessages.format(WeaverMessages.INVALID_ANNOTATION_VALUE, v,
++										"boolean"), getSourceLocation());
++								scope.getWorld().getMessageHandler().handleMessage(m);
++							}
++						} else if (t.getSignature() == "S") {
++							try {
++								short value = Short.parseShort(v);
++								annotationValues.put(k, Short.toString(value));
++							} catch (NumberFormatException nfe) {
++								IMessage m = MessageUtil.error(WeaverMessages.format(WeaverMessages.INVALID_ANNOTATION_VALUE, v,
++										"short"), getSourceLocation());
++								scope.getWorld().getMessageHandler().handleMessage(m);
++							}
++						} else if (t.getSignature() == "J") {
++							try {
++								long value = Long.parseLong(v);
++								annotationValues.put(k, Long.toString(value));
++							} catch (NumberFormatException nfe) {
++								IMessage m = MessageUtil.error(WeaverMessages.format(WeaverMessages.INVALID_ANNOTATION_VALUE, v,
++										"long"), getSourceLocation());
++								scope.getWorld().getMessageHandler().handleMessage(m);
++							}
++						} else if (t.getSignature() == "D") {
++							try {
++								double value = Double.parseDouble(v);
++								annotationValues.put(k, Double.toString(value));
++							} catch (NumberFormatException nfe) {
++								IMessage m = MessageUtil.error(WeaverMessages.format(WeaverMessages.INVALID_ANNOTATION_VALUE, v,
++										"double"), getSourceLocation());
++								scope.getWorld().getMessageHandler().handleMessage(m);
++							}
++						} else if (t.getSignature() == "B") {
++							try {
++								byte value = Byte.parseByte(v);
++								annotationValues.put(k, Byte.toString(value));
++							} catch (NumberFormatException nfe) {
++								IMessage m = MessageUtil.error(WeaverMessages.format(WeaverMessages.INVALID_ANNOTATION_VALUE, v,
++										"byte"), getSourceLocation());
++								scope.getWorld().getMessageHandler().handleMessage(m);
++							}
++						} else if (t.getSignature() == "C") {
++							if (v.length() != 3) { // '?'
++								IMessage m = MessageUtil.error(WeaverMessages.format(WeaverMessages.INVALID_ANNOTATION_VALUE, v,
++										"char"), getSourceLocation());
++								scope.getWorld().getMessageHandler().handleMessage(m);
+ 							} else {
+-								annotationValues.put(k,v.substring(1,2));
++								annotationValues.put(k, v.substring(1, 2));
+ 							}
+ 						} else {
+-							throw new RuntimeException("Not implemented for "+t);
++							throw new RuntimeException("Not implemented for " + t);
+ 						}
+ 					} else if (t.equals(ResolvedType.JAVA_LANG_STRING)) {
+ 						// nothing to do, it will be OK
+ 					} else {
+-						throw new RuntimeException("Compiler limitation: annotation value support not implemented for type "+t);
++						throw new RuntimeException("Compiler limitation: annotation value support not implemented for type " + t);
+ 					}
+ 				}
+ 			}
+ 			if (!validKey) {
+-				IMessage m = MessageUtil.error(
+-						WeaverMessages.format(WeaverMessages.UNKNOWN_ANNOTATION_VALUE,annotationType,k),
++				IMessage m = MessageUtil.error(WeaverMessages.format(WeaverMessages.UNKNOWN_ANNOTATION_VALUE, annotationType, k),
+ 						getSourceLocation());
+-				scope.getWorld().getMessageHandler().handleMessage(m);	
++				scope.getWorld().getMessageHandler().handleMessage(m);
+ 			}
+ 		}
+ 	}
+ 
+-
+-
+-
+-	public FuzzyBoolean matches(AnnotatedElement annotated,ResolvedType[] parameterAnnotations) {
++	public FuzzyBoolean matches(AnnotatedElement annotated, ResolvedType[] parameterAnnotations) {
+ 		if (!resolved) {
+ 			throw new IllegalStateException("Can't match on an unresolved annotation type pattern");
+ 		}
+-		if (annotationValues!=null) {
++		if (annotationValues != null) {
+ 			// PVAL improve this restriction, would allow '*(value=Color.RED)'
+ 			throw new IllegalStateException("Cannot use annotationvalues with a wild annotation pattern");
+ 		}
+ 		if (isForParameterAnnotationMatch()) {
+-			if (parameterAnnotations!=null && parameterAnnotations.length!=0) {
++			if (parameterAnnotations != null && parameterAnnotations.length != 0) {
+ 				for (int i = 0; i < parameterAnnotations.length; i++) {
+-					if (typePattern.matches(parameterAnnotations[i],TypePattern.STATIC).alwaysTrue()) {
++					if (typePattern.matches(parameterAnnotations[i], TypePattern.STATIC).alwaysTrue()) {
+ 						return FuzzyBoolean.YES;
+ 					}
+ 				}
+@@ -227,9 +215,9 @@ public class WildAnnotationTypePattern extends AnnotationTypePattern {
+ 			// matches if the type of any of the annotations on the AnnotatedElement is
+ 			// matched by the typePattern.
+ 			ResolvedType[] annTypes = annotated.getAnnotationTypes();
+-			if (annTypes!=null && annTypes.length!=0) {
++			if (annTypes != null && annTypes.length != 0) {
+ 				for (int i = 0; i < annTypes.length; i++) {
+-					if (typePattern.matches(annTypes[i],TypePattern.STATIC).alwaysTrue()) {
++					if (typePattern.matches(annTypes[i], TypePattern.STATIC).alwaysTrue()) {
+ 						return FuzzyBoolean.YES;
+ 					}
+ 				}
+@@ -238,57 +226,74 @@ public class WildAnnotationTypePattern extends AnnotationTypePattern {
+ 		return FuzzyBoolean.NO;
+ 	}
+ 
+-	/* (non-Javadoc)
++	/*
++	 * (non-Javadoc)
++	 * 
+ 	 * @see org.aspectj.weaver.patterns.AnnotationTypePattern#resolve(org.aspectj.weaver.World)
+ 	 */
+ 	public void resolve(World world) {
+-		// nothing to do...
+-	    resolved = true;
++		if (!resolved) {
++			// attempt resolution - this helps with the Spring bug where they resolve() the pointcut in no scope (SPR-5307)
++			if (typePattern instanceof WildTypePattern && (annotationValues == null || annotationValues.isEmpty())) {
++				WildTypePattern wildTypePattern = (WildTypePattern) typePattern;
++				String fullyQualifiedName = wildTypePattern.maybeGetCleanName();
++				if (fullyQualifiedName != null && fullyQualifiedName.indexOf(".") != -1) {
++					ResolvedType resolvedType = world.resolve(UnresolvedType.forName(fullyQualifiedName));
++					if (resolvedType != null && !resolvedType.isMissing()) {
++						typePattern = new ExactTypePattern(resolvedType, false, false);
++					}
++				}
++			}
++			resolved = true;
++		}
+ 	}
+-	
++
+ 	/**
+ 	 * This can modify in place, or return a new TypePattern if the type changes.
+ 	 */
+-    public AnnotationTypePattern resolveBindings(IScope scope, Bindings bindings, 
+-    								             boolean allowBinding)
+-    { 
+-	if (!scope.getWorld().isInJava5Mode()) {
+-		scope.message(MessageUtil.error(WeaverMessages.format(WeaverMessages.ANNOTATIONS_NEED_JAVA5),
+-				getSourceLocation()));
+-		return this;
+-	}
+-	if (resolved) return this;
+-    	this.typePattern = typePattern.resolveBindings(scope,bindings,false,false);
+-    	resolved = true;
+-    	if (typePattern instanceof ExactTypePattern) {
+-    		ExactTypePattern et = (ExactTypePattern)typePattern;
++	public AnnotationTypePattern resolveBindings(IScope scope, Bindings bindings, boolean allowBinding) {
++		if (!scope.getWorld().isInJava5Mode()) {
++			scope.message(MessageUtil.error(WeaverMessages.format(WeaverMessages.ANNOTATIONS_NEED_JAVA5), getSourceLocation()));
++			return this;
++		}
++		if (resolved) {
++			return this;
++		}
++		this.typePattern = typePattern.resolveBindings(scope, bindings, false, false);
++		resolved = true;
++		if (typePattern instanceof ExactTypePattern) {
++			ExactTypePattern et = (ExactTypePattern) typePattern;
+ 			if (!et.getExactType().resolve(scope.getWorld()).isAnnotation()) {
+-				IMessage m = MessageUtil.error(
+-						WeaverMessages.format(WeaverMessages.REFERENCE_TO_NON_ANNOTATION_TYPE,et.getExactType().getName()),
+-						getSourceLocation());
++				IMessage m = MessageUtil.error(WeaverMessages.format(WeaverMessages.REFERENCE_TO_NON_ANNOTATION_TYPE, et
++						.getExactType().getName()), getSourceLocation());
+ 				scope.getWorld().getMessageHandler().handleMessage(m);
+ 				resolved = false;
+ 			}
+ 			ResolvedType annotationType = et.getExactType().resolve(scope.getWorld());
+-        	resolveAnnotationValues(annotationType,scope);
+-    		ExactAnnotationTypePattern eatp = new ExactAnnotationTypePattern(annotationType,annotationValues);
+-    		eatp.copyLocationFrom(this);
+-    	    if (isForParameterAnnotationMatch()) eatp.setForParameterAnnotationMatch();
+-    		return eatp;
+-    	} else {
+-    		return this;
+-    	}
+-    }
+-    
+-    public AnnotationTypePattern parameterizeWith(Map typeVariableMap,World w) {
+-    	WildAnnotationTypePattern ret = new WildAnnotationTypePattern(typePattern.parameterizeWith(typeVariableMap,w));
+-    	ret.copyLocationFrom(this);
+-    	ret.resolved = resolved;
+-    	return ret;
+-    }
++			resolveAnnotationValues(annotationType, scope);
++			ExactAnnotationTypePattern eatp = new ExactAnnotationTypePattern(annotationType, annotationValues);
++			eatp.copyLocationFrom(this);
++			if (isForParameterAnnotationMatch()) {
++				eatp.setForParameterAnnotationMatch();
++			}
++			return eatp;
++		} else {
++			return this;
++		}
++	}
++
++	public AnnotationTypePattern parameterizeWith(Map typeVariableMap, World w) {
++		WildAnnotationTypePattern ret = new WildAnnotationTypePattern(typePattern.parameterizeWith(typeVariableMap, w));
++		ret.copyLocationFrom(this);
++		ret.resolved = resolved;
++		return ret;
++	}
+ 
+ 	private static final byte VERSION = 1; // rev if ser. form changes
+-	/* (non-Javadoc)
++
++	/*
++	 * (non-Javadoc)
++	 * 
+ 	 * @see org.aspectj.weaver.patterns.PatternNode#write(java.io.DataOutputStream)
+ 	 */
+ 	public void write(DataOutputStream s) throws IOException {
+@@ -298,7 +303,7 @@ public class WildAnnotationTypePattern extends AnnotationTypePattern {
+ 		writeLocation(s);
+ 		s.writeBoolean(isForParameterAnnotationMatch());
+ 		// PVAL
+-		if (annotationValues==null) {
++		if (annotationValues == null) {
+ 			s.writeInt(0);
+ 		} else {
+ 			s.writeInt(annotationValues.size());
+@@ -306,64 +311,60 @@ public class WildAnnotationTypePattern extends AnnotationTypePattern {
+ 			for (Iterator keys = key.iterator(); keys.hasNext();) {
+ 				String k = (String) keys.next();
+ 				s.writeUTF(k);
+-				s.writeUTF((String)annotationValues.get(k));
++				s.writeUTF((String) annotationValues.get(k));
+ 			}
+ 		}
+ 	}
+ 
+-	public static AnnotationTypePattern read(VersionedDataInputStream s,ISourceContext context) throws IOException {
++	public static AnnotationTypePattern read(VersionedDataInputStream s, ISourceContext context) throws IOException {
+ 		WildAnnotationTypePattern ret;
+ 		byte version = s.readByte();
+ 		if (version > VERSION) {
+ 			throw new BCException("ExactAnnotationTypePattern was written by a newer version of AspectJ");
+ 		}
+-		TypePattern t = TypePattern.read(s,context);
++		TypePattern t = TypePattern.read(s, context);
+ 		ret = new WildAnnotationTypePattern(t);
+-		ret.readLocation(context,s);
+-		if (s.getMajorVersion()>=WeaverVersionInfo.WEAVER_VERSION_MAJOR_AJ160) {
+-			if (s.readBoolean()) ret.setForParameterAnnotationMatch();
++		ret.readLocation(context, s);
++		if (s.getMajorVersion() >= WeaverVersionInfo.WEAVER_VERSION_MAJOR_AJ160) {
++			if (s.readBoolean()) {
++				ret.setForParameterAnnotationMatch();
++			}
+ 		}
+-		if (s.getMajorVersion()>=WeaverVersionInfo.WEAVER_VERSION_MAJOR_AJ160M2) {
++		if (s.getMajorVersion() >= WeaverVersionInfo.WEAVER_VERSION_MAJOR_AJ160M2) {
+ 			int annotationValueCount = s.readInt();
+-			if (annotationValueCount>0) {
++			if (annotationValueCount > 0) {
+ 				Map aValues = new HashMap();
+-				for (int i=0;i<annotationValueCount;i++) {
++				for (int i = 0; i < annotationValueCount; i++) {
+ 					String key = s.readUTF();
+ 					String val = s.readUTF();
+-					aValues.put(key,val);
++					aValues.put(key, val);
+ 				}
+ 				ret.annotationValues = aValues;
+ 			}
+ 		}
+-		return ret;		
++		return ret;
+ 	}
+ 
+-	/* (non-Javadoc)
+-	 * @see java.lang.Object#equals(java.lang.Object)
+-	 */
+ 	public boolean equals(Object obj) {
+-		if (!(obj instanceof WildAnnotationTypePattern)) return false;
++		if (!(obj instanceof WildAnnotationTypePattern)) {
++			return false;
++		}
+ 		WildAnnotationTypePattern other = (WildAnnotationTypePattern) obj;
+-		return other.typePattern.equals(typePattern) && 
+-		    this.isForParameterAnnotationMatch()==other.isForParameterAnnotationMatch() &&
+-		    (annotationValues==null?other.annotationValues==null:annotationValues.equals(other.annotationValues));
++		return other.typePattern.equals(typePattern)
++				&& this.isForParameterAnnotationMatch() == other.isForParameterAnnotationMatch()
++				&& (annotationValues == null ? other.annotationValues == null : annotationValues.equals(other.annotationValues));
+ 	}
+-	
+-	/* (non-Javadoc)
+-	 * @see java.lang.Object#hashCode()
+-	 */
++
+ 	public int hashCode() {
+-		return (((17 + 37*typePattern.hashCode())*37+(isForParameterAnnotationMatch()?0:1))*37)+(annotationValues==null?0:annotationValues.hashCode());
++		return (((17 + 37 * typePattern.hashCode()) * 37 + (isForParameterAnnotationMatch() ? 0 : 1)) * 37)
++				+ (annotationValues == null ? 0 : annotationValues.hashCode());
+ 	}
+-	
+-	/* (non-Javadoc)
+-	 * @see java.lang.Object#toString()
+-	 */
++
+ 	public String toString() {
+ 		return "@(" + typePattern.toString() + ")";
+ 	}
+ 
+-    public Object accept(PatternNodeVisitor visitor, Object data) {
+-        return visitor.visit(this, data);
+-    }
++	public Object accept(PatternNodeVisitor visitor, Object data) {
++		return visitor.visit(this, data);
++	}
+ }
+@@ -12,532 +12,496 @@
+ package org.aspectj.weaver.patterns;
+ 
+ import org.aspectj.weaver.Member;
+-import org.aspectj.weaver.patterns.AndAnnotationTypePattern;
+-import org.aspectj.weaver.patterns.AndPointcut;
+-import org.aspectj.weaver.patterns.AndTypePattern;
+-import org.aspectj.weaver.patterns.AnnotationPatternList;
+-import org.aspectj.weaver.patterns.AnnotationPointcut;
+-import org.aspectj.weaver.patterns.AnnotationTypePattern;
+-import org.aspectj.weaver.patterns.AnyAnnotationTypePattern;
+-import org.aspectj.weaver.patterns.AnyTypePattern;
+-import org.aspectj.weaver.patterns.AnyWithAnnotationTypePattern;
+-import org.aspectj.weaver.patterns.ArgsAnnotationPointcut;
+-import org.aspectj.weaver.patterns.ArgsPointcut;
+-import org.aspectj.weaver.patterns.BindingAnnotationTypePattern;
+-import org.aspectj.weaver.patterns.BindingTypePattern;
+-import org.aspectj.weaver.patterns.CflowPointcut;
+-import org.aspectj.weaver.patterns.ConcreteCflowPointcut;
+-import org.aspectj.weaver.patterns.DeclareAnnotation;
+-import org.aspectj.weaver.patterns.DeclareErrorOrWarning;
+-import org.aspectj.weaver.patterns.DeclareParents;
+-import org.aspectj.weaver.patterns.DeclarePrecedence;
+-import org.aspectj.weaver.patterns.DeclareSoft;
+-import org.aspectj.weaver.patterns.DumpPointcutVisitor;
+-import org.aspectj.weaver.patterns.EllipsisAnnotationTypePattern;
+-import org.aspectj.weaver.patterns.EllipsisTypePattern;
+-import org.aspectj.weaver.patterns.ExactAnnotationTypePattern;
+-import org.aspectj.weaver.patterns.ExactTypePattern;
+-import org.aspectj.weaver.patterns.HandlerPointcut;
+-import org.aspectj.weaver.patterns.HasMemberTypePattern;
+-import org.aspectj.weaver.patterns.IfPointcut;
+-import org.aspectj.weaver.patterns.KindedPointcut;
+-import org.aspectj.weaver.patterns.ModifiersPattern;
+-import org.aspectj.weaver.patterns.NamePattern;
+-import org.aspectj.weaver.patterns.NoTypePattern;
+-import org.aspectj.weaver.patterns.NotAnnotationTypePattern;
+-import org.aspectj.weaver.patterns.NotPointcut;
+-import org.aspectj.weaver.patterns.NotTypePattern;
+-import org.aspectj.weaver.patterns.OrAnnotationTypePattern;
+-import org.aspectj.weaver.patterns.OrPointcut;
+-import org.aspectj.weaver.patterns.OrTypePattern;
+-import org.aspectj.weaver.patterns.ParserException;
+-import org.aspectj.weaver.patterns.PatternNode;
+-import org.aspectj.weaver.patterns.PatternNodeVisitor;
+-import org.aspectj.weaver.patterns.PatternParser;
+-import org.aspectj.weaver.patterns.PerCflow;
+-import org.aspectj.weaver.patterns.PerFromSuper;
+-import org.aspectj.weaver.patterns.PerObject;
+-import org.aspectj.weaver.patterns.PerSingleton;
+-import org.aspectj.weaver.patterns.PerTypeWithin;
+-import org.aspectj.weaver.patterns.Pointcut;
+-import org.aspectj.weaver.patterns.ReferencePointcut;
+-import org.aspectj.weaver.patterns.SignaturePattern;
+-import org.aspectj.weaver.patterns.ThisOrTargetAnnotationPointcut;
+-import org.aspectj.weaver.patterns.ThisOrTargetPointcut;
+-import org.aspectj.weaver.patterns.ThrowsPattern;
+-import org.aspectj.weaver.patterns.TypePattern;
+-import org.aspectj.weaver.patterns.TypePatternList;
+-import org.aspectj.weaver.patterns.TypeVariablePattern;
+-import org.aspectj.weaver.patterns.TypeVariablePatternList;
+-import org.aspectj.weaver.patterns.WildAnnotationTypePattern;
+-import org.aspectj.weaver.patterns.WildTypePattern;
+-import org.aspectj.weaver.patterns.WithinAnnotationPointcut;
+-import org.aspectj.weaver.patterns.WithinCodeAnnotationPointcut;
+-import org.aspectj.weaver.patterns.WithinPointcut;
+-import org.aspectj.weaver.patterns.WithincodePointcut;
+ 
+ /**
+  * A sample toString like visitor that helps understanding the AST tree structure organization
+- *
++ * 
+  * @author <a href="mailto:alex AT gnilux DOT com">Alexandre Vasseur</a>
+  */
+ public class DumpPointcutVisitor implements PatternNodeVisitor {
+ 
+-    private StringBuffer sb = new StringBuffer();
+-    public String get() {
+-        return sb.toString();
+-    }
++	private StringBuffer sb = new StringBuffer();
++
++	public String get() {
++		return sb.toString();
++	}
++
++	private void append(Object o) {
++		sb.append(o.toString());
++	}
+ 
+-    private void append(Object o) {
+-        sb.append(o.toString());
+-    }
+-	
+ 	private void append(char c) {
+ 		sb.append(c);
+ 	}
+ 
+-    /**
+-     * This method helps maintaining the API and raises warning when PatternNode subclasses do not
+-     * implement the visitor pattern
+-     *
+-     * @param node
+-     * @param data
+-     * @return
+-     */
+-    public Object visit(PatternNode node, Object data) {
+-        System.err.println("Should implement: "  + node.getClass());
+-        return null;
+-    }
+-
+-    public Object visit(AnyTypePattern node, Object data) {
+-        append('*');
+-        return null;
+-    }
+-
+-    public Object visit(NoTypePattern node, Object data) {
+-        append(node.toString());//TODO no idea when this one is used
+-        return null;
+-    }
+-
+-    public Object visit(EllipsisTypePattern node, Object data) {
+-        append(node.toString());
+-        return null;
+-    }
+-
+-    public Object visit(AnyWithAnnotationTypePattern node, Object data) {
+-        node.annotationPattern.accept(this, data);
+-        append(" *");
+-        return null;
+-    }
+-
+-    public Object visit(AnyAnnotationTypePattern node, Object data) {
+-        //@ANY : ignore
+-        append('*');
+-        return null;
+-    }
+-
+-    public Object visit(EllipsisAnnotationTypePattern node, Object data) {
+-        append("..");
+-        return null;
+-    }
+-
+-    public Object visit(AndAnnotationTypePattern node, Object data) {
+-        node.getLeft().accept(this, data);
+-        append(' ');
+-        node.getRight().accept(this, data);
+-        return null;
+-    }
+-
+-    public Object visit(AndPointcut node, Object data) {
+-        append('(');
+-        node.getLeft().accept(this, data);
+-        append(" && ");
+-        node.getRight().accept(this, data);
+-        append(')');
+-        return null;
+-    }
+-
+-    public Object visit(AndTypePattern node, Object data) {
+-        append('(');
+-        node.getLeft().accept(this, data);
+-        append(" && ");
+-        node.getRight().accept(this, data);
+-        append(')');
+-        return null;
+-    }
+-
+-    public Object visit(AnnotationPatternList node, Object data) {
+-        AnnotationTypePattern[] annotations = node.getAnnotationPatterns();
+-        for (int i = 0; i < annotations.length; i++) {
+-            if (i>0) append(", ");//Note: list is ",", and is " " separated for annotations
+-            annotations[i].accept(this, data);
+-        }
+-        return null;
+-    }
+-
+-    public Object visit(AnnotationPointcut node, Object data) {
+-        append("@annotation(");
+-        node.getAnnotationTypePattern().accept(this, data);
+-        append(')');
+-        return null;
+-    }
+-
+-    public Object visit(ArgsAnnotationPointcut node, Object data) {
+-        append("@args(");
+-        node.getArguments().accept(this, data);
+-        append(')');
+-        return null;
+-    }
+-
+-    public Object visit(ArgsPointcut node, Object data) {
+-        append("args(");
+-        node.getArguments().accept(this, data);
+-        append(')');
+-        return null;
+-    }
+-
+-    public Object visit(BindingAnnotationTypePattern node, Object data) {
+-        append(node);
+-        return null;
+-    }
+-
+-    public Object visit(BindingTypePattern node, Object data) {
+-        append(node);
+-        return null;
+-    }
+-
+-    public Object visit(CflowPointcut node, Object data) {
+-        append(node.isCflowBelow()?"cflowbelow(":"cflow(");
+-        node.getEntry().accept(this, data);
+-        append(')');
+-        return null;
+-    }
+-
+-    public Object visit(ExactAnnotationTypePattern node, Object data) {
+-        //append('@'); // since @annotation(@someAnno) cannot be parsed anymore
+-        append(node.getAnnotationType().getName());
+-        return null;
+-    }
+-
+-    public Object visit(ExactTypePattern node, Object data) {
+-        if (node.getAnnotationPattern() != AnnotationTypePattern.ANY) {
+-            append('(');
+-            node.getAnnotationPattern().accept(this, data);
+-            append(' ');
+-        }
+-
+-        String typeString = node.getType().toString();
+-        if (node.isVarArgs()) typeString = typeString.substring(0, typeString.lastIndexOf('['));//TODO AV - ugly
+-        append(typeString);
+-        if (node.isIncludeSubtypes()) append('+');
+-        if (node.isVarArgs()) append("...");
+-        if (node.getAnnotationPattern() != AnnotationTypePattern.ANY) {
+-            append(')');
+-        }
+-        return null;
+-    }
+-
+-    public Object visit(KindedPointcut node, Object data) {
+-        append(node.getKind().getSimpleName());
+-        append('(');
+-        node.getSignature().accept(this, data);
+-        append(')');
+-        return null;
+-    }
+-
+-    public Object visit(ModifiersPattern node, Object data) {
+-        append(node.toString());//note: node takes care of forbidden mods
+-        return null;
+-    }
+-
+-    public Object visit(NamePattern node, Object data) {
+-        append(node.toString());
+-        return null;
+-    }
+-
+-    public Object visit(NotAnnotationTypePattern node, Object data) {
+-        append("!");
+-        node.getNegatedPattern().accept(this, data);
+-        return null;
+-    }
+-
+-    public Object visit(NotPointcut node, Object data) {
+-        append("!(");
+-        node.getNegatedPointcut().accept(this, data);
+-        append(')');
+-        return null;
+-    }
+-
+-    public Object visit(NotTypePattern node, Object data) {
+-        append("!(");
+-        node.getNegatedPattern().accept(this, data);
+-        append(')');
+-        return null;
+-    }
+-
+-    public Object visit(OrAnnotationTypePattern node, Object data) {
+-        append('(');
+-        node.getLeft().accept(this, data);
+-        append(" || ");
+-        node.getRight().accept(this, data);
+-        append(')');
+-        return null;
+-    }
+-
+-    public Object visit(OrPointcut node, Object data) {
+-        append('(');
+-        node.getLeft().accept(this, data);
+-        append(" || ");
+-        node.getRight().accept(this, data);
+-        append(')');
+-        return null;
+-    }
+-
+-    public Object visit(OrTypePattern node, Object data) {
+-        append('(');
+-        node.getLeft().accept(this, data);
+-        append(" || ");
+-        node.getRight().accept(this, data);
+-        append(')');
+-        return null;
+-    }
+-
+-    public Object visit(ReferencePointcut node, Object data) {
+-        append(node.toString());
+-        return null;
+-    }
+-
+-    public Object visit(SignaturePattern node, Object data) {
+-        if (node.getAnnotationPattern() != AnnotationTypePattern.ANY) {
+-            node.getAnnotationPattern().accept(this, data);
+-            append(' ');
+-        }
+-
+-        if (node.getModifiers() != ModifiersPattern.ANY) {
+-            node.getModifiers().accept(this, data);
+-            append(' ');
+-        }
+-
+-        if (node.getKind() == Member.STATIC_INITIALIZATION) {
+-            node.getDeclaringType().accept(this, data);
+-        } else if (node.getKind() == Member.HANDLER) {
+-            append("handler(");
+-            node.getParameterTypes().get(0).accept(this, data);//Note: we know we have 1 child
+-            append(')');
+-        } else {
+-            if (!(node.getKind() == Member.CONSTRUCTOR)) {
+-                node.getReturnType().accept(this, data);
+-                append(' ');
+-            }
+-            if (node.getDeclaringType() != TypePattern.ANY) {
+-                node.getDeclaringType().accept(this, data);
+-                append('.');
+-            }
+-            if (node.getKind() == Member.CONSTRUCTOR) {
+-                append("new");
+-            } else {
+-                node.getName().accept(this, data);
+-            }
+-            if (node.getKind() == Member.METHOD || node.getKind() == Member.CONSTRUCTOR) {
+-                append('(');
+-                node.getParameterTypes().accept(this, data);
+-                append(')');
+-            }
+-            if (node.getThrowsPattern() != null) {
+-                append(' ');
+-                node.getThrowsPattern().accept(this, data);
+-            }
+-        }
+-        return null;
+-    }
+-
+-    public Object visit(ThisOrTargetAnnotationPointcut node, Object data) {
+-        append(node.isThis() ? "@this(" : "@target(");
+-        node.getAnnotationTypePattern().accept(this, data);
+-        append(')');
+-        return null;
+-    }
+-
+-    public Object visit(ThisOrTargetPointcut node, Object data) {
+-        append(node.isThis() ? "this(" : "target(");
+-        node.getType().accept(this, data);
+-        append(')');
+-        return null;
+-    }
+-
+-    // Note: a visitor instance is not thread safe so should not be shared
+-    private boolean inThrowsForbidden = false;
+-
+-    public Object visit(ThrowsPattern node, Object data) {
+-        if (node == ThrowsPattern.ANY) return null;
+-
+-        append("throws ");
+-        node.getRequired().accept(this, data);
+-        if (node.getForbidden().size() > 0) {
+-            // a hack since throws !(A, B) cannot be parsed
+-            try {
+-                inThrowsForbidden = true;
+-                node.getForbidden().accept(this, data);
+-            } finally {
+-                inThrowsForbidden = false;
+-            }
+-        }
+-        return null;
+-    }
+-
+-    public Object visit(TypePatternList node, Object data) {
+-        if (node.getTypePatterns().length == 0) return null;
+-
+-        TypePattern[] typePatterns = node.getTypePatterns();
+-        for (int i = 0; i < typePatterns.length; i++) {
+-            TypePattern typePattern = typePatterns[i];
+-            if (i > 0) append(", ");
+-            if (inThrowsForbidden) append('!');
+-            typePattern.accept(this, data);
+-        }
+-        return null;
+-    }
+-
+-    public Object visit(WildAnnotationTypePattern node, Object data) {
+-        append("@(");
+-        node.getTypePattern().accept(this, data);
+-        append(')');
+-        return null;
+-    }
+-
+-    public Object visit(WildTypePattern node, Object data) {
+-        if (node.getAnnotationPattern() != AnnotationTypePattern.ANY) {
+-            append('(');
+-            node.getAnnotationPattern().accept(this, data);
+-            append(' ');
+-        }
+-        NamePattern[] namePatterns = node.getNamePatterns();
+-        for (int i=0; i < namePatterns.length; i++) {
+-            if (namePatterns[i] == null) {
+-                append('.');//FIXME mh, error prone, can't we have a nullNamePattern ?
+-            } else {
+-                if (i > 0) append('.');
+-                namePatterns[i].accept(this, data);
+-            }
+-        }
+-        if (node.isIncludeSubtypes()) append('+');
+-        if (node.isVarArgs()) append("...");
+-        if (node.getAnnotationPattern() != AnnotationTypePattern.ANY) {
+-            append(')');
+-        }
+-        return null;
+-    }
+-
+-    public Object visit(WithinAnnotationPointcut node, Object data) {
+-        append("@within(");
+-        node.getAnnotationTypePattern().accept(this, data);
+-        append(')');
+-        return null;
+-    }
+-
+-    public Object visit(WithinCodeAnnotationPointcut node, Object data) {
+-        append("@withincode(");
+-        node.getAnnotationTypePattern().accept(this, data);
+-        append(')');
+-        return null;
+-    }
+-
+-    public Object visit(WithinPointcut node, Object data) {
+-        append("within(");
+-        node.getTypePattern().accept(this, data);
+-        append(')');
+-        return null;
+-    }
+-
+-    public Object visit(WithincodePointcut node, Object data) {
+-        append("withincode(");
+-        node.getSignature().accept(this, data);
+-        append(')');
+-        return null;
+-    }
+-
+-    public Object visit(Pointcut.MatchesNothingPointcut node, Object data) {
+-        append("");//TODO shouldn't that be a "false" ?
+-        return null;
+-    }
+-
+-
+-    //-------------- perX
+-
+-    public Object visit(PerCflow node, Object data) {
+-        append(node);
+-        return null;
+-    }
+-
+-    public Object visit(PerFromSuper node, Object data) {
+-        append(node);
+-        return null;
+-    }
+-
+-    public Object visit(PerObject node, Object data) {
+-        append(node);
+-        return null;
+-    }
+-
+-    public Object visit(PerSingleton node, Object data) {
+-        append(node);
+-        return null;
+-    }
+-
+-    public Object visit(PerTypeWithin node, Object data) {
+-        append(node);
+-        return null;
+-    }
+-
+-    // ------------- declare X
+-
+-    public Object visit(DeclareAnnotation node, Object data) {
+-        append(node);
+-        return null;
+-    }
+-
+-    public Object visit(DeclareErrorOrWarning node, Object data) {
+-        append(node);
+-        return null;
+-    }
+-
+-    public Object visit(DeclareParents node, Object data) {
+-        append(node);
+-        return null;
+-    }
+-
+-    public Object visit(DeclarePrecedence node, Object data) {
+-        append(node);
+-        return null;
+-    }
+-
+-    public Object visit(DeclareSoft node, Object data) {
+-        append(node);
+-        return null;
+-    }
+-
+-    // ----------- misc
+-
+-    public Object visit(ConcreteCflowPointcut node, Object data) {
+-        append(node);
+-        return null;
+-    }
+-
+-    public Object visit(HandlerPointcut node, Object data) {
+-        append(node);
+-        return null;
+-    }
+-
+-    public Object visit(IfPointcut node, Object data) {
+-        append(node);
+-        return null;
+-    }
+-	
++	/**
++	 * This method helps maintaining the API and raises warning when PatternNode subclasses do not implement the visitor pattern
++	 * 
++	 * @param node
++	 * @param data
++	 * @return
++	 */
++	public Object visit(PatternNode node, Object data) {
++		System.err.println("Should implement: " + node.getClass());
++		return null;
++	}
++
++	public Object visit(AnyTypePattern node, Object data) {
++		append('*');
++		return null;
++	}
++
++	public Object visit(NoTypePattern node, Object data) {
++		append(node.toString());// TODO no idea when this one is used
++		return null;
++	}
++
++	public Object visit(EllipsisTypePattern node, Object data) {
++		append(node.toString());
++		return null;
++	}
++
++	public Object visit(AnyWithAnnotationTypePattern node, Object data) {
++		if (node.getAnnotationPattern() != AnnotationTypePattern.ANY) {
++			append('(');
++		}
++		node.annotationPattern.accept(this, data);
++		append(" *");
++		if (node.getAnnotationPattern() != AnnotationTypePattern.ANY) {
++			append(')');
++		}
++		return null;
++	}
++
++	public Object visit(AnyAnnotationTypePattern node, Object data) {
++		// @ANY : ignore
++		append('*');
++		return null;
++	}
++
++	public Object visit(EllipsisAnnotationTypePattern node, Object data) {
++		append("..");
++		return null;
++	}
++
++	public Object visit(AndAnnotationTypePattern node, Object data) {
++		node.getLeft().accept(this, data);
++		append(' ');
++		node.getRight().accept(this, data);
++		return null;
++	}
++
++	public Object visit(AndPointcut node, Object data) {
++		append('(');
++		node.getLeft().accept(this, data);
++		append(" && ");
++		node.getRight().accept(this, data);
++		append(')');
++		return null;
++	}
++
++	public Object visit(AndTypePattern node, Object data) {
++		append('(');
++		node.getLeft().accept(this, data);
++		append(" && ");
++		node.getRight().accept(this, data);
++		append(')');
++		return null;
++	}
++
++	public Object visit(AnnotationPatternList node, Object data) {
++		AnnotationTypePattern[] annotations = node.getAnnotationPatterns();
++		for (int i = 0; i < annotations.length; i++) {
++			if (i > 0) {
++				append(", ");// Note: list is ",", and is " " separated for annotations
++			}
++			annotations[i].accept(this, data);
++		}
++		return null;
++	}
++
++	public Object visit(AnnotationPointcut node, Object data) {
++		append("@annotation(");
++		node.getAnnotationTypePattern().accept(this, data);
++		append(')');
++		return null;
++	}
++
++	public Object visit(ArgsAnnotationPointcut node, Object data) {
++		append("@args(");
++		node.getArguments().accept(this, data);
++		append(')');
++		return null;
++	}
++
++	public Object visit(ArgsPointcut node, Object data) {
++		append("args(");
++		node.getArguments().accept(this, data);
++		append(')');
++		return null;
++	}
++
++	public Object visit(BindingAnnotationTypePattern node, Object data) {
++		append(node);
++		return null;
++	}
++
++	public Object visit(BindingTypePattern node, Object data) {
++		append(node);
++		return null;
++	}
++
++	public Object visit(CflowPointcut node, Object data) {
++		append(node.isCflowBelow() ? "cflowbelow(" : "cflow(");
++		node.getEntry().accept(this, data);
++		append(')');
++		return null;
++	}
++
++	public Object visit(ExactAnnotationTypePattern node, Object data) {
++		// append('@'); // since @annotation(@someAnno) cannot be parsed anymore
++		append(node.getAnnotationType().getName());
++		return null;
++	}
++
++	public Object visit(ExactTypePattern node, Object data) {
++		if (node.getAnnotationPattern() != AnnotationTypePattern.ANY) {
++			append('(');
++			node.getAnnotationPattern().accept(this, data);
++			append(' ');
++		}
++
++		String typeString = node.getType().toString();
++		if (node.isVarArgs()) {
++			typeString = typeString.substring(0, typeString.lastIndexOf('['));// TODO AV - ugly
++		}
++		append(typeString);
++		if (node.isIncludeSubtypes()) {
++			append('+');
++		}
++		if (node.isVarArgs()) {
++			append("...");
++		}
++		if (node.getAnnotationPattern() != AnnotationTypePattern.ANY) {
++			append(')');
++		}
++		return null;
++	}
++
++	public Object visit(KindedPointcut node, Object data) {
++		append(node.getKind().getSimpleName());
++		append('(');
++		node.getSignature().accept(this, data);
++		append(')');
++		return null;
++	}
++
++	public Object visit(ModifiersPattern node, Object data) {
++		append(node.toString());// note: node takes care of forbidden mods
++		return null;
++	}
++
++	public Object visit(NamePattern node, Object data) {
++		append(node.toString());
++		return null;
++	}
++
++	public Object visit(NotAnnotationTypePattern node, Object data) {
++		append("!");
++		node.getNegatedPattern().accept(this, data);
++		return null;
++	}
++
++	public Object visit(NotPointcut node, Object data) {
++		append("!(");
++		node.getNegatedPointcut().accept(this, data);
++		append(')');
++		return null;
++	}
++
++	public Object visit(NotTypePattern node, Object data) {
++		append("!(");
++		node.getNegatedPattern().accept(this, data);
++		append(')');
++		return null;
++	}
++
++	public Object visit(OrAnnotationTypePattern node, Object data) {
++		append('(');
++		node.getLeft().accept(this, data);
++		append(" || ");
++		node.getRight().accept(this, data);
++		append(')');
++		return null;
++	}
++
++	public Object visit(OrPointcut node, Object data) {
++		append('(');
++		node.getLeft().accept(this, data);
++		append(" || ");
++		node.getRight().accept(this, data);
++		append(')');
++		return null;
++	}
++
++	public Object visit(OrTypePattern node, Object data) {
++		append('(');
++		node.getLeft().accept(this, data);
++		append(" || ");
++		node.getRight().accept(this, data);
++		append(')');
++		return null;
++	}
++
++	public Object visit(ReferencePointcut node, Object data) {
++		append(node.toString());
++		return null;
++	}
++
++	public Object visit(SignaturePattern node, Object data) {
++		if (node.getAnnotationPattern() != AnnotationTypePattern.ANY) {
++			node.getAnnotationPattern().accept(this, data);
++			append(' ');
++		}
++
++		if (node.getModifiers() != ModifiersPattern.ANY) {
++			node.getModifiers().accept(this, data);
++			append(' ');
++		}
++
++		if (node.getKind() == Member.STATIC_INITIALIZATION) {
++			node.getDeclaringType().accept(this, data);
++		} else if (node.getKind() == Member.HANDLER) {
++			append("handler(");
++			node.getParameterTypes().get(0).accept(this, data);// Note: we know we have 1 child
++			append(')');
++		} else {
++			if (!(node.getKind() == Member.CONSTRUCTOR)) {
++				node.getReturnType().accept(this, data);
++				append(' ');
++			}
++			if (node.getDeclaringType() != TypePattern.ANY) {
++				node.getDeclaringType().accept(this, data);
++				append('.');
++			}
++			if (node.getKind() == Member.CONSTRUCTOR) {
++				append("new");
++			} else {
++				node.getName().accept(this, data);
++			}
++			if (node.getKind() == Member.METHOD || node.getKind() == Member.CONSTRUCTOR) {
++				append('(');
++				node.getParameterTypes().accept(this, data);
++				append(')');
++			}
++			if (node.getThrowsPattern() != null) {
++				append(' ');
++				node.getThrowsPattern().accept(this, data);
++			}
++		}
++		return null;
++	}
++
++	public Object visit(ThisOrTargetAnnotationPointcut node, Object data) {
++		append(node.isThis() ? "@this(" : "@target(");
++		node.getAnnotationTypePattern().accept(this, data);
++		append(')');
++		return null;
++	}
++
++	public Object visit(ThisOrTargetPointcut node, Object data) {
++		append(node.isThis() ? "this(" : "target(");
++		node.getType().accept(this, data);
++		append(')');
++		return null;
++	}
++
++	// Note: a visitor instance is not thread safe so should not be shared
++	private boolean inThrowsForbidden = false;
++
++	public Object visit(ThrowsPattern node, Object data) {
++		if (node == ThrowsPattern.ANY) {
++			return null;
++		}
++
++		append("throws ");
++		node.getRequired().accept(this, data);
++		if (node.getForbidden().size() > 0) {
++			// a hack since throws !(A, B) cannot be parsed
++			try {
++				inThrowsForbidden = true;
++				node.getForbidden().accept(this, data);
++			} finally {
++				inThrowsForbidden = false;
++			}
++		}
++		return null;
++	}
++
++	public Object visit(TypePatternList node, Object data) {
++		if (node.getTypePatterns().length == 0) {
++			return null;
++		}
++
++		TypePattern[] typePatterns = node.getTypePatterns();
++		for (int i = 0; i < typePatterns.length; i++) {
++			TypePattern typePattern = typePatterns[i];
++			if (i > 0) {
++				append(", ");
++			}
++			if (inThrowsForbidden) {
++				append('!');
++			}
++			typePattern.accept(this, data);
++		}
++		return null;
++	}
++
++	public Object visit(WildAnnotationTypePattern node, Object data) {
++		append("@(");
++		node.getTypePattern().accept(this, data);
++		append(')');
++		return null;
++	}
++
++	public Object visit(WildTypePattern node, Object data) {
++		if (node.getAnnotationPattern() != AnnotationTypePattern.ANY) {
++			append('(');
++			node.getAnnotationPattern().accept(this, data);
++			append(' ');
++		}
++		NamePattern[] namePatterns = node.getNamePatterns();
++		for (int i = 0; i < namePatterns.length; i++) {
++			if (namePatterns[i] == null) {
++				append('.');// FIXME mh, error prone, can't we have a nullNamePattern ?
++			} else {
++				if (i > 0) {
++					append('.');
++				}
++				namePatterns[i].accept(this, data);
++			}
++		}
++		if (node.isIncludeSubtypes()) {
++			append('+');
++		}
++		if (node.isVarArgs()) {
++			append("...");
++		}
++		if (node.getAnnotationPattern() != AnnotationTypePattern.ANY) {
++			append(')');
++		}
++		return null;
++	}
++
++	public Object visit(WithinAnnotationPointcut node, Object data) {
++		append("@within(");
++		node.getAnnotationTypePattern().accept(this, data);
++		append(')');
++		return null;
++	}
++
++	public Object visit(WithinCodeAnnotationPointcut node, Object data) {
++		append("@withincode(");
++		node.getAnnotationTypePattern().accept(this, data);
++		append(')');
++		return null;
++	}
++
++	public Object visit(WithinPointcut node, Object data) {
++		append("within(");
++		node.getTypePattern().accept(this, data);
++		append(')');
++		return null;
++	}
++
++	public Object visit(WithincodePointcut node, Object data) {
++		append("withincode(");
++		node.getSignature().accept(this, data);
++		append(')');
++		return null;
++	}
++
++	public Object visit(Pointcut.MatchesNothingPointcut node, Object data) {
++		append("");// TODO shouldn't that be a "false" ?
++		return null;
++	}
++
++	// -------------- perX
++
++	public Object visit(PerCflow node, Object data) {
++		append(node);
++		return null;
++	}
++
++	public Object visit(PerFromSuper node, Object data) {
++		append(node);
++		return null;
++	}
++
++	public Object visit(PerObject node, Object data) {
++		append(node);
++		return null;
++	}
++
++	public Object visit(PerSingleton node, Object data) {
++		append(node);
++		return null;
++	}
++
++	public Object visit(PerTypeWithin node, Object data) {
++		append(node);
++		return null;
++	}
++
++	// ------------- declare X
++
++	public Object visit(DeclareAnnotation node, Object data) {
++		append(node);
++		return null;
++	}
++
++	public Object visit(DeclareErrorOrWarning node, Object data) {
++		append(node);
++		return null;
++	}
++
++	public Object visit(DeclareParents node, Object data) {
++		append(node);
++		return null;
++	}
++
++	public Object visit(DeclarePrecedence node, Object data) {
++		append(node);
++		return null;
++	}
++
++	public Object visit(DeclareSoft node, Object data) {
++		append(node);
++		return null;
++	}
++
++	// ----------- misc
++
++	public Object visit(ConcreteCflowPointcut node, Object data) {
++		append(node);
++		return null;
++	}
++
++	public Object visit(HandlerPointcut node, Object data) {
++		append(node);
++		return null;
++	}
++
++	public Object visit(IfPointcut node, Object data) {
++		append(node);
++		return null;
++	}
++
+ 	public Object visit(TypeVariablePattern node, Object data) {
+ 		append(node);
+ 		return null;
+ 	}
+-	
++
+ 	public Object visit(TypeVariablePatternList node, Object data) {
+ 		append(node);
+ 		return null;
+@@ -548,41 +512,41 @@ public class DumpPointcutVisitor implements PatternNodeVisitor {
+ 		return null;
+ 	}
+ 
+-    public static void check(String s) {
+-        check(Pointcut.fromString(s), false);
+-    }
+-
+-    public static void check(PatternNode pc, boolean isTypePattern) {
+-        DumpPointcutVisitor v1 = new DumpPointcutVisitor();
+-        pc.accept(v1, null);
+-
+-        DumpPointcutVisitor v2 = new DumpPointcutVisitor();
+-        final PatternNode pc2;
+-        if (isTypePattern) {
+-            pc2 = new PatternParser(v1.get()).parseTypePattern();
+-        } else {
+-            pc2 = Pointcut.fromString(v1.get());
+-        }
+-        pc2.accept(v2, null);
+-
+-        // at second parsing, the String form stay stable when parsed and parsed again
+-        if (! v1.get().equals(v2.get())) {
+-            throw new ParserException("Unstable back parsing for '"+pc+"', got '" + v1.get() + "' and '" + v2.get() + "'", null);
+-        }
+-    }
+-
+-    public static void main(String args[]) throws Throwable {
+-        String[] s = new String[]{
+-            //"@args(Foo, Goo, *, .., Moo)",
+-            //"execution(* *())",
+-            //"call(* *(int, Integer...))",
+-            //"staticinitialization(@(Foo) @(Boo) @(Goo) Moo)",
+-               "(if(true) && set(int BaseApp.i))"
+-
+-        };
+-        for (int i = 0; i < s.length; i++) {
+-            check(s[i]);
+-        }
+-    }
++	public static void check(String s) {
++		check(Pointcut.fromString(s), false);
++	}
++
++	public static void check(PatternNode pc, boolean isTypePattern) {
++		DumpPointcutVisitor v1 = new DumpPointcutVisitor();
++		pc.accept(v1, null);
++
++		DumpPointcutVisitor v2 = new DumpPointcutVisitor();
++		final PatternNode pc2;
++		if (isTypePattern) {
++			pc2 = new PatternParser(v1.get()).parseTypePattern();
++		} else {
++			pc2 = Pointcut.fromString(v1.get());
++		}
++		pc2.accept(v2, null);
++
++		// at second parsing, the String form stay stable when parsed and parsed again
++		if (!v1.get().equals(v2.get())) {
++			throw new ParserException("Unstable back parsing for '" + pc + "', got '" + v1.get() + "' and '" + v2.get() + "'", null);
++		}
++	}
++
++	public static void main(String args[]) throws Throwable {
++		String[] s = new String[] {
++		// "@args(Foo, Goo, *, .., Moo)",
++		// "execution(* *())",
++		// "call(* *(int, Integer...))",
++		// "staticinitialization(@(Foo) @(Boo) @(Goo) Moo)",
++		"(if(true) && set(int BaseApp.i))"
++
++		};
++		for (int i = 0; i < s.length; i++) {
++			check(s[i]);
++		}
++	}
+ 
+ }
+\ No newline at end of file
+@@ -22,23 +22,6 @@ import java.util.Set;
+ import org.aspectj.weaver.Shadow;
+ import org.aspectj.weaver.UnresolvedType;
+ import org.aspectj.weaver.World;
+-import org.aspectj.weaver.patterns.AnnotationPointcut;
+-import org.aspectj.weaver.patterns.AnnotationTypePattern;
+-import org.aspectj.weaver.patterns.ExactTypePattern;
+-import org.aspectj.weaver.patterns.KindedPointcut;
+-import org.aspectj.weaver.patterns.ParserException;
+-import org.aspectj.weaver.patterns.PatternParser;
+-import org.aspectj.weaver.patterns.Pointcut;
+-import org.aspectj.weaver.patterns.TestScope;
+-import org.aspectj.weaver.patterns.ThisOrTargetAnnotationPointcut;
+-import org.aspectj.weaver.patterns.TypePattern;
+-import org.aspectj.weaver.patterns.TypePatternList;
+-import org.aspectj.weaver.patterns.TypeVariablePattern;
+-import org.aspectj.weaver.patterns.TypeVariablePatternList;
+-import org.aspectj.weaver.patterns.WildAnnotationTypePattern;
+-import org.aspectj.weaver.patterns.WildTypePattern;
+-import org.aspectj.weaver.patterns.WithinAnnotationPointcut;
+-import org.aspectj.weaver.patterns.WithinCodeAnnotationPointcut;
+ import org.aspectj.weaver.reflect.ReflectionWorld;
+ 
+ /**
+@@ -706,12 +689,14 @@ public class ParserTestCase extends PatternsTestCase {
+ 	}
+ 
+ 	private String getValueString(Pointcut pc) {
+-		if (!(pc instanceof KindedPointcut))
++		if (!(pc instanceof KindedPointcut)) {
+ 			fail("Expected KindedPointcut but was " + pc.getClass());
++		}
+ 		KindedPointcut kpc = (KindedPointcut) pc;
+ 		AnnotationTypePattern atp = kpc.getSignature().getAnnotationPattern();
+-		if (!(atp instanceof WildAnnotationTypePattern))
++		if (!(atp instanceof WildAnnotationTypePattern)) {
+ 			fail("Expected WildAnnotationTypePattern but was " + atp.getClass());
++		}
+ 		WildAnnotationTypePattern watp = (WildAnnotationTypePattern) atp;
+ 		Map m = watp.annotationValues;
+ 		Set keys = m.keySet();
+@@ -722,8 +707,9 @@ public class ParserTestCase extends PatternsTestCase {
+ 		for (Iterator iterator = orderedKeys.iterator(); iterator.hasNext();) {
+ 			String object = (String) iterator.next();
+ 			sb.append(object).append("=").append(m.get(object));
+-			if (iterator.hasNext())
++			if (iterator.hasNext()) {
+ 				sb.append(",");
++			}
+ 		}
+ 		return sb.toString();
+ 	}
+@@ -19,7 +19,6 @@ import org.aspectj.weaver.BcweaverTests;
+ import org.aspectj.weaver.ResolvedType;
+ import org.aspectj.weaver.UnresolvedType;
+ import org.aspectj.weaver.bcel.BcelWorld;
+-import org.aspectj.weaver.patterns.TestScope;
+ 
+ public class AnnotationPatternTestCase extends TestCase {
+ 
+@@ -27,29 +26,21 @@ public class AnnotationPatternTestCase extends TestCase {
+ 		PatternParser p = new PatternParser("@Foo");
+ 		AnnotationTypePattern foo = p.maybeParseAnnotationPattern();
+ 		foo = foo.resolveBindings(makeSimpleScope(), new Bindings(3), true);
+-		assertTrue("ExactAnnotationTypePattern",
+-				foo instanceof ExactAnnotationTypePattern);
+-		assertEquals("Foo", UnresolvedType.forSignature("LFoo;"),
+-				((ExactAnnotationTypePattern) foo).annotationType);
++		assertTrue("ExactAnnotationTypePattern", foo instanceof ExactAnnotationTypePattern);
++		assertEquals("Foo", UnresolvedType.forSignature("LFoo;"), ((ExactAnnotationTypePattern) foo).annotationType);
+ 	}
+ 
+ 	public void testParseAndAnnotationPattern() {
+ 		PatternParser p = new PatternParser("@Foo @Goo");
+ 		AnnotationTypePattern fooAndGoo = p.maybeParseAnnotationPattern();
+-		assertTrue("AndAnnotationTypePattern",
+-				fooAndGoo instanceof AndAnnotationTypePattern);
++		assertTrue("AndAnnotationTypePattern", fooAndGoo instanceof AndAnnotationTypePattern);
+ 		assertEquals("@(Foo) @(Goo)", fooAndGoo.toString());
+-		fooAndGoo = fooAndGoo.resolveBindings(makeSimpleScope(),
+-				new Bindings(3), true);
++		fooAndGoo = fooAndGoo.resolveBindings(makeSimpleScope(), new Bindings(3), true);
+ 		assertEquals("@Foo @Goo", fooAndGoo.toString());
+-		AnnotationTypePattern left = ((AndAnnotationTypePattern) fooAndGoo)
+-				.getLeft();
+-		AnnotationTypePattern right = ((AndAnnotationTypePattern) fooAndGoo)
+-				.getRight();
+-		assertEquals("Foo", UnresolvedType.forSignature("LFoo;"),
+-				((ExactAnnotationTypePattern) left).annotationType);
+-		assertEquals("Goo", UnresolvedType.forSignature("LGoo;"),
+-				((ExactAnnotationTypePattern) right).annotationType);
++		AnnotationTypePattern left = ((AndAnnotationTypePattern) fooAndGoo).getLeft();
++		AnnotationTypePattern right = ((AndAnnotationTypePattern) fooAndGoo).getRight();
++		assertEquals("Foo", UnresolvedType.forSignature("LFoo;"), ((ExactAnnotationTypePattern) left).annotationType);
++		assertEquals("Goo", UnresolvedType.forSignature("LGoo;"), ((ExactAnnotationTypePattern) right).annotationType);
+ 	}
+ 
+ 	//
+@@ -72,15 +63,11 @@ public class AnnotationPatternTestCase extends TestCase {
+ 	public void testParseNotAnnotationPattern() {
+ 		PatternParser p = new PatternParser("!@Foo");
+ 		AnnotationTypePattern notFoo = p.maybeParseAnnotationPattern();
+-		assertTrue("NotAnnotationTypePattern",
+-				notFoo instanceof NotAnnotationTypePattern);
+-		notFoo = notFoo.resolveBindings(makeSimpleScope(), new Bindings(3),
+-				true);
++		assertTrue("NotAnnotationTypePattern", notFoo instanceof NotAnnotationTypePattern);
++		notFoo = notFoo.resolveBindings(makeSimpleScope(), new Bindings(3), true);
+ 		assertEquals("!@Foo", notFoo.toString());
+-		AnnotationTypePattern body = ((NotAnnotationTypePattern) notFoo)
+-				.getNegatedPattern();
+-		assertEquals("Foo", UnresolvedType.forName("Foo"),
+-				((ExactAnnotationTypePattern) body).annotationType);
++		AnnotationTypePattern body = ((NotAnnotationTypePattern) notFoo).getNegatedPattern();
++		assertEquals("Foo", UnresolvedType.forName("Foo"), ((ExactAnnotationTypePattern) body).annotationType);
+ 	}
+ 
+ 	public void testParseBracketedAnnotationPattern() {
+@@ -102,8 +89,7 @@ public class AnnotationPatternTestCase extends TestCase {
+ 		AnnotationTypePattern ap = p.maybeParseAnnotationPattern();
+ 		ap = ap.resolveBindings(makeSimpleScope(), new Bindings(3), true);
+ 		AndAnnotationTypePattern atp = (AndAnnotationTypePattern) ap;
+-		NotAnnotationTypePattern notBoo = (NotAnnotationTypePattern) atp
+-				.getRight();
++		NotAnnotationTypePattern notBoo = (NotAnnotationTypePattern) atp.getRight();
+ 		// ExactAnnotationTypePattern boo = (ExactAnnotationTypePattern)
+ 		notBoo.getNegatedPattern();
+ 		// AnnotationTypePattern fooOrGoo = (AnnotationTypePattern)
+@@ -138,8 +124,7 @@ public class AnnotationPatternTestCase extends TestCase {
+ 		PatternParser p = new PatternParser("Foo");
+ 		AnnotationTypePattern foo = p.parseAnnotationNameOrVarTypePattern();
+ 		assertTrue("ExactAnnotationTypePattern expected", foo != null);
+-		assertEquals("Foo", UnresolvedType.forName("Foo"),
+-				((ExactAnnotationTypePattern) foo).annotationType);
++		assertEquals("Foo", UnresolvedType.forName("Foo"), ((ExactAnnotationTypePattern) foo).annotationType);
+ 	}
+ 
+ 	public void testParseNameOrVarAnnotationPatternWithNot() {
+@@ -157,17 +142,14 @@ public class AnnotationPatternTestCase extends TestCase {
+ 		PatternParser p = new PatternParser("Foo || Boo");
+ 		AnnotationTypePattern foo = p.parseAnnotationNameOrVarTypePattern();
+ 		// rest of pattern not consumed...
+-		assertTrue("ExactAnnotationTypePattern",
+-				foo instanceof ExactAnnotationTypePattern);
+-		assertEquals("Foo", UnresolvedType.forName("Foo"),
+-				((ExactAnnotationTypePattern) foo).annotationType);
++		assertTrue("ExactAnnotationTypePattern", foo instanceof ExactAnnotationTypePattern);
++		assertEquals("Foo", UnresolvedType.forName("Foo"), ((ExactAnnotationTypePattern) foo).annotationType);
+ 	}
+ 
+ 	public void testParseNameOrVarAnnotationWithBinding() {
+ 		PatternParser p = new PatternParser("foo");
+ 		AnnotationTypePattern foo = p.parseAnnotationNameOrVarTypePattern();
+-		assertTrue("ExactAnnotationTypePattern",
+-				foo instanceof ExactAnnotationTypePattern);
++		assertTrue("ExactAnnotationTypePattern", foo instanceof ExactAnnotationTypePattern);
+ 		assertEquals("@foo", ((ExactAnnotationTypePattern) foo).toString());
+ 	}
+ 
+@@ -184,14 +166,13 @@ public class AnnotationPatternTestCase extends TestCase {
+ 		assertNotNull("Should find annotation pattern", a);
+ 		p = new PatternParser("Foo && Boo");
+ 		a = p.maybeParseAnnotationPattern();
+-		assertEquals("Should be ANY pattern for a non-match",
+-				AnnotationTypePattern.ANY, a);
++		assertEquals("Should be ANY pattern for a non-match", AnnotationTypePattern.ANY, a);
+ 	}
+ 
+ 	public void testParseTypePatternsWithAnnotations() {
+ 		PatternParser p = new PatternParser("@Foo *");
+ 		TypePattern t = p.parseTypePattern();
+-		assertTrue("WildTypePattern", t instanceof WildTypePattern);
++		assertTrue("AnyWithAnnotationTypePattern", t instanceof AnyWithAnnotationTypePattern);
+ 		AnnotationTypePattern atp = t.annotationPattern;
+ 		assertEquals("@(Foo)", atp.toString());
+ 		assertEquals("(@(Foo) *)", t.toString());
+@@ -201,8 +182,7 @@ public class AnnotationPatternTestCase extends TestCase {
+ 		PatternParser p = new PatternParser("(@(Foo || Boo) (Foo || Boo))");
+ 		TypePattern t = p.parseTypePattern();
+ 		assertTrue("OrTypePattern", t instanceof OrTypePattern);
+-		assertEquals("((@((Foo || Boo)) Foo) || (@((Foo || Boo)) Boo))", t
+-				.toString());
++		assertEquals("((@((Foo || Boo)) Foo) || (@((Foo || Boo)) Boo))", t.toString());
+ 	}
+ 
+ 	public void testNotSyntax() {
+@@ -215,8 +195,7 @@ public class AnnotationPatternTestCase extends TestCase {
+ 	public void testParseMethodOrConstructorSigNoAP() {
+ 		PatternParser p = new PatternParser("* *.*(..)");
+ 		SignaturePattern s = p.parseMethodOrConstructorSignaturePattern();
+-		assertEquals("Any annotation", AnnotationTypePattern.ANY, s
+-				.getAnnotationPattern());
++		assertEquals("Any annotation", AnnotationTypePattern.ANY, s.getAnnotationPattern());
+ 		assertEquals("Any return", "*", s.getReturnType().toString());
+ 		assertEquals("Any dec type", "*", s.getDeclaringType().toString());
+ 		assertEquals("Any name", "*", s.getName().toString());
+@@ -226,8 +205,7 @@ public class AnnotationPatternTestCase extends TestCase {
+ 	public void testParseMethodOrConstructorSigSimpleAP() {
+ 		PatternParser p = new PatternParser("@Foo * *.*(..)");
+ 		SignaturePattern s = p.parseMethodOrConstructorSignaturePattern();
+-		assertEquals("@(Foo) annotation", "@(Foo)", s.getAnnotationPattern()
+-				.toString());
++		assertEquals("@(Foo) annotation", "@(Foo)", s.getAnnotationPattern().toString());
+ 		assertEquals("Any return", "*", s.getReturnType().toString());
+ 		assertEquals("Any dec type", "*", s.getDeclaringType().toString());
+ 		assertEquals("Any name", "*", s.getName().toString());
+@@ -237,8 +215,7 @@ public class AnnotationPatternTestCase extends TestCase {
+ 	public void testParseMethodOrConstructorSigComplexAP() {
+ 		PatternParser p = new PatternParser("!@(Foo || Goo) * *.*(..)");
+ 		SignaturePattern s = p.parseMethodOrConstructorSignaturePattern();
+-		assertEquals("complex annotation", "!@((Foo || Goo))", s
+-				.getAnnotationPattern().toString());
++		assertEquals("complex annotation", "!@((Foo || Goo))", s.getAnnotationPattern().toString());
+ 		assertEquals("Any return", "*", s.getReturnType().toString());
+ 		assertEquals("Any dec type", "*", s.getDeclaringType().toString());
+ 		assertEquals("Any name", "*", s.getName().toString());
+@@ -248,8 +225,7 @@ public class AnnotationPatternTestCase extends TestCase {
+ 	public void testParseMethodFieldSigNoAP() {
+ 		PatternParser p = new PatternParser("* *.*");
+ 		SignaturePattern s = p.parseFieldSignaturePattern();
+-		assertEquals("Any annotation", AnnotationTypePattern.ANY, s
+-				.getAnnotationPattern());
++		assertEquals("Any annotation", AnnotationTypePattern.ANY, s.getAnnotationPattern());
+ 		assertEquals("Any field type", "*", s.getReturnType().toString());
+ 		assertEquals("Any dec type", "*", s.getDeclaringType().toString());
+ 		assertEquals("Any name", "*", s.getName().toString());
+@@ -259,8 +235,7 @@ public class AnnotationPatternTestCase extends TestCase {
+ 	public void testParseFieldSigSimpleAP() {
+ 		PatternParser p = new PatternParser("@Foo * *.*");
+ 		SignaturePattern s = p.parseFieldSignaturePattern();
+-		assertEquals("@Foo annotation", "@(Foo)", s.getAnnotationPattern()
+-				.toString());
++		assertEquals("@Foo annotation", "@(Foo)", s.getAnnotationPattern().toString());
+ 		assertEquals("Any field type", "*", s.getReturnType().toString());
+ 		assertEquals("Any dec type", "*", s.getDeclaringType().toString());
+ 		assertEquals("Any name", "*", s.getName().toString());
+@@ -270,8 +245,7 @@ public class AnnotationPatternTestCase extends TestCase {
+ 	public void testParseFieldSigComplexAP() {
+ 		PatternParser p = new PatternParser("!@(Foo || Goo) * *.*");
+ 		SignaturePattern s = p.parseFieldSignaturePattern();
+-		assertEquals("complex annotation", "!@((Foo || Goo))", s
+-				.getAnnotationPattern().toString());
++		assertEquals("complex annotation", "!@((Foo || Goo))", s.getAnnotationPattern().toString());
+ 		assertEquals("Any field type", "*", s.getReturnType().toString());
+ 		assertEquals("Any dec type", "*", s.getDeclaringType().toString());
+ 		assertEquals("Any name", "*", s.getName().toString());
+@@ -283,13 +257,10 @@ public class AnnotationPatternTestCase extends TestCase {
+ 			PatternParser p = new PatternParser("@Foo");
+ 			AnnotationTypePattern ap = p.maybeParseAnnotationPattern();
+ 			ap = ap.resolveBindings(makeSimpleScope(), new Bindings(3), true);
+-			AnnotatedElementImpl ae = new AnnotatedElementImpl(
+-					new String[] { "Foo" });
++			AnnotatedElementImpl ae = new AnnotatedElementImpl(new String[] { "Foo" });
+ 			assertTrue("matches element with Foo", ap.matches(ae).alwaysTrue());
+-			AnnotatedElementImpl ae2 = new AnnotatedElementImpl(
+-					new String[] { "Boo" });
+-			assertTrue("does not match element with Boo", ap.matches(ae2)
+-					.alwaysFalse());
++			AnnotatedElementImpl ae2 = new AnnotatedElementImpl(new String[] { "Boo" });
++			assertTrue("does not match element with Boo", ap.matches(ae2).alwaysFalse());
+ 		}
+ 	}
+ 
+@@ -298,17 +269,14 @@ public class AnnotationPatternTestCase extends TestCase {
+ 			PatternParser p = new PatternParser("foo");
+ 			AnnotationTypePattern ap = p.parseAnnotationNameOrVarTypePattern();
+ 			try {
+-				ap = ap.resolveBindings(makeSimpleScope(), new Bindings(3),
+-						true);
++				ap = ap.resolveBindings(makeSimpleScope(), new Bindings(3), true);
+ 			} catch (AbortException abEx) {
+-				assertEquals(
+-						"Binding not supported in @pcds (1.5.0 M1 limitation): null",
+-						abEx.getMessage());
++				assertEquals("Binding not supported in @pcds (1.5.0 M1 limitation): null", abEx.getMessage());
+ 			}
+ 			// uncomment these next lines once binding is supported
+ 			// AnnotatedElementImpl ae = new AnnotatedElementImpl(new
+ 			// String[]{"Foo"});
+-			//assertTrue("matches element with Foo",ap.matches(ae).alwaysTrue())
++			// assertTrue("matches element with Foo",ap.matches(ae).alwaysTrue())
+ 			// ;
+ 			// AnnotatedElementImpl ae2 = new AnnotatedElementImpl(new
+ 			// String[]{"Boo"});
+@@ -322,8 +290,7 @@ public class AnnotationPatternTestCase extends TestCase {
+ 			PatternParser p = new PatternParser("@Foo @Boo");
+ 			AnnotationTypePattern ap = p.maybeParseAnnotationPattern();
+ 			ap = ap.resolveBindings(makeSimpleScope(), new Bindings(3), true);
+-			AnnotatedElementImpl ae = new AnnotatedElementImpl(new String[] {
+-					"Foo", "Boo" });
++			AnnotatedElementImpl ae = new AnnotatedElementImpl(new String[] { "Foo", "Boo" });
+ 			assertTrue("matches foo and boo", ap.matches(ae).alwaysTrue());
+ 			ae = new AnnotatedElementImpl(new String[] { "Foo" });
+ 			assertTrue("does not match foo", ap.matches(ae).alwaysFalse());
+@@ -355,32 +322,25 @@ public class AnnotationPatternTestCase extends TestCase {
+ 			PatternParser p = new PatternParser("!@Foo");
+ 			AnnotationTypePattern ap = p.maybeParseAnnotationPattern();
+ 			ap = ap.resolveBindings(makeSimpleScope(), new Bindings(3), true);
+-			AnnotatedElementImpl ae = new AnnotatedElementImpl(new String[] {
+-					"Foo", "Boo" });
+-			assertTrue("does not match foo and boo", ap.matches(ae)
+-					.alwaysFalse());
++			AnnotatedElementImpl ae = new AnnotatedElementImpl(new String[] { "Foo", "Boo" });
++			assertTrue("does not match foo and boo", ap.matches(ae).alwaysFalse());
+ 			ae = new AnnotatedElementImpl(new String[] { "Boo" });
+ 			assertTrue("matches boo", ap.matches(ae).alwaysTrue());
+ 		}
+ 	}
+ 
+ 	public void testAnyAnnotationPatternMatching() {
+-		AnnotatedElementImpl ae = new AnnotatedElementImpl(new String[] {
+-				"Foo", "Boo" });
+-		assertTrue("always matches", AnnotationTypePattern.ANY.matches(ae)
+-				.alwaysTrue());
++		AnnotatedElementImpl ae = new AnnotatedElementImpl(new String[] { "Foo", "Boo" });
++		assertTrue("always matches", AnnotationTypePattern.ANY.matches(ae).alwaysTrue());
+ 		ae = new AnnotatedElementImpl(new String[] {});
+-		assertTrue("always matches", AnnotationTypePattern.ANY.matches(ae)
+-				.alwaysTrue());
++		assertTrue("always matches", AnnotationTypePattern.ANY.matches(ae).alwaysTrue());
+ 	}
+ 
+ 	public TestScope makeSimpleScope() {
+-		BcelWorld bWorld = new BcelWorld(BcweaverTests.TESTDATA_PATH
+-				+ "/testcode.jar"); // testcode contains Foo/Boo/Goo/etc
++		BcelWorld bWorld = new BcelWorld(BcweaverTests.TESTDATA_PATH + "/testcode.jar"); // testcode contains Foo/Boo/Goo/etc
+ 		bWorld.setBehaveInJava5Way(true);
+-		return new TestScope(new String[] { "int", "java.lang.String", "Foo",
+-				"Boo", "Goo" }, new String[] { "a", "b", "foo", "boo", "goo" },
+-				bWorld);
++		return new TestScope(new String[] { "int", "java.lang.String", "Foo", "Boo", "Goo" }, new String[] { "a", "b", "foo",
++				"boo", "goo" }, bWorld);
+ 	}
+ 
+ 	// put test cases for AnnotationPatternList matching in separate test
+@@ -396,8 +356,9 @@ public class AnnotationPatternTestCase extends TestCase {
+ 
+ 		public boolean hasAnnotation(UnresolvedType ofType) {
+ 			for (int i = 0; i < annotationTypes.length; i++) {
+-				if (annotationTypes[i].equals(ofType.getName()))
++				if (annotationTypes[i].equals(ofType.getName())) {
+ 					return true;
++				}
+ 			}
+ 			return false;
+ 		}

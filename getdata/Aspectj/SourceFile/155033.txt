@@ -1,0 +1,1209 @@
+@@ -14,6 +14,7 @@
+             <jvmarg value="-javaagent:${aj.root}/lib/test/loadtime5.jar"/>
+             <jvmarg value="-Daj.weaving.verbose=true"/>
+             <jvmarg value="-Dorg.aspectj.weaver.showWeaveInfo=true"/>
++        	<sysproperty key="org.aspectj.dump.directory" path="${aj.sandbox}"/>
+ <!--            <jvmarg value="-Dorg.aspectj.testing.server.debug=true"/>-->
+         	<arg path="${aj.sandbox}"/>
+         </java>
+@@ -27,6 +28,7 @@
+             <jvmarg value="-javaagent:${aj.root}/lib/test/loadtime5.jar"/>
+             <jvmarg value="-Daj.weaving.verbose=true"/>
+             <jvmarg value="-Dorg.aspectj.weaver.showWeaveInfo=true"/>
++        	<sysproperty key="org.aspectj.dump.directory" path="${aj.sandbox}"/>
+ <!--            <jvmarg value="-Dorg.aspectj.testing.server.debug=true"/>-->
+         	<arg path="${aj.sandbox}"/>
+         </java>
+@@ -14,6 +14,7 @@ package org.aspectj.weaver;
+ import java.io.File;
+ import java.io.FileOutputStream;
+ import java.io.PrintStream;
++import java.lang.ref.WeakReference;
+ import java.net.URL;
+ import java.text.SimpleDateFormat;
+ import java.util.Date;
+@@ -243,7 +244,7 @@ public class Dump {
+ 	public static void registerNode (Class module, INode newNode) {
+ 		if (trace.isTraceEnabled()) trace.enter("registerNode",null,new Object[] { module, newNode} );
+ 
+-		nodes.put(newNode,newNode);
++		nodes.put(newNode,new WeakReference(newNode));
+ 
+ 		if (trace.isTraceEnabled()) trace.exit("registerNode",nodes.size());
+ 	}
+@@ -298,7 +299,8 @@ public class Dump {
+ 		Set keys = nodes.keySet();
+ 		for (Iterator i = keys.iterator(); i.hasNext();) {
+ 			Object module = i.next();
+-			INode dumpNode = (INode)nodes.get(module);
++//			INode dumpNode = (INode)nodes.get(module);
++			INode dumpNode = (INode)module;
+ 			println("---- " + formatObj(dumpNode) + " ----");
+ 			try {
+ 				dumpNode.accept(dumpVisitor); 
+@@ -12,20 +12,24 @@
+ package org.aspectj.weaver;
+ 
+ import java.io.File;
+-import java.io.FileNotFoundException;
+ import java.io.FileOutputStream;
+ import java.io.PrintStream;
++import java.net.URL;
+ import java.text.SimpleDateFormat;
+ import java.util.Date;
+-import java.util.HashMap;
+ import java.util.Iterator;
+ import java.util.List;
+ import java.util.Map;
+ import java.util.Properties;
++import java.util.Set;
++import java.util.WeakHashMap;
+ 
+ import org.aspectj.bridge.IMessage;
+ import org.aspectj.bridge.IMessageHolder;
+ import org.aspectj.bridge.Version;
++import org.aspectj.weaver.tools.Trace;
++import org.aspectj.weaver.tools.TraceFactory;
++import org.aspectj.weaver.tools.Traceable;
+ 
+ /**
+  * @author websterm
+@@ -35,6 +39,9 @@ import org.aspectj.bridge.Version;
+  */
+ public class Dump {
+ 
++	public final static String DUMP_CONDITION_PROPERTY = "org.aspectj.weaver.Dump.condition";
++	public final static String DUMP_DIRECTORY_PROPERTY = "org.aspectj.dump.directory";
++
+ 	/* Format for unique filename based on date & time */
+ 	private static final String FILENAME_PREFIX = "ajcore";
+ //	private static final DateFormat dateFormat = new SimpleDateFormat("yyyyMMdd"); 
+@@ -47,6 +54,7 @@ public class Dump {
+ 
+ 	private static Class exceptionClass;
+ 	private static IMessage.Kind conditionKind = IMessage.ABORT;
++	private static File directory = new File(".");
+ 
+ 	private String reason;
+ 	private String fileName;
+@@ -56,11 +64,13 @@ public class Dump {
+ 	private static List savedFullClasspath;
+ 	private static IMessageHolder savedMessageHolder;
+ 
+-	private static Map nodes = new HashMap();
++	private static Map nodes = new WeakHashMap();
+ 	private static String lastDumpFileName = UNKNOWN_FILENAME;
+ 
+ 	private static boolean preserveOnNextReset = false;
+ 
++	private static Trace trace = TraceFactory.getTraceFactory().getTrace(Dump.class);
++	
+ 	/**
+ 	 * for testing only, so that we can verify dump contents
+ 	 * after compilation has completely finished
+@@ -75,8 +85,8 @@ public class Dump {
+ 			return;
+ 		}
+ 		else {
+-			Dump.nodes = new HashMap();
+-			Dump.savedMessageHolder = null;
++			nodes.clear();
++			savedMessageHolder = null;
+ 		}
+ 	}
+ 
+@@ -99,37 +109,63 @@ public class Dump {
+ 	}
+ 
+ 	public static String dumpWithException (Throwable th) {
++		return dumpWithException(savedMessageHolder,th);
++	}
++	
++	public static String dumpWithException (IMessageHolder messageHolder, Throwable th) {
++		if (trace.isTraceEnabled()) trace.enter("dumpWithException",null,new Object[] {messageHolder, th});
++
+ 		String fileName = UNKNOWN_FILENAME;
+ 		Dump dump = null;
+ 		try {
+ 			dump = new Dump(th.getClass().getName());
+ 			fileName = dump.getFileName();
+-			dump.dumpException(th);
++			dump.dumpException(messageHolder,th);
+ 		}
+ 		finally {
+ 			if (dump != null) dump.close();
+ 		}
++		
++		if (trace.isTraceEnabled()) trace.exit("dumpWithException",fileName);
+ 		return fileName;
+ 	}
+ 
+ 	public static String dumpOnExit () {
+-		if (!shouldDumpOnExit()) return DUMP_EXCLUDED;
+-		
++		return dumpOnExit(savedMessageHolder, false);
++	}
++
++	public static String dumpOnExit (IMessageHolder messageHolder, boolean reset) {
++		if (trace.isTraceEnabled()) trace.enter("dumpOnExit",null,messageHolder);
+ 		String fileName = UNKNOWN_FILENAME;
+-		Dump dump = null;
+-		try {
+-			dump = new Dump(conditionKind.toString());
+-			fileName = dump.getFileName();
+-			dump.dumpDefault();
++	
++		if (!shouldDumpOnExit(messageHolder)) {
++			fileName = DUMP_EXCLUDED;
+ 		}
+-		finally {
+-			if (dump != null) dump.close();
++		else {
++			Dump dump = null;
++			try {
++				dump = new Dump(conditionKind.toString());
++				fileName = dump.getFileName();
++				dump.dumpDefault(messageHolder);
++			}
++			finally {
++				if (dump != null) dump.close();
++			}
+ 		}
++		
++		if (reset) messageHolder.clearMessages();
++
++		if (trace.isTraceEnabled()) trace.exit("dumpOnExit",fileName);
+ 		return fileName;
+ 	}
+ 
+-	private static boolean shouldDumpOnExit () {
+-		return (savedMessageHolder == null) || savedMessageHolder.hasAnyMessage(conditionKind,true);
++	private static boolean shouldDumpOnExit (IMessageHolder messageHolder) {
++		if (trace.isTraceEnabled()) trace.enter("shouldDumpOnExit",null,messageHolder);
++		if (trace.isTraceEnabled()) trace.event("shouldDumpOnExit",null,conditionKind);
++		boolean result = (messageHolder == null) || messageHolder.hasAnyMessage(conditionKind,true);
++		
++		if (trace.isTraceEnabled()) trace.exit("shouldDumpOnExit",result);
++		return result;
+ 	}
+ 
+ 	/*
+@@ -144,11 +180,28 @@ public class Dump {
+ 		}
+ 	}
+ 
++	public static boolean setDumpDirectory (String directoryName) {
++		if (trace.isTraceEnabled()) trace.enter("setDumpDirectory",null,directoryName);
++		boolean success = false;
++
++		File newDirectory = new File(directoryName);
++		if (newDirectory.exists()) {
++			directory = newDirectory;
++			success = true;
++		}
++		
++		if (trace.isTraceEnabled()) trace.exit("setDumpDirectory",success);
++		return success;
++		
++	}
++	
+ 	public static boolean getDumpOnException () {
+ 		return (exceptionClass != null);
+ 	}
+ 
+ 	public static boolean setDumpOnExit (IMessage.Kind condition) {
++		if (trace.isTraceEnabled()) trace.event("setDumpOnExit",null,condition);
++
+ 		conditionKind = condition;
+ 		return true;
+ 	}
+@@ -188,18 +241,26 @@ public class Dump {
+ 	}
+ 
+ 	public static void registerNode (Class module, INode newNode) {
+-		nodes.put(module,newNode);
++		if (trace.isTraceEnabled()) trace.enter("registerNode",null,new Object[] { module, newNode} );
++
++		nodes.put(newNode,newNode);
++
++		if (trace.isTraceEnabled()) trace.exit("registerNode",nodes.size());
+ 	}
+ 
+ 	/*
+ 	 * Dump methods
+ 	 */
+ 	private Dump (String reason) {
++		if (trace.isTraceEnabled()) trace.enter("<init>",this,reason);
++
+ 		this.reason = reason;
+ 
+ 		openDump();
+ 		dumpAspectJProperties();
+ 		dumpDumpConfiguration();
++		
++		if (trace.isTraceEnabled()) trace.exit("<init>",this);
+ 	}
+ 
+ 	public String getFileName() {
+@@ -207,41 +268,51 @@ public class Dump {
+ 	}
+ 
+ 	private void dumpDefault () {
++		dumpDefault(savedMessageHolder);
++	}
++		
++	private void dumpDefault (IMessageHolder holder) {
+ 		dumpSytemProperties();
+ 		dumpCommandLine();
+ 		dumpFullClasspath();
+-		dumpCompilerMessages();
++		dumpCompilerMessages(holder);
+ 
++		dumpNodes();
++	}
++
++	private void dumpNodes() {
++
+ 		/*
+ 		 * Dump registered nodes
+ 		 */
+ 		IVisitor dumpVisitor = new IVisitor() {
+ 
+-			public void visitString (String s) {
+-				println(s);
++			public void visitObject (Object obj) {
++				println(formatObj(obj));
+ 			}
+ 
+ 			public void visitList (List list) {
+ 				println(list);
+ 			}
+ 		};
+-		for (Iterator i = nodes.keySet().iterator(); i.hasNext();) {
+-			Class module = (Class)i.next();
+-			println("---- " + module.getName() + " ----");
++		Set keys = nodes.keySet();
++		for (Iterator i = keys.iterator(); i.hasNext();) {
++			Object module = i.next();
+ 			INode dumpNode = (INode)nodes.get(module);
++			println("---- " + formatObj(dumpNode) + " ----");
+ 			try {
+ 				dumpNode.accept(dumpVisitor); 
+ 			}
+ 			catch (Exception ex) {
+-				println(ex.toString());
++				trace.error(formatObj(dumpNode).toString(),ex);
+ 			}
+ 		}
+ 	}
+ 
+-	private void dumpException (Throwable th) {
++	private void dumpException (IMessageHolder messageHolder, Throwable th) {
+ 		println("---- Exception Information ---");
+ 		println(th);
+-		dumpDefault();
++		dumpDefault(messageHolder);
+ 	}
+ 
+ 	private void dumpAspectJProperties () {
+@@ -282,9 +353,9 @@ public class Dump {
+ 		println(savedCommandLine);
+ 	}
+ 
+-	private void dumpCompilerMessages () {
++	private void dumpCompilerMessages (IMessageHolder messageHolder) {
+ 		println("---- Compiler Messages ---");
+-		if (savedMessageHolder != null) for (Iterator i = savedMessageHolder.getUnmodifiableListView().iterator(); i.hasNext(); ) {
++		if (messageHolder != null) for (Iterator i = messageHolder.getUnmodifiableListView().iterator(); i.hasNext(); ) {
+ 			IMessage message = (IMessage)i.next();
+ 			println(message.toString());
+ 		}
+@@ -305,12 +376,13 @@ public class Dump {
+ 			+ new SimpleDateFormat("HHmmss.SSS").format(now) + "."
+ 			+ FILENAME_SUFFIX;
+ 		try {
+-			print = new PrintStream(new FileOutputStream(fileName),true);
+-			// System.out.println("Dumping to " + fileName);
++			File file = new File(directory,fileName);
++			print = new PrintStream(new FileOutputStream(file),true);
++			trace.info("Dumping to " + file.getAbsolutePath());
+ 		}
+-		catch (FileNotFoundException ex) {
++		catch (Exception ex) {
+ 			print = System.err;
+-			System.out.println("Dumping to stderr");
++			trace.info("Dumping to stderr");
+ 			fileName = UNKNOWN_FILENAME;
+ 		}
+ 
+@@ -321,8 +393,8 @@ public class Dump {
+ 		print.close();
+ 	}
+ 
+-	private void println (String s) {
+-		print.println(s);
++	private void println (Object obj) {
++		print.println(obj);
+ 	}
+ 
+ 	private void println (Object[] array) {
+@@ -375,12 +447,46 @@ public class Dump {
+ 		}
+ 	}
+ 
++	private static Object formatObj(Object obj) {
++		
++		/* These classes have a safe implementation of toString() */
++		if (obj == null
++				|| obj instanceof String
++			    || obj instanceof Number
++			    || obj instanceof Boolean
++			    || obj instanceof Exception
++			    || obj instanceof Character
++			    || obj instanceof Class
++			    || obj instanceof File
++			    || obj instanceof StringBuffer
++			    || obj instanceof URL
++		    ) return obj;
++		else try {
++			
++			/* Classes can provide an alternative implementation of toString() */
++			if (obj instanceof Traceable) {
++				Traceable t = (Traceable)obj;
++				return t.toTraceString();
++			}
++			
++			/* Use classname@hashcode */
++			else return obj.getClass().getName() + "@" + Integer.toHexString(System.identityHashCode(obj));
++		
++		/* Object.hashCode() can be override and may thow an exception */	
++		} catch (Exception ex) {
++			return obj.getClass().getName() + "@FFFFFFFF";
++		}
++	}
++	
+ 	static {
+ 		String exceptionName = System.getProperty("org.aspectj.weaver.Dump.exception","true");
+ 		if (!exceptionName.equals("false")) setDumpOnException(true);
+ 
+-		String conditionName = System.getProperty("org.aspectj.weaver.Dump.condition","true");
+-		setDumpOnExit(conditionName);
++		String conditionName = System.getProperty(DUMP_CONDITION_PROPERTY);
++		if (conditionName != null) setDumpOnExit(conditionName);
++		
++		String directoryName = System.getProperty(DUMP_DIRECTORY_PROPERTY);
++		if (directoryName != null) setDumpDirectory(directoryName);
+ 	}
+ 
+ 	public interface INode {
+@@ -391,7 +497,7 @@ public class Dump {
+ 
+ 	public interface IVisitor {
+ 
+-		public void visitString (String s);
++		public void visitObject (Object s);
+ 		public void visitList (List list);
+ 	}
+ 
+@@ -164,14 +164,16 @@ public abstract class World implements Dump.INode {
+      * Dump processing when a fatal error occurs
+      */
+     public void accept (Dump.IVisitor visitor) {
+-		visitor.visitString("Shadow mungers:");
++//		visitor.visitObject("Extra configuration:");
++//		visitor.visitList(extraConfiguration.);
++		visitor.visitObject("Shadow mungers:");
+ 		visitor.visitList(crosscuttingMembersSet.getShadowMungers());
+-		visitor.visitString("Type mungers:");
++		visitor.visitObject("Type mungers:");
+ 		visitor.visitList(crosscuttingMembersSet.getTypeMungers());
+-        visitor.visitString("Late Type mungers:");
++        visitor.visitObject("Late Type mungers:");
+         visitor.visitList(crosscuttingMembersSet.getLateTypeMungers());
+         if (dumpState_cantFindTypeExceptions!=null) {
+-          visitor.visitString("Cant find type problems:");
++          visitor.visitObject("Cant find type problems:");
+           visitor.visitList(dumpState_cantFindTypeExceptions);
+           dumpState_cantFindTypeExceptions = null;
+         }
+@@ -26,6 +26,7 @@ import org.aspectj.weaver.ICrossReferenceHandler;
+ import org.aspectj.weaver.ReferenceType;
+ import org.aspectj.weaver.ReferenceTypeDelegate;
+ import org.aspectj.weaver.ResolvedType;
++import org.aspectj.weaver.Dump.IVisitor;
+ import org.aspectj.weaver.bcel.BcelWorld;
+ import org.aspectj.weaver.loadtime.IWeavingContext;
+ import org.aspectj.weaver.reflect.AnnotationFinder;
+@@ -250,5 +251,13 @@ public class LTWWorld extends BcelWorld implements IReflectionWorld {
+ 		delegate.storeClass(clazz);
+ 	}
+ 
++	public void accept(IVisitor visitor) {
++		visitor.visitObject("Class loader:");
++		visitor.visitObject(loader);
++		visitor.visitObject("Class loader parent:");
++		visitor.visitObject(loader.getParent());
++		super.accept(visitor);
++	}
++
+ 
+ }
+@@ -17,6 +17,8 @@ import java.text.SimpleDateFormat;
+ import java.util.Collection;
+ import java.util.Date;
+ 
++import org.aspectj.bridge.IMessage.Kind;
++
+ public abstract class AbstractTrace implements Trace {
+ 
+ 	protected Class tracedClass;
+@@ -54,6 +56,10 @@ public abstract class AbstractTrace implements Trace {
+ 		exit(methodName,new Boolean(b));
+ 	}
+ 
++	public void exit (String methodName, int i) {
++		exit(methodName,new Integer(i));
++	}
++
+ 	public void event (String methodName, Object thiz, Object arg) {
+ 		event(methodName,thiz,new Object[] { arg });
+ 	}
+@@ -125,6 +131,7 @@ public abstract class AbstractTrace implements Trace {
+ 			    || obj instanceof File
+ 			    || obj instanceof StringBuffer
+ 			    || obj instanceof URL
++			    || obj instanceof Kind
+ 		    ) return obj;
+ 		else if (obj.getClass().isArray()) {
+ 			return formatArray(obj);
+@@ -52,6 +52,8 @@ public interface Trace {
+ 
+ 	public void exit (String methodName, boolean b);
+ 
++	public void exit (String methodName, int i);
++
+ 	public void event (String methodName, Object thiz, Object arg);
+ 
+ 	public boolean isTraceEnabled ();
+@@ -33,7 +33,9 @@ import org.aspectj.bridge.AbortException;
+ import org.aspectj.bridge.IMessage;
+ import org.aspectj.bridge.IMessageContext;
+ import org.aspectj.bridge.IMessageHandler;
++import org.aspectj.bridge.IMessageHolder;
+ import org.aspectj.bridge.Message;
++import org.aspectj.bridge.MessageHandler;
+ import org.aspectj.bridge.MessageUtil;
+ import org.aspectj.bridge.MessageWriter;
+ import org.aspectj.bridge.Version;
+@@ -78,7 +80,7 @@ public class WeavingAdaptor implements IMessageContext {
+ 	protected BcelWorld bcelWorld;
+ 	protected BcelWeaver weaver;
+ 	private IMessageHandler messageHandler;
+-	private WeavingAdaptorMessageHandler messageHolder;
++	private WeavingAdaptorMessageHolder messageHolder;
+ 	private boolean abortOnError = false;
+ 	protected GeneratedClassHandler generatedClassHandler;
+ 	protected Map generatedClasses = new HashMap(); /* String -> UnwovenClassFile */
+@@ -173,7 +175,7 @@ public class WeavingAdaptor implements IMessageContext {
+ 	}
+ 
+ 	protected void createMessageHandler() {
+-		messageHolder = new WeavingAdaptorMessageHandler(new PrintWriter(System.err));
++		messageHolder = new WeavingAdaptorMessageHolder(new PrintWriter(System.err));
+ 		messageHandler = messageHolder;
+ 		if (verbose) messageHandler.dontIgnore(IMessage.INFO);
+ 		if (Boolean.getBoolean(SHOW_WEAVE_INFO_PROPERTY)) messageHandler.dontIgnore(IMessage.WEAVEINFO);
+@@ -184,6 +186,10 @@ public class WeavingAdaptor implements IMessageContext {
+ 		return messageHandler;
+ 	}
+ 
++	public IMessageHolder getMessageHolder () {
++		return messageHolder;
++	}
++	
+ 	protected void setMessageHandler (IMessageHandler mh) {
+ 		if (mh instanceof ISupportsMessageContext) {
+ 			ISupportsMessageContext smc = (ISupportsMessageContext)mh;
+@@ -235,35 +241,35 @@ public class WeavingAdaptor implements IMessageContext {
+ 	public byte[] weaveClass (String name, byte[] bytes) throws IOException {
+ 		if (trace.isTraceEnabled()) trace.enter("weaveClass",this,new Object[] {name, bytes});
+ 
+-		if (enabled) {
+-			try {
+-				delegateForCurrentClass=null; 
+-		    	if (trace.isTraceEnabled()) trace.enter("weaveClass",this,new Object[] {name,bytes});
+-				name = name.replace('/','.');
+-				if (couldWeave(name, bytes)) {
+-			        if (accept(name, bytes)) {
+-			            // TODO @AspectJ problem
+-			            // Annotation style aspects need to be included regardless in order to get
+-			            // a valid aspectOf()/hasAspect() generated in them.  However - if they are excluded
+-			            // (via include/exclude in aop.xml) they really should only get aspectOf()/hasAspect()
+-			            // and not be included in the full set of aspects being applied by 'this' weaver
+-						debug("weaving '" + name + "'");
+-						bytes = getWovenBytes(name, bytes);
+-					} else if (shouldWeaveAnnotationStyleAspect(name, bytes)) {
+-			            // an @AspectJ aspect needs to be at least munged by the aspectOf munger
+-			            debug("weaving '" + name + "'");
+-			            bytes = getAtAspectJAspectBytes(name, bytes);
+-					} else {
+-						debug("not weaving '" + name + "'");
+-					}
+-		        } else {
+-					debug("cannot weave '" + name + "'");
++		if (!enabled) {
++			if (trace.isTraceEnabled()) trace.exit("weaveClass",false);
++	        return bytes;
++		}
++		
++		try {
++			delegateForCurrentClass=null; 
++			name = name.replace('/','.');
++			if (couldWeave(name, bytes)) {
++		        if (accept(name, bytes)) {
++		            // TODO @AspectJ problem
++		            // Annotation style aspects need to be included regardless in order to get
++		            // a valid aspectOf()/hasAspect() generated in them.  However - if they are excluded
++		            // (via include/exclude in aop.xml) they really should only get aspectOf()/hasAspect()
++		            // and not be included in the full set of aspects being applied by 'this' weaver
++					debug("weaving '" + name + "'");
++					bytes = getWovenBytes(name, bytes);
++				} else if (shouldWeaveAnnotationStyleAspect(name, bytes)) {
++		            // an @AspectJ aspect needs to be at least munged by the aspectOf munger
++		            debug("weaving '" + name + "'");
++		            bytes = getAtAspectJAspectBytes(name, bytes);
++				} else {
++					debug("not weaving '" + name + "'");
+ 				}
+-	
+-				if (trace.isTraceEnabled()) trace.exit("weaveClass",bytes);
+-			} finally {
+-				delegateForCurrentClass=null;
++	        } else {
++				debug("cannot weave '" + name + "'");
+ 			}
++		} finally {
++			delegateForCurrentClass=null;
+ 		}
+ 
+ 		if (trace.isTraceEnabled()) trace.exit("weaveClass",bytes);
+@@ -472,29 +478,18 @@ public class WeavingAdaptor implements IMessageContext {
+ 	 * Processes messages arising from weaver operations. 
+ 	 * Tell weaver to abort on any message more severe than warning.
+ 	 */
+-	protected class WeavingAdaptorMessageHandler implements IMessageHandler {
++	protected class WeavingAdaptorMessageHolder extends MessageHandler {
++
+ 
+ 		private IMessageHandler delegate;
+-		private boolean accumulating = true;
+-	    private List messages = new ArrayList();
++	    private List savedMessages;
+ 
+ 		protected boolean traceMessages = Boolean.getBoolean(TRACE_MESSAGES_PROPERTY);
+ 
+-		public WeavingAdaptorMessageHandler (PrintWriter writer) {
++		public WeavingAdaptorMessageHolder (PrintWriter writer) {
+ 
+ 			this.delegate = new WeavingAdaptorMessageWriter(writer);
+-		}
+-
+-		public boolean handleMessage(IMessage message) throws AbortException {
+-			if (traceMessages) traceMessage(message);
+-			if (accumulating) {
+-				boolean result = addMessage(message);
+-				if (abortOnError && 0 <= message.getKind().compareTo(IMessage.ERROR)) {
+-					throw new AbortException(message);
+-				}
+-				return result;
+-			}
+-			else return delegate.handleMessage(message);
++			super.dontIgnore(IMessage.WEAVEINFO);
+ 		}
+ 
+ 		private void traceMessage (IMessage message) {
+@@ -527,41 +522,79 @@ public class WeavingAdaptor implements IMessageContext {
+ 	    protected String render(IMessage message) {
+ 	    	return "[" + getContextId() + "] " + message.toString();    
+ 	    }
++		
++		public void flushMessages () {
++			if (savedMessages == null) {
++				savedMessages = new ArrayList();
++				savedMessages.addAll(super.getUnmodifiableListView());
++				clearMessages();
++	            for (Iterator iter = savedMessages.iterator(); iter.hasNext();) {
++	                IMessage message = (IMessage)iter.next();
++	                delegate.handleMessage(message);
++	            }
++			}
++//			accumulating = false;
++//			messages.clear();
++		}
++		
++		public void setDelegate (IMessageHandler messageHandler) {
++			delegate = messageHandler;
++		}
++
++		
++		/*
++		 * IMessageHandler
++		 */
++
++		public boolean handleMessage(IMessage message) throws AbortException {
++			if (traceMessages) traceMessage(message);
++
++			super.handleMessage(message);
++			
++			if (abortOnError && 0 <= message.getKind().compareTo(IMessage.ERROR)) {
++				throw new AbortException(message);
++			}
++//			if (accumulating) {
++//				boolean result = addMessage(message);
++//				if (abortOnError && 0 <= message.getKind().compareTo(IMessage.ERROR)) {
++//					throw new AbortException(message);
++//				}
++//				return result;
++//			}
++//			else return delegate.handleMessage(message);
++
++			if (savedMessages != null) delegate.handleMessage(message);
++			return true;
++		}
+ 
+ 		public boolean isIgnoring (Kind kind) {
+ 			return delegate.isIgnoring(kind);
+ 		}
+ 
+ 		public void dontIgnore (IMessage.Kind kind) {
+-			if (null != kind) {
++			if (null != kind && delegate != null) {
+ 				delegate.dontIgnore(kind);
+ 			}
+ 		}
+ 
+ 		public void ignore(Kind kind) {
+-			if (null != kind) {
++			if (null != kind && delegate != null) {
+ 				delegate.ignore(kind);
+ 			}
+ 		}
++
+ 
+-		private boolean addMessage (IMessage message) {
+-			messages.add(message);
+-			return true;
+-		}
+-		
+-		public void flushMessages () {
+-            for (Iterator iter = messages.iterator(); iter.hasNext();) {
+-                IMessage message = (IMessage)iter.next();
+-                delegate.handleMessage(message);
+-            }
+-			accumulating = false;
+-			messages.clear();
+-		}
+-		
+-		public void setDelegate (IMessageHandler messageHandler) {
+-			delegate = messageHandler;
+-		}
++		/*
++		 * IMessageHolder
++		 */
+ 
++		public List getUnmodifiableListView() {
++//			System.err.println("? WeavingAdaptorMessageHolder.getUnmodifiableListView() savedMessages=" + savedMessages);
++			List allMessages = new ArrayList();
++			allMessages.addAll(savedMessages);
++			allMessages.addAll(super.getUnmodifiableListView());
++			return allMessages;
++		}
+ 	}
+ 
+ 	protected class WeavingAdaptorMessageWriter extends MessageWriter {
+@@ -12,7 +12,6 @@
+ package org.aspectj.systemtest.ajc150.ataspectj;
+ 
+ import java.io.File;
+-import java.io.FilenameFilter;
+ 
+ import junit.framework.Test;
+ 
+@@ -100,13 +99,13 @@ public class AtAjLTWTests extends XMLBasedAjcTestCase {
+ 
+         // before
+         File f = new File("_ajdump/_before/com/foo/bar");
+-        CountingFilenameFilter cff = new CountingFilenameFilter();
++        CountingFilenameFilter cff = new CountingFilenameFilter(".class");
+         f.listFiles(cff);
+         assertEquals("Expected dump file in " + f.getAbsolutePath(),1,cff.getCount());
+ 
+         // after
+         f = new File("_ajdump/com/foo/bar");
+-        cff = new CountingFilenameFilter();
++        cff = new CountingFilenameFilter(".class");
+         f.listFiles(cff);
+         assertEquals("Expected dump file in " + f.getAbsolutePath(),1,cff.getCount());
+ 
+@@ -134,11 +133,11 @@ public class AtAjLTWTests extends XMLBasedAjcTestCase {
+         // The working directory is different because this test must be forked
+         File dir = new File("../tests/java5/ataspectj");
+         File f = new File(dir,"_ajdump/_before");
+-        CountingFilenameFilter cff = new CountingFilenameFilter();
++        CountingFilenameFilter cff = new CountingFilenameFilter(".class");
+         f.listFiles(cff);
+         assertEquals("Expected dump file in " + f.getAbsolutePath(),1,cff.getCount());
+         f = new File(dir,"_ajdump");
+-        cff = new CountingFilenameFilter();
++        cff = new CountingFilenameFilter(".class");
+         f.listFiles(cff);
+         assertEquals(1,cff.getCount());
+ 
+@@ -215,18 +214,4 @@ public class AtAjLTWTests extends XMLBasedAjcTestCase {
+     public void testCflowBelowStack() {
+         runTest("CflowBelowStack");
+     }
+-
+-    private static class CountingFilenameFilter implements FilenameFilter {
+-    	
+-    	private int count;
+-    	
+-    	public boolean accept(File dir, String name) {
+-    		if (name.endsWith(".class")) count++;
+-    		return false;
+-    	}
+-
+-		public int getCount() {
+-			return count;
+-		}
+-    }
+ }
+@@ -576,17 +576,17 @@
+     </ajc-test>
+ 
+     <ajc-test dir="ltw" title="reweavableAspectNotRegistered error">
+-      <compile files="HelloWorld.java, ExceptionHandler.aj" options="-showWeaveInfo">
+-        <message kind="weave" text="Join point 'method-execution(void HelloWorld.main(java.lang.String[]))' in Type 'HelloWorld' (HelloWorld.java:3) advised by around advice from 'ExceptionHandler' (ExceptionHandler.aj:2)"/>
++      <compile files="HelloWorldWithException.java, ExceptionHandler.aj" options="-showWeaveInfo">
++        <message kind="weave" text="Join point 'method-execution(void HelloWorldWithException.main(java.lang.String[]))' in Type 'HelloWorldWithException' (HelloWorldWithException.java:3) advised by around advice from 'ExceptionHandler' (ExceptionHandler.aj:2)"/>
+       </compile>
+       <compile files="EmptyAspect.aj">
+       </compile>
+-      <run class="HelloWorld" ltw="aop-missingaspect.xml">
++      <run class="HelloWorldWithException" ltw="aop-missingaspect.xml">
+         <stdout>
+           <line text="Hello World!"/>
+         </stdout>
+         <stderr>
+-        	<line text="error aspect 'ExceptionHandler' woven into 'HelloWorld' must be defined to the weaver (placed on the aspectpath, or defined in an aop.xml file if using LTW)."/>
++        	<line text="error aspect 'ExceptionHandler' woven into 'HelloWorldWithException' must be defined to the weaver (placed on the aspectpath, or defined in an aop.xml file if using LTW)."/>
+         </stderr>
+       </run>
+     </ajc-test>
+@@ -672,7 +672,7 @@
+ 
+ 	<ajc-test dir="ltw" title="NPE with custom agent" keywords="ltw">
+         <compile files="java/net/URLClassLoader.java"/>
+-        <compile files="HelloWorld.java" options="-outjar hello.jar"/>
++        <compile files="HelloWorldWithException.java" options="-outjar hello.jar"/>
+         <compile files="ExceptionHandler.aj" options="-outxml -outjar handler.jar"/>
+         <compile files="NullSecurityManager.java" options="-outjar security.jar"/>
+ 		<ant file="ant.xml" target="NPE with custom agent" verbose="true">
+@@ -0,0 +1 @@
++@interface Annotation {}
+\ No newline at end of file
+@@ -0,0 +1,9 @@
++public aspect Aspect {
++
++	declare @method : public static void main(String[]) : @Annotation;
++
++	before () : execution(public Class*.new()) {
++		System.out.println("? Aspect.before()");
++	}
++	
++}
+\ No newline at end of file
+@@ -0,0 +1,8 @@
++public class Class1 /*implements MissingInterface*/ {
++	
++	@Annotation
++	public static void main(String[] args) {
++		System.out.println("? Class1.main()");
++		new Class1();
++	}
++}
+\ No newline at end of file
+@@ -0,0 +1,8 @@
++public class Class2 /*implements MissingInterface*/ {
++	
++	@Annotation
++	public static void main(String[] args) {
++		System.out.println("? Class2.main()");
++		new Class2();
++	}
++}
+\ No newline at end of file
+@@ -0,0 +1,7 @@
++public class Class3 {
++	
++	public static void main(String[] args) {
++		System.out.println("? Class3.main()");
++		new Class3();
++	}
++}
+\ No newline at end of file
+@@ -0,0 +1,24 @@
++import java.lang.reflect.InvocationTargetException;
++import java.lang.reflect.Method;
++
++public class MultipleDumpTest {
++	
++	public static void main(String[] args) throws Exception {
++		System.out.println("? MultipleDumpTest.main()");
++		invokeMain("Class1",args);
++		invokeMain("Class2",args);
++		invokeMain("Class3",args);
++	}
++
++	private static void invokeMain (String className, String[] args) throws Exception
++	{
++		Class clazz = Class.forName(className);
++		Class[] paramTypes = new Class[1];
++		paramTypes[0] = args.getClass();
++	
++		Method method = clazz.getDeclaredMethod("main",paramTypes);
++		Object[] params = new Object[1];
++		params[0] = args;
++		method.invoke(null,params);
++	}
++}
+\ No newline at end of file
+@@ -0,0 +1,27 @@
++<!-- ajc-ant script, not to be used from Ant commant line - see AntSpec -->
++<project name="ltw">
++
++    <!-- using this we can debug the forked VM -->
++    <property
++        name="jdwp"
++        value="-Xdebug -Xnoagent -Djava.compiler=NONE -Xrunjdwp:transport=dt_socket,server=y,suspend=y,address=5005"/>
++	<property name="aj.bootpath" refid="aj.path"/>
++
++    <target name="multiple dump on error">
++        <copy file="aop-multipledumponerror.xml"
++              tofile="${aj.sandbox}/META-INF/aop.xml"/>
++        <java fork="yes" classname="MultipleDumpTest" failonerror="yes">
++            <classpath refid="aj.path"/>
++            <jvmarg value="-Dorg.aspectj.weaver.Dump.condition=error"/>
++        	<sysproperty key="org.aspectj.dump.directory" path="${aj.sandbox}"/>
++            <jvmarg value="-javaagent:${aj.root}/lib/test/loadtime5.jar"/>
++<!--            <jvmarg line="${jdwp}"/>-->
++<!--        	
++            <jvmarg value="-Dorg.aspectj.tracing.enabled=true"/>
++            <jvmarg value="-Dorg.aspectj.tracing.factory=default"/>
++            <jvmarg value="-Dorg.aspectj.tracing.messages=true"/>
++-->            
++        </java>
++    </target>
++
++</project>
+@@ -0,0 +1,4 @@
++<aspectj>
++    <!--<weaver options="-XmessageHandlerClass:AbortingMessageHandler -debug -XnoInline -Xlint:error"/>-->
++    <weaver options="-1.5 -Xlint:error"/>
++</aspectj>
+\ No newline at end of file
+@@ -1,4 +1,4 @@
+-public class HelloWorld {
++public class HelloWorldWithException {
+ 
+ 	public static void main (String[] args) throws Exception {
+ 		System.out.println("Hello World!");
+@@ -8,7 +8,7 @@
+ 	<property name="aj.bootpath" refid="aj.path"/>
+ 
+     <target name="JDK14 LTW with XML">
+-        <java fork="yes" classname="HelloWorld" failonerror="yes">
++        <java fork="yes" classname="HelloWorldWithException" failonerror="yes">
+             <classpath refid="aj.path"/>
+             <jvmarg value="-Djava.system.class.loader=org.aspectj.weaver.loadtime.WeavingURLClassLoader"/>
+         	<sysproperty key="aj.class.path" path="${aj.sandbox}/hello.jar:${aj.sandbox}/handler.jar"/>
+@@ -24,7 +24,7 @@
+     </target>
+ 
+     <target name="JDK14 LTW with ASPECTPATH">
+-        <java fork="yes" classname="HelloWorld" failonerror="yes">
++        <java fork="yes" classname="HelloWorldWithException" failonerror="yes">
+             <classpath refid="aj.path"/>
+             <jvmarg value="-Djava.system.class.loader=org.aspectj.weaver.loadtime.WeavingURLClassLoader"/>
+         	<sysproperty key="aj.class.path" path="${aj.sandbox}/hello.jar:${aj.sandbox}/handler.jar"/>
+@@ -47,7 +47,7 @@
+     <target name="override default path using -Dorg.aspectj.weaver.loadtime.configuration">
+         <copy file="${aj.root}/tests/ltw/aop-orgaspectjweaverloadtimeconfiguration.xml"
+               tofile="${aj.sandbox}/META-INF/aop-random.xml"/>
+-        <java fork="yes" classname="HelloWorld" failonerror="yes">
++        <java fork="yes" classname="HelloWorldWithException" failonerror="yes">
+             <classpath refid="aj.path"/>
+             <classpath>
+                 <pathelement path="${aj.sandbox}/hello.jar:${aj.sandbox}/handler.jar:${aj.sandbox}/tracing.jar"/>
+@@ -68,7 +68,7 @@
+ 	     SecurityManager that will be loaded _before_ the class loader
+ 	     hierarch is fully initialized. -->
+     <target name="NPE with custom agent">
+-        <java fork="yes" classname="HelloWorld" failonerror="yes">
++        <java fork="yes" classname="HelloWorldWithException" failonerror="yes">
+ 
+         	<!-- Prepend custom URLClassLoader and append AspectJ
+         	     to bootclasspath -->
+@@ -97,7 +97,7 @@
+     <target name="simple LTW">
+         <copy file="${aj.root}/tests/ltw/aop-simple.xml"
+               tofile="${aj.sandbox}/META-INF/aop.xml"/>
+-        <java fork="yes" classname="HelloWorld" failonerror="yes">
++        <java fork="yes" classname="HelloWorldWithException" failonerror="yes">
+             <classpath refid="aj.path"/>
+             <!-- use META-INF/aop.xml style -->
+             <jvmarg value="-javaagent:${aj.root}/lib/test/loadtime5.jar"/>
+@@ -105,4 +105,18 @@
+         </java>
+     </target>
+ 
++    <target name="dump on error">
++        <copy file="${aj.root}/tests/ltw/aop-dumponerror.xml"
++              tofile="${aj.sandbox}/META-INF/aop.xml"/>
++        <java fork="yes" classname="HelloWorldWithException" failonerror="no">
++            <classpath refid="aj.path"/>
++            <jvmarg value="-Dorg.aspectj.weaver.Dump.condition=error"/>
++        	<sysproperty key="org.aspectj.dump.directory" path="${aj.sandbox}"/>
++            <!-- use META-INF/aop.xml style -->
++            <jvmarg value="-javaagent:${aj.root}/lib/test/loadtime5.jar"/>
++<!--            <jvmarg line="${jdwp}"/>-->
++            <jvmarg value="-Dorg.aspectj.tracing.factory=default"/>
++        </java>
++    </target>
++
+ </project>
+@@ -0,0 +1,7 @@
++<aspectj>
++	<aspects>
++        <concrete-aspect name="SubAspect" extends="MissingAspect">
++        	<pointcut name="scope" expression=""/>
++        </concrete-aspect>
++	</aspects>
++</aspectj>
+\ No newline at end of file
+@@ -2,4 +2,4 @@
+ loader.application=Application,hello.jar;handler.jar
+ 
+ # main=Class,Loader
+-main=HelloWorld,Application
+\ No newline at end of file
++main=HelloWorldWithException,Application
+\ No newline at end of file
+@@ -3,4 +3,4 @@ loader.parent=Parent,parent.jar
+ loader.child=Child,child.jar,Parent
+ 
+ # main=Class,Loader
+-main=Child,Child
+\ No newline at end of file
++main=HelloWorldWithException,Child
+\ No newline at end of file
+@@ -150,13 +150,29 @@ public class LTWTests extends org.aspectj.testing.XMLBasedAjcTestCase {
+ 
+   	public void testConfigutationSystemProperty_pr149289 () {
+   		runTest("override default path using -Dorg.aspectj.weaver.loadtime.configuration");
+-  		  		
+   	}
+ 
+   	public void testSimpleLTW_pr159854 () {
+   		runTest("simple LTW");
+-  		  		
+   	}
++  	
++  	public void testDumpOnError_pr155033 () {
++  		runTest("dump on error");
++
++  		File dir = getSandboxDirectory();
++        CountingFilenameFilter cff = new CountingFilenameFilter(".txt");
++        dir.listFiles(cff);
++        assertEquals("Missing ajcore file in " + dir.getAbsolutePath(),1,cff.getCount());
++	}
++  	
++  	public void testMultipleDumpOnError_pr155033 () {
++  		runTest("multiple dump on error");
++
++  		File dir = getSandboxDirectory();
++        CountingFilenameFilter cff = new CountingFilenameFilter(".txt");
++        dir.listFiles(cff);
++        assertEquals("Missing ajcore file in " + dir.getAbsolutePath(),2,cff.getCount());
++	}
+ 
+   	/*
+   	 * Allow system properties to be set and restored
+@@ -536,7 +536,7 @@
+     </ajc-test>
+ 
+ 	<ajc-test dir="ltw" title="JDK14 LTW with XML" keywords="ltw">
+-        <compile files="HelloWorld.java" options="-outjar hello.jar"/>
++        <compile files="HelloWorldWithException.java" options="-outjar hello.jar"/>
+         <compile files="ExceptionHandler.aj" options="-outxml -outjar handler.jar"/>
+ 		<ant file="ant.xml" target="JDK14 LTW with XML" verbose="true">
+         	<stdout>
+@@ -549,7 +549,7 @@
+     </ajc-test>
+ 
+ 	<ajc-test dir="ltw" title="JDK14 LTW with ASPECTPATH" keywords="ltw">
+-        <compile files="HelloWorld.java" options="-outjar hello.jar"/>
++        <compile files="HelloWorldWithException.java" options="-outjar hello.jar"/>
+         <compile files="ExceptionHandler.aj" options="-outjar handler.jar"/>
+         <ant file="ant.xml" target="JDK14 LTW with ASPECTPATH" verbose="true">
+         	<stdout>
+@@ -562,7 +562,7 @@
+     </ajc-test>
+ 
+ 	<ajc-test dir="ltw" title="TestServer with HelloWorld" keywords="ltw,server">
+-        <compile files="HelloWorld.java" options="-outjar hello.jar"/>
++        <compile files="HelloWorldWithException.java" options="-outjar hello.jar"/>
+         <compile files="ExceptionHandler.aj" options="-outxml -outjar handler.jar"/>
+         <ant file="ant-server.xml" target="TestServer with HelloWorld" verbose="true">
+         	<stdout>
+@@ -573,7 +573,7 @@
+         	</stdout>
+         </ant>
+     </ajc-test>
+-    
++<!--    
+ 	<ajc-test dir="ltw" title="TestServer with Parent and Child" keywords="ltw,server">
+         <compile files="Parent.java" options="-outjar parent.jar"/>
+         <compile files="Child.java" options="-classpath parent.jar -outjar child.jar"/>
+@@ -587,9 +587,22 @@
+         	</stdout>
+         </ant>
+     </ajc-test>
++-->    
++	<ajc-test dir="ltw" title="TestServer with Parent and Child" keywords="ltw,server">
++        <compile files="HelloWorldWithException.java" options="-outjar child.jar"/>
++        <compile files="ExceptionHandler.aj" options="-outxml -outjar parent.jar"/>
++        <ant file="ant-server.xml" target="TestServer with Parent and Child" verbose="true">
++        	<stdout>
++            	<line text="Starting ..."/>
++            	<line text="Running HelloWorld"/>
++            	<line text="Hello World!"/>
++            	<line text="Stopping ..."/>
++        	</stdout>
++        </ant>
++    </ajc-test>
+ 
+ 	<ajc-test dir="ltw" title="override default path using -Dorg.aspectj.weaver.loadtime.configuration" keywords="ltw">
+-        <compile files="HelloWorld.java" options="-outjar hello.jar"/>
++        <compile files="HelloWorldWithException.java" options="-outjar hello.jar"/>
+         <compile files="ExceptionHandler.aj" options="-outxml -outjar handler.jar"/>
+         <compile files="Tracing.aj" options="-outxml -outjar tracing.jar"/>
+ 		<ant file="ant.xml" target="override default path using -Dorg.aspectj.weaver.loadtime.configuration" verbose="true">
+@@ -645,7 +658,7 @@
+     </ajc-test>       
+ 
+ 	<ajc-test dir="ltw" title="simple LTW" keywords="ltw">
+-        <compile files="HelloWorld.java"/>
++        <compile files="HelloWorldWithException.java"/>
+         <compile files="ExceptionHandler.aj" options="-outxml"/>
+ 		<ant file="ant.xml" target="simple LTW" verbose="true">
+         	<stdout>
+@@ -653,5 +666,39 @@
+         	</stdout>
+         </ant>
+     </ajc-test>
++
++	<ajc-test dir="ltw" title="dump on error" keywords="ltw">
++        <compile files="HelloWorldWithException.java"/>
++        <compile files="ExceptionHandler.aj" options="-outxml"/>
++		<ant file="ant.xml" target="dump on error" verbose="true">
++        	<stdout>
++            	<line text="Hello World!"/>
++        	</stdout>
++        </ant>
++    </ajc-test>
++
++	<ajc-test dir="bugs153/pr155033" title="multiple dump on error" keywords="ltw">
++        <compile files="Annotation.java" options="-1.5"/>
++        <compile files="MultipleDumpTest.java, Class1.java, Class2.java, Class3.java" options="-1.5"/>
++        <compile files="Aspect.aj" options="-1.5 -outxml -Xlint:ignore"/>
++<!--        
++        <run class="MultipleDumpTest" ltw="aop-multipledumponerror.xml">
++        	<stdout>
++            	<line text="? AbortingMessageHandler.AbortingMessageHandler()"/>
++        	</stdout>
++        </run>
++-->        
++		<ant file="ant.xml" target="multiple dump on error" verbose="true">
++        	<stdout>
++            	<line text="? MultipleDumpTest.main()"/>
++            	<line text="? Class1.main()"/>
++            	<line text="? Aspect.before()"/>
++            	<line text="? Class2.main()"/>
++            	<line text="? Aspect.before()"/>
++            	<line text="? Class3.main()"/>
++            	<line text="? Aspect.before()"/>
++        	</stdout>
++        </ant>
++    </ajc-test>
+ 
+     
+\ No newline at end of file
+@@ -13,6 +13,7 @@ package org.aspectj.testing;
+ 
+ import java.io.File;
+ import java.io.FileInputStream;
++import java.io.FilenameFilter;
+ import java.io.InputStreamReader;
+ import java.util.HashMap;
+ import java.util.Map;
+@@ -275,5 +276,24 @@ public abstract class XMLBasedAjcTestCase extends AjcTestCase {
+ 	  	File f = new File(ajc.getSandboxDirectory(),file);
+ 	  	assertTrue("File " + file + " should have been updated",f.lastModified() > sinceTime);
+ 	  }
++
++	  public static class CountingFilenameFilter implements FilenameFilter {
++	    	
++		  private String suffix;
++		  private int count;
++		  
++		  public CountingFilenameFilter (String s) {
++			  this.suffix = s;
++		  }
++	    	
++		  public boolean accept(File dir, String name) {
++			  if (name.endsWith(suffix)) count++;
++			  return false;
++		  }
++	
++		  public int getCount() {
++			  return count;
++		  }
++	  }
+ }
+ 
+@@ -14,6 +14,7 @@ package org.aspectj.weaver.loadtime;
+ import java.util.Map;
+ import java.util.WeakHashMap;
+ 
++import org.aspectj.weaver.Dump;
+ import org.aspectj.weaver.tools.Trace;
+ import org.aspectj.weaver.tools.TraceFactory;
+ import org.aspectj.weaver.tools.WeavingAdaptor;
+@@ -75,13 +76,15 @@ public class Aj implements ClassPreProcessor {
+                 	return bytes;
+                 }
+                 byte[] newBytes = weavingAdaptor.weaveClass(className, bytes);
++                Dump.dumpOnExit(weavingAdaptor.getMessageHolder(), true);
+         		if (trace.isTraceEnabled()) trace.exit("preProcess",newBytes);
+                 return newBytes;
+ 			}
+ 
+         /* Don't like to do this but JVMTI swallows all exceptions */
+         } catch (Throwable th) {
+-    		trace.error("preProcess",th);
++    		trace.error(className,th);
++    		Dump.dumpWithException(th);
+             //FIXME AV wondering if we should have the option to fail (throw runtime exception) here
+             // would make sense at least in test f.e. see TestHelper.handleMessage()
+     		if (trace.isTraceEnabled()) trace.exit("preProcess",th);

@@ -1,0 +1,269 @@
+@@ -687,13 +687,31 @@ public class PatternParser {
+ 		if (maybeEat("!")) {
+ 			//int startPos = tokenSource.peek(-1).getStart();
+ 			//??? we lose source location for true start of !type
+-			TypePattern p = new NotTypePattern(parseAtomicTypePattern(insideTypeParameters,parameterAnnotationsPossible));
+-			p = setAnnotationPatternForTypePattern(p,ap,false);
++			
++			// An annotation, if processed, is outside of the Not - so here we have to build
++			// an And pattern containing the annotation and the not as left and right children
++			// *unless* the annotation pattern was just 'Any' then we can skip building the 
++			// And and just return the Not directly (pr228980)
++		    TypePattern p = null;
++            TypePattern tp = parseAtomicTypePattern(insideTypeParameters,parameterAnnotationsPossible);
++		    if (!(ap instanceof AnyAnnotationTypePattern)) {
++    			p = new NotTypePattern(tp);
++    			p = new AndTypePattern(setAnnotationPatternForTypePattern(TypePattern.ANY,ap,false),p);
++		    } else {
++		        p = new NotTypePattern(tp);
++		    }
+ 			return p;			
+ 		}
+ 		if (maybeEat("(")) {
+ 			TypePattern p = parseTypePattern(insideTypeParameters,false);
+-			p = setAnnotationPatternForTypePattern(p,ap,parameterAnnotationsPossible);
++			if ((p instanceof NotTypePattern) && !(ap instanceof AnyAnnotationTypePattern)) {
++			    // dont set the annotation on it, we don't want the annotation to be 
++			    // considered as part of the not, it is outside the not (pr228980)
++			    TypePattern tp = setAnnotationPatternForTypePattern(TypePattern.ANY, ap, parameterAnnotationsPossible);
++			    p = new AndTypePattern(tp,p);
++			} else {
++			    p = setAnnotationPatternForTypePattern(p,ap,parameterAnnotationsPossible);
++			}
+ 			eat(")");
+ 			boolean isVarArgs = maybeEat("...");
+ 			if (isVarArgs) p.setIsVarArgs(isVarArgs);
+@@ -8,7 +8,7 @@ public aspect Test {
+     declare warning : execution(* *(!(Object+), ..)) : "mOne: value parameter";
+ 
+     // Wrong (matches f1 and f2, should match only f1):  a Not type pattern containing @A and negatedPattern Object+ is built
+-//broke    declare warning : execution(* *(@A (!(Object+)), ..)) : "mTwo: @A annotated value parameter";
++    declare warning : execution(* *(@A (!(Object+)), ..)) : "mTwo: @A annotated value parameter";
+ 
+     // OK (matches f1):
+     declare warning : execution(* *(@A (*), ..)) && execution(* *(!(Object+), ..)): "mThree: @A annotated value parameter.";
+@@ -23,7 +23,7 @@ public aspect Test {
+     declare warning : execution(* *(@A (*), ..)) && execution(* *(Object+, ..)): "mSix: @A annotated reference parameter.";
+ 
+     // Wrong (matches f1 and f2, should match only f2):
+-//broke     declare warning : execution(* *(!@A (!(Object+)), ..)) : "mSeven: Non-@A annotated value parameter!";
++     declare warning : execution(* *(!@A (!(Object+)), ..)) : "mSeven: Non-@A annotated value parameter!";
+ 
+     // Wrong (matches f1 and f2, should match only f2):
+     declare warning : execution(* *(!@A (*), ..)) && execution(* *(!(Object+), ..)): "mEight: Non-@A annotated value parameter.";
+@@ -0,0 +1,25 @@
++ import java.lang.annotation.*;
++ import java.lang.annotation.Target;
++
++ public aspect Test2 {
++
++     declare warning : execution(* *(@A (!(Object+)), ..)) : "mOne"; // f1
++     declare warning : execution(* *(@A !String, ..)) : "mTwo"; // f3/f4
++     
++     void f1(@A int i) {} // 9 
++
++     void f2(int i) {} // 11
++
++     void f3(@A P i) {}
++
++     void f4(P i) {}
++
++     void f5(Integer i) {}
++     
++     void f6(@A Integer i) {}
++
++     @Retention(RetentionPolicy.RUNTIME)
++     private static @interface A { }
++
++     @A static class P {}
++ }
+\ No newline at end of file
+@@ -77,6 +77,7 @@ import org.aspectj.testing.XMLBasedAjcTestCase;
+ public class ParameterAnnotationMatchingTests extends XMLBasedAjcTestCase {
+ 
+     public void testDeow() { runTest("deow"); }
++    public void testDeow2() { runTest("deow2"); }
+ 	public void testNoWarningForWrongType() { runTest("no xlint for wrong target");}
+ 	public void testVariousCombinations() { runTest("various combinations"); }
+ 	public void testVariousCombinationsCtors() { runTest("various combinations - ctors"); }
+@@ -3,25 +3,30 @@
+ <!-- AspectJ v1.6.0 Parameter Annotation Matching Tests -->
+ <suite>
+ 
++   <ajc-test dir="features160/parameterAnnotationMatching" title="deow2">
++     <compile options="-1.5" files="Test2.java">
++       <message kind="warning" line="9" text="mOne"/>
++       <message kind="warning" line="13" text="mTwo"/>
++       <message kind="warning" line="15" text="mTwo"/>
++     </compile>
++   </ajc-test>
+ 
+    <ajc-test dir="features160/parameterAnnotationMatching" title="deow">
+      <compile options="-1.5" files="Test.java">
+        <message kind="warning" line="43" text="mOne"/>
+        <message kind="warning" line="45" text="mOne"/>
++       <message kind="warning" line="43" text="mTwo"/>
+        <message kind="warning" line="43" text="mThree"/> 
+        <message kind="warning" line="47" text="mFour"/> 
+        <message kind="warning" line="49" text="mFour"/> 
+        <message kind="warning" line="47" text="mFive"/> 
+        <message kind="warning" line="47" text="mSix"/> 
++       <message kind="warning" line="45" text="mSeven"/>
++       <message kind="warning" line="45" text="mEight"/>  
+        <message kind="warning" line="45" text="mNine"/> 
++       <message kind="warning" line="49" text="mTen"/> 
+        <message kind="warning" line="49" text="mEleven"/> 
+        <message kind="warning" line="49" text="mTwelve"/>
+-       <message kind="warning" line="49" text="mTen"/> 
+-       <message kind="warning" line="45" text="mEight"/>  
+-       <!--
+-       <message kind="warning" line="43" text="mTwo"/>
+-       <message kind="warning" line="45" text="mSeven"/>
+-       -->
+      </compile>
+    </ajc-test>
+ 
+@@ -0,0 +1,56 @@
++import java.lang.annotation.ElementType;
++import java.lang.annotation.Retention;
++import java.lang.annotation.RetentionPolicy;
++import java.lang.annotation.Target;
++
++public aspect Test {
++    // OK (matches f1 and f2):
++    declare warning : execution(* *(!(Object+), ..)) : "mOne: value parameter";
++   
++    // Wrong (matches f1 and f2, should match only f1):  a Not type pattern containing @A and negatedPattern Object+ is built
++//broke    declare warning : execution(* *(@A (!(Object+)), ..)) : "mTwo: @A annotated value parameter";
++   
++    // OK (matches f1):
++    declare warning : execution(* *(@A (*), ..)) && execution(* *(!(Object+), ..)): "mThree: @A annotated value parameter.";
++
++    // OK (matches f3 and f4):
++    declare warning : execution(* *(Object+, ..)) : "mFour: Reference parameter.";
++
++    // Wrong (no matches, should match f3):
++    declare warning : execution(* *(@A (Object+), ..)) : "mFive: @A annotated reference parameter!";
++   
++    // OK (matches f3):
++    declare warning : execution(* *(@A (*), ..)) && execution(* *(Object+, ..)): "mSix: @A annotated reference parameter.";
++   
++    // Wrong (matches f1 and f2, should match only f2):
++//broke     declare warning : execution(* *(!@A (!(Object+)), ..)) : "mSeven: Non-@A annotated value parameter!";
++   
++    // Wrong (matches f1 and f2, should match only f2):
++    declare warning : execution(* *(!@A (*), ..)) && execution(* *(!(Object+), ..)): "mEight: Non-@A annotated value parameter.";
++
++    // OK (matches f2):
++    declare warning : !execution(* *(@A (*), ..)) && execution(* *(!(Object+), ..)): "mNine: Non-@A annotated value parameter.";
++
++    // Wrong (matches f3 and f4, should match only f4):
++    declare warning : execution(* *(!@A (Object+), ..)) : "mTen: Non-@A annotated reference parameter!";
++   
++    // Wrong (matches f3 and f4, should match only f4):
++    declare warning : execution(* *(!@A (*), ..)) && execution(* *(Object+, ..)): "mEleven: Non-@A annotated reference parameter.";
++
++    // OK (matches f4):
++    declare warning : !execution(* *(@A (*), ..)) && execution(* *(Object+, ..)): "mTwelve: Non-@A annotated reference parameter.";
++
++    void f1(@A int i) {}
++
++    void f2(int i) {}
++
++    void f3(@A Integer i) {}
++
++    void f4(Integer i) {}
++   
++    @Retention(RetentionPolicy.RUNTIME)
++    @Target({ElementType.PARAMETER})
++    private static @interface A {
++
++    }
++}
+\ No newline at end of file
+@@ -14,10 +14,10 @@ package org.aspectj.systemtest.ajc160;
+ 
+ import java.io.File;
+ 
+-import org.aspectj.testing.XMLBasedAjcTestCase;
+-
+ import junit.framework.Test;
+ 
++import org.aspectj.testing.XMLBasedAjcTestCase;
++
+ /**
+  * Parameter annotation matching
+  * 
+@@ -76,6 +76,7 @@ import junit.framework.Test;
+  */
+ public class ParameterAnnotationMatchingTests extends XMLBasedAjcTestCase {
+ 
++    public void testDeow() { runTest("deow"); }
+ 	public void testNoWarningForWrongType() { runTest("no xlint for wrong target");}
+ 	public void testVariousCombinations() { runTest("various combinations"); }
+ 	public void testVariousCombinationsCtors() { runTest("various combinations - ctors"); }
+@@ -4,6 +4,27 @@
+ <suite>
+ 
+ 
++   <ajc-test dir="features160/parameterAnnotationMatching" title="deow">
++     <compile options="-1.5" files="Test.java">
++       <message kind="warning" line="43" text="mOne"/>
++       <message kind="warning" line="45" text="mOne"/>
++       <message kind="warning" line="43" text="mThree"/> 
++       <message kind="warning" line="47" text="mFour"/> 
++       <message kind="warning" line="49" text="mFour"/> 
++       <message kind="warning" line="47" text="mFive"/> 
++       <message kind="warning" line="47" text="mSix"/> 
++       <message kind="warning" line="45" text="mNine"/> 
++       <message kind="warning" line="49" text="mEleven"/> 
++       <message kind="warning" line="49" text="mTwelve"/>
++       <message kind="warning" line="49" text="mTen"/> 
++       <message kind="warning" line="45" text="mEight"/>  
++       <!--
++       <message kind="warning" line="43" text="mTwo"/>
++       <message kind="warning" line="45" text="mSeven"/>
++       -->
++     </compile>
++   </ajc-test>
++   
+    <ajc-test dir="features160/parameterAnnotationMatching" title="no xlint for wrong target">
+      <compile options="-1.5" files="NonNullAssertionForcer.java"/>
+    </ajc-test>
+@@ -106,7 +106,12 @@ public class ExactTypePattern extends TypePattern {
+ 			typeMatch = matchesTypeVariable((TypeVariableReferenceType)matchType);
+ 		}
+ 		annotationPattern.resolve(matchType.getWorld());
+-		boolean annMatch = this.annotationPattern.matches(matchType).alwaysTrue();
++		boolean annMatch = false;
++        if (matchType.temporaryAnnotationTypes!=null) {
++            annMatch = annotationPattern.matches(matchType,matchType.temporaryAnnotationTypes).alwaysTrue();
++        } else {
++            annMatch = annotationPattern.matches(matchType).alwaysTrue();
++        }
+ 		return (typeMatch && annMatch);
+ 	}
+ 
+@@ -125,7 +130,12 @@ public class ExactTypePattern extends TypePattern {
+ 			typeMatch = matchesTypeVariable((TypeVariableReferenceType)matchType);
+ 		}
+ 		annotationPattern.resolve(matchType.getWorld());
+-		boolean annMatch = this.annotationPattern.matches(annotatedType).alwaysTrue();
++        boolean annMatch = false;
++        if (annotatedType.temporaryAnnotationTypes!=null) {
++            annMatch = annotationPattern.matches(annotatedType,annotatedType.temporaryAnnotationTypes).alwaysTrue();
++        } else {
++            annMatch = annotationPattern.matches(annotatedType).alwaysTrue();
++        }
+ 		return (typeMatch && annMatch);		
+ 	}
+ 
+@@ -402,7 +402,7 @@ public class SignaturePattern extends PatternNode {
+ 		if (parameterAnnotationTypes==null || parameterAnnotationTypes.length==0) parameterAnnotationTypes=null;
+ 		if (!parameterTypes.matches(resolvedParameters, TypePattern.STATIC,parameterAnnotationTypes).alwaysTrue()) {
+ 			// It could still be a match based on the generic sig parameter types of a parameterized type
+-			if (!parameterTypes.matches(world.resolve(aMethod.getGenericParameterTypes()),TypePattern.STATIC).alwaysTrue()) {
++			if (!parameterTypes.matches(world.resolve(aMethod.getGenericParameterTypes()),TypePattern.STATIC,parameterAnnotationTypes).alwaysTrue()) {
+ 				return FuzzyBoolean.MAYBE;
+ 				// It could STILL be a match based on the erasure of the parameter types??
+ 				// to be determined via test cases...

@@ -1,0 +1,110 @@
+@@ -32,15 +32,18 @@ import org.aspectj.org.eclipse.jdt.internal.compiler.lookup.MethodScope;
+ public class MakeDeclsPublicVisitor extends ASTVisitor {
+ 
+ 	public void endVisit(ConstructorDeclaration decl, ClassScope scope) {
++		if (decl.binding==null) return; 
+ 		decl.binding.modifiers = AstUtil.makePublic(decl.binding.modifiers);
+ 	}
+ 
+ 	public void endVisit(FieldDeclaration decl, MethodScope scope) {
++		if (decl.binding==null) return; 
+ 		decl.binding.modifiers = AstUtil.makePublic(decl.binding.modifiers);
+ 	}
+ 
+ 
+ 	public void endVisit(MethodDeclaration decl, ClassScope scope) {
++		if (decl.binding==null) return; 
+ 		decl.binding.modifiers = AstUtil.makePublic(decl.binding.modifiers);
+ 	}
+ 
+@@ -50,6 +53,7 @@ public class MakeDeclsPublicVisitor extends ASTVisitor {
+ 	public void endVisit(
+ 		TypeDeclaration localTypeDeclaration,
+ 		BlockScope scope) {
++		if (localTypeDeclaration.binding==null) return; 
+ 		localTypeDeclaration.binding.modifiers = AstUtil.makePublic(localTypeDeclaration.binding.modifiers);
+ 	}
+ 
+@@ -59,6 +63,7 @@ public class MakeDeclsPublicVisitor extends ASTVisitor {
+ 	public void endVisit(
+ 		TypeDeclaration memberTypeDeclaration,
+ 		ClassScope scope) {
++		if (memberTypeDeclaration.binding==null) return; 
+ 		memberTypeDeclaration.binding.modifiers = AstUtil.makePublic(memberTypeDeclaration.binding.modifiers);
+ 	}
+ 
+@@ -0,0 +1,51 @@
++abstract aspect WorkerExample {
++
++    after() returning (RequestContext newContext) : call(RequestContext+.new(..)) {        
++        System.out.println("constructing "+newContext+" at "+thisJoinPoint.toLongString()+" from "+thisEnclosingJoinPointStaticPart+":");
++    }
++
++     abstract class RequestContext {
++        public final Object execute() {
++            return doExecute();
++        }
++        
++        /** template method */
++        public abstract Object doExecute();
++    }
++
++    public static void main(String args[]) {
++        new Runnable() {
++            public void run() {}
++        }.run();
++    };
++}
++
++aspect ConcreteAlpha extends WorkerExample {
++
++    Object around(final Object runnable) : execution(void Runnable.run()) && this(runnable) {
++        System.out.println("monitoring operation: "+runnable+" at "+thisJoinPoint+", for "+thisJoinPoint.getThis());
++        RequestContext requestContext = new RequestContext() {
++            public Object doExecute() {
++                return proceed(runnable);
++            }
++            
++        };
++        return requestContext.execute();
++    }
++    
++}
++
++aspect ConcreteBeta extends WorkerExample {
++    
++    Object around() : call(void awqeyuwqer()) {
++        RequestContext requestContext = new ConnectionRequestContext() {
++            public Object doExecute() {                
++                return proceed();
++            }
++            
++        };
++        return requestContext.execute();
++    }
++
++    
++}
+\ No newline at end of file
+@@ -190,6 +190,8 @@ public class Ajc150Tests extends org.aspectj.testing.XMLBasedAjcTestCase {
+   public void testItdGenerics_pr100227() {runTest("inner class with generic enclosing class");}
+   public void testItdGenerics_pr100260() {runTest("methods inherited from a generic parent");}
+ 
++  public void testSyntaxErrorNPE_pr103266() {runTest("NPE on syntax error");}
++  
+   // helper methods.....
+ 
+   public SyntheticRepository createRepos(File cpentry) {
+@@ -54,6 +54,12 @@
+    <ajc-test dir="bugs150" pr="83311" title="overriding/polymorphism error on interface method introduction">
+      <compile files="pr83311.aj"/>
+    </ajc-test>
++   
++   <ajc-test dir="bugs150" pr="103266" title="NPE on syntax error">
++     <compile files="pr103266.aj">
++          <message kind="error" line="41" text="ConnectionRequestContext cannot be resolved to a type"/>
++     </compile>
++   </ajc-test>
+ 
+     <ajc-test dir="bugs150/pr84260" vm="1.5" title="static import failures">
+         <compile files="A.java,I1.java,I2.java" options="-1.5"/>

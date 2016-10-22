@@ -1,0 +1,359 @@
+@@ -228,6 +228,7 @@
+                 <line text="info register classloader"/>
+                 <line text="info using"/>
+                 <line text="info define aspect ConcreteAspect"/>
++                <line text="debug weaving 'ConcreteAspect'"/>
+                 <line text="debug generating class 'ConcreteAspect'"/>
+                 <line text="debug weaving 'Main'"/>
+                 <line text="AbstractSuperAspect.before_test1"/>
+@@ -40,6 +40,8 @@ import org.aspectj.weaver.UnresolvedType;
+ import org.aspectj.weaver.World;
+ import org.aspectj.weaver.Lint.Kind;
+ import org.aspectj.weaver.bcel.BcelWeaver;
++import org.aspectj.weaver.bcel.BcelWorld;
++import org.aspectj.weaver.bcel.Utility;
+ import org.aspectj.weaver.loadtime.definition.Definition;
+ import org.aspectj.weaver.loadtime.definition.DocumentParser;
+ import org.aspectj.weaver.ltw.LTWWorld;
+@@ -73,6 +75,8 @@ public class ClassLoaderWeavingAdaptor extends WeavingAdaptor {
+     private StringBuffer namespace;
+     private IWeavingContext weavingContext;
+ 
++    private List concreteAspects = new ArrayList();
++
+ 	private static Trace trace = TraceFactory.getTraceFactory().getTrace(ClassLoaderWeavingAdaptor.class);
+ 
+     public ClassLoaderWeavingAdaptor() {
+@@ -156,6 +160,8 @@ public class ClassLoaderWeavingAdaptor extends WeavingAdaptor {
+ 
+             // after adding aspects
+             weaver.prepareForWeave();
++            boolean success = weaveAndDefineConceteAspects();
++            if (!success) disable();
+         }
+         else {
+         	bcelWorld = null;
+@@ -410,11 +416,12 @@ public class ClassLoaderWeavingAdaptor extends WeavingAdaptor {
+                         success = false;
+                         break;
+                     }
+-                    this.generatedClassHandler.acceptClass(
+-                            concreteAspect.name,
+-                            gen.getBytes()
+-                    );
+-                    /*ResolvedType aspect = */weaver.addLibraryAspect(concreteAspect.name);
++                    
++              	  	((BcelWorld)weaver.getWorld()).addSourceObjectType(Utility.makeJavaClass(concreteAspect.name, gen.getBytes()));
++
++              	  	concreteAspects.add(gen);
++              	  	
++                    weaver.addLibraryAspect(concreteAspect.name);
+ 
+                     //generate key for SC
+                     if(namespace==null){
+@@ -425,7 +432,6 @@ public class ClassLoaderWeavingAdaptor extends WeavingAdaptor {
+                 }
+             }
+         }
+-//        System.out.println("ClassLoaderWeavingAdaptor.registerAspects() classloader=" + weavingContext.getClassLoaderName() + ", namespace=" + namespace);
+ 
+         /* We couldn't register one or more aspects so disable the adaptor */
+         if (!success) {
+@@ -442,6 +448,29 @@ public class ClassLoaderWeavingAdaptor extends WeavingAdaptor {
+         if (trace.isTraceEnabled()) trace.exit("registerAspects",isEnabled());
+     }
+ 
++    private boolean weaveAndDefineConceteAspects () {
++    	if (trace.isTraceEnabled()) trace.enter("weaveAndDefineConceteAspects",this,concreteAspects);
++    	boolean success = true;
++
++    	for (Iterator iterator = concreteAspects.iterator(); iterator.hasNext();) {
++    		ConcreteAspectCodeGen gen = (ConcreteAspectCodeGen)iterator.next();
++        	String name = gen.getClassName();
++        	byte[] bytes = gen.getBytes();
++
++        	try {
++        		byte[] newBytes = weaveClass(name, bytes);
++                this.generatedClassHandler.acceptClass(name,newBytes);
++        	}
++        	catch (IOException ex) {
++        		trace.error("weaveAndDefineConceteAspects",ex);
++				error("exception weaving aspect '" + name + "'",ex);
++        	}
++        }
++        
++        if (trace.isTraceEnabled()) trace.exit("weaveAndDefineConceteAspects",success);
++        return success;
++    }
++    
+     /**
+      * Register the include / exclude filters
+      * We duplicate simple patterns in startWith filters that will allow faster matching without ResolvedType
+@@ -265,6 +265,10 @@ public class ConcreteAspectCodeGen {
+     	  return false;
+     }
+ 
++    public String getClassName () {
++    	return m_concreteAspect.name;
++    }
++    
+     /**
+      * Build the bytecode for the concrete aspect
+      *
+@@ -0,0 +1,20 @@
++/*******************************************************************************
++ * Copyright (c) 2005 Contributors.
++ * All rights reserved. 
++ * This program and the accompanying materials are made available 
++ * under the terms of the Eclipse Public License v1.0 
++ * which accompanies this distribution and is available at 
++ * http://eclipse.org/legal/epl-v10.html 
++ * 
++ * Contributors:
++ *   Matthew Webster         initial implementation
++ *******************************************************************************/
++
++public abstract aspect AbstractSuperAspect {
++	
++		protected abstract pointcut scope ();
++	
++		before () : execution(public static void main(String[])) && scope() {
++			System.out.println("? " + thisJoinPoint.getSignature());
++		}
++}
+@@ -0,0 +1,9 @@
++public abstract aspect AbstractSuperAspectWithAround {
++	
++	protected abstract pointcut scope ();
++	
++	void around () : execution(public static void main(String[])) && scope() {
++		System.out.println("? " + thisJoinPoint.getSignature());
++		proceed();
++	}
++}
+@@ -0,0 +1,13 @@
++public abstract aspect AbstractSuperAspectWithInterface /*implements TestInterface*/ {
++	
++	protected abstract pointcut scope ();
++	
++	before () : execution(public static void main(String[])) && scope() {
++		System.out.println("? " + thisJoinPoint.getSignature());
++	}
++	
++	protected AbstractSuperAspectWithInterface () {
++		TestInterface test = (TestInterface)this;
++		test.interfaceMethod();
++	}
++}
+@@ -0,0 +1,4 @@
++public aspect ConcreteAspectWithITD extends AbstractSuperAspectWithInterface {
++	protected pointcut scope () :
++		!within(AbstractSuperAspectWithInterface+);
++}
+\ No newline at end of file
+@@ -0,0 +1,11 @@
++public class HelloWorld {
++
++	public void println () {
++		System.out.println("Hello World!");
++	}
++	
++	public static void main (String[] args) throws Exception {
++		new HelloWorld().println();
++	}
++	
++}
+\ No newline at end of file
+@@ -0,0 +1,5 @@
++public aspect TestAdvice {
++	before () : execution(public new()) && within(!TestAdvice) {
++		System.out.println("? " + thisJoinPoint.getSignature());
++	}
++}
+\ No newline at end of file
+@@ -0,0 +1,7 @@
++public aspect TestAroundClosure {
++	void around () : execution(public new()) && within(!TestAroundClosure) {
++		System.out.println("> " + thisJoinPoint.getSignature());
++		proceed();
++		System.out.println("< " + thisJoinPoint.getSignature());
++	}
++}
+\ No newline at end of file
+@@ -0,0 +1,8 @@
++public aspect TestITD {
++	
++	declare parents : AbstractSuperAspectWithInterface+ implements TestInterface;
++	
++	public void TestInterface.interfaceMethod () {
++		System.out.println("? void TestITD.interfaceMethod()");
++	}
++}
+\ No newline at end of file
+@@ -0,0 +1,3 @@
++public interface TestInterface {
++	public void interfaceMethod ();
++}
+\ No newline at end of file
+@@ -0,0 +1,11 @@
++<aspectj>
++	<aspects>
++		<aspect name="TestAdvice"/>
++	
++		<concrete-aspect name="ConcreteAspectWithAdvice" extends="AbstractSuperAspect">
++			<pointcut name="scope" expression="!within(AbstractSuperAspect+)"/>
++        </concrete-aspect>
++	</aspects>
++	<weaver options="-verbose -debug -showWeaveInfo"/>
++</aspectj>
++	
+@@ -0,0 +1,11 @@
++<aspectj>
++	<aspects>
++		<aspect name="TestAroundClosure"/>
++	
++		<concrete-aspect name="ConcreteAspectWithAroundClosure" extends="AbstractSuperAspect">
++			<pointcut name="scope" expression="!within(AbstractSuperAspect+)"/>
++        </concrete-aspect>
++	</aspects>
++	<weaver options="-verbose -debug -showWeaveInfo -XnoInline"/>
++</aspectj>
++	
+@@ -0,0 +1,14 @@
++<aspectj>
++	<aspects>
++		<aspect name="TestITD"/>
++	
++		<concrete-aspect name="ConcreteAspectWithITD" extends="AbstractSuperAspectWithInterface">
++			<pointcut name="scope" expression="!within(AbstractSuperAspectWithInterface+)"/>
++        </concrete-aspect>
++	</aspects>
++	
++	<weaver options="-verbose -debug -showWeaveInfo">
++		<!--<dump within="*"/>-->
++	</weaver>
++</aspectj>
++	
+@@ -1,6 +1,6 @@
+ <aspectj>
+   <weaver>
+-    <dump within="*"/>
++    <!--<dump within="*"/>-->
+   </weaver>
+   <aspects>
+     <concrete-aspect name="TestTracing" extends="SimpleTracing">
+@@ -134,6 +134,22 @@ public class Ajc153Tests extends org.aspectj.testing.XMLBasedAjcTestCase {
+   public void testNPEWithCustomAgent_pr158005() {
+ 	  runTest("NPE with custom agent");
+   }
++
++  public void testWeaveConcreteSubaspectWithAdvice_pr132080() {
++	  runTest("Weave concrete sub-aspect with advice");
++  }
++
++  public void testWeaveConcreteSubaspectWithITD_pr132080() {
++	  runTest("Weave concrete sub-aspect with ITD");
++  }
++
++  public void testWeaveConcreteSubaspectWithAroundClosure_pr132080() {
++	  runTest("Weave concrete sub-aspect with around closure");
++  }
++
++  public void testWeaveConcreteSubaspectWithCflow_pr132080() {
++	  runTest("Weave concrete sub-aspect with cflow");
++  }
+ 
+   public void testNoInvalidAbsoluteTypeNameWarning_pr156904_1() {runTest("ensure no invalidAbsoluteTypeName when do match - 1");}
+   public void testNoInvalidAbsoluteTypeNameWarning_pr156904_2() {runTest("ensure no invalidAbsoluteTypeName when do match - 2");}
+@@ -544,4 +544,79 @@
+         </ant>
+     </ajc-test>
+ 
++	<ajc-test dir="bugs153/pr132080"
++      title="Weave concrete sub-aspect with advice"
++      keywords="aop.xml">
++        <compile
++        	files="HelloWorld.java"
++        >
++        </compile>	
++        <compile files="AbstractSuperAspect.aj"/>
++        <compile files="TestAdvice.aj"/>
++        <run class="HelloWorld" ltw="aop-advice.xml">
++        	<stdout>
++                <line text="? ConcreteAspectWithAdvice()"/>
++                <line text="? void HelloWorld.main(String[])"/>
++                <line text="? HelloWorld()"/>
++                <line text="Hello World!"/>
++            </stdout>
++        </run>
++    </ajc-test>
++
++	<ajc-test dir="bugs153/pr132080"
++      title="Weave concrete sub-aspect with ITD"
++      keywords="aop.xml">
++<!--      
++        <compile files="AbstractSuperAspectWithInterface.aj, TestInterface.java" options="-verbose"/>
++        <compile files="HelloWorld.java, TestITD.aj, ConcreteAspectWithITD.aj" options="-verbose">
++            <message line="3" kind="warning" text="this affected type is not exposed to the weaver: AbstractSuperAspectWithInterface"/>
++        </compile>
++        <run class="HelloWorld">
++        	<stdout>
++                <line text="? void TestITD.interfaceMethod()"/>
++                <line text="? void HelloWorld.main(String[])"/>
++                <line text="Hello World!"/>
++            </stdout>
++        </run>
++-->        
++        <compile files="HelloWorld.java"/>
++        <compile files="AbstractSuperAspectWithInterface.aj, TestInterface.java"/>
++        <compile files="TestITD.aj">
++            <message line="3" kind="warning" text="this affected type is not exposed to the weaver: AbstractSuperAspectWithInterface"/>
++        </compile>
++        <run class="HelloWorld" ltw="aop-itd.xml">
++        	<stdout>
++                <line text="? void TestITD.interfaceMethod()"/>
++                <line text="? void HelloWorld.main(String[])"/>
++                <line text="Hello World!"/>
++            </stdout>
++        </run>
++
++    </ajc-test>
++
++	<ajc-test dir="bugs153/pr132080" title="Weave concrete sub-aspect with around closure" 
++		keywords="aop.xml">
++
++        <compile files="HelloWorld.java"/>
++        <compile files="AbstractSuperAspect.aj"/>
++        <compile files="TestAroundClosure.aj"/>
++        <run class="HelloWorld" ltw="aop-aroundclosure.xml">
++        	<stdout>
++                <line text="&rt; ConcreteAspectWithAroundClosure()"/>
++                <line text="&lt; ConcreteAspectWithAroundClosure()"/>
++                <line text="? void HelloWorld.main(String[])"/>
++                <line text="&rt; HelloWorld()"/>
++                <line text="&lt; HelloWorld()"/>
++                <line text="Hello World!"/>
++            </stdout>
++        </run>
++    </ajc-test>
++
++    <ajc-test dir="bugs153/pr149096" title="Weave concrete sub-aspect with cflow">
++		<compile files="SimpleTracing.aj" outjar="out.jar"/>
++		<compile files="TestMain.aj"/>
++		<run class="TestMain" ltw="aop-pr149096.xml"/>
++    </ajc-test>
++    
++
+ </suite>
+\ No newline at end of file
+@@ -418,6 +418,10 @@ public class WeavingAdaptor implements IMessageContext {
+ 		return MessageUtil.error(messageHandler,message);
+ 	}
+ 
++	protected boolean error (String message, Throwable th) {
++        return messageHandler.handleMessage(new Message(message, IMessage.ERROR, th, null));
++	}
++	
+ 	public String getContextId () {
+ 		return "WeavingAdaptor";
+ 	}

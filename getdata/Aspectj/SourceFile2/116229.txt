@@ -1,0 +1,388 @@
+@@ -5,8 +5,8 @@ public class RuntimePointcuts {
+ 
+ 
+ 	public static void main(String[] args) throws Exception {
+-		PointcutParser parser = new PointcutParser();
+-		parser.setClassLoader(RuntimePointcuts.class.getClassLoader());
++		PointcutParser parser = PointcutParser.getPointcutParserSupportingAllPrimitivesAndUsingSpecifiedClassloaderForResolution(RuntimePointcuts.class.getClassLoader());
++//		parser.setClassLoader(RuntimePointcuts.class.getClassLoader());
+ 		PointcutExpression pc1 = parser.parsePointcutExpression("PCLib.anyMethodExecution()");
+ 		PointcutParameter param = parser.createPointcutParameter("s",String.class);
+ 		PointcutExpression pc2 = parser.parsePointcutExpression("PCLib.joinPointWithStringArg(s)",RuntimePointcuts.class,new PointcutParameter[] {param});
+@@ -3,7 +3,8 @@ import org.aspectj.weaver.tools.*;
+ public class ReflectOnAjcCompiledPointcuts {
+ 
+ 	public static void main(String[] args) {
+-		PointcutParser p = new PointcutParser();
++		PointcutParser p = PointcutParser.getPointcutParserSupportingAllPrimitivesAndUsingSpecifiedClassloaderForResolution(ReflectOnAjcCompiledPointcuts.class.getClassLoader());
++//		PointcutParser p = PointcutParser.getPointcutParserSupportingAllPrimitivesAndUsingContextClassloaderForResolution();
+ 		PointcutExpression pe = null;
+ //		pe = p.parsePointcutExpression("PointcutLibrary.propertyAccess()");
+ //		pe = p.parsePointcutExpression("PointcutLibrary.propertyUpdate()");
+@@ -49,7 +49,8 @@ public class ReflectionBasedReferenceTypeDelegateFactory {
+ 
+ 	private static ReflectionBasedReferenceTypeDelegate create15Delegate(ReferenceType forReferenceType, Class forClass, ClassLoader usingClassLoader, World inWorld) {
+ 		try {
+-			Class delegateClass = Class.forName("org.aspectj.weaver.reflect.Java15ReflectionBasedReferenceTypeDelegate",false,usingClassLoader);
++			// important that we use *our own* classloader for the next call...
++			Class delegateClass = Class.forName("org.aspectj.weaver.reflect.Java15ReflectionBasedReferenceTypeDelegate",false,ReflectionBasedReferenceTypeDelegate.class.getClassLoader()); 
+ 			ReflectionBasedReferenceTypeDelegate ret = (ReflectionBasedReferenceTypeDelegate) delegateClass.newInstance();
+ 			ret.initialize(forReferenceType,forClass,usingClassLoader,inWorld);
+ 			return ret;
+@@ -92,7 +92,7 @@ public class PointcutParser {
+     }
+ 
+     /**
+-     * Create a pointcut parser that can parse the full AspectJ pointcut
++     * Returns a pointcut parser that can parse the full AspectJ pointcut
+      * language with the following exceptions:
+      * <ul>
+      * <li>The <code>if, cflow, and cflowbelow</code> pointcut designators are not supported
+@@ -100,14 +100,16 @@ public class PointcutParser {
+      * to other named pointcuts
+      * <li>The pointcut expression must be anonymous with no formals allowed.
+      * </ul>
++     * <p>When resolving types in pointcut expressions, the context classloader is used to find types.</p>
+      */
+-    public PointcutParser() {
+-        supportedPrimitives = getAllSupportedPointcutPrimitives();
+-        setClassLoader(PointcutParser.class.getClassLoader());
++    public static PointcutParser getPointcutParserSupportingAllPrimitivesAndUsingContextClassloaderForResolution() {
++    		PointcutParser p =  new PointcutParser();
++    		p.setClassLoader(Thread.currentThread().getContextClassLoader());
++    		return p;
+     }
+ 
+     /**
+-     * Create a pointcut parser that can parse pointcut expressions built
++     * Returns a pointcut parser that can parse pointcut expressions built
+      * from a user-defined subset of AspectJ's supported pointcut primitives. 
+      * The following restrictions apply:
+      * <ul>
+@@ -116,21 +118,70 @@ public class PointcutParser {
+      * to other named pointcuts
+      * <li>The pointcut expression must be anonymous with no formals allowed.
+      * </ul>
++     * <p>When resolving types in pointcut expressions, the context classloader is used to find types.</p>
+      * @param supportedPointcutKinds a set of PointcutPrimitives this parser
+      * should support
+      * @throws UnsupportedOperationException if the set contains if, cflow, or
+      * cflow below
+      */
+-    public PointcutParser(Set/*<PointcutPrimitives>*/ supportedPointcutKinds) {
+-        supportedPrimitives = supportedPointcutKinds;
+-        for (Iterator iter = supportedPointcutKinds.iterator(); iter.hasNext();) {
+-            PointcutPrimitive element = (PointcutPrimitive) iter.next();
+-            if ((element == PointcutPrimitive.IF) ||
+-                (element == PointcutPrimitive.CFLOW) ||
+-                (element == PointcutPrimitive.CFLOW_BELOW)) {
+-                throw new UnsupportedOperationException("Cannot handle if, cflow, and cflowbelow primitives"); 
+-            }
+-        }
++    public static PointcutParser getPointcutParserSupportingSpecifiedPrimitivesAndUsingContextClassloaderForResolution(Set supportedPointcutKinds) {
++    		PointcutParser p = new PointcutParser(supportedPointcutKinds);
++    		p.setClassLoader(Thread.currentThread().getContextClassLoader());
++    		return p;
++    }
++    
++    /**
++     * Returns a pointcut parser that can parse the full AspectJ pointcut
++     * language with the following exceptions:
++     * <ul>
++     * <li>The <code>if, cflow, and cflowbelow</code> pointcut designators are not supported
++     * <li>Pointcut expressions must be self-contained :- they cannot contain references
++     * to other named pointcuts
++     * <li>The pointcut expression must be anonymous with no formals allowed.
++     * </ul>
++     * <p>When resolving types in pointcut expressions, the given classloader is used to find types.</p>
++     */
++    public static PointcutParser getPointcutParserSupportingAllPrimitivesAndUsingSpecifiedClassloaderForResolution(ClassLoader classLoader) {
++   		PointcutParser p =  new PointcutParser();
++		p.setClassLoader(classLoader);
++		return p;
++    }
++    
++ 
++    /**
++     * Returns a pointcut parser that can parse pointcut expressions built
++     * from a user-defined subset of AspectJ's supported pointcut primitives. 
++     * The following restrictions apply:
++     * <ul>
++     * <li>The <code>if, cflow, and cflowbelow</code> pointcut designators are not supported
++     * <li>Pointcut expressions must be self-contained :- they cannot contain references
++     * to other named pointcuts
++     * <li>The pointcut expression must be anonymous with no formals allowed.
++     * </ul>
++     * <p>When resolving types in pointcut expressions, the given classloader is used to find types.</p>
++     * @param supportedPointcutKinds a set of PointcutPrimitives this parser
++     * should support
++     * @throws UnsupportedOperationException if the set contains if, cflow, or
++     * cflow below
++     */
++    public static PointcutParser getPointcutParserSupportingSpecifiedPrimitivesAndUsingSpecifiedClassLoaderForResolution(Set supportedPointcutKinds, ClassLoader classLoader) {
++   		PointcutParser p = new PointcutParser(supportedPointcutKinds);
++		p.setClassLoader(classLoader);
++		return p;   	
++    }
++    
++    /**
++     * Create a pointcut parser that can parse the full AspectJ pointcut
++     * language with the following exceptions:
++     * <ul>
++     * <li>The <code>if, cflow, and cflowbelow</code> pointcut designators are not supported
++     * <li>Pointcut expressions must be self-contained :- they cannot contain references
++     * to other named pointcuts
++     * <li>The pointcut expression must be anonymous with no formals allowed.
++     * </ul>
++     */
++    private PointcutParser() {
++        supportedPrimitives = getAllSupportedPointcutPrimitives();
+         setClassLoader(PointcutParser.class.getClassLoader());
+     }
+ 
+@@ -146,21 +197,28 @@ public class PointcutParser {
+      * </ul>
+      * @param supportedPointcutKinds a set of PointcutPrimitives this parser
+      * should support
+-     * @param classLoader the class loader to use for resolving types
+      * @throws UnsupportedOperationException if the set contains if, cflow, or
+      * cflow below
+      */
+-    public PointcutParser(Set/*<PointcutPrimitives>*/ supportedPointcutKinds,ClassLoader cl) {
+-    	this(supportedPointcutKinds);
+-    	setClassLoader(cl);
++    private PointcutParser(Set/*<PointcutPrimitives>*/ supportedPointcutKinds) {
++        supportedPrimitives = supportedPointcutKinds;
++        for (Iterator iter = supportedPointcutKinds.iterator(); iter.hasNext();) {
++            PointcutPrimitive element = (PointcutPrimitive) iter.next();
++            if ((element == PointcutPrimitive.IF) ||
++                (element == PointcutPrimitive.CFLOW) ||
++                (element == PointcutPrimitive.CFLOW_BELOW)) {
++                throw new UnsupportedOperationException("Cannot handle if, cflow, and cflowbelow primitives"); 
++            }
++        }
++        setClassLoader(PointcutParser.class.getClassLoader());
+     }
+-
++    
+     /**
+      * Set the classloader that this parser should use for
+      * type resolution.
+      * @param aLoader
+      */
+-    public void setClassLoader(ClassLoader aLoader) {
++    private void setClassLoader(ClassLoader aLoader) {
+     	this.classLoader = aLoader;
+     	world = new ReflectionWorld(this.classLoader);
+     }
+@@ -69,7 +69,7 @@ public class ArgsTestCase extends TestCase {
+ 
+ 	public void testBinding() throws Exception {
+ 
+-		PointcutParser parser = new PointcutParser();
++		PointcutParser parser = PointcutParser.getPointcutParserSupportingAllPrimitivesAndUsingSpecifiedClassloaderForResolution(A.class.getClassLoader());
+ 		PointcutParameter a = parser.createPointcutParameter("a",A.class);
+ 		A theParameter = new A();
+ 		PointcutExpression bindA = parser.parsePointcutExpression("args(a,*)",A.class,new PointcutParameter[] {a});
+@@ -99,7 +99,7 @@ public class ArgsTestCase extends TestCase {
+ 	public void testMatchJPWithPrimitiveTypes() throws Exception {
+ 		try {
+ 
+-			PointcutParser parser = new PointcutParser();
++			PointcutParser parser = PointcutParser.getPointcutParserSupportingAllPrimitivesAndUsingSpecifiedClassloaderForResolution(A.class.getClassLoader());
+ 			PointcutExpression oneInt = parser.parsePointcutExpression("args(int)");
+ 			PointcutExpression oneInteger = parser.parsePointcutExpression("args(Integer)");
+ 
+@@ -151,7 +151,7 @@ public class ArgsTestCase extends TestCase {
+ 	 */
+ 	protected void setUp() throws Exception {
+ 		super.setUp();
+-		PointcutParser parser = new PointcutParser();
++		PointcutParser parser = PointcutParser.getPointcutParserSupportingAllPrimitivesAndUsingSpecifiedClassloaderForResolution(A.class.getClassLoader());
+ 		wildcardArgs = parser.parsePointcutExpression("args(..)");
+ 		oneA = parser.parsePointcutExpression("args(org.aspectj.weaver.patterns.ArgsTestCase.A)");
+ 		oneAandaC = parser.parsePointcutExpression("args(org.aspectj.weaver.patterns.ArgsTestCase.A,org.aspectj.weaver.patterns.ArgsTestCase.C)");
+@@ -56,7 +56,7 @@ public class ThisOrTargetTestCase extends TestCase {
+ 	}
+ 
+ 	public void testMatchJP() throws Exception {
+-		PointcutParser parser = new PointcutParser();
++		PointcutParser parser = PointcutParser.getPointcutParserSupportingAllPrimitivesAndUsingSpecifiedClassloaderForResolution(this.getClass().getClassLoader());
+ 		PointcutExpression thisEx = parser.parsePointcutExpression("this(Exception)");
+ 		PointcutExpression thisIOEx = parser.parsePointcutExpression("this(java.io.IOException)");
+ 
+@@ -82,7 +82,7 @@ public class ThisOrTargetTestCase extends TestCase {
+ 	}
+ 
+ 	public void testBinding() throws Exception {
+-		PointcutParser parser = new PointcutParser();
++		PointcutParser parser = PointcutParser.getPointcutParserSupportingAllPrimitivesAndUsingSpecifiedClassloaderForResolution(this.getClass().getClassLoader());
+ 		PointcutParameter ex = parser.createPointcutParameter("ex", Exception.class);
+ 		PointcutParameter ioEx = parser.createPointcutParameter("ioEx", IOException.class);
+ 
+@@ -523,7 +523,7 @@ public class PointcutExpressionTest extends TestCase {
+ 
+ 	protected void setUp() throws Exception {
+ 		super.setUp();
+-		p = new PointcutParser();
++		p = PointcutParser.getPointcutParserSupportingAllPrimitivesAndUsingSpecifiedClassloaderForResolution(this.getClass().getClassLoader());
+ 		asCons = A.class.getConstructor(new Class[]{String.class});
+ 		bsCons = B.class.getConstructor(new Class[0]);
+ 		bsStringCons = B.class.getConstructor(new Class[]{String.class});
+@@ -34,7 +34,7 @@ public class PointcutParserTest extends TestCase {
+ 	}
+ 
+ 	public void testEmptyConstructor() {
+-		PointcutParser parser = new PointcutParser();
++		PointcutParser parser = PointcutParser.getPointcutParserSupportingAllPrimitivesAndUsingSpecifiedClassloaderForResolution(this.getClass().getClassLoader());
+ 		Set s = parser.getSupportedPrimitives();
+ 		assertEquals("Should be 21 elements in the set",21,s.size());
+ 		assertFalse("Should not contain if pcd",s.contains(PointcutPrimitive.IF));
+@@ -44,18 +44,18 @@ public class PointcutParserTest extends TestCase {
+ 
+ 	public void testSetConstructor() {
+ 		Set p = PointcutParser.getAllSupportedPointcutPrimitives();
+-		PointcutParser parser = new PointcutParser(p);
++		PointcutParser parser = PointcutParser.getPointcutParserSupportingSpecifiedPrimitivesAndUsingSpecifiedClassLoaderForResolution(p,this.getClass().getClassLoader());
+ 		assertEquals("Should use the set we pass in",p,parser.getSupportedPrimitives());
+ 		Set q = new HashSet();
+ 		q.add(PointcutPrimitive.ARGS);
+-		parser = new PointcutParser(q);
++		parser = PointcutParser.getPointcutParserSupportingSpecifiedPrimitivesAndUsingSpecifiedClassLoaderForResolution(q,this.getClass().getClassLoader());
+ 		assertEquals("Should have only one element in set",1,parser.getSupportedPrimitives().size());
+ 		assertEquals("Should only have ARGS pcd",PointcutPrimitive.ARGS,
+ 				parser.getSupportedPrimitives().iterator().next());
+ 	}
+ 
+ 	public void testParsePointcutExpression() {
+-		PointcutParser p = new PointcutParser();
++		PointcutParser p = PointcutParser.getPointcutParserSupportingAllPrimitivesAndUsingSpecifiedClassloaderForResolution(this.getClass().getClassLoader());
+ 		IMessageHandler current = p.setCustomMessageHandler(new IgnoreWarningsMessageHandler());
+ 		try {			
+ 			p.parsePointcutExpression(
+@@ -74,7 +74,7 @@ public class PointcutParserTest extends TestCase {
+ 	}
+ 
+ 	public void testParseExceptionErrorMessages() {
+-		PointcutParser p = new PointcutParser();
++		PointcutParser p = PointcutParser.getPointcutParserSupportingAllPrimitivesAndUsingSpecifiedClassloaderForResolution(this.getClass().getClassLoader());
+ 		try {
+ 			p.parsePointcutExpression("execution(int Foo.*(..) && args(Double)");
+ 			fail("Expected IllegalArgumentException");
+@@ -84,7 +84,7 @@ public class PointcutParserTest extends TestCase {
+ 	}
+ 
+ 	public void testParseIfPCD() {
+-		PointcutParser p = new PointcutParser();
++		PointcutParser p = PointcutParser.getPointcutParserSupportingAllPrimitivesAndUsingSpecifiedClassloaderForResolution(this.getClass().getClassLoader());
+ 		try {
+ 			p.parsePointcutExpression("if(true)");
+ 			fail("Expected UnsupportedPointcutPrimitiveException");
+@@ -94,7 +94,7 @@ public class PointcutParserTest extends TestCase {
+ 	}
+ 
+ 	public void testParseCflowPCDs() {
+-		PointcutParser p = new PointcutParser();
++		PointcutParser p = PointcutParser.getPointcutParserSupportingAllPrimitivesAndUsingSpecifiedClassloaderForResolution(this.getClass().getClassLoader());
+ 		try {
+ 			p.parsePointcutExpression("cflow(this(t))");
+ 			fail("Expected UnsupportedPointcutPrimitiveException");
+@@ -112,7 +112,7 @@ public class PointcutParserTest extends TestCase {
+ 	public void testParseReferencePCDs() {
+ 		Set pcKinds = PointcutParser.getAllSupportedPointcutPrimitives();
+ 		pcKinds.remove(PointcutPrimitive.REFERENCE);
+-		PointcutParser p = new PointcutParser(pcKinds);
++		PointcutParser p = PointcutParser.getPointcutParserSupportingSpecifiedPrimitivesAndUsingSpecifiedClassLoaderForResolution(pcKinds,this.getClass().getClassLoader());
+ 		try {
+ 			p.parsePointcutExpression("bananas(String)");
+ 			fail("Expected UnsupportedPointcutPrimitiveException");
+@@ -123,7 +123,7 @@ public class PointcutParserTest extends TestCase {
+ 
+ 	public void testParseUnsupportedPCDs() {
+ 		Set s = new HashSet();
+-		PointcutParser p = new PointcutParser(s);
++		PointcutParser p = PointcutParser.getPointcutParserSupportingSpecifiedPrimitivesAndUsingSpecifiedClassLoaderForResolution(s,this.getClass().getClassLoader());
+ 		try {
+ 			p.parsePointcutExpression("args(x)");
+ 			fail("Expected UnsupportedPointcutPrimitiveException");
+@@ -223,7 +223,7 @@ public class PointcutParserTest extends TestCase {
+ 	}	
+ 
+ 	public void testFormals() {
+-		PointcutParser parser = new PointcutParser();
++		PointcutParser parser = PointcutParser.getPointcutParserSupportingAllPrimitivesAndUsingSpecifiedClassloaderForResolution(this.getClass().getClassLoader());
+ 		PointcutParameter param = parser.createPointcutParameter("x",String.class);
+ 		PointcutExpression pc = parser.parsePointcutExpression("args(x)", null, new PointcutParameter[] {param} );
+ 		assertEquals("args(x)",pc.getPointcutExpression());
+@@ -244,7 +244,7 @@ public class PointcutParserTest extends TestCase {
+ 	}
+ 
+ 	public void testXLintConfiguration() {
+-		PointcutParser p = new PointcutParser();
++		PointcutParser p = PointcutParser.getPointcutParserSupportingAllPrimitivesAndUsingSpecifiedClassloaderForResolution(this.getClass().getClassLoader());
+ 		try {
+ 			p.parsePointcutExpression("this(FooBar)");
+ 		} catch(IllegalArgumentException ex) {
+@@ -27,7 +27,7 @@ public class TypePatternMatcherTest extends TestCase {
+ 
+ 	protected void setUp() throws Exception {
+ 		super.setUp();
+-		PointcutParser pp = new PointcutParser();
++		PointcutParser pp = PointcutParser.getPointcutParserSupportingAllPrimitivesAndUsingSpecifiedClassloaderForResolution(this.getClass().getClassLoader());
+ 		tpm = pp.parseTypePattern("java.util.Map+");
+ 	}
+ 
+@@ -51,7 +51,7 @@ public class Java15AnnotationFinder implements AnnotationFinder {
+ 	 */
+ 	public Object getAnnotation(ResolvedType annotationType, Object onObject) {
+ 		try {
+-			Class annotationClass = Class.forName(annotationType.getName(),false,classLoader);
++			Class<? extends Annotation> annotationClass = (Class<? extends Annotation>) Class.forName(annotationType.getName(),false,classLoader);
+ 			if (onObject.getClass().isAnnotationPresent(annotationClass)) {
+ 				return onObject.getClass().getAnnotation(annotationClass);
+ 			}
+@@ -63,7 +63,7 @@ public class Java15AnnotationFinder implements AnnotationFinder {
+ 
+ 	public Object getAnnotationFromClass(ResolvedType annotationType, Class aClass) {
+ 		try {
+-			Class annotationClass = Class.forName(annotationType.getName(),false,classLoader);
++			Class<? extends Annotation> annotationClass = (Class<? extends Annotation>) Class.forName(annotationType.getName(),false,classLoader);
+ 			if (aClass.isAnnotationPresent(annotationClass)) {
+ 				return aClass.getAnnotation(annotationClass);
+ 			}
+@@ -50,7 +50,7 @@ import org.aspectj.weaver.tools.PointcutParser;
+ public class Java15ReflectionBasedReferenceTypeDelegate extends
+ 		ReflectionBasedReferenceTypeDelegate {
+ 
+-	private AjType myType;
++	private AjType<?> myType;
+ 	private ResolvedType[] annotations;
+ 	private ResolvedMember[] pointcuts;
+ 	private ResolvedMember[] methods;
+@@ -241,7 +241,7 @@ public class Java15ReflectionBasedReferenceTypeDelegate extends
+ 		if (pointcuts == null) {
+ 			Pointcut[] pcs = this.myType.getDeclaredPointcuts();
+ 			pointcuts = new ResolvedMember[pcs.length];
+-			PointcutParser parser = new PointcutParser();
++			PointcutParser parser = PointcutParser.getPointcutParserSupportingAllPrimitivesAndUsingSpecifiedClassloaderForResolution(classLoader);
+ 			for (int i = 0; i < pcs.length; i++) {
+ 				AjType<?>[] ptypes = pcs[i].getParameterTypes();
+ 				String[] pnames = pcs[i].getParameterNames();
+@@ -243,7 +243,7 @@ public class Java15PointcutExpressionTest extends TestCase {
+ 
+ 	protected void setUp() throws Exception {
+ 		super.setUp();
+-		parser = new PointcutParser();
++		parser = PointcutParser.getPointcutParserSupportingAllPrimitivesAndUsingSpecifiedClassloaderForResolution(this.getClass().getClassLoader());
+ 		a = A.class.getMethod("a");
+ 		b = B.class.getMethod("b");
+ 		c = B.class.getMethod("c",new Class[] {A.class,B.class});
+@@ -514,7 +514,7 @@ public class PointcutExpressionTest extends TestCase {
+ 
+ 	protected void setUp() throws Exception {
+ 		super.setUp();
+-		p = new PointcutParser();
++		p = PointcutParser.getPointcutParserSupportingAllPrimitivesAndUsingSpecifiedClassloaderForResolution(this.getClass().getClassLoader());
+ 		asCons = A.class.getConstructor(new Class[]{String.class});
+ 		bsCons = B.class.getConstructor(new Class[0]);
+ 		bsStringCons = B.class.getConstructor(new Class[]{String.class});

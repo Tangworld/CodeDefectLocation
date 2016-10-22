@@ -1,0 +1,1196 @@
+@@ -672,6 +672,7 @@ public class AjBuildManager implements IOutputClassFileNameProvider,IBinarySourc
+ 		bcelWorld.setXlazyTjp(buildConfig.isXlazyTjp());
+ 		bcelWorld.setXHasMemberSupportEnabled(buildConfig.isXHasMemberEnabled());
+ 		bcelWorld.setPinpointMode(buildConfig.isXdevPinpoint());
++		bcelWorld.setErrorAndWarningThreshold(buildConfig.getOptions().errorThreshold,buildConfig.getOptions().warningThreshold);
+ 		BcelWeaver bcelWeaver = new BcelWeaver(bcelWorld);
+ 		state.setWorld(bcelWorld);
+ 		state.setWeaver(bcelWeaver);
+@@ -18,13 +18,16 @@ import java.io.File;
+ import org.aspectj.ajdt.internal.compiler.lookup.EclipseSourceLocation;
+ import org.aspectj.bridge.ISourceLocation;
+ import org.aspectj.bridge.SourceLocation;
+-import org.aspectj.weaver.IHasPosition;
+-import org.aspectj.weaver.ISourceContext;
++import org.aspectj.org.eclipse.jdt.core.compiler.IProblem;
+ import org.aspectj.org.eclipse.jdt.internal.compiler.CompilationResult;
++import org.aspectj.org.eclipse.jdt.internal.compiler.CompilationResult.ProblemsForRemovalFilter;
++import org.aspectj.weaver.IEclipseSourceContext;
++import org.aspectj.weaver.IHasPosition;
++import org.aspectj.weaver.Member;
+ 
+ 
+ 
+-public class EclipseSourceContext implements ISourceContext {
++public class EclipseSourceContext implements IEclipseSourceContext {
+ 
+ 	CompilationResult result;
+ 	int offset = 0;
+@@ -73,4 +76,36 @@ public class EclipseSourceContext implements ISourceContext {
+     	  result=null;
+     }
+ 
++	public void removeUnnecessaryProblems(Member member, int problemLineNumber) {
++		if (result == null) return; 
++		IProblem[] probs = result.getProblems();
++		for (int i = 0; i < probs.length; i++) {
++			IProblem problem = probs[i];
++			if (problem == null) continue;
++			if (problem.getID() == IProblem.UnusedMethodDeclaredThrownException 
++					|| problem.getID() == IProblem.UnusedConstructorDeclaredThrownException) {
++				if (problem.getSourceLineNumber() == problemLineNumber) {
++					UnusedDeclaredThrownExceptionFilter filter = 
++						new UnusedDeclaredThrownExceptionFilter(problem);
++					result.removeProblems(filter);	
++				}
++			}
++		}
++	}
++
++	private class UnusedDeclaredThrownExceptionFilter implements ProblemsForRemovalFilter {	
++		private IProblem problemToRemove;
++
++		public UnusedDeclaredThrownExceptionFilter(IProblem p) {
++			problemToRemove = p;
++		}
++
++		public boolean accept(IProblem p) {
++			if (p.equals(problemToRemove)) {
++				return true;
++			}
++			return false;
++		}
++
++	}
+ }
+@@ -24,6 +24,16 @@ import org.aspectj.testing.XMLBasedAjcTestCase;
+ 
+ public class Ajc152Tests extends org.aspectj.testing.XMLBasedAjcTestCase {
+ 
++  public void testNoUnnecessaryDeclarationOfThrownExcp_pr129282_1() {runTest("no unnecessary declaration of thrown exception warning - 1");}
++  public void testNoUnnecessaryDeclarationOfThrownExcp_pr129282_2() {runTest("no unnecessary declaration of thrown exception warning - 2");}
++  public void testNoUnnecessaryDeclarationOfThrownExcp_pr129282_3() {runTest("no unnecessary declaration of thrown exception warning - 3");}
++  public void testNoUnnecessaryDeclarationOfThrownExcp_pr129282_4() {runTest("no unnecessary declaration of thrown exception warning - 4");}
++  public void testNoUnnecessaryDeclarationOfThrownExcp_pr129282_5() {runTest("no unnecessary declaration of thrown exception warning - 5");}
++  public void testNoUnnecessaryDeclarationOfThrownExcp_pr129282_6() {runTest("no unnecessary declaration of thrown exception warning - 6");}
++  public void testNoUnnecessaryDeclarationOfThrownExcp_pr129282_7() {runTest("no unnecessary declaration of thrown exception warning - 7");}
++  public void testNoUnnecessaryDeclarationOfThrownExcp_pr129282_8() {runTest("no unnecessary declaration of thrown exception warning - 8");}
++  public void testNoUnnecessaryDeclarationOfThrownExcp_pr129282_9() {runTest("no unnecessary declaration of thrown exception warning - 9");}
++  public void testNoUnnecessaryDeclarationOfThrownExcp_pr129282_10() {runTest("no unnecessary declaration of thrown exception warning - 10");}  
+   public void testAtAJVerificationError_pr144602() { runTest("atAJ perthis aspect verification error");}
+   public void testLTWAndGeneratingSUID_pr144465() { runTest("ltw with serialversionUID creation"); }
+   public void testAspects14PerSingleton_pr122253() { runTest("aspects14 - persingleton");}
+@@ -0,0 +1,16 @@
++/********************************************************************
++ * Copyright (c) 2006 Contributors. All rights reserved. 
++ * This program and the accompanying materials are made available 
++ * under the terms of the Eclipse Public License v1.0 
++ * which accompanies this distribution and is available at 
++ * http://eclipse.org/legal/epl-v10.html 
++ *  
++ * Contributors: IBM Corporation - initial API and implementation 
++ * 				 Helen Hawkins   - iniital version
++ *******************************************************************/
++package org.aspectj.weaver;
++
++
++public interface IEclipseSourceContext extends ISourceContext {
++	public void removeUnnecessaryProblems(Member method, int problemLineNumber);
++}
+@@ -112,6 +112,9 @@ public abstract class World implements Dump.INode {
+     // Records whether ASM is around ... so we might use it for delegates
+     protected static boolean isASMAround;
+ 
++	private long errorThreshold;
++	private long warningThreshold;
++    
+     static {
+     	try {
+     		Class c = Class.forName("org.aspectj.org.objectweb.asm.ClassVisitor");
+@@ -688,6 +691,31 @@ public abstract class World implements Dump.INode {
+     	behaveInJava5Way = b;
+     }
+ 
++	/**
++	 * Set the error and warning threashold which can be taken from 
++	 * CompilerOptions (see bug 129282)
++	 * 
++	 * @param errorThreshold
++	 * @param warningThreshold
++	 */
++	public void setErrorAndWarningThreshold(long errorThreshold, long warningThreshold) {
++		this.errorThreshold = errorThreshold;
++		this.warningThreshold = warningThreshold;
++	}
++	
++	/**
++	 * @return true if ignoring the UnusedDeclaredThrownException and false if
++	 *         this compiler option is set to error or warning
++	 */
++	public boolean isIgnoringUnusedDeclaredThrownException() {
++		// the 0x800000 is CompilerOptions.UnusedDeclaredThrownException
++		// which is ASTNode.bit24
++		if((this.errorThreshold & 0x800000) != 0 
++				|| (this.warningThreshold & 0x800000) != 0)
++			return false;
++		return true;
++	}
++	
+ 	public void performExtraConfiguration(String config) {
+ 		if (config==null) return;
+ 		// Bunch of name value pairs to split
+@@ -28,6 +28,7 @@ import org.aspectj.weaver.Advice;
+ import org.aspectj.weaver.AdviceKind;
+ import org.aspectj.weaver.AjAttribute;
+ import org.aspectj.weaver.BCException;
++import org.aspectj.weaver.IEclipseSourceContext;
+ import org.aspectj.weaver.ISourceContext;
+ import org.aspectj.weaver.Member;
+ import org.aspectj.weaver.ResolvedMember;
+@@ -186,6 +187,34 @@ public class BcelAdvice extends Advice {
+     public void implementOn(Shadow s) {
+         hasMatchedAtLeastOnce=true;
+         BcelShadow shadow = (BcelShadow) s;
++        
++        // remove any unnecessary exceptions if the compiler option is set to
++        // error or warning and if this piece of advice throws exceptions
++        // (bug 129282). This may be expanded to include other compiler warnings
++        // at the moment it only deals with 'declared exception is not thrown'
++        if (!shadow.getWorld().isIgnoringUnusedDeclaredThrownException() 
++        		&& !thrownExceptions.isEmpty()) {
++        	Member member = shadow.getSignature();
++        	if (member instanceof BcelMethod) {
++        		removeUnnecessaryProblems((BcelMethod)member, 
++        				((BcelMethod)member).getDeclarationLineNumber());
++			} else {
++				// we're in a call shadow therefore need the line number of the
++				// declared method (which may be in a different type). However,
++		        // we want to remove the problems from the CompilationResult
++				// held within the current type's EclipseSourceContext so need
++				// the enclosing shadow too
++				ResolvedMember resolvedMember = shadow.getSignature().resolve(shadow.getWorld());
++				if (resolvedMember instanceof BcelMethod 
++						&& shadow.getEnclosingShadow() instanceof BcelShadow) { 
++					Member enclosingMember = shadow.getEnclosingShadow().getSignature();
++					if (enclosingMember instanceof BcelMethod) {
++						removeUnnecessaryProblems((BcelMethod)enclosingMember,
++								((BcelMethod)resolvedMember).getDeclarationLineNumber());
++					}
++				}
++			}
++		}
+ 
+         //FIXME AV - see #75442, this logic is not enough so for now comment it out until we fix the bug
+ //        // callback for perObject AJC MightHaveAspect postMunge (#75442)
+@@ -250,6 +279,16 @@ public class BcelAdvice extends Advice {
+         }
+     }
+ 
++    private void removeUnnecessaryProblems(BcelMethod method, int problemLineNumber) {
++		ISourceContext sourceContext = method.getSourceContext();
++		if (sourceContext instanceof IEclipseSourceContext) {
++			if (sourceContext != null 
++				&& sourceContext instanceof IEclipseSourceContext) {
++				((IEclipseSourceContext)sourceContext).removeUnnecessaryProblems(method, problemLineNumber);						
++			}
++		}
++    }
++    
+     // ---- implementations
+ 
+ 	private Collection collectCheckedExceptions(UnresolvedType[] excs) {
+Binary files differ
+Binary files differ
+@@ -0,0 +1,27 @@
++import java.io.FileNotFoundException;
++
++import org.aspectj.lang.annotation.AdviceName;
++
++public aspect AdviceExecution {
++	
++	// don't want the 'declared exception not actually
++	// thrown' warning against this piece of advice
++	@AdviceName("Test")
++	before() throws FileNotFoundException : execution(* C.method1(..)) {	
++	}
++	
++	before(AdviceName name) throws FileNotFoundException : adviceexecution() 
++		&& @annotation(name)
++		&& if(name.value().indexOf("Test") != -1) {
++			throw new FileNotFoundException();
++	}
++
++}
++
++class C {
++	
++	// don't want the 'declared exception not actually 
++	// thrown' warning
++	public void method1() throws FileNotFoundException {
++	}
++}
+@@ -0,0 +1,23 @@
++import java.io.FileNotFoundException;
++
++public aspect ConstructorCall {
++
++	pointcut p() : call(public C1.new());
++	
++	before() throws FileNotFoundException : p() { 
++		throw new FileNotFoundException();
++	}
++	
++}
++
++class C1 {
++	
++	// shouldn't get the warning against the constructor
++	public C1() throws FileNotFoundException {	
++	}
++	
++	public void m1() throws FileNotFoundException {
++		new C1();
++	}
++	
++}
+@@ -0,0 +1,19 @@
++import java.io.FileNotFoundException;
++
++public aspect ConstructorExecution {
++
++	pointcut p1() : execution(public C1.new());
++	
++	before() throws FileNotFoundException : p1() {
++		throw new FileNotFoundException();
++	}
++	
++}
++
++class C1 {
++	
++	// shouldn't get the warning on this constructor
++	public C1() throws FileNotFoundException {	
++	}
++	
++}
+@@ -0,0 +1,39 @@
++// with the exception handler, the advice isn't actually throwing the
++// exception for the method - therefore, expect warnings when the methods
++// don't throw the exception themselves.
++public aspect ExceptionHandler {
++
++	pointcut p() : handler(*);
++	
++	before() throws MyException : p() {
++		throw new MyException();
++	}
++	
++	
++}
++
++class C {
++	
++	public void method1() {
++		try {
++			new C().throwingMethod();
++			new C().throwingMethod2();
++		} catch (MyException e) {
++			e.printStackTrace();
++		}
++	}
++	
++	// dont want 'declared exception not actually thrown'
++	// warning for this method because it's throwing it
++	public void throwingMethod() throws MyException {
++		throw new MyException();
++	}
++	
++	// do want 'declared exception not actually thrown'
++	// warning because it doesn't throw it
++	public void throwingMethod2() throws MyException {
++	}
++}
++
++class MyException extends Exception {
++}
+@@ -0,0 +1,30 @@
++import java.io.FileNotFoundException;
++
++public aspect Initialization {
++
++	pointcut preInit() : preinitialization(C.new(String));
++	
++	before() throws FileNotFoundException : preInit() {
++		throw new FileNotFoundException();
++	}
++	
++	pointcut init() : initialization(C.new());
++	
++	before() throws FileNotFoundException : init() {
++		throw new FileNotFoundException();
++	}
++}
++
++class C {
++	
++	// shouldn't get a warning against this constructor  
++	// since the throwing is handled by the advice
++	public C() throws FileNotFoundException {
++	}
++	
++	// shouldn't get a warning against this constructor
++	// since the throwing is handled by the advice
++	public C(String s) throws FileNotFoundException {
++	}
++	
++}
+@@ -0,0 +1,52 @@
++import java.io.FileNotFoundException;
++
++public aspect InnerMethodCall {
++
++	pointcut p() : call(public * C1.m2());
++	
++	before() throws FileNotFoundException : p() { 
++		throw new FileNotFoundException();
++	}
++	
++	pointcut p2() : call(public * C1.m4());
++	
++	before() : p2() {
++	}
++	
++}
++
++class C1 {
++	
++	public void m1() {
++		new C2() {
++			public void m6() throws FileNotFoundException {
++				new C1().m2();
++			}
++		};
++	}
++	
++	// don't want the 'declared exception not actually
++	// thrown' warning because the advice is affecting
++	// this method
++	public void m2() throws FileNotFoundException {		
++	}
++	
++	public void m3() {
++		new C2() {
++			public void m6() throws FileNotFoundException {
++				new C1().m4();
++			}
++		};
++	}
++	
++	// do want the 'declared exception not actually
++	// thrown' warning
++	public void m4() throws FileNotFoundException {
++	}
++	
++	
++}
++
++abstract class C2 {
++	public abstract void m6() throws FileNotFoundException;
++}
+@@ -0,0 +1,40 @@
++import java.io.FileNotFoundException;
++
++aspect InnerMethodCall2 {
++	
++	pointcut p() : call(* C1.c1Method());
++	
++	before() throws FileNotFoundException : p() {
++		throw new FileNotFoundException();
++	}
++	
++}
++
++class MainClass {
++	
++	public void amethod() {
++		new C() {
++			public void mymethod() throws FileNotFoundException {
++				new C() {
++					public void mymethod() throws FileNotFoundException {
++						new C1().c1Method();
++					}
++				};
++			}
++		};
++	}
++	
++}
++
++class C1 {
++	
++	// don't want the 'declared exception not actually thrown'
++	// exception because the advice is effectively throwing it
++	public void c1Method() throws FileNotFoundException {
++	}
++	
++}
++
++abstract class C {
++	public abstract void mymethod() throws FileNotFoundException;
++}
+@@ -0,0 +1,38 @@
++import java.io.FileNotFoundException;
++
++public aspect MethodCall {
++
++	pointcut p() : call(public * C1.m2());
++	
++	before() throws FileNotFoundException : p() { 
++		throw new FileNotFoundException();
++	}
++	
++	pointcut p2() : call(public * C1.m4());
++	
++	before() : p2() {
++	}
++	
++}
++
++class C1 {
++	
++	public void m1() throws FileNotFoundException {
++		new C1().m2();
++	}
++	
++	// don't want the 'declared exception not actually
++	// thrown' warning because the advice is affecting
++	// this method
++	public void m2() throws FileNotFoundException {		
++	}
++	
++	public void m3() throws FileNotFoundException {
++		new C1().m4();
++	}
++	
++	// do want the 'declared exception not actually
++	// thrown' warning
++	public void m4() throws FileNotFoundException {
++	}
++}
+@@ -0,0 +1,28 @@
++import java.io.FileNotFoundException;
++
++public aspect MethodCallInDiffClass {
++
++	pointcut p() : call(public * B1.m2());
++	
++	before() throws FileNotFoundException : p() { 
++		throw new FileNotFoundException();
++	}
++	
++}
++
++class B {
++	
++	public void m1() throws FileNotFoundException {
++		new B1().m2();
++	}
++	
++}
++
++class B1 {
++	
++	// don't want the 'declared exception not acutally
++	// thrown' warning since the advice is throwing it
++	public void m2() throws FileNotFoundException {	
++	}
++	
++}
+@@ -0,0 +1,33 @@
++import java.sql.SQLException;
++
++public aspect MethodExecution {
++
++	pointcut pc() : execution(public * C.shouldntThrow(..));
++	
++	Object around() throws SQLException :pc(){
++		throw new SQLException(); 
++	}
++	
++	pointcut pc2() : execution(public * C.needsToThrow(..));
++	
++	// C.needsToThrow still needs to throw the exception because
++	// this advice isn't doing anything with exceptions
++	before() : pc2() {
++	}
++	
++}
++
++class C {
++	
++	// don't want the "declared exception is not actually
++	// thrown" message because around advice is affecting
++	// this method
++	public void shouldntThrow() throws SQLException {
++	}
++
++	// do want the "declared exception is not actually
++	// thrown" message to appear for this method
++	public void needsToThrow() throws SQLException{
++	}
++	
++}
+@@ -319,6 +319,55 @@
+       </compile>
+     </ajc-test>
+ 
++
++    <ajc-test dir="bugs152/pr129282" title="no unnecessary declaration of thrown exception warning - 1">
++      <compile files="MethodExecution.aj" options="-warn:+unusedThrown">
++		<message kind="warning" line="30" text="The declared exception SQLException is not actually thrown by the method needsToThrow() from type C"/>
++	  </compile>
++    </ajc-test>
++
++    <ajc-test dir="bugs152/pr129282" title="no unnecessary declaration of thrown exception warning - 2">
++      <compile files="MethodCall.aj" options="-warn:+unusedThrown">
++		<message kind="warning" line="36" text="The declared exception FileNotFoundException is not actually thrown by the method m4() from type C1"/>
++	  </compile>
++    </ajc-test>
++
++    <ajc-test dir="bugs152/pr129282" title="no unnecessary declaration of thrown exception warning - 3">
++      <compile files="InnerMethodCall.aj" options="-warn:+unusedThrown">
++		<message kind="warning" line="44" text="The declared exception FileNotFoundException is not actually thrown by the method m4() from type C1"/>
++	  </compile>
++    </ajc-test>
++
++    <ajc-test dir="bugs152/pr129282" title="no unnecessary declaration of thrown exception warning - 4">
++      <compile files="AdviceExecution.aj" options="-1.5 -warn:+unusedThrown"/>
++	</ajc-test>
++
++    <ajc-test dir="bugs152/pr129282" title="no unnecessary declaration of thrown exception warning - 5">
++      <compile files="ExceptionHandler.aj" options="-warn:+unusedThrown">
++		<message kind="warning" line="34" text="The declared exception MyException is not actually thrown by the method throwingMethod2() from type C"/>
++	  </compile>
++	</ajc-test>
++
++    <ajc-test dir="bugs152/pr129282" title="no unnecessary declaration of thrown exception warning - 6">
++      <compile files="Initialization.aj" options="-warn:+unusedThrown"/>
++	</ajc-test>
++
++    <ajc-test dir="bugs152/pr129282" title="no unnecessary declaration of thrown exception warning - 7">
++      <compile files="ConstructorCall.aj" options="-warn:+unusedThrown"/>
++	</ajc-test>
++
++    <ajc-test dir="bugs152/pr129282" title="no unnecessary declaration of thrown exception warning - 8">
++      <compile files="ConstructorExecution.aj" options="-warn:+unusedThrown"/>
++	</ajc-test>
++
++    <ajc-test dir="bugs152/pr129282" title="no unnecessary declaration of thrown exception warning - 9">
++      <compile files="MethodCallInDiffClass.aj" options="-warn:+unusedThrown"/>
++    </ajc-test>
++
++    <ajc-test dir="bugs152/pr129282" title="no unnecessary declaration of thrown exception warning - 10">
++      <compile files="InnerMethodCall2.aj" options="-warn:+unusedThrown"/>
++    </ajc-test>
++
+     <ajc-test dir="bugs152/pr138215" pr="138215" title="Reference pointcut fails inside @DeclareWarning">
+       <compile files="pr138215.aj" options="-1.5">
+         <message kind="warning" line="17" text="no foos please"/>
+@@ -672,6 +672,7 @@ public class AjBuildManager implements IOutputClassFileNameProvider,IBinarySourc
+ 		bcelWorld.setXlazyTjp(buildConfig.isXlazyTjp());
+ 		bcelWorld.setXHasMemberSupportEnabled(buildConfig.isXHasMemberEnabled());
+ 		bcelWorld.setPinpointMode(buildConfig.isXdevPinpoint());
++		bcelWorld.setErrorAndWarningThreshold(buildConfig.getOptions().errorThreshold,buildConfig.getOptions().warningThreshold);
+ 		BcelWeaver bcelWeaver = new BcelWeaver(bcelWorld);
+ 		state.setWorld(bcelWorld);
+ 		state.setWeaver(bcelWeaver);
+@@ -18,13 +18,16 @@ import java.io.File;
+ import org.aspectj.ajdt.internal.compiler.lookup.EclipseSourceLocation;
+ import org.aspectj.bridge.ISourceLocation;
+ import org.aspectj.bridge.SourceLocation;
+-import org.aspectj.weaver.IHasPosition;
+-import org.aspectj.weaver.ISourceContext;
++import org.aspectj.org.eclipse.jdt.core.compiler.IProblem;
+ import org.aspectj.org.eclipse.jdt.internal.compiler.CompilationResult;
++import org.aspectj.org.eclipse.jdt.internal.compiler.CompilationResult.ProblemsForRemovalFilter;
++import org.aspectj.weaver.IEclipseSourceContext;
++import org.aspectj.weaver.IHasPosition;
++import org.aspectj.weaver.Member;
+ 
+ 
+ 
+-public class EclipseSourceContext implements ISourceContext {
++public class EclipseSourceContext implements IEclipseSourceContext {
+ 
+ 	CompilationResult result;
+ 	int offset = 0;
+@@ -73,4 +76,36 @@ public class EclipseSourceContext implements ISourceContext {
+     	  result=null;
+     }
+ 
++	public void removeUnnecessaryProblems(Member member, int problemLineNumber) {
++		if (result == null) return; 
++		IProblem[] probs = result.getProblems();
++		for (int i = 0; i < probs.length; i++) {
++			IProblem problem = probs[i];
++			if (problem == null) continue;
++			if (problem.getID() == IProblem.UnusedMethodDeclaredThrownException 
++					|| problem.getID() == IProblem.UnusedConstructorDeclaredThrownException) {
++				if (problem.getSourceLineNumber() == problemLineNumber) {
++					UnusedDeclaredThrownExceptionFilter filter = 
++						new UnusedDeclaredThrownExceptionFilter(problem);
++					result.removeProblems(filter);	
++				}
++			}
++		}
++	}
++
++	private class UnusedDeclaredThrownExceptionFilter implements ProblemsForRemovalFilter {	
++		private IProblem problemToRemove;
++
++		public UnusedDeclaredThrownExceptionFilter(IProblem p) {
++			problemToRemove = p;
++		}
++
++		public boolean accept(IProblem p) {
++			if (p.equals(problemToRemove)) {
++				return true;
++			}
++			return false;
++		}
++
++	}
+ }
+@@ -24,6 +24,16 @@ import org.aspectj.testing.XMLBasedAjcTestCase;
+ 
+ public class Ajc152Tests extends org.aspectj.testing.XMLBasedAjcTestCase {
+ 
++  public void testNoUnnecessaryDeclarationOfThrownExcp_pr129282_1() {runTest("no unnecessary declaration of thrown exception warning - 1");}
++  public void testNoUnnecessaryDeclarationOfThrownExcp_pr129282_2() {runTest("no unnecessary declaration of thrown exception warning - 2");}
++  public void testNoUnnecessaryDeclarationOfThrownExcp_pr129282_3() {runTest("no unnecessary declaration of thrown exception warning - 3");}
++  public void testNoUnnecessaryDeclarationOfThrownExcp_pr129282_4() {runTest("no unnecessary declaration of thrown exception warning - 4");}
++  public void testNoUnnecessaryDeclarationOfThrownExcp_pr129282_5() {runTest("no unnecessary declaration of thrown exception warning - 5");}
++  public void testNoUnnecessaryDeclarationOfThrownExcp_pr129282_6() {runTest("no unnecessary declaration of thrown exception warning - 6");}
++  public void testNoUnnecessaryDeclarationOfThrownExcp_pr129282_7() {runTest("no unnecessary declaration of thrown exception warning - 7");}
++  public void testNoUnnecessaryDeclarationOfThrownExcp_pr129282_8() {runTest("no unnecessary declaration of thrown exception warning - 8");}
++  public void testNoUnnecessaryDeclarationOfThrownExcp_pr129282_9() {runTest("no unnecessary declaration of thrown exception warning - 9");}
++  public void testNoUnnecessaryDeclarationOfThrownExcp_pr129282_10() {runTest("no unnecessary declaration of thrown exception warning - 10");}  
+   public void testAtAJVerificationError_pr144602() { runTest("atAJ perthis aspect verification error");}
+   public void testLTWAndGeneratingSUID_pr144465() { runTest("ltw with serialversionUID creation"); }
+   public void testAspects14PerSingleton_pr122253() { runTest("aspects14 - persingleton");}
+@@ -0,0 +1,16 @@
++/********************************************************************
++ * Copyright (c) 2006 Contributors. All rights reserved. 
++ * This program and the accompanying materials are made available 
++ * under the terms of the Eclipse Public License v1.0 
++ * which accompanies this distribution and is available at 
++ * http://eclipse.org/legal/epl-v10.html 
++ *  
++ * Contributors: IBM Corporation - initial API and implementation 
++ * 				 Helen Hawkins   - iniital version
++ *******************************************************************/
++package org.aspectj.weaver;
++
++
++public interface IEclipseSourceContext extends ISourceContext {
++	public void removeUnnecessaryProblems(Member method, int problemLineNumber);
++}
+@@ -112,6 +112,9 @@ public abstract class World implements Dump.INode {
+     // Records whether ASM is around ... so we might use it for delegates
+     protected static boolean isASMAround;
+ 
++	private long errorThreshold;
++	private long warningThreshold;
++    
+     static {
+     	try {
+     		Class c = Class.forName("org.aspectj.org.objectweb.asm.ClassVisitor");
+@@ -688,6 +691,31 @@ public abstract class World implements Dump.INode {
+     	behaveInJava5Way = b;
+     }
+ 
++	/**
++	 * Set the error and warning threashold which can be taken from 
++	 * CompilerOptions (see bug 129282)
++	 * 
++	 * @param errorThreshold
++	 * @param warningThreshold
++	 */
++	public void setErrorAndWarningThreshold(long errorThreshold, long warningThreshold) {
++		this.errorThreshold = errorThreshold;
++		this.warningThreshold = warningThreshold;
++	}
++	
++	/**
++	 * @return true if ignoring the UnusedDeclaredThrownException and false if
++	 *         this compiler option is set to error or warning
++	 */
++	public boolean isIgnoringUnusedDeclaredThrownException() {
++		// the 0x800000 is CompilerOptions.UnusedDeclaredThrownException
++		// which is ASTNode.bit24
++		if((this.errorThreshold & 0x800000) != 0 
++				|| (this.warningThreshold & 0x800000) != 0)
++			return false;
++		return true;
++	}
++	
+ 	public void performExtraConfiguration(String config) {
+ 		if (config==null) return;
+ 		// Bunch of name value pairs to split
+@@ -28,6 +28,7 @@ import org.aspectj.weaver.Advice;
+ import org.aspectj.weaver.AdviceKind;
+ import org.aspectj.weaver.AjAttribute;
+ import org.aspectj.weaver.BCException;
++import org.aspectj.weaver.IEclipseSourceContext;
+ import org.aspectj.weaver.ISourceContext;
+ import org.aspectj.weaver.Member;
+ import org.aspectj.weaver.ResolvedMember;
+@@ -186,6 +187,34 @@ public class BcelAdvice extends Advice {
+     public void implementOn(Shadow s) {
+         hasMatchedAtLeastOnce=true;
+         BcelShadow shadow = (BcelShadow) s;
++        
++        // remove any unnecessary exceptions if the compiler option is set to
++        // error or warning and if this piece of advice throws exceptions
++        // (bug 129282). This may be expanded to include other compiler warnings
++        // at the moment it only deals with 'declared exception is not thrown'
++        if (!shadow.getWorld().isIgnoringUnusedDeclaredThrownException() 
++        		&& !thrownExceptions.isEmpty()) {
++        	Member member = shadow.getSignature();
++        	if (member instanceof BcelMethod) {
++        		removeUnnecessaryProblems((BcelMethod)member, 
++        				((BcelMethod)member).getDeclarationLineNumber());
++			} else {
++				// we're in a call shadow therefore need the line number of the
++				// declared method (which may be in a different type). However,
++		        // we want to remove the problems from the CompilationResult
++				// held within the current type's EclipseSourceContext so need
++				// the enclosing shadow too
++				ResolvedMember resolvedMember = shadow.getSignature().resolve(shadow.getWorld());
++				if (resolvedMember instanceof BcelMethod 
++						&& shadow.getEnclosingShadow() instanceof BcelShadow) { 
++					Member enclosingMember = shadow.getEnclosingShadow().getSignature();
++					if (enclosingMember instanceof BcelMethod) {
++						removeUnnecessaryProblems((BcelMethod)enclosingMember,
++								((BcelMethod)resolvedMember).getDeclarationLineNumber());
++					}
++				}
++			}
++		}
+ 
+         //FIXME AV - see #75442, this logic is not enough so for now comment it out until we fix the bug
+ //        // callback for perObject AJC MightHaveAspect postMunge (#75442)
+@@ -250,6 +279,16 @@ public class BcelAdvice extends Advice {
+         }
+     }
+ 
++    private void removeUnnecessaryProblems(BcelMethod method, int problemLineNumber) {
++		ISourceContext sourceContext = method.getSourceContext();
++		if (sourceContext instanceof IEclipseSourceContext) {
++			if (sourceContext != null 
++				&& sourceContext instanceof IEclipseSourceContext) {
++				((IEclipseSourceContext)sourceContext).removeUnnecessaryProblems(method, problemLineNumber);						
++			}
++		}
++    }
++    
+     // ---- implementations
+ 
+ 	private Collection collectCheckedExceptions(UnresolvedType[] excs) {
+Binary files differ
+Binary files differ
+@@ -0,0 +1,27 @@
++import java.io.FileNotFoundException;
++
++import org.aspectj.lang.annotation.AdviceName;
++
++public aspect AdviceExecution {
++	
++	// don't want the 'declared exception not actually
++	// thrown' warning against this piece of advice
++	@AdviceName("Test")
++	before() throws FileNotFoundException : execution(* C.method1(..)) {	
++	}
++	
++	before(AdviceName name) throws FileNotFoundException : adviceexecution() 
++		&& @annotation(name)
++		&& if(name.value().indexOf("Test") != -1) {
++			throw new FileNotFoundException();
++	}
++
++}
++
++class C {
++	
++	// don't want the 'declared exception not actually 
++	// thrown' warning
++	public void method1() throws FileNotFoundException {
++	}
++}
+@@ -0,0 +1,23 @@
++import java.io.FileNotFoundException;
++
++public aspect ConstructorCall {
++
++	pointcut p() : call(public C1.new());
++	
++	before() throws FileNotFoundException : p() { 
++		throw new FileNotFoundException();
++	}
++	
++}
++
++class C1 {
++	
++	// shouldn't get the warning against the constructor
++	public C1() throws FileNotFoundException {	
++	}
++	
++	public void m1() throws FileNotFoundException {
++		new C1();
++	}
++	
++}
+@@ -0,0 +1,19 @@
++import java.io.FileNotFoundException;
++
++public aspect ConstructorExecution {
++
++	pointcut p1() : execution(public C1.new());
++	
++	before() throws FileNotFoundException : p1() {
++		throw new FileNotFoundException();
++	}
++	
++}
++
++class C1 {
++	
++	// shouldn't get the warning on this constructor
++	public C1() throws FileNotFoundException {	
++	}
++	
++}
+@@ -0,0 +1,39 @@
++// with the exception handler, the advice isn't actually throwing the
++// exception for the method - therefore, expect warnings when the methods
++// don't throw the exception themselves.
++public aspect ExceptionHandler {
++
++	pointcut p() : handler(*);
++	
++	before() throws MyException : p() {
++		throw new MyException();
++	}
++	
++	
++}
++
++class C {
++	
++	public void method1() {
++		try {
++			new C().throwingMethod();
++			new C().throwingMethod2();
++		} catch (MyException e) {
++			e.printStackTrace();
++		}
++	}
++	
++	// dont want 'declared exception not actually thrown'
++	// warning for this method because it's throwing it
++	public void throwingMethod() throws MyException {
++		throw new MyException();
++	}
++	
++	// do want 'declared exception not actually thrown'
++	// warning because it doesn't throw it
++	public void throwingMethod2() throws MyException {
++	}
++}
++
++class MyException extends Exception {
++}
+@@ -0,0 +1,30 @@
++import java.io.FileNotFoundException;
++
++public aspect Initialization {
++
++	pointcut preInit() : preinitialization(C.new(String));
++	
++	before() throws FileNotFoundException : preInit() {
++		throw new FileNotFoundException();
++	}
++	
++	pointcut init() : initialization(C.new());
++	
++	before() throws FileNotFoundException : init() {
++		throw new FileNotFoundException();
++	}
++}
++
++class C {
++	
++	// shouldn't get a warning against this constructor  
++	// since the throwing is handled by the advice
++	public C() throws FileNotFoundException {
++	}
++	
++	// shouldn't get a warning against this constructor
++	// since the throwing is handled by the advice
++	public C(String s) throws FileNotFoundException {
++	}
++	
++}
+@@ -0,0 +1,52 @@
++import java.io.FileNotFoundException;
++
++public aspect InnerMethodCall {
++
++	pointcut p() : call(public * C1.m2());
++	
++	before() throws FileNotFoundException : p() { 
++		throw new FileNotFoundException();
++	}
++	
++	pointcut p2() : call(public * C1.m4());
++	
++	before() : p2() {
++	}
++	
++}
++
++class C1 {
++	
++	public void m1() {
++		new C2() {
++			public void m6() throws FileNotFoundException {
++				new C1().m2();
++			}
++		};
++	}
++	
++	// don't want the 'declared exception not actually
++	// thrown' warning because the advice is affecting
++	// this method
++	public void m2() throws FileNotFoundException {		
++	}
++	
++	public void m3() {
++		new C2() {
++			public void m6() throws FileNotFoundException {
++				new C1().m4();
++			}
++		};
++	}
++	
++	// do want the 'declared exception not actually
++	// thrown' warning
++	public void m4() throws FileNotFoundException {
++	}
++	
++	
++}
++
++abstract class C2 {
++	public abstract void m6() throws FileNotFoundException;
++}
+@@ -0,0 +1,40 @@
++import java.io.FileNotFoundException;
++
++aspect InnerMethodCall2 {
++	
++	pointcut p() : call(* C1.c1Method());
++	
++	before() throws FileNotFoundException : p() {
++		throw new FileNotFoundException();
++	}
++	
++}
++
++class MainClass {
++	
++	public void amethod() {
++		new C() {
++			public void mymethod() throws FileNotFoundException {
++				new C() {
++					public void mymethod() throws FileNotFoundException {
++						new C1().c1Method();
++					}
++				};
++			}
++		};
++	}
++	
++}
++
++class C1 {
++	
++	// don't want the 'declared exception not actually thrown'
++	// exception because the advice is effectively throwing it
++	public void c1Method() throws FileNotFoundException {
++	}
++	
++}
++
++abstract class C {
++	public abstract void mymethod() throws FileNotFoundException;
++}
+@@ -0,0 +1,38 @@
++import java.io.FileNotFoundException;
++
++public aspect MethodCall {
++
++	pointcut p() : call(public * C1.m2());
++	
++	before() throws FileNotFoundException : p() { 
++		throw new FileNotFoundException();
++	}
++	
++	pointcut p2() : call(public * C1.m4());
++	
++	before() : p2() {
++	}
++	
++}
++
++class C1 {
++	
++	public void m1() throws FileNotFoundException {
++		new C1().m2();
++	}
++	
++	// don't want the 'declared exception not actually
++	// thrown' warning because the advice is affecting
++	// this method
++	public void m2() throws FileNotFoundException {		
++	}
++	
++	public void m3() throws FileNotFoundException {
++		new C1().m4();
++	}
++	
++	// do want the 'declared exception not actually
++	// thrown' warning
++	public void m4() throws FileNotFoundException {
++	}
++}
+@@ -0,0 +1,28 @@
++import java.io.FileNotFoundException;
++
++public aspect MethodCallInDiffClass {
++
++	pointcut p() : call(public * B1.m2());
++	
++	before() throws FileNotFoundException : p() { 
++		throw new FileNotFoundException();
++	}
++	
++}
++
++class B {
++	
++	public void m1() throws FileNotFoundException {
++		new B1().m2();
++	}
++	
++}
++
++class B1 {
++	
++	// don't want the 'declared exception not acutally
++	// thrown' warning since the advice is throwing it
++	public void m2() throws FileNotFoundException {	
++	}
++	
++}
+@@ -0,0 +1,33 @@
++import java.sql.SQLException;
++
++public aspect MethodExecution {
++
++	pointcut pc() : execution(public * C.shouldntThrow(..));
++	
++	Object around() throws SQLException :pc(){
++		throw new SQLException(); 
++	}
++	
++	pointcut pc2() : execution(public * C.needsToThrow(..));
++	
++	// C.needsToThrow still needs to throw the exception because
++	// this advice isn't doing anything with exceptions
++	before() : pc2() {
++	}
++	
++}
++
++class C {
++	
++	// don't want the "declared exception is not actually
++	// thrown" message because around advice is affecting
++	// this method
++	public void shouldntThrow() throws SQLException {
++	}
++
++	// do want the "declared exception is not actually
++	// thrown" message to appear for this method
++	public void needsToThrow() throws SQLException{
++	}
++	
++}
+@@ -319,6 +319,55 @@
+       </compile>
+     </ajc-test>
+ 
++
++    <ajc-test dir="bugs152/pr129282" title="no unnecessary declaration of thrown exception warning - 1">
++      <compile files="MethodExecution.aj" options="-warn:+unusedThrown">
++		<message kind="warning" line="30" text="The declared exception SQLException is not actually thrown by the method needsToThrow() from type C"/>
++	  </compile>
++    </ajc-test>
++
++    <ajc-test dir="bugs152/pr129282" title="no unnecessary declaration of thrown exception warning - 2">
++      <compile files="MethodCall.aj" options="-warn:+unusedThrown">
++		<message kind="warning" line="36" text="The declared exception FileNotFoundException is not actually thrown by the method m4() from type C1"/>
++	  </compile>
++    </ajc-test>
++
++    <ajc-test dir="bugs152/pr129282" title="no unnecessary declaration of thrown exception warning - 3">
++      <compile files="InnerMethodCall.aj" options="-warn:+unusedThrown">
++		<message kind="warning" line="44" text="The declared exception FileNotFoundException is not actually thrown by the method m4() from type C1"/>
++	  </compile>
++    </ajc-test>
++
++    <ajc-test dir="bugs152/pr129282" title="no unnecessary declaration of thrown exception warning - 4">
++      <compile files="AdviceExecution.aj" options="-1.5 -warn:+unusedThrown"/>
++	</ajc-test>
++
++    <ajc-test dir="bugs152/pr129282" title="no unnecessary declaration of thrown exception warning - 5">
++      <compile files="ExceptionHandler.aj" options="-warn:+unusedThrown">
++		<message kind="warning" line="34" text="The declared exception MyException is not actually thrown by the method throwingMethod2() from type C"/>
++	  </compile>
++	</ajc-test>
++
++    <ajc-test dir="bugs152/pr129282" title="no unnecessary declaration of thrown exception warning - 6">
++      <compile files="Initialization.aj" options="-warn:+unusedThrown"/>
++	</ajc-test>
++
++    <ajc-test dir="bugs152/pr129282" title="no unnecessary declaration of thrown exception warning - 7">
++      <compile files="ConstructorCall.aj" options="-warn:+unusedThrown"/>
++	</ajc-test>
++
++    <ajc-test dir="bugs152/pr129282" title="no unnecessary declaration of thrown exception warning - 8">
++      <compile files="ConstructorExecution.aj" options="-warn:+unusedThrown"/>
++	</ajc-test>
++
++    <ajc-test dir="bugs152/pr129282" title="no unnecessary declaration of thrown exception warning - 9">
++      <compile files="MethodCallInDiffClass.aj" options="-warn:+unusedThrown"/>
++    </ajc-test>
++
++    <ajc-test dir="bugs152/pr129282" title="no unnecessary declaration of thrown exception warning - 10">
++      <compile files="InnerMethodCall2.aj" options="-warn:+unusedThrown"/>
++    </ajc-test>
++
+     <ajc-test dir="bugs152/pr138215" pr="138215" title="Reference pointcut fails inside @DeclareWarning">
+       <compile files="pr138215.aj" options="-1.5">
+         <message kind="warning" line="17" text="no foos please"/>

@@ -1,0 +1,227 @@
+@@ -23,6 +23,12 @@ import org.aspectj.testing.XMLBasedAjcTestCase;
+ public class Ajc161Tests extends org.aspectj.testing.XMLBasedAjcTestCase {
+ 
+ 	// AspectJ1.6.1	
++//	public void testSuperItds_pr134425() { runTest("super itds"); }
++	public void testSuperItds_pr198196_1() { runTest("super itds - 2"); }
++	public void testSuperItds_pr198196_2() { runTest("super itds - 3"); }
++	public void testSuperItds_pr198196_3() { runTest("super itds - 4"); }
++//	public void testDeow_pr237381_1() { runTest("ataspectj deow - 1"); }
++//	public void testDeow_pr237381_2() { runTest("ataspectj deow - 2"); }
+ 	public void testRunningBrokenCode_pr102733_2() { runTest("running broken code - 2"); }
+ 	public void testRunningBrokenCode_pr102733() { runTest("running broken code"); }
+ 	public void testErrorOnNonabstractGenericAtAspectJAspect_pr168982() { runTest("error on non-abstract generic ataspectj aspect");}
+@@ -19,18 +19,22 @@ import java.util.Set;
+ import org.aspectj.ajdt.internal.compiler.lookup.AjLookupEnvironment;
+ import org.aspectj.ajdt.internal.compiler.lookup.EclipseFactory;
+ import org.aspectj.ajdt.internal.compiler.lookup.InterTypeMethodBinding;
+-import org.aspectj.weaver.NameMangler;
+-import org.aspectj.weaver.ResolvedMember;
+ import org.aspectj.org.eclipse.jdt.internal.compiler.ASTVisitor;
+ import org.aspectj.org.eclipse.jdt.internal.compiler.ast.AbstractMethodDeclaration;
+ import org.aspectj.org.eclipse.jdt.internal.compiler.ast.MessageSend;
+ import org.aspectj.org.eclipse.jdt.internal.compiler.ast.ThisReference;
++import org.aspectj.org.eclipse.jdt.internal.compiler.ast.TypeDeclaration;
+ import org.aspectj.org.eclipse.jdt.internal.compiler.classfmt.ClassFileConstants;
+ import org.aspectj.org.eclipse.jdt.internal.compiler.lookup.BlockScope;
++import org.aspectj.org.eclipse.jdt.internal.compiler.lookup.FieldBinding;
+ import org.aspectj.org.eclipse.jdt.internal.compiler.lookup.MethodBinding;
++import org.aspectj.org.eclipse.jdt.internal.compiler.lookup.MethodScope;
+ import org.aspectj.org.eclipse.jdt.internal.compiler.lookup.ParameterizedTypeBinding;
+ import org.aspectj.org.eclipse.jdt.internal.compiler.lookup.ProblemMethodBinding;
+ import org.aspectj.org.eclipse.jdt.internal.compiler.lookup.ReferenceBinding;
++import org.aspectj.org.eclipse.jdt.internal.compiler.lookup.SourceTypeBinding;
++import org.aspectj.weaver.NameMangler;
++import org.aspectj.weaver.ResolvedMember;
+ 
+ /**
+  * Takes a method that already has the three extra parameters
+@@ -41,14 +45,22 @@ public class SuperFixerVisitor extends ASTVisitor {
+ 	Set superMethodsCalled = new HashSet();
+ 	AbstractMethodDeclaration method;
+ 	ReferenceBinding targetClass;
++	private int depthCounter = 0; // Keeps track of whether we are inside any nested local type declarations
+ 
+ 	SuperFixerVisitor(AbstractMethodDeclaration method, ReferenceBinding targetClass) {
+ 		this.method = method;
+ 		this.targetClass = targetClass;
+ 	}
+ 
++	public boolean visit(TypeDeclaration localTypeDeclaration, BlockScope scope) {
++		depthCounter++;
++		return super.visit(localTypeDeclaration, scope);
++	}
++
++	public void endVisit(TypeDeclaration localTypeDeclaration,BlockScope scope) {
++		depthCounter--;
++	}	
+ 
+-	//XXX does this walk into inners
+ 	public void endVisit(MessageSend call, BlockScope scope) {
+ 		//System.out.println("endVisit: " + call);
+ 		// an error has already occurred
+@@ -68,37 +80,49 @@ public class SuperFixerVisitor extends ASTVisitor {
+ //			}
+ //			return;
+ 		}
+-
+     	EclipseFactory factory = ((AjLookupEnvironment)method.scope.environment()).factory;
+-
+-		char[] accessName;
+-		if (call.isSuperAccess() && !call.binding.isStatic()) {
+-			call.receiver = new ThisReference(call.receiver.sourceStart, call.receiver.sourceEnd);
+-			accessName =
+-				NameMangler.superDispatchMethod(factory.fromBinding(targetClass), 
+-							new String(superBinding.selector)).toCharArray();
+-		} else if (call.receiver.isThis() && call.binding.isProtected() && !call.binding.isStatic()) {
+-			//XXX this is a hack that violates some binary compatibility rules
+-			if (superBinding.declaringClass.equals(targetClass)) {
++    	if (depthCounter!=0 && targetClass.isInterface()) {// pr198196 - when calling MarkerInterface.super.XXX()
++			if (call.isSuperAccess() && !call.binding.isStatic()) {
++				MethodScope currentMethodScope = scope.methodScope();
++				SourceTypeBinding sourceType = currentMethodScope.enclosingSourceType();
++				FieldBinding field = sourceType.addSyntheticFieldForInnerclass(targetClass);
++				call.receiver = new KnownFieldReference(field,call.receiver.sourceStart,call.receiver.sourceEnd);
++			} else {
++				return;
++			}
++    	} else if (depthCounter==0) { // Allow case testSuperItds_pr198196_2/3
++    
++			char[] accessName;
++			if (call.isSuperAccess() && !call.binding.isStatic()) {
++				call.receiver = new ThisReference(call.receiver.sourceStart, call.receiver.sourceEnd);
+ 				accessName =
+-					NameMangler.protectedDispatchMethod(factory.fromBinding(targetClass), 
++					NameMangler.superDispatchMethod(factory.fromBinding(targetClass), 
+ 								new String(superBinding.selector)).toCharArray();
++			} else if (call.receiver.isThis() && call.binding.isProtected() && !call.binding.isStatic()) {
++				//XXX this is a hack that violates some binary compatibility rules
++				if (superBinding.declaringClass.equals(targetClass)) {
++					accessName =
++						NameMangler.protectedDispatchMethod(factory.fromBinding(targetClass), 
++									new String(superBinding.selector)).toCharArray();
++				} else {
++					accessName =
++					NameMangler.superDispatchMethod(factory.fromBinding(targetClass), 
++								new String(superBinding.selector)).toCharArray();
++				}
+ 			} else {
+-				accessName =
+-				NameMangler.superDispatchMethod(factory.fromBinding(targetClass), 
+-							new String(superBinding.selector)).toCharArray();
++				return;
+ 			}
++			
++			//??? do we want these to be unique
++			MethodBinding superAccessBinding =
++				new MethodBinding(ClassFileConstants.AccPublic, accessName, 
++				superBinding.returnType, superBinding.parameters, superBinding.thrownExceptions,
++				targetClass);
++				
++			AstUtil.replaceMethodBinding(call, superAccessBinding);
+ 		} else {
+-			return;
++		    return;
+ 		}
+-		
+-		//??? do we want these to be unique
+-		MethodBinding superAccessBinding =
+-			new MethodBinding(ClassFileConstants.AccPublic, accessName, 
+-			superBinding.returnType, superBinding.parameters, superBinding.thrownExceptions,
+-			targetClass);
+-			
+-		AstUtil.replaceMethodBinding(call, superAccessBinding);
+ 		ResolvedMember targetMember = null;
+ 		if (superBinding.declaringClass.isParameterizedType()) { //pr206911
+ 			targetMember = factory.makeResolvedMember(superBinding,((ParameterizedTypeBinding)superBinding.declaringClass).genericType());
+@@ -23,6 +23,16 @@ import org.aspectj.org.eclipse.jdt.internal.compiler.lookup.TypeBinding;
+ 
+ public class KnownFieldReference extends QualifiedNameReference {
+ 
++	public KnownFieldReference(FieldBinding binding, int startPos,int endPos) {
++		super(new char[][] {binding.name},new long[1], startPos, endPos);
++		this.binding = this.codegenBinding = binding;
++		this.constant = Constant.NotAConstant;
++		this.actualReceiverType = binding.declaringClass;
++		
++		this.bits = Binding.FIELD;
++		//this.receiver = AstUtil.makeTypeReference(binding.declaringClass);
++	}
++	
+ 	//XXX handle source locations
+ 	public KnownFieldReference(FieldBinding binding, long pos) {
+ 		super(new char[][] {binding.name},new long[1],  0, 0);
+@@ -1,12 +1,15 @@
+ aspect MarkerAspect2  { // IncompatibleClassChangeError
+ 
++		int Marker.i=0;
+ 
+         declare parents: Foo implements Marker;
+ 
+         public String Marker.toString() {
+                 new Runnable() {
+                         public void run() {
+-                                Marker.super.toString();
++                    		if (i++>5) return;
++                    		System.out.println("a");
++                            Marker.super.toString();
+                         }
+                 }.run();
+                 return "banana";//super.toString();
+@@ -0,0 +1,6 @@
++public class Foo {
++
++        public static void main(String[] args) {
++                System.err.println(new Foo().toString());
++        }
++}
+@@ -0,0 +1,5 @@
++public interface Marker {
++
++        String toString();
++}
++
+@@ -0,0 +1,13 @@
++aspect MarkerAspect1  { // VerifyError
++
++        declare parents: Foo implements Marker;
++
++        public String Foo.toString() {
++                new Runnable() {
++                        public void run() {
++                                super.toString();
++                        }
++                }.run();
++                return "oranges";
++        }
++}
+@@ -0,0 +1,14 @@
++aspect MarkerAspect2  { // IncompatibleClassChangeError
++
++
++        declare parents: Foo implements Marker;
++
++        public String Marker.toString() {
++                new Runnable() {
++                        public void run() {
++                                Marker.super.toString();
++                        }
++                }.run();
++                return "banana";//super.toString();
++        }
++}
+\ No newline at end of file
+@@ -0,0 +1,13 @@
++aspect MarkerAspect3  { // VerifyError
++
++        declare parents: Foo implements Marker;
++
++        public String Foo.toString() {
++                new Runnable() {
++                        public void run() {
++                                Foo.super.toString();
++                        }
++                }.run();
++                return "oranges";
++        }
++}

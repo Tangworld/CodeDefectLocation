@@ -1,0 +1,43 @@
+@@ -252,7 +252,7 @@ public class Declaration implements Serializable {
+ 
+ 
+     public boolean isType() {
+-        return getKind().equals("interface") || getKind().equals("class") || getKind().equals("aspect");
++		return getKind().equals("interface") || getKind().equals("class") || getKind().equals("aspect") || getKind().equals("enum");
+     }
+ 
+     public boolean hasBody() {
+@@ -111,7 +111,15 @@ class StubFileGenerator {
+ 		    	String signature = ""; 
+ 		    	if (!member.getKind().equals(IProgramElement.Kind.POINTCUT)
+ 		    	    && !member.getKind().equals(IProgramElement.Kind.ADVICE)) {
+-		    		signature = member.getSourceSignature();//StructureUtil.genSignature(member);
++					signature = member.getSourceSignature();//StructureUtil.genSignature(member);
++					if (member.getKind().equals(IProgramElement.Kind.ENUM_VALUE)){
++						if (((IProgramElement)members.get(members.indexOf(member)+1)).getKind().equals(IProgramElement.Kind.ENUM_VALUE)){
++							// if the next member is also an ENUM_VALUE:
++							signature = signature + ",";
++						} else {
++							signature = signature + ";";
++						}
++					}
+                 } 
+ 
+ 		    	if (member.getKind().isDeclare()) {
+@@ -578,12 +578,13 @@ public class AsmHierarchyBuilder extends ASTVisitor {
+ 	/**
+ 	 * Doesn't print qualified allocation expressions.
+ 	 */
+-	protected String genSourceSignature(FieldDeclaration fieldDeclaration) {
++	protected String genSourceSignature(FieldDeclaration fieldDeclaration) {	
+ 		StringBuffer output = new StringBuffer();
+-		FieldDeclaration.printModifiers(fieldDeclaration.modifiers, output);
+ 		if (fieldDeclaration.type == null) { // This is an enum value
+-			output.append(fieldDeclaration.binding.type.debugName()).append(" ").append(fieldDeclaration.name);
++			output.append(fieldDeclaration.name); // ajh02: the "," or ";" has to be put on by whatever uses the sourceSignature
++			return output.toString();
+ 		} else {
++			FieldDeclaration.printModifiers(fieldDeclaration.modifiers, output);
+ 			fieldDeclaration.type.print(0, output).append(' ').append(fieldDeclaration.name);
+ 		}
+ 
