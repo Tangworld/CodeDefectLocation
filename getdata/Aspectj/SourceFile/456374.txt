@@ -1,9 +1,7 @@
-@@ -790,7 +790,7 @@ public final class LazyClassGen {
- 
- 	public String toShortString() {
- 		String s = org.aspectj.apache.bcel.classfile.Utility.accessToString(myGen.getModifiers(), true);
--		if (s != "") {
-+		if (!s.equals("")) {
- 			s += " ";
- 		}
- 		s += org.aspectj.apache.bcel.classfile.Utility.classOrInterface(myGen.getModifiers());
+-rw-r--r--weaver/src/org/aspectj/weaver/bcel/LazyClassGen.java2
+
+
+
+diff --git a/weaver/src/org/aspectj/weaver/bcel/LazyClassGen.java b/weaver/src/org/aspectj/weaver/bcel/LazyClassGen.java
+index 8e2b098..bc465a2 100644
+--- a/

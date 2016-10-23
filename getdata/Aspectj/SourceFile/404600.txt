@@ -1,9 +1,7 @@
-@@ -1458,7 +1458,7 @@ public class BcelWeaver {
- 	 * algorithm is optimal ??
- 	 */
- 	public void weaveParentTypeMungers(ResolvedType onType) {
--		if (onType.isRawType()) {
-+		if (onType.isRawType() || onType.isParameterizedType()) {
- 			onType = onType.getGenericType();
- 		}
- 		onType.clearInterTypeMungers();
+-rw-r--r--weaver/src/org/aspectj/weaver/bcel/BcelWeaver.java2
+
+
+
+diff --git a/weaver/src/org/aspectj/weaver/bcel/BcelWeaver.java b/weaver/src/org/aspectj/weaver/bcel/BcelWeaver.java
+index 0b62084..5481e60 100644
+--- a/

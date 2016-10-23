@@ -1,10 +1,7 @@
-@@ -186,8 +186,8 @@ public abstract class AbstractIndexedFileCacheBacking extends AbstractFileCacheB
-         indexEntry.key = classEntry.getKey();
-         indexEntry.generated = classEntry.isGenerated();
-         indexEntry.ignored = classEntry.isIgnored();
-+    	indexEntry.crcClass = crc(originalBytes);
-         if (!classEntry.isIgnored()) {
--        	indexEntry.crcClass = crc(originalBytes);
-             indexEntry.crcWeaved = crc(classEntry.getBytes());
-         }
- 
+-rw-r--r--weaver/src/org/aspectj/weaver/tools/cache/AbstractIndexedFileCacheBacking.java2
+
+
+
+diff --git a/weaver/src/org/aspectj/weaver/tools/cache/AbstractIndexedFileCacheBacking.java b/weaver/src/org/aspectj/weaver/tools/cache/AbstractIndexedFileCacheBacking.java
+index 7d6bb8c..1580277 100644
+--- a/

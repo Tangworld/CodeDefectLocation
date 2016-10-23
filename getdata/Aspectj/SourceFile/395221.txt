@@ -1,15 +1,7 @@
-@@ -100,12 +100,14 @@ public class AndPointcut extends Pointcut {
- 		AndPointcut ret = new AndPointcut(left.concretize(inAspect, declaringType, bindings), right.concretize(inAspect,
- 				declaringType, bindings));
- 		ret.copyLocationFrom(this);
-+		ret.m_ignoreUnboundBindingForNames = m_ignoreUnboundBindingForNames;
- 		return ret;
- 	}
- 
- 	public Pointcut parameterizeWith(Map typeVariableMap, World w) {
- 		AndPointcut ret = new AndPointcut(left.parameterizeWith(typeVariableMap, w), right.parameterizeWith(typeVariableMap, w));
- 		ret.copyLocationFrom(this);
-+		ret.m_ignoreUnboundBindingForNames = m_ignoreUnboundBindingForNames;
- 		return ret;
- 	}
- 
+-rw-r--r--org.aspectj.matcher/src/org/aspectj/weaver/patterns/AndPointcut.java2
+
+
+
+diff --git a/org.aspectj.matcher/src/org/aspectj/weaver/patterns/AndPointcut.java b/org.aspectj.matcher/src/org/aspectj/weaver/patterns/AndPointcut.java
+index c3f003a..c9e56d6 100644
+--- a/

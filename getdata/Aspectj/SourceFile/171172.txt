@@ -1,54 +1,12 @@
-@@ -5,7 +5,7 @@
-   <groupId>org.aspectj</groupId>
-   <artifactId>aspectjrt</artifactId>
-   <packaging>jar</packaging>
--  <version>1.7.1.BUILD-SNAPSHOT</version>
-+  <version>1.7.2.BUILD-SNAPSHOT</version>
-   <name>AspectJ runtime</name>
-   <description>The runtime needed to execute a program using AspectJ</description>
-   <url>http://www.aspectj.org</url>
-@@ -5,7 +5,7 @@
-   <groupId>org.aspectj</groupId>
-   <artifactId>aspectjtools</artifactId>
-   <packaging>jar</packaging>
--  <version>1.7.1.BUILD-SNAPSHOT</version>
-+  <version>1.7.2.BUILD-SNAPSHOT</version>
-   <name>AspectJ tools</name>
-   <description>Tools from the AspectJ project</description>
-   <url>http://www.aspectj.org</url>
-@@ -5,7 +5,7 @@
-   <groupId>org.aspectj</groupId>
-   <artifactId>aspectjweaver</artifactId>
-   <packaging>jar</packaging>
--  <version>1.7.1.BUILD-SNAPSHOT</version>
-+  <version>1.7.2.BUILD-SNAPSHOT</version>
-   <name>AspectJ weaver</name>
-   <description>The AspectJ weaver introduces advices to java classes</description>
-   <url>http://www.aspectj.org</url>
-@@ -5,7 +5,7 @@
-   <groupId>org.aspectj</groupId>
-   <artifactId>aspectjrt</artifactId>
-   <packaging>jar</packaging>
--  <version>1.6.12</version>
-+  <version>1.7.1.RELEASE</version>
-   <name>AspectJ runtime</name>
-   <description>The runtime needed to execute a program using AspectJ</description>
-   <url>http://www.aspectj.org</url>
-@@ -5,7 +5,7 @@
-   <groupId>org.aspectj</groupId>
-   <artifactId>aspectjtools</artifactId>
-   <packaging>jar</packaging>
--  <version>1.6.12</version>
-+  <version>1.7.1.RELEASE</version>
-   <name>AspectJ tools</name>
-   <description>Tools from the AspectJ project</description>
-   <url>http://www.aspectj.org</url>
-@@ -5,7 +5,7 @@
-   <groupId>org.aspectj</groupId>
-   <artifactId>aspectjweaver</artifactId>
-   <packaging>jar</packaging>
--  <version>1.6.12</version>
-+  <version>1.7.1.RELEASE</version>
-   <name>AspectJ weaver</name>
-   <description>The AspectJ weaver introduces advices to java classes</description>
-   <url>http://www.aspectj.org</url>
+-rw-r--r--build/usedForMavenUpload/aspectjrt.pom2
+-rw-r--r--build/usedForMavenUpload/aspectjtools.pom2
+-rw-r--r--build/usedForMavenUpload/aspectjweaver.pom2
+-rw-r--r--build/usedForMavenUpload_release/aspectjrt.pom2
+-rw-r--r--build/usedForMavenUpload_release/aspectjtools.pom2
+-rw-r--r--build/usedForMavenUpload_release/aspectjweaver.pom2
+
+
+
+diff --git a/build/usedForMavenUpload/aspectjrt.pom b/build/usedForMavenUpload/aspectjrt.pom
+index 6590e59..cbb31cc 100644
+--- a/

@@ -1,3 +1,16 @@
+-rw-r--r--util/src/org/aspectj/util/GenericSignatureParser.java56
+-rw-r--r--util/testsrc/org/aspectj/util/GenericSignatureParserTest.java23
+
+
+
+diff --git a/util/src/org/aspectj/util/GenericSignatureParser.java b/util/src/org/aspectj/util/GenericSignatureParser.java
+index 3f11662..28c8db8 100644
+--- a/util/src/org/aspectj/util/GenericSignatureParser.java
+
++++ b/util/src/org/aspectj/util/GenericSignatureParser.java
+
+
+
 @@ -187,18 +187,10 @@ public class GenericSignatureParser {
  		// now we have either a "." indicating the start of a nested type,
  		// or a "<" indication type arguments, or ";" and we are done.
@@ -77,6 +90,14 @@
  	private SimpleClassTypeSignature parseSimpleClassTypeSignature() {
  		String identifier = eatIdentifier();
  		TypeArgument[] tArgs = maybeParseTypeArguments();
+diff --git a/util/testsrc/org/aspectj/util/GenericSignatureParserTest.java b/util/testsrc/org/aspectj/util/GenericSignatureParserTest.java
+index c46c97b..5a9e083 100644
+--- a/util/testsrc/org/aspectj/util/GenericSignatureParserTest.java
+
++++ b/util/testsrc/org/aspectj/util/GenericSignatureParserTest.java
+
+
+
 @@ -95,6 +95,27 @@ public class GenericSignatureParserTest extends TestCase {
  		assertEquals("Ljava/util/Comparable<-TE;>;", sig.superInterfaceSignatures[0].toString());
  	}

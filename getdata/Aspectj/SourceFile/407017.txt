@@ -1,11 +1,7 @@
-@@ -2204,8 +2204,8 @@ public class AjState implements CompilerConfigurationChangeFlags, TypeDelegateRe
- 			ClassParser parser = new ClassParser(f.toString());
- 			return world.buildBcelDelegate(referenceType, parser.parse(), true, false);
- 		} catch (IOException e) {
--			System.err.println("Failed to recover " + referenceType);
--			e.printStackTrace();
-+			IMessage msg = new Message("Failed to recover " + referenceType, referenceType.getSourceLocation(), false);
-+			buildManager.handler.handleMessage(msg);
- 		}
- 		return null;
- 	}
+-rw-r--r--org.aspectj.ajdt.core/src/org/aspectj/ajdt/internal/core/builder/AjState.java4
+
+
+
+diff --git a/org.aspectj.ajdt.core/src/org/aspectj/ajdt/internal/core/builder/AjState.java b/org.aspectj.ajdt.core/src/org/aspectj/ajdt/internal/core/builder/AjState.java
+index 6cc0224..e324e25 100644
+--- a/

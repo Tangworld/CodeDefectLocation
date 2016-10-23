@@ -1,14 +1,7 @@
-@@ -673,10 +673,11 @@ public class EclipseSourceType extends AbstractReferenceTypeDelegate {
- 	 * (RetentionPolicy, Target).
- 	 */
- 	public AnnotationAJ[] getAnnotations() {
--		if (annotations != null) {
-+		int declarationAnnoCount = (declaration.annotations == null ? 0 : declaration.annotations.length);
-+		if (annotations != null && annotations.length==declarationAnnoCount) {
- 			return annotations; // only do this once
- 		}
--		if (!annotationsFullyResolved) {
-+		if (!annotationsFullyResolved || annotations.length!=declarationAnnoCount) {
- 			TypeDeclaration.resolveAnnotations(declaration.staticInitializerScope, declaration.annotations, binding);
- 			annotationsFullyResolved = true;
- 		}
+-rw-r--r--org.aspectj.ajdt.core/src/org/aspectj/ajdt/internal/compiler/lookup/EclipseSourceType.java5
+
+
+
+diff --git a/org.aspectj.ajdt.core/src/org/aspectj/ajdt/internal/compiler/lookup/EclipseSourceType.java b/org.aspectj.ajdt.core/src/org/aspectj/ajdt/internal/compiler/lookup/EclipseSourceType.java
+index 538057f..46a0686 100644
+--- a/

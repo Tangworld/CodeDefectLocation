@@ -1,9 +1,7 @@
-@@ -118,7 +118,7 @@ public class AjcMemberMaker {
- 	}
- 
- 	public static ResolvedMember perObjectBind(UnresolvedType declaringType) {
--		return new ResolvedMemberImpl(Member.METHOD, declaringType, PUBLIC_STATIC, NameMangler.PEROBJECT_BIND_METHOD,
-+		return new ResolvedMemberImpl(Member.METHOD, declaringType, PUBLIC_STATIC | Modifier.SYNCHRONIZED, NameMangler.PEROBJECT_BIND_METHOD,
- 				"(Ljava/lang/Object;)V");
- 	}
- 
+-rw-r--r--org.aspectj.matcher/src/org/aspectj/weaver/AjcMemberMaker.java2
+
+
+
+diff --git a/org.aspectj.matcher/src/org/aspectj/weaver/AjcMemberMaker.java b/org.aspectj.matcher/src/org/aspectj/weaver/AjcMemberMaker.java
+index 249e19b..62459bd 100644
+--- a/

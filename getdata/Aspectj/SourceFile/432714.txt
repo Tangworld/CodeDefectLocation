@@ -1,67 +1,12 @@
-@@ -0,0 +1,25 @@
-+public class Code {
-+  public static void main(String[]argv) {
-+  }
-+
-+  public void foo(UID x) {
-+      bar((x instanceof UID ? E.one : E.two));
-+  }
-+
-+  public static void bar(FM fm) { }
-+}
-+
-+aspect X {
-+  void around(): execution(* foo(..)) {
-+  }
-+}
-+
-+class E {
-+    static BBB one;
-+    static CCC two;
-+    class BBB extends FM<String> {}
-+    class CCC extends FM<Long> {}
-+}
-+class FM<T> {}
-+
-+class UID {}
-@@ -20,6 +20,14 @@ import org.aspectj.testing.XMLBasedAjcTestCase;
-  * @author Andy Clement
-  */
- public class Ajc180Tests extends org.aspectj.testing.XMLBasedAjcTestCase {
-+
-+	public void testStackmapframe_431976() {
-+		runTest("stackmapframe");
-+	}
-+	
-+	public void testStackOverflow_432608() {
-+		runTest("stackoverflow");
-+	}
- 
- 	public void testThisJoinPointNotInitialized_431976() {
- 		runTest("thisJoinPoint not initialized");
-@@ -2,6 +2,15 @@
- 
- <suite>
- 
-+	<ajc-test dir="bugs180/pr432714" title="stackmapframe">
-+		<compile options="-1.8" files="Code.java"/>
-+		<run class="Code"/>
-+	</ajc-test>
-+
-+	<ajc-test dir="bugs180/pr432608" title="stackoverflow">
-+		<compile options="-1.8" files="AbstractControlPoint.java"/>
-+	</ajc-test>
-+
- 	<ajc-test dir="bugs180/pr431976" title="thisJoinPoint not initialized">
- 		<compile options="-1.8" files="Code.java"/>
- 	</ajc-test>
-@@ -97,6 +97,9 @@ public class StackMapAdder {
- 			} else {
- 				do {
- 					resolvedType1 = resolvedType1.getSuperclass();
-+					if (resolvedType1.isParameterizedOrGenericType()) {
-+						resolvedType1 = resolvedType1.getRawType();
-+					}
- 				} while (!resolvedType1.isAssignableFrom(resolvedType2));
- 				return resolvedType1.getRawName().replace('.', '/');
- 			}
+-rw-r--r--tests/bugs180/pr432714/Code.java25
+-rw-r--r--tests/src/org/aspectj/systemtest/ajc180/Ajc180Tests.java8
+-rw-r--r--tests/src/org/aspectj/systemtest/ajc180/ajc180.xml9
+-rw-r--r--weaver/src/org/aspectj/weaver/bcel/asm/StackMapAdder.java3
+
+
+
+diff --git a/tests/bugs180/pr432714/Code.java b/tests/bugs180/pr432714/Code.java
+new file mode 100644
+index 0000000..af871ab
+--- /dev/null
++++ b/

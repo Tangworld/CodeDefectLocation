@@ -1,33 +1,7 @@
-@@ -1031,11 +1031,13 @@ public class ReferenceType extends ResolvedType {
- 		ret.append(rawSig.substring(0, rawSig.length() - 1));
- 		ret.append("<");
- 		for (int i = 0; i < someParameters.length; i++) {
--			try {
--				ret.append(((ReferenceType) someParameters[i]).getSignatureForAttribute());
--			} catch (ClassCastException cce) {
--				throw new IllegalStateException("DebugFor325731: expected a ReferenceType but was " + someParameters[i]
--						+ " of type " + someParameters[i].getClass().getName(), cce);
-+			if (someParameters[i] instanceof ReferenceType) {
-+				ret.append(((ReferenceType)someParameters[i]).getSignatureForAttribute());
-+			} else if (someParameters[i] instanceof Primitive) {
-+				ret.append(((Primitive)someParameters[i]).getSignatureForAttribute());
-+			} else {
-+				throw new IllegalStateException("DebugFor325731: expected a ReferenceType or Primitive but was " + someParameters[i]
-+						+ " of type " + someParameters[i].getClass().getName());
- 			}
- 		}
- 		ret.append(">;");
-@@ -1049,7 +1049,12 @@ public class ReferenceType extends ResolvedType {
- 		ret.append(rawSig.substring(0, rawSig.length() - 1));
- 		ret.append("<");
- 		for (int i = 0; i < someParameters.length; i++) {
--			ret.append(((ReferenceType) someParameters[i]).getSignatureForAttribute());
-+			try {
-+				ret.append(((ReferenceType) someParameters[i]).getSignatureForAttribute());
-+			} catch (ClassCastException cce) {
-+				throw new IllegalStateException("DebugFor325731: expected a ReferenceType but was "+someParameters[i]+
-+						" of type "+someParameters[i].getClass().getName(),cce);
-+			}
- 		}
- 		ret.append(">;");
- 		return ret.toString();
+-rw-r--r--org.aspectj.matcher/src/org/aspectj/weaver/ReferenceType.java12
+
+
+
+diff --git a/org.aspectj.matcher/src/org/aspectj/weaver/ReferenceType.java b/org.aspectj.matcher/src/org/aspectj/weaver/ReferenceType.java
+index 97e9f5f..c8b1c77 100644
+--- a/
