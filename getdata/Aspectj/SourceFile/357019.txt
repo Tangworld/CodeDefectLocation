@@ -1,55 +1,8 @@
-@@ -80,7 +80,6 @@ import org.aspectj.weaver.Shadow;
- import org.aspectj.weaver.ShadowMunger;
- import org.aspectj.weaver.UnresolvedType;
- import org.aspectj.weaver.UnresolvedTypeVariableReferenceType;
--import org.aspectj.weaver.WeaverMessages;
- import org.aspectj.weaver.WeaverStateInfo;
- import org.aspectj.weaver.World;
- import org.aspectj.weaver.model.AsmRelationshipProvider;
-@@ -402,8 +401,15 @@ class BcelClassWeaver implements IClassWeaver {
- 	 */
- 	public boolean weave() {
- 		if (clazz.isWoven() && !clazz.isReweavable()) {
--			world.showMessage(IMessage.ERROR, WeaverMessages.format(WeaverMessages.ALREADY_WOVEN, clazz.getType().getName()),
--					ty.getSourceLocation(), null);
-+			if (world.getLint().nonReweavableTypeEncountered.isEnabled()) {
-+				world.getLint().nonReweavableTypeEncountered.signal(clazz.getType().getName(), ty.getSourceLocation());
-+			}
-+			// Integer uniqueID = new Integer(rm.hashCode() * deca.hashCode());
-+			// if (!reportedProblems.contains(uniqueID)) {
-+			// reportedProblems.add(uniqueID);
-+			// world.getLint().elementAlreadyAnnotated.signal(new String[] { rm.toString(),
-+			// world.showMessage(IMessage.ERROR, WeaverMessages.format(WeaverMessages.ALREADY_WOVEN, clazz.getType().getName()),
-+			// ty.getSourceLocation(), null);
- 			return false;
- 		}
- 
-@@ -3103,7 +3109,7 @@ class BcelClassWeaver implements IClassWeaver {
- 							&& s.charAt(4) == 'a'
- 							&& (s.equals("org.aspectj.runtime.internal.CFlowCounter")
- 									|| s.equals("org.aspectj.runtime.internal.CFlowStack") || s
--										.equals("org.aspectj.runtime.reflect.Factory"))) {
-+									.equals("org.aspectj.runtime.reflect.Factory"))) {
- 						proceed = false;
- 					} else {
- 						if (methodName.equals("aspectOf")) {
-@@ -113,6 +113,9 @@ public class Lint {
- 	public final Kind calculatingSerialVersionUID = new Kind("calculatingSerialVersionUID",
- 			"calculated SerialVersionUID for type {0} to be {1}");
- 
-+	public final Kind nonReweavableTypeEncountered = new Kind("nonReweavableTypeEncountered",
-+			"class '{0}' is already woven and has not been built in reweavable mode");
-+
- 	// there are a lot of messages in the cant find type family - I'm defining an umbrella lint warning that
- 	// allows a user to control their severity (for e.g. ltw or binary weaving)
- 	public final Kind cantFindType = new Kind("cantFindType", "{0}");
-@@ -45,4 +45,6 @@ advisingSynchronizedMethods=warning
- mustWeaveXmlDefinedAspects=warning
- 
- missingAspectForReweaving=error
--cannotAdviseJoinpointInInterfaceWithAroundAdvice=warning
-\ No newline at end of file
-+cannotAdviseJoinpointInInterfaceWithAroundAdvice=warning
-+
-+nonReweavableTypeEncountered=error
-\ No newline at end of file
+-rw-r--r--org.aspectj.matcher/src/org/aspectj/weaver/Lint.java3
+-rw-r--r--org.aspectj.matcher/src/org/aspectj/weaver/XlintDefault.properties4
+
+
+
+diff --git a/org.aspectj.matcher/src/org/aspectj/weaver/Lint.java b/org.aspectj.matcher/src/org/aspectj/weaver/Lint.java
+index 099adcd..d68ce41 100644
+--- a/

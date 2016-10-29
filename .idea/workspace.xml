@@ -2,82 +2,26 @@
 <project version="4">
   <component name="ChangeListManager">
     <list default="true" id="33cfeda7-3181-4d5e-a7ff-12787469554c" name="Default" comment="">
-      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/.idea/workspace.xml" afterPath="$PROJECT_DIR$/.idea/workspace.xml" />
-      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/getdata/Aspectj/CrawlerForGit.py" afterPath="$PROJECT_DIR$/getdata/Aspectj/CrawlerForGit.py" />
-      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/getdata/Aspectj/SourceFile/171172.txt" afterPath="$PROJECT_DIR$/getdata/Aspectj/SourceFile/171172.txt" />
-      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/getdata/Aspectj/SourceFile/174180.txt" afterPath="$PROJECT_DIR$/getdata/Aspectj/SourceFile/174180.txt" />
-      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/getdata/Aspectj/SourceFile/207958.txt" afterPath="$PROJECT_DIR$/getdata/Aspectj/SourceFile/207958.txt" />
-      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/getdata/Aspectj/SourceFile/318878.txt" afterPath="$PROJECT_DIR$/getdata/Aspectj/SourceFile/318878.txt" />
-      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/getdata/Aspectj/SourceFile/325731.txt" afterPath="$PROJECT_DIR$/getdata/Aspectj/SourceFile/325731.txt" />
-      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/getdata/Aspectj/SourceFile/368046.txt" afterPath="$PROJECT_DIR$/getdata/Aspectj/SourceFile/368046.txt" />
-      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/getdata/Aspectj/SourceFile/375777.txt" afterPath="$PROJECT_DIR$/getdata/Aspectj/SourceFile/375777.txt" />
-      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/getdata/Aspectj/SourceFile/377096.txt" afterPath="$PROJECT_DIR$/getdata/Aspectj/SourceFile/377096.txt" />
-      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/getdata/Aspectj/SourceFile/377130.txt" afterPath="$PROJECT_DIR$/getdata/Aspectj/SourceFile/377130.txt" />
-      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/getdata/Aspectj/SourceFile/377906.txt" afterPath="$PROJECT_DIR$/getdata/Aspectj/SourceFile/377906.txt" />
-      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/getdata/Aspectj/SourceFile/382723.txt" afterPath="$PROJECT_DIR$/getdata/Aspectj/SourceFile/382723.txt" />
-      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/getdata/Aspectj/SourceFile/384189.txt" afterPath="$PROJECT_DIR$/getdata/Aspectj/SourceFile/384189.txt" />
-      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/getdata/Aspectj/SourceFile/384398.txt" afterPath="$PROJECT_DIR$/getdata/Aspectj/SourceFile/384398.txt" />
-      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/getdata/Aspectj/SourceFile/384401.txt" afterPath="$PROJECT_DIR$/getdata/Aspectj/SourceFile/384401.txt" />
-      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/getdata/Aspectj/SourceFile/386337.txt" afterPath="$PROJECT_DIR$/getdata/Aspectj/SourceFile/386337.txt" />
-      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/getdata/Aspectj/SourceFile/386341.txt" afterPath="$PROJECT_DIR$/getdata/Aspectj/SourceFile/386341.txt" />
-      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/getdata/Aspectj/SourceFile/386888.txt" afterPath="$PROJECT_DIR$/getdata/Aspectj/SourceFile/386888.txt" />
-      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/getdata/Aspectj/SourceFile/387444.txt" afterPath="$PROJECT_DIR$/getdata/Aspectj/SourceFile/387444.txt" />
-      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/getdata/Aspectj/SourceFile/387568.txt" afterPath="$PROJECT_DIR$/getdata/Aspectj/SourceFile/387568.txt" />
-      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/getdata/Aspectj/SourceFile/387718.txt" afterPath="$PROJECT_DIR$/getdata/Aspectj/SourceFile/387718.txt" />
-      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/getdata/Aspectj/SourceFile/388971.txt" afterPath="$PROJECT_DIR$/getdata/Aspectj/SourceFile/388971.txt" />
-      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/getdata/Aspectj/SourceFile/389456.txt" afterPath="$PROJECT_DIR$/getdata/Aspectj/SourceFile/389456.txt" />
-      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/getdata/Aspectj/SourceFile/389750.txt" afterPath="$PROJECT_DIR$/getdata/Aspectj/SourceFile/389750.txt" />
-      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/getdata/Aspectj/SourceFile/389752.txt" afterPath="$PROJECT_DIR$/getdata/Aspectj/SourceFile/389752.txt" />
-      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/getdata/Aspectj/SourceFile/389967.txt" afterPath="$PROJECT_DIR$/getdata/Aspectj/SourceFile/389967.txt" />
-      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/getdata/Aspectj/SourceFile/390269.txt" afterPath="$PROJECT_DIR$/getdata/Aspectj/SourceFile/390269.txt" />
-      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/getdata/Aspectj/SourceFile/391123.txt" afterPath="$PROJECT_DIR$/getdata/Aspectj/SourceFile/391123.txt" />
-      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/getdata/Aspectj/SourceFile/391384.txt" afterPath="$PROJECT_DIR$/getdata/Aspectj/SourceFile/391384.txt" />
-      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/getdata/Aspectj/SourceFile/394234.txt" afterPath="$PROJECT_DIR$/getdata/Aspectj/SourceFile/394234.txt" />
-      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/getdata/Aspectj/SourceFile/394535.txt" afterPath="$PROJECT_DIR$/getdata/Aspectj/SourceFile/394535.txt" />
-      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/getdata/Aspectj/SourceFile/395221.txt" afterPath="$PROJECT_DIR$/getdata/Aspectj/SourceFile/395221.txt" />
-      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/getdata/Aspectj/SourceFile/398588.txt" afterPath="$PROJECT_DIR$/getdata/Aspectj/SourceFile/398588.txt" />
-      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/getdata/Aspectj/SourceFile/399408.txt" afterPath="$PROJECT_DIR$/getdata/Aspectj/SourceFile/399408.txt" />
-      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/getdata/Aspectj/SourceFile/399590.txt" afterPath="$PROJECT_DIR$/getdata/Aspectj/SourceFile/399590.txt" />
-      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/getdata/Aspectj/SourceFile/400649.txt" afterPath="$PROJECT_DIR$/getdata/Aspectj/SourceFile/400649.txt" />
-      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/getdata/Aspectj/SourceFile/404594.txt" afterPath="$PROJECT_DIR$/getdata/Aspectj/SourceFile/404594.txt" />
-      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/getdata/Aspectj/SourceFile/404600.txt" afterPath="$PROJECT_DIR$/getdata/Aspectj/SourceFile/404600.txt" />
-      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/getdata/Aspectj/SourceFile/404601.txt" afterPath="$PROJECT_DIR$/getdata/Aspectj/SourceFile/404601.txt" />
-      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/getdata/Aspectj/SourceFile/404848.txt" afterPath="$PROJECT_DIR$/getdata/Aspectj/SourceFile/404848.txt" />
-      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/getdata/Aspectj/SourceFile/405016.txt" afterPath="$PROJECT_DIR$/getdata/Aspectj/SourceFile/405016.txt" />
-      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/getdata/Aspectj/SourceFile/406167.txt" afterPath="$PROJECT_DIR$/getdata/Aspectj/SourceFile/406167.txt" />
-      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/getdata/Aspectj/SourceFile/407017.txt" afterPath="$PROJECT_DIR$/getdata/Aspectj/SourceFile/407017.txt" />
-      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/getdata/Aspectj/SourceFile/408721.txt" afterPath="$PROJECT_DIR$/getdata/Aspectj/SourceFile/408721.txt" />
-      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/getdata/Aspectj/SourceFile/413378.txt" afterPath="$PROJECT_DIR$/getdata/Aspectj/SourceFile/413378.txt" />
-      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/getdata/Aspectj/SourceFile/415266.txt" afterPath="$PROJECT_DIR$/getdata/Aspectj/SourceFile/415266.txt" />
-      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/getdata/Aspectj/SourceFile/418129.txt" afterPath="$PROJECT_DIR$/getdata/Aspectj/SourceFile/418129.txt" />
-      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/getdata/Aspectj/SourceFile/419279.txt" afterPath="$PROJECT_DIR$/getdata/Aspectj/SourceFile/419279.txt" />
-      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/getdata/Aspectj/SourceFile/420210.txt" afterPath="$PROJECT_DIR$/getdata/Aspectj/SourceFile/420210.txt" />
-      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/getdata/Aspectj/SourceFile/422943.txt" afterPath="$PROJECT_DIR$/getdata/Aspectj/SourceFile/422943.txt" />
-      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/getdata/Aspectj/SourceFile/423257.txt" afterPath="$PROJECT_DIR$/getdata/Aspectj/SourceFile/423257.txt" />
-      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/getdata/Aspectj/SourceFile/430243.txt" afterPath="$PROJECT_DIR$/getdata/Aspectj/SourceFile/430243.txt" />
-      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/getdata/Aspectj/SourceFile/431541.txt" afterPath="$PROJECT_DIR$/getdata/Aspectj/SourceFile/431541.txt" />
-      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/getdata/Aspectj/SourceFile/431976.txt" afterPath="$PROJECT_DIR$/getdata/Aspectj/SourceFile/431976.txt" />
-      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/getdata/Aspectj/SourceFile/432178.txt" afterPath="$PROJECT_DIR$/getdata/Aspectj/SourceFile/432178.txt" />
-      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/getdata/Aspectj/SourceFile/432714.txt" afterPath="$PROJECT_DIR$/getdata/Aspectj/SourceFile/432714.txt" />
-      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/getdata/Aspectj/SourceFile/433351.txt" afterPath="$PROJECT_DIR$/getdata/Aspectj/SourceFile/433351.txt" />
-      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/getdata/Aspectj/SourceFile/433744.txt" afterPath="$PROJECT_DIR$/getdata/Aspectj/SourceFile/433744.txt" />
-      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/getdata/Aspectj/SourceFile/435446.txt" afterPath="$PROJECT_DIR$/getdata/Aspectj/SourceFile/435446.txt" />
-      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/getdata/Aspectj/SourceFile/436531.txt" afterPath="$PROJECT_DIR$/getdata/Aspectj/SourceFile/436531.txt" />
-      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/getdata/Aspectj/SourceFile/436653.txt" afterPath="$PROJECT_DIR$/getdata/Aspectj/SourceFile/436653.txt" />
-      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/getdata/Aspectj/SourceFile/440983.txt" afterPath="$PROJECT_DIR$/getdata/Aspectj/SourceFile/440983.txt" />
-      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/getdata/Aspectj/SourceFile/442425.txt" afterPath="$PROJECT_DIR$/getdata/Aspectj/SourceFile/442425.txt" />
-      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/getdata/Aspectj/SourceFile/443355.txt" afterPath="$PROJECT_DIR$/getdata/Aspectj/SourceFile/443355.txt" />
-      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/getdata/Aspectj/SourceFile/444398.txt" afterPath="$PROJECT_DIR$/getdata/Aspectj/SourceFile/444398.txt" />
-      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/getdata/Aspectj/SourceFile/445395.txt" afterPath="$PROJECT_DIR$/getdata/Aspectj/SourceFile/445395.txt" />
-      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/getdata/Aspectj/SourceFile/445968.txt" afterPath="$PROJECT_DIR$/getdata/Aspectj/SourceFile/445968.txt" />
-      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/getdata/Aspectj/SourceFile/449739.txt" afterPath="$PROJECT_DIR$/getdata/Aspectj/SourceFile/449739.txt" />
-      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/getdata/Aspectj/SourceFile/451966.txt" afterPath="$PROJECT_DIR$/getdata/Aspectj/SourceFile/451966.txt" />
-      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/getdata/Aspectj/SourceFile/456003.txt" afterPath="$PROJECT_DIR$/getdata/Aspectj/SourceFile/456003.txt" />
-      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/getdata/Aspectj/SourceFile/456374.txt" afterPath="$PROJECT_DIR$/getdata/Aspectj/SourceFile/456374.txt" />
-      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/getdata/Aspectj/SourceFile/458660.txt" afterPath="$PROJECT_DIR$/getdata/Aspectj/SourceFile/458660.txt" />
-      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/getdata/Aspectj/SourceFile/462146.txt" afterPath="$PROJECT_DIR$/getdata/Aspectj/SourceFile/462146.txt" />
-      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/getdata/Aspectj/SourceFile/462821.txt" afterPath="$PROJECT_DIR$/getdata/Aspectj/SourceFile/462821.txt" />
-      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/getdata/Aspectj/SourceFile/464749.txt" afterPath="$PROJECT_DIR$/getdata/Aspectj/SourceFile/464749.txt" />
+      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/getdata/Aspectj/SourceFile/327141.txt" afterPath="$PROJECT_DIR$/getdata/Aspectj/SourceFile/327141.txt" />
+      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/getdata/Aspectj/SourceFile/351085.txt" afterPath="$PROJECT_DIR$/getdata/Aspectj/SourceFile/351085.txt" />
+      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/getdata/Aspectj/SourceFile/354470.txt" afterPath="$PROJECT_DIR$/getdata/Aspectj/SourceFile/354470.txt" />
+      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/getdata/Aspectj/SourceFile/357012.txt" afterPath="$PROJECT_DIR$/getdata/Aspectj/SourceFile/357012.txt" />
+      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/getdata/Aspectj/SourceFile/357019.txt" afterPath="$PROJECT_DIR$/getdata/Aspectj/SourceFile/357019.txt" />
+      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/getdata/Aspectj/SourceFile/359159.txt" afterPath="$PROJECT_DIR$/getdata/Aspectj/SourceFile/359159.txt" />
+      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/getdata/Aspectj/SourceFile/359332.txt" afterPath="$PROJECT_DIR$/getdata/Aspectj/SourceFile/359332.txt" />
+      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/getdata/Aspectj/SourceFile/360331.txt" afterPath="$PROJECT_DIR$/getdata/Aspectj/SourceFile/360331.txt" />
+      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/getdata/Aspectj/SourceFile/362956.txt" afterPath="$PROJECT_DIR$/getdata/Aspectj/SourceFile/362956.txt" />
+      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/getdata/Aspectj/SourceFile/363962.txt" afterPath="$PROJECT_DIR$/getdata/Aspectj/SourceFile/363962.txt" />
+      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/getdata/Aspectj/SourceFile/363979.txt" afterPath="$PROJECT_DIR$/getdata/Aspectj/SourceFile/363979.txt" />
+      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/getdata/Aspectj/SourceFile/364380.txt" afterPath="$PROJECT_DIR$/getdata/Aspectj/SourceFile/364380.txt" />
+      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/getdata/Aspectj/SourceFile/371684.txt" afterPath="$PROJECT_DIR$/getdata/Aspectj/SourceFile/371684.txt" />
+      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/getdata/Aspectj/SourceFile/371998.txt" afterPath="$PROJECT_DIR$/getdata/Aspectj/SourceFile/371998.txt" />
+      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/getdata/Aspectj/SourceFile/373130.txt" afterPath="$PROJECT_DIR$/getdata/Aspectj/SourceFile/373130.txt" />
+      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/getdata/Aspectj/SourceFile/373195.txt" afterPath="$PROJECT_DIR$/getdata/Aspectj/SourceFile/373195.txt" />
+      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/getdata/Aspectj/SourceFile/373461.txt" afterPath="$PROJECT_DIR$/getdata/Aspectj/SourceFile/373461.txt" />
+      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/getdata/Aspectj/SourceFile/374745.txt" afterPath="$PROJECT_DIR$/getdata/Aspectj/SourceFile/374745.txt" />
+      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/getdata/Aspectj/SourceFile/374964.txt" afterPath="$PROJECT_DIR$/getdata/Aspectj/SourceFile/374964.txt" />
+      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/getdata/Aspectj/SourceFile/375881.txt" afterPath="$PROJECT_DIR$/getdata/Aspectj/SourceFile/375881.txt" />
     </list>
     <ignored path="CodeDefectLocation.iws" />
     <ignored path=".idea/workspace.xml" />
@@ -102,7 +46,7 @@
   </component>
   <component name="FileEditorManager">
     <leaf>
-      <file leaf-file-name="UpdateData.py" pinned="false" current-in-tab="false">
+      <file leaf-file-name="UpdateData.py" pinned="false" current-in-tab="true">
         <entry file="file://$PROJECT_DIR$/getdata/Aspectj/UpdateData.py">
           <provider selected="true" editor-type-id="text-editor">
             <state relative-caret-position="329">
@@ -120,59 +64,6 @@
                 <marker date="1477134657227" expanded="true" signature="1042:1062" ph="select * fro... assist" />
                 <marker date="1477134657227" expanded="true" signature="1779:1827" ph="update assis... " />
               </folding>
-            </state>
-          </provider>
-        </entry>
-      </file>
-      <file leaf-file-name="git.py" pinned="false" current-in-tab="false">
-        <entry file="file://$PROJECT_DIR$/getdata/Aspectj/git.py">
-          <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="252">
-              <caret line="52" column="35" selection-start-line="52" selection-start-column="35" selection-end-line="52" selection-end-column="35" />
-              <folding />
-            </state>
-          </provider>
-        </entry>
-      </file>
-      <file leaf-file-name="CrawlerForGit.py" pinned="false" current-in-tab="false">
-        <entry file="file://$PROJECT_DIR$/getdata/Aspectj/CrawlerForGit.py">
-          <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="253">
-              <caret line="110" column="41" selection-start-line="110" selection-start-column="41" selection-end-line="110" selection-end-column="41" />
-              <folding>
-                <element signature="e#105#118#0" expanded="true" />
-                <marker date="1477208472967" expanded="true" signature="1140:1211" ph="INSERT INTO assist... " />
-              </folding>
-            </state>
-          </provider>
-        </entry>
-      </file>
-      <file leaf-file-name="464749.txt" pinned="false" current-in-tab="false">
-        <entry file="file://$PROJECT_DIR$/getdata/Aspectj/SourceFile/464749.txt">
-          <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="1674">
-              <caret line="93" column="2" selection-start-line="93" selection-start-column="2" selection-end-line="93" selection-end-column="2" />
-              <folding />
-            </state>
-          </provider>
-        </entry>
-      </file>
-      <file leaf-file-name="462146.txt" pinned="false" current-in-tab="false">
-        <entry file="file://$PROJECT_DIR$/getdata/Aspectj/SourceFile/462146.txt">
-          <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="-123">
-              <caret line="1" column="0" selection-start-line="1" selection-start-column="0" selection-end-line="1" selection-end-column="0" />
-              <folding />
-            </state>
-          </provider>
-        </entry>
-      </file>
-      <file leaf-file-name="406167.txt" pinned="false" current-in-tab="true">
-        <entry file="file://$PROJECT_DIR$/getdata/Aspectj/SourceFile/406167.txt">
-          <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="-1959">
-              <caret line="12" column="0" selection-start-line="12" selection-start-column="0" selection-end-line="12" selection-end-column="0" />
-              <folding />
             </state>
           </provider>
         </entry>
@@ -285,28 +176,6 @@
             </PATH_ELEMENT>
             <PATH_ELEMENT>
               <option name="myItemId" value="Aspectj" />
-              <option name="myItemType" value="com.intellij.ide.projectView.impl.nodes.PsiDirectoryNode" />
-            </PATH_ELEMENT>
-          </PATH>
-          <PATH>
-            <PATH_ELEMENT>
-              <option name="myItemId" value="CodeDefectLocation" />
-              <option name="myItemType" value="com.intellij.ide.projectView.impl.nodes.ProjectViewProjectNode" />
-            </PATH_ELEMENT>
-            <PATH_ELEMENT>
-              <option name="myItemId" value="CodeDefectLocation" />
-              <option name="myItemType" value="com.intellij.ide.projectView.impl.nodes.PsiDirectoryNode" />
-            </PATH_ELEMENT>
-            <PATH_ELEMENT>
-              <option name="myItemId" value="getdata" />
-              <option name="myItemType" value="com.intellij.ide.projectView.impl.nodes.PsiDirectoryNode" />
-            </PATH_ELEMENT>
-            <PATH_ELEMENT>
-              <option name="myItemId" value="Aspectj" />
-              <option name="myItemType" value="com.intellij.ide.projectView.impl.nodes.PsiDirectoryNode" />
-            </PATH_ELEMENT>
-            <PATH_ELEMENT>
-              <option name="myItemId" value="SourceFile" />
               <option name="myItemType" value="com.intellij.ide.projectView.impl.nodes.PsiDirectoryNode" />
             </PATH_ELEMENT>
           </PATH>
@@ -598,15 +467,15 @@
   </component>
   <component name="ToolWindowManager">
     <frame x="65" y="24" width="1301" height="744" extended-state="6" />
-    <editor active="true" />
+    <editor active="false" />
     <layout>
-      <window_info id="Project" active="false" anchor="left" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="true" show_stripe_button="true" weight="0.24980783" sideWeight="0.5" order="0" side_tool="false" content_ui="combo" />
+      <window_info id="Project" active="true" anchor="left" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="true" show_stripe_button="true" weight="0.24980783" sideWeight="0.5" order="0" side_tool="false" content_ui="combo" />
       <window_info id="TODO" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.33" sideWeight="0.5" order="6" side_tool="false" content_ui="tabs" />
       <window_info id="Event Log" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.33" sideWeight="0.5" order="7" side_tool="true" content_ui="tabs" />
       <window_info id="Database" active="false" anchor="right" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.33" sideWeight="0.5" order="3" side_tool="false" content_ui="tabs" />
       <window_info id="Version Control" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.33" sideWeight="0.5" order="7" side_tool="false" content_ui="tabs" />
       <window_info id="Python Console" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.33" sideWeight="0.5" order="7" side_tool="false" content_ui="tabs" />
-      <window_info id="Run" active="true" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="true" show_stripe_button="true" weight="0.32880846" sideWeight="0.5" order="2" side_tool="false" content_ui="tabs" />
+      <window_info id="Run" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.32880846" sideWeight="0.5" order="2" side_tool="false" content_ui="tabs" />
       <window_info id="Structure" active="false" anchor="left" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.25" sideWeight="0.5" order="1" side_tool="false" content_ui="tabs" />
       <window_info id="Terminal" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.33" sideWeight="0.5" order="7" side_tool="false" content_ui="tabs" />
       <window_info id="Favorites" active="false" anchor="left" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.33" sideWeight="0.5" order="2" side_tool="true" content_ui="tabs" />
@@ -675,37 +544,17 @@
         </state>
       </provider>
     </entry>
-    <entry file="file://$PROJECT_DIR$/getdata/Aspectj/UpdateData.py">
+    <entry file="file://$PROJECT_DIR$/getdata/Aspectj/SourceFile/406167.txt">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="329">
-          <caret line="52" column="37" selection-start-line="52" selection-start-column="37" selection-end-line="52" selection-end-column="37" />
-          <folding>
-            <marker date="1477134657227" expanded="true" signature="256:277" ph="select * fro... aspectj" />
-            <marker date="1477134657227" expanded="true" signature="358:378" ph="select * fro... assist" />
-            <marker date="1477134657227" expanded="true" signature="746:776" ph="update assis... " />
-            <marker date="1477134657227" expanded="true" signature="746:800" ph="update assis... " />
-            <marker date="1477134657227" expanded="true" signature="746:801" ph="update assis... " />
-            <marker date="1477134657227" expanded="true" signature="746:818" ph="update assis... " />
-            <marker date="1477134657227" expanded="true" signature="746:819" ph="update assis... " />
-            <marker date="1477134657227" expanded="true" signature="746:827" ph="update assis... " />
-            <marker date="1477134657227" expanded="true" signature="746:829" ph="update assis... " />
-            <marker date="1477134657227" expanded="true" signature="1042:1062" ph="select * fro... assist" />
-            <marker date="1477134657227" expanded="true" signature="1779:1827" ph="update assis... " />
-          </folding>
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://$PROJECT_DIR$/getdata/Aspectj/git.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="252">
-          <caret line="52" column="35" selection-start-line="52" selection-start-column="35" selection-end-line="52" selection-end-column="35" />
+        <state relative-caret-position="183">
+          <caret line="131" column="5" selection-start-line="131" selection-start-column="5" selection-end-line="131" selection-end-column="5" />
           <folding />
         </state>
       </provider>
     </entry>
     <entry file="file://$PROJECT_DIR$/getdata/Aspectj/SourceFile/462146.txt">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="-123">
+        <state relative-caret-position="18">
           <caret line="1" column="0" selection-start-line="1" selection-start-column="0" selection-end-line="1" selection-end-column="0" />
           <folding />
         </state>
@@ -730,11 +579,31 @@
         </state>
       </provider>
     </entry>
-    <entry file="file://$PROJECT_DIR$/getdata/Aspectj/SourceFile/406167.txt">
+    <entry file="file://$PROJECT_DIR$/getdata/Aspectj/git.py">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="-1959">
-          <caret line="12" column="0" selection-start-line="12" selection-start-column="0" selection-end-line="12" selection-end-column="0" />
+        <state relative-caret-position="252">
+          <caret line="52" column="35" selection-start-line="52" selection-start-column="35" selection-end-line="52" selection-end-column="35" />
           <folding />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/getdata/Aspectj/UpdateData.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="329">
+          <caret line="52" column="37" selection-start-line="52" selection-start-column="37" selection-end-line="52" selection-end-column="37" />
+          <folding>
+            <marker date="1477134657227" expanded="true" signature="256:277" ph="select * fro... aspectj" />
+            <marker date="1477134657227" expanded="true" signature="358:378" ph="select * fro... assist" />
+            <marker date="1477134657227" expanded="true" signature="746:776" ph="update assis... " />
+            <marker date="1477134657227" expanded="true" signature="746:800" ph="update assis... " />
+            <marker date="1477134657227" expanded="true" signature="746:801" ph="update assis... " />
+            <marker date="1477134657227" expanded="true" signature="746:818" ph="update assis... " />
+            <marker date="1477134657227" expanded="true" signature="746:819" ph="update assis... " />
+            <marker date="1477134657227" expanded="true" signature="746:827" ph="update assis... " />
+            <marker date="1477134657227" expanded="true" signature="746:829" ph="update assis... " />
+            <marker date="1477134657227" expanded="true" signature="1042:1062" ph="select * fro... assist" />
+            <marker date="1477134657227" expanded="true" signature="1779:1827" ph="update assis... " />
+          </folding>
         </state>
       </provider>
     </entry>

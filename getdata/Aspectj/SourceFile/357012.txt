@@ -1,21 +1,8 @@
-@@ -38,8 +38,8 @@
- 
- 
- <ajc-test dir="bugs1612/prx" title="class reference in annotation value - invalid typename">
--<compile files="G.java" options="-1.5 -showWeaveInfo">
--<message kind="weave" text="Join point 'field-get(int C.i)' in Type 'C' (C.java:17) advised by before advice from 'X' (C.java:22)"/>
-+<compile files="G.java" options="-1.5">
-+<message kind="error" text="Unable to resolve type 'Foo.class' specified for value 'value'"/>
- </compile>
- </ajc-test>
- 
-@@ -558,6 +558,9 @@
-       title="Compiler should suggest using aspect when advice, pointcuts, or introduction is in a class"
-       keywords="from-errors,poorErrorMessages">
-         <compile files="RecognizeAspectCE.java">
-+            <message kind="error" line="2"  
-+            	file="RecognizeAspectCE.java"
-+            	text="Syntax error"/>
-             <message kind="error" line="3"  
-             	file="RecognizeAspectCE.java"
-             	text="Syntax error"/>
+-rw-r--r--tests/src/org/aspectj/systemtest/ajc1612/ajc1612.xml4
+-rw-r--r--tests/src/org/aspectj/systemtest/pre10x/pre10x-tests.xml3
+
+
+
+diff --git a/tests/src/org/aspectj/systemtest/ajc1612/ajc1612.xml b/tests/src/org/aspectj/systemtest/ajc1612/ajc1612.xml
+index efabde2..b54f5e8 100644
+--- a/

@@ -1,10 +1,7 @@
-@@ -530,6 +530,9 @@ public class AjBuildManager implements IOutputClassFileNameProvider, IBinarySour
- 			// String relativePath = files[i].getPath();
- 
- 			writeResource(filename, bytes, src);
-+		} catch (FileNotFoundException fnfe) {
-+			// pr359332: looks like the file moved (refactoring?) just as this copy was starting
-+			// that is OK
- 		} finally {
- 			if (fis != null) {
- 				fis.close();
+-rw-r--r--org.aspectj.ajdt.core/src/org/aspectj/ajdt/internal/core/builder/AjBuildManager.java3
+
+
+
+diff --git a/org.aspectj.ajdt.core/src/org/aspectj/ajdt/internal/core/builder/AjBuildManager.java b/org.aspectj.ajdt.core/src/org/aspectj/ajdt/internal/core/builder/AjBuildManager.java
+index 5a63b5f..840c453 100644
+--- a/
