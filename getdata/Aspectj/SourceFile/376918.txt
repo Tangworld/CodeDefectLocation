@@ -1,8 +1,0 @@
--rw-r--r--org.aspectj.matcher/src/org/aspectj/weaver/UnresolvedType.java39
--rw-r--r--weaver5/java5-testsrc/org/aspectj/weaver/CommonReferenceTypeTests.java22
-
-
-
-diff --git a/org.aspectj.matcher/src/org/aspectj/weaver/UnresolvedType.java b/org.aspectj.matcher/src/org/aspectj/weaver/UnresolvedType.java
-index 6101f65..14d00e5 100644
---- a/

@@ -1,8 +1,0 @@
--rw-r--r--org.aspectj.matcher/src/org/aspectj/weaver/Lint.java3
--rw-r--r--org.aspectj.matcher/src/org/aspectj/weaver/XlintDefault.properties4
-
-
-
-diff --git a/org.aspectj.matcher/src/org/aspectj/weaver/Lint.java b/org.aspectj.matcher/src/org/aspectj/weaver/Lint.java
-index 099adcd..d68ce41 100644
---- a/

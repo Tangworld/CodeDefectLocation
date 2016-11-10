@@ -1,7 +1,0 @@
--rw-r--r--org.aspectj.ajdt.core/src/org/aspectj/ajdt/internal/core/builder/AjBuildManager.java3
-
-
-
-diff --git a/org.aspectj.ajdt.core/src/org/aspectj/ajdt/internal/core/builder/AjBuildManager.java b/org.aspectj.ajdt.core/src/org/aspectj/ajdt/internal/core/builder/AjBuildManager.java
-index 5a63b5f..840c453 100644
---- a/

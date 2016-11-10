@@ -1,8 +1,0 @@
--rw-r--r--org.aspectj.ajdt.core/src/org/aspectj/ajdt/internal/compiler/problem/AjProblemReporter.java59
--rw-r--r--org.eclipse.jdt.core/jdtcore-for-aspectj-src.zipbin
-
-
-
-diff --git a/org.aspectj.ajdt.core/src/org/aspectj/ajdt/internal/compiler/problem/AjProblemReporter.java b/org.aspectj.ajdt.core/src/org/aspectj/ajdt/internal/compiler/problem/AjProblemReporter.java
-index f432813..2808b34 100644
---- a/

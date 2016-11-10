@@ -1,7 +1,0 @@
--rw-r--r--weaver/src/org/aspectj/weaver/loadtime/definition/SimpleAOPParser.java34
-
-
-
-diff --git a/weaver/src/org/aspectj/weaver/loadtime/definition/SimpleAOPParser.java b/weaver/src/org/aspectj/weaver/loadtime/definition/SimpleAOPParser.java
-index 88b52e9..9c3c875 100644
---- a/

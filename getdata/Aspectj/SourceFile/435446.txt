@@ -1,8 +1,0 @@
--rw-r--r--bcel-builder/src/org/aspectj/apache/bcel/ConstantsInitializer.java28
--rw-r--r--lib/bcel/bcel-src.zipbin
-
-
-
-diff --git a/bcel-builder/src/org/aspectj/apache/bcel/ConstantsInitializer.java b/bcel-builder/src/org/aspectj/apache/bcel/ConstantsInitializer.java
-index 2196df3..9e19c41 100644
---- a/

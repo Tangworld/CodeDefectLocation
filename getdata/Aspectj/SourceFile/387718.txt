@@ -1,7 +1,0 @@
--rw-r--r--org.aspectj.ajdt.core/src/org/aspectj/ajdt/internal/compiler/problem/AjProblemReporter.java8
-
-
-
-diff --git a/org.aspectj.ajdt.core/src/org/aspectj/ajdt/internal/compiler/problem/AjProblemReporter.java b/org.aspectj.ajdt.core/src/org/aspectj/ajdt/internal/compiler/problem/AjProblemReporter.java
-index 6ce4a5e..f432813 100644
---- a/

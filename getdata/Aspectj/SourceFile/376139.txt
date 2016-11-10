@@ -1,7 +1,0 @@
--rw-r--r--org.eclipse.jdt.core/jdtcore-for-aspectj-src.zipbin
-
-
-
-diff --git a/org.eclipse.jdt.core/jdtcore-for-aspectj-src.zip b/org.eclipse.jdt.core/jdtcore-for-aspectj-src.zip
-index b8475a7..d2731ca 100644
---- a/

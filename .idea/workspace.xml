@@ -2,8 +2,6 @@
 <project version="4">
   <component name="ChangeListManager">
     <list default="true" id="33cfeda7-3181-4d5e-a7ff-12787469554c" name="Default" comment="">
-      <change type="NEW" beforePath="" afterPath="$PROJECT_DIR$/getdata/Mozilla/CrawlerForBugs.py" />
-      <change type="NEW" beforePath="" afterPath="$PROJECT_DIR$/getdata/Mozilla/CrawlerForGit.py" />
       <change type="MODIFICATION" beforePath="$PROJECT_DIR$/.idea/workspace.xml" afterPath="$PROJECT_DIR$/.idea/workspace.xml" />
     </list>
     <ignored path="CodeDefectLocation.iws" />
@@ -21,6 +19,7 @@
     <SUITE FILE_PATH="coverage/CodeDefectLocation$CrawlerForBugs.coverage" NAME="CrawlerForBugs Coverage Results" MODIFIED="1478185243606" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/getdata/Mozilla" />
     <SUITE FILE_PATH="coverage/CodeDefectLocation$UpdateData__1_.coverage" NAME="UpdateData (1) Coverage Results" MODIFIED="1478406973248" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/getdata/Mozilla" />
     <SUITE FILE_PATH="coverage/CodeDefectLocation$CrawlerForGit.coverage" NAME="CrawlerForGit Coverage Results" MODIFIED="1477208473038" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/getdata/Aspectj" />
+    <SUITE FILE_PATH="coverage/CodeDefectLocation$test.coverage" NAME="test Coverage Results" MODIFIED="1478673037024" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/getdata/Mozilla" />
   </component>
   <component name="CreatePatchCommitExecutor">
     <option name="PATCH_PATH" value="" />
@@ -32,32 +31,10 @@
   <component name="FileEditorManager">
     <leaf SIDE_TABS_SIZE_LIMIT_KEY="300">
       <file leaf-file-name="UpdateData.py" pinned="false" current-in-tab="false">
-        <entry file="file://$PROJECT_DIR$/getdata/Aspectj/UpdateData.py">
-          <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="401">
-              <caret line="56" column="49" selection-start-line="56" selection-start-column="49" selection-end-line="56" selection-end-column="49" />
-              <folding>
-                <marker date="1477134657227" expanded="true" signature="256:277" ph="select * fro... aspectj" />
-                <marker date="1477134657227" expanded="true" signature="358:378" ph="select * fro... assist" />
-                <marker date="1477134657227" expanded="true" signature="746:776" ph="update assis... " />
-                <marker date="1477134657227" expanded="true" signature="746:800" ph="update assis... " />
-                <marker date="1477134657227" expanded="true" signature="746:801" ph="update assis... " />
-                <marker date="1477134657227" expanded="true" signature="746:818" ph="update assis... " />
-                <marker date="1477134657227" expanded="true" signature="746:819" ph="update assis... " />
-                <marker date="1477134657227" expanded="true" signature="746:827" ph="update assis... " />
-                <marker date="1477134657227" expanded="true" signature="746:829" ph="update assis... " />
-                <marker date="1477134657227" expanded="true" signature="1042:1062" ph="select * fro... assist" />
-                <marker date="1477134657227" expanded="true" signature="1779:1827" ph="update assis... " />
-              </folding>
-            </state>
-          </provider>
-        </entry>
-      </file>
-      <file leaf-file-name="UpdateData.py" pinned="false" current-in-tab="true">
         <entry file="file://$PROJECT_DIR$/getdata/Mozilla/UpdateData.py">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="251">
-              <caret line="96" column="47" selection-start-line="96" selection-start-column="47" selection-end-line="96" selection-end-column="47" />
+            <state relative-caret-position="2196">
+              <caret line="125" column="14" selection-start-line="125" selection-start-column="14" selection-end-line="125" selection-end-column="14" />
               <folding>
                 <element signature="e#104#118#0" expanded="true" />
                 <marker date="1478406973193" expanded="true" signature="310:331" ph="select * fro... aspectj" />
@@ -79,42 +56,38 @@
       <file leaf-file-name="CrawlerForGit.py" pinned="false" current-in-tab="false">
         <entry file="file://$PROJECT_DIR$/getdata/Mozilla/CrawlerForGit.py">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="234">
-              <caret line="118" column="25" selection-start-line="118" selection-start-column="11" selection-end-line="118" selection-end-column="25" />
+            <state relative-caret-position="1692">
+              <caret line="97" column="27" selection-start-line="97" selection-start-column="27" selection-end-line="97" selection-end-column="27" />
               <folding />
             </state>
           </provider>
         </entry>
       </file>
-      <file leaf-file-name="CrawlerForBugs.py" pinned="false" current-in-tab="false">
-        <entry file="file://$PROJECT_DIR$/getdata/Mozilla/CrawlerForBugs.py">
+      <file leaf-file-name="test.py" pinned="false" current-in-tab="false">
+        <entry file="file://$PROJECT_DIR$/getdata/Mozilla/test.py">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="-1779">
-              <caret line="12" column="29" selection-start-line="12" selection-start-column="29" selection-end-line="12" selection-end-column="29" />
-              <folding>
-                <element signature="e#61#74#0" expanded="true" />
-                <marker date="1478185243563" expanded="true" signature="3863:3964" ph="INSERT INTO mozilla... " />
-                <marker date="1478185243563" expanded="true" signature="4049:4138" ph="INSERT INTO mozilla... " />
-              </folding>
-            </state>
-          </provider>
-        </entry>
-      </file>
-      <file leaf-file-name="aspectj.sql" pinned="false" current-in-tab="false">
-        <entry file="file://$PROJECT_DIR$/getdata/Aspectj/aspectj.sql">
-          <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="47088">
-              <caret line="2616" column="0" selection-start-line="2616" selection-start-column="0" selection-end-line="2616" selection-end-column="0" />
+            <state relative-caret-position="108">
+              <caret line="6" column="19" selection-start-line="6" selection-start-column="19" selection-end-line="6" selection-end-column="19" />
               <folding />
             </state>
           </provider>
         </entry>
       </file>
-      <file leaf-file-name="assist.sql" pinned="false" current-in-tab="false">
-        <entry file="file://$PROJECT_DIR$/getdata/Aspectj/assist.sql">
+      <file leaf-file-name="getAllHistory.sh" pinned="false" current-in-tab="true">
+        <entry file="file://$PROJECT_DIR$/getdata/Mozilla/shell/getAllHistory.sh">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="414">
-              <caret line="23" column="37" selection-start-line="23" selection-start-column="37" selection-end-line="23" selection-end-column="37" />
+            <state relative-caret-position="306">
+              <caret line="17" column="8" selection-start-line="17" selection-start-column="8" selection-end-line="17" selection-end-column="8" />
+              <folding />
+            </state>
+          </provider>
+        </entry>
+      </file>
+      <file leaf-file-name="getAllHistory.sh" pinned="false" current-in-tab="false">
+        <entry file="file://$PROJECT_DIR$/getdata/Aspectj/shell/getAllHistory.sh">
+          <provider selected="true" editor-type-id="text-editor">
+            <state relative-caret-position="0">
+              <caret line="0" column="0" selection-start-line="0" selection-start-column="0" selection-end-line="0" selection-end-column="0" />
               <folding />
             </state>
           </provider>
@@ -143,6 +116,8 @@
         <option value="$PROJECT_DIR$/getdata/Aspectj/aspectj.sql" />
         <option value="$PROJECT_DIR$/getdata/Mozilla/CrawlerForBugs.py" />
         <option value="$PROJECT_DIR$/getdata/Mozilla/UpdateData.py" />
+        <option value="$PROJECT_DIR$/getdata/Mozilla/test.py" />
+        <option value="$PROJECT_DIR$/getdata/Mozilla/shell/getAllHistory.sh" />
       </list>
     </option>
   </component>
@@ -183,6 +158,8 @@
       <foldersAlwaysOnTop value="true" />
     </navigator>
     <panes>
+      <pane id="Scope" />
+      <pane id="Scratches" />
       <pane id="ProjectPane">
         <subPane>
           <PATH>
@@ -247,14 +224,34 @@
               <option name="myItemType" value="com.intellij.ide.projectView.impl.nodes.PsiDirectoryNode" />
             </PATH_ELEMENT>
             <PATH_ELEMENT>
+              <option name="myItemId" value="Mozilla" />
+              <option name="myItemType" value="com.intellij.ide.projectView.impl.nodes.PsiDirectoryNode" />
+            </PATH_ELEMENT>
+            <PATH_ELEMENT>
+              <option name="myItemId" value="shell" />
+              <option name="myItemType" value="com.intellij.ide.projectView.impl.nodes.PsiDirectoryNode" />
+            </PATH_ELEMENT>
+          </PATH>
+          <PATH>
+            <PATH_ELEMENT>
+              <option name="myItemId" value="CodeDefectLocation" />
+              <option name="myItemType" value="com.intellij.ide.projectView.impl.nodes.ProjectViewProjectNode" />
+            </PATH_ELEMENT>
+            <PATH_ELEMENT>
+              <option name="myItemId" value="CodeDefectLocation" />
+              <option name="myItemType" value="com.intellij.ide.projectView.impl.nodes.PsiDirectoryNode" />
+            </PATH_ELEMENT>
+            <PATH_ELEMENT>
+              <option name="myItemId" value="getdata" />
+              <option name="myItemType" value="com.intellij.ide.projectView.impl.nodes.PsiDirectoryNode" />
+            </PATH_ELEMENT>
+            <PATH_ELEMENT>
               <option name="myItemId" value="Aspectj" />
               <option name="myItemType" value="com.intellij.ide.projectView.impl.nodes.PsiDirectoryNode" />
             </PATH_ELEMENT>
           </PATH>
         </subPane>
       </pane>
-      <pane id="Scope" />
-      <pane id="Scratches" />
     </panes>
   </component>
   <component name="PropertiesComponent">
@@ -262,15 +259,15 @@
     <property name="last_opened_file_path" value="$PROJECT_DIR$" />
   </component>
   <component name="RecentsManager">
+    <key name="MoveFile.RECENT_KEYS">
+      <recent name="$PROJECT_DIR$/getdata/Aspectj" />
+    </key>
     <key name="CopyFile.RECENT_KEYS">
       <recent name="$PROJECT_DIR$/getdata/Mozilla" />
       <recent name="$PROJECT_DIR$/getdata/Aspectj" />
     </key>
-    <key name="MoveFile.RECENT_KEYS">
-      <recent name="$PROJECT_DIR$/getdata/Aspectj" />
-    </key>
   </component>
-  <component name="RunManager" selected="Python.UpdateData (1)">
+  <component name="RunManager" selected="Python.test">
     <configuration default="false" name="CrawlerForGit" type="PythonConfigurationType" factoryName="Python" temporary="true">
       <option name="INTERPRETER_OPTIONS" value="" />
       <option name="PARENT_ENVS" value="true" />
@@ -339,6 +336,24 @@
       <module name="CodeDefectLocation" />
       <EXTENSION ID="PythonCoverageRunConfigurationExtension" enabled="false" sample_coverage="true" runner="coverage.py" />
       <option name="SCRIPT_NAME" value="$PROJECT_DIR$/getdata/Mozilla/UpdateData.py" />
+      <option name="PARAMETERS" value="" />
+      <option name="SHOW_COMMAND_LINE" value="false" />
+      <method />
+    </configuration>
+    <configuration default="false" name="test" type="PythonConfigurationType" factoryName="Python" temporary="true">
+      <option name="INTERPRETER_OPTIONS" value="" />
+      <option name="PARENT_ENVS" value="true" />
+      <envs>
+        <env name="PYTHONUNBUFFERED" value="1" />
+      </envs>
+      <option name="SDK_HOME" value="" />
+      <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$/getdata/Mozilla" />
+      <option name="IS_MODULE_SDK" value="true" />
+      <option name="ADD_CONTENT_ROOTS" value="true" />
+      <option name="ADD_SOURCE_ROOTS" value="true" />
+      <module name="CodeDefectLocation" />
+      <EXTENSION ID="PythonCoverageRunConfigurationExtension" enabled="false" sample_coverage="true" runner="coverage.py" />
+      <option name="SCRIPT_NAME" value="$PROJECT_DIR$/getdata/Mozilla/test.py" />
       <option name="PARAMETERS" value="" />
       <option name="SHOW_COMMAND_LINE" value="false" />
       <method />
@@ -551,18 +566,20 @@
       <option name="USE_KEYWORD" value="false" />
       <method />
     </configuration>
-    <list size="4">
+    <list size="5">
       <item index="0" class="java.lang.String" itemvalue="Python.CrawlerForGit" />
       <item index="1" class="java.lang.String" itemvalue="Python.UpdateData" />
       <item index="2" class="java.lang.String" itemvalue="Python.CrawlerForBugs" />
       <item index="3" class="java.lang.String" itemvalue="Python.UpdateData (1)" />
+      <item index="4" class="java.lang.String" itemvalue="Python.test" />
     </list>
     <recent_temporary>
-      <list size="4">
-        <item index="0" class="java.lang.String" itemvalue="Python.UpdateData (1)" />
-        <item index="1" class="java.lang.String" itemvalue="Python.CrawlerForBugs" />
-        <item index="2" class="java.lang.String" itemvalue="Python.CrawlerForGit" />
-        <item index="3" class="java.lang.String" itemvalue="Python.UpdateData" />
+      <list size="5">
+        <item index="0" class="java.lang.String" itemvalue="Python.test" />
+        <item index="1" class="java.lang.String" itemvalue="Python.UpdateData (1)" />
+        <item index="2" class="java.lang.String" itemvalue="Python.CrawlerForBugs" />
+        <item index="3" class="java.lang.String" itemvalue="Python.CrawlerForGit" />
+        <item index="4" class="java.lang.String" itemvalue="Python.UpdateData" />
       </list>
     </recent_temporary>
   </component>
@@ -581,7 +598,7 @@
   </component>
   <component name="ToolWindowManager">
     <frame x="62" y="-9" width="1307" height="783" extended-state="6" />
-    <editor active="false" />
+    <editor active="true" />
     <layout>
       <window_info id="Project" active="false" anchor="left" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="true" show_stripe_button="true" weight="0.24980783" sideWeight="0.5" order="0" side_tool="false" content_ui="combo" />
       <window_info id="TODO" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.33" sideWeight="0.5" order="6" side_tool="false" content_ui="tabs" />
@@ -589,18 +606,18 @@
       <window_info id="Database" active="false" anchor="right" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.33" sideWeight="0.5" order="3" side_tool="false" content_ui="tabs" />
       <window_info id="Version Control" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.33" sideWeight="0.5" order="7" side_tool="false" content_ui="tabs" />
       <window_info id="Python Console" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.33" sideWeight="0.5" order="7" side_tool="false" content_ui="tabs" />
-      <window_info id="Run" active="true" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="true" show_stripe_button="true" weight="0.32880846" sideWeight="0.5" order="2" side_tool="false" content_ui="tabs" />
       <window_info id="Structure" active="false" anchor="left" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.25" sideWeight="0.5" order="1" side_tool="false" content_ui="tabs" />
       <window_info id="Terminal" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.33" sideWeight="0.5" order="7" side_tool="false" content_ui="tabs" />
       <window_info id="Favorites" active="false" anchor="left" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.33" sideWeight="0.5" order="2" side_tool="true" content_ui="tabs" />
-      <window_info id="Debug" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.39969835" sideWeight="0.5" order="3" side_tool="false" content_ui="tabs" />
       <window_info id="Cvs" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.25" sideWeight="0.5" order="4" side_tool="false" content_ui="tabs" />
       <window_info id="Message" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.33" sideWeight="0.5" order="0" side_tool="false" content_ui="tabs" />
       <window_info id="Commander" active="false" anchor="right" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.4" sideWeight="0.5" order="0" side_tool="false" content_ui="tabs" />
       <window_info id="Inspection" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.4" sideWeight="0.5" order="5" side_tool="false" content_ui="tabs" />
+      <window_info id="Run" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.3092006" sideWeight="0.5" order="2" side_tool="false" content_ui="tabs" />
       <window_info id="Hierarchy" active="false" anchor="right" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.25" sideWeight="0.5" order="2" side_tool="false" content_ui="combo" />
       <window_info id="Find" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.33" sideWeight="0.5" order="1" side_tool="false" content_ui="tabs" />
       <window_info id="Ant Build" active="false" anchor="right" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.25" sideWeight="0.5" order="1" side_tool="false" content_ui="tabs" />
+      <window_info id="Debug" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.39969835" sideWeight="0.5" order="3" side_tool="false" content_ui="tabs" />
     </layout>
   </component>
   <component name="Vcs.Log.UiProperties">
@@ -621,23 +638,141 @@
     <watches-manager />
   </component>
   <component name="editorHistoryManager">
+    <entry file="file://$PROJECT_DIR$/getdata/Mozilla/UpdateData.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="2250">
+          <caret line="125" column="14" selection-start-line="125" selection-start-column="14" selection-end-line="125" selection-end-column="14" />
+          <folding>
+            <element signature="e#104#118#0" expanded="true" />
+            <marker date="1478406973193" expanded="true" signature="310:331" ph="select * fro... aspectj" />
+            <marker date="1478406973193" expanded="true" signature="412:432" ph="select * fro... assist" />
+            <marker date="1478406973193" expanded="true" signature="800:881" ph="update assis... " />
+            <marker date="1478406973193" expanded="true" signature="1096:1117" ph="select * fro... mozilla" />
+            <marker date="1478406973193" expanded="true" signature="1838:1887" ph="update mozil... " />
+            <marker date="1478406973193" expanded="true" signature="3517:3559" ph="select * fro... mozilla" />
+            <marker date="1478406973193" expanded="true" signature="3949:3975" ph="update mozil... " />
+            <marker date="1478406973193" expanded="true" signature="3949:3991" ph="update mozil... " />
+            <marker date="1478406973193" expanded="true" signature="3949:4022" ph="update mozil... " />
+            <marker date="1478406973193" expanded="true" signature="3949:4034" ph="select * fro... mozilla" />
+            <marker date="1478406973193" expanded="true" signature="3949:4037" ph="update mozil... " />
+          </folding>
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/getdata/Mozilla/CrawlerForGit.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="1692">
+          <caret line="97" column="27" selection-start-line="97" selection-start-column="27" selection-end-line="97" selection-end-column="27" />
+          <folding />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/getdata/Mozilla/test.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="0">
+          <caret line="0" column="0" selection-start-line="0" selection-start-column="0" selection-end-line="0" selection-end-column="0" />
+          <folding />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/getdata/Aspectj/shell/getAllHistory.sh">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="0">
+          <caret line="0" column="0" selection-start-line="0" selection-start-column="0" selection-end-line="0" selection-end-column="0" />
+          <folding />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/getdata/Mozilla/UpdateData.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="0">
+          <caret line="0" column="0" selection-start-line="0" selection-start-column="0" selection-end-line="0" selection-end-column="0" />
+          <folding>
+            <element signature="e#104#118#0" expanded="true" />
+            <marker date="1478406973193" expanded="true" signature="310:331" ph="select * fro... aspectj" />
+            <marker date="1478406973193" expanded="true" signature="412:432" ph="select * fro... assist" />
+            <marker date="1478406973193" expanded="true" signature="800:881" ph="update assis... " />
+            <marker date="1478406973193" expanded="true" signature="1096:1117" ph="select * fro... mozilla" />
+            <marker date="1478406973193" expanded="true" signature="1838:1887" ph="update mozil... " />
+            <marker date="1478406973193" expanded="true" signature="3517:3559" ph="select * fro... mozilla" />
+            <marker date="1478406973193" expanded="true" signature="3949:3975" ph="update mozil... " />
+            <marker date="1478406973193" expanded="true" signature="3949:3991" ph="update mozil... " />
+            <marker date="1478406973193" expanded="true" signature="3949:4022" ph="update mozil... " />
+            <marker date="1478406973193" expanded="true" signature="3949:4034" ph="select * fro... mozilla" />
+            <marker date="1478406973193" expanded="true" signature="3949:4037" ph="update mozil... " />
+          </folding>
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/getdata/Mozilla/CrawlerForGit.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="2070">
+          <caret line="118" column="25" selection-start-line="118" selection-start-column="11" selection-end-line="118" selection-end-column="25" />
+          <folding />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/getdata/Aspectj/UpdateData.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="1008">
+          <caret line="56" column="49" selection-start-line="56" selection-start-column="49" selection-end-line="56" selection-end-column="49" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/getdata/Mozilla/UpdateData.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="0">
+          <caret line="0" column="0" selection-start-line="0" selection-start-column="0" selection-end-line="0" selection-end-column="0" />
+          <folding>
+            <element signature="e#104#118#0" expanded="true" />
+            <marker date="1478406973193" expanded="true" signature="310:331" ph="select * fro... aspectj" />
+            <marker date="1478406973193" expanded="true" signature="412:432" ph="select * fro... assist" />
+            <marker date="1478406973193" expanded="true" signature="800:881" ph="update assis... " />
+            <marker date="1478406973193" expanded="true" signature="1096:1117" ph="select * fro... mozilla" />
+            <marker date="1478406973193" expanded="true" signature="1838:1887" ph="update mozil... " />
+            <marker date="1478406973193" expanded="true" signature="3517:3559" ph="select * fro... mozilla" />
+            <marker date="1478406973193" expanded="true" signature="3949:3975" ph="update mozil... " />
+            <marker date="1478406973193" expanded="true" signature="3949:3991" ph="update mozil... " />
+            <marker date="1478406973193" expanded="true" signature="3949:4022" ph="update mozil... " />
+            <marker date="1478406973193" expanded="true" signature="3949:4034" ph="select * fro... mozilla" />
+            <marker date="1478406973193" expanded="true" signature="3949:4037" ph="update mozil... " />
+          </folding>
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/getdata/Mozilla/CrawlerForGit.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="2070">
+          <caret line="118" column="25" selection-start-line="118" selection-start-column="11" selection-end-line="118" selection-end-column="25" />
+          <folding />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/getdata/Mozilla/CrawlerForBugs.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="162">
+          <caret line="12" column="29" selection-start-line="12" selection-start-column="29" selection-end-line="12" selection-end-column="29" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/getdata/Aspectj/aspectj.sql">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="47088">
+          <caret line="2616" column="0" selection-start-line="2616" selection-start-column="0" selection-end-line="2616" selection-end-column="0" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/getdata/Aspectj/assist.sql">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="414">
+          <caret line="23" column="37" selection-start-line="23" selection-start-column="37" selection-end-line="23" selection-end-column="37" />
+        </state>
+      </provider>
+    </entry>
     <entry file="file://$PROJECT_DIR$/getdata/Aspectj/UpdateData.py">
       <provider selected="true" editor-type-id="text-editor">
         <state relative-caret-position="36">
           <caret line="2" column="16" selection-start-line="2" selection-start-column="16" selection-end-line="2" selection-end-column="16" />
-          <folding>
-            <marker date="1477134657227" expanded="true" signature="256:277" ph="select * fro... aspectj" />
-            <marker date="1477134657227" expanded="true" signature="358:378" ph="select * fro... assist" />
-            <marker date="1477134657227" expanded="true" signature="746:776" ph="update assis... " />
-            <marker date="1477134657227" expanded="true" signature="746:800" ph="update assis... " />
-            <marker date="1477134657227" expanded="true" signature="746:801" ph="update assis... " />
-            <marker date="1477134657227" expanded="true" signature="746:818" ph="update assis... " />
-            <marker date="1477134657227" expanded="true" signature="746:819" ph="update assis... " />
-            <marker date="1477134657227" expanded="true" signature="746:827" ph="update assis... " />
-            <marker date="1477134657227" expanded="true" signature="746:829" ph="update assis... " />
-            <marker date="1477134657227" expanded="true" signature="1042:1062" ph="select * fro... assist" />
-            <marker date="1477134657227" expanded="true" signature="1779:1827" ph="update assis... " />
-          </folding>
         </state>
       </provider>
     </entry>
@@ -653,11 +788,6 @@
       <provider selected="true" editor-type-id="text-editor">
         <state relative-caret-position="0">
           <caret line="0" column="0" selection-start-line="0" selection-start-column="0" selection-end-line="0" selection-end-column="0" />
-          <folding>
-            <element signature="e#61#74#0" expanded="true" />
-            <marker date="1478185243563" expanded="true" signature="3863:3964" ph="INSERT INTO mozilla... " />
-            <marker date="1478185243563" expanded="true" signature="4049:4138" ph="INSERT INTO mozilla... " />
-          </folding>
         </state>
       </provider>
     </entry>
@@ -665,7 +795,6 @@
       <provider selected="true" editor-type-id="text-editor">
         <state relative-caret-position="47088">
           <caret line="2616" column="0" selection-start-line="2616" selection-start-column="0" selection-end-line="2616" selection-end-column="0" />
-          <folding />
         </state>
       </provider>
     </entry>
@@ -673,7 +802,6 @@
       <provider selected="true" editor-type-id="text-editor">
         <state relative-caret-position="414">
           <caret line="23" column="37" selection-start-line="23" selection-start-column="37" selection-end-line="23" selection-end-column="37" />
-          <folding />
         </state>
       </provider>
     </entry>
@@ -681,19 +809,6 @@
       <provider selected="true" editor-type-id="text-editor">
         <state relative-caret-position="0">
           <caret line="0" column="0" selection-start-line="0" selection-start-column="0" selection-end-line="0" selection-end-column="0" />
-          <folding>
-            <marker date="1477134657227" expanded="true" signature="256:277" ph="select * fro... aspectj" />
-            <marker date="1477134657227" expanded="true" signature="358:378" ph="select * fro... assist" />
-            <marker date="1477134657227" expanded="true" signature="746:776" ph="update assis... " />
-            <marker date="1477134657227" expanded="true" signature="746:800" ph="update assis... " />
-            <marker date="1477134657227" expanded="true" signature="746:801" ph="update assis... " />
-            <marker date="1477134657227" expanded="true" signature="746:818" ph="update assis... " />
-            <marker date="1477134657227" expanded="true" signature="746:819" ph="update assis... " />
-            <marker date="1477134657227" expanded="true" signature="746:827" ph="update assis... " />
-            <marker date="1477134657227" expanded="true" signature="746:829" ph="update assis... " />
-            <marker date="1477134657227" expanded="true" signature="1042:1062" ph="select * fro... assist" />
-            <marker date="1477134657227" expanded="true" signature="1779:1827" ph="update assis... " />
-          </folding>
         </state>
       </provider>
     </entry>
@@ -757,6 +872,21 @@
         </state>
       </provider>
     </entry>
+    <entry file="file://$PROJECT_DIR$/getdata/Mozilla/__init__.py" />
+    <entry file="file://$PROJECT_DIR$/getdata/Aspectj/SourceFile/110465.txt">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="0">
+          <caret line="0" column="0" selection-start-line="0" selection-start-column="0" selection-end-line="0" selection-end-column="0" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/getdata/Aspectj/SourceFile2/100195.txt">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="0">
+          <caret line="0" column="0" selection-start-line="0" selection-start-column="0" selection-end-line="0" selection-end-column="0" />
+        </state>
+      </provider>
+    </entry>
     <entry file="file://$PROJECT_DIR$/getdata/Aspectj/git.py">
       <provider selected="true" editor-type-id="text-editor">
         <state relative-caret-position="252">
@@ -764,67 +894,17 @@
         </state>
       </provider>
     </entry>
-    <entry file="file://$PROJECT_DIR$/getdata/Mozilla/__init__.py" />
-    <entry file="file://$PROJECT_DIR$/getdata/Aspectj/assist.sql">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="414">
-          <caret line="23" column="37" selection-start-line="23" selection-start-column="37" selection-end-line="23" selection-end-column="37" />
-          <folding />
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://$PROJECT_DIR$/getdata/Aspectj/aspectj.sql">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="47088">
-          <caret line="2616" column="0" selection-start-line="2616" selection-start-column="0" selection-end-line="2616" selection-end-column="0" />
-          <folding />
-        </state>
-      </provider>
-    </entry>
     <entry file="file://$PROJECT_DIR$/getdata/Aspectj/UpdateData.py">
       <provider selected="true" editor-type-id="text-editor">
         <state relative-caret-position="401">
           <caret line="56" column="49" selection-start-line="56" selection-start-column="49" selection-end-line="56" selection-end-column="49" />
-          <folding>
-            <marker date="1477134657227" expanded="true" signature="256:277" ph="select * fro... aspectj" />
-            <marker date="1477134657227" expanded="true" signature="358:378" ph="select * fro... assist" />
-            <marker date="1477134657227" expanded="true" signature="746:776" ph="update assis... " />
-            <marker date="1477134657227" expanded="true" signature="746:800" ph="update assis... " />
-            <marker date="1477134657227" expanded="true" signature="746:801" ph="update assis... " />
-            <marker date="1477134657227" expanded="true" signature="746:818" ph="update assis... " />
-            <marker date="1477134657227" expanded="true" signature="746:819" ph="update assis... " />
-            <marker date="1477134657227" expanded="true" signature="746:827" ph="update assis... " />
-            <marker date="1477134657227" expanded="true" signature="746:829" ph="update assis... " />
-            <marker date="1477134657227" expanded="true" signature="1042:1062" ph="select * fro... assist" />
-            <marker date="1477134657227" expanded="true" signature="1779:1827" ph="update assis... " />
-          </folding>
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://$PROJECT_DIR$/getdata/Mozilla/CrawlerForBugs.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="-1779">
-          <caret line="12" column="29" selection-start-line="12" selection-start-column="29" selection-end-line="12" selection-end-column="29" />
-          <folding>
-            <element signature="e#61#74#0" expanded="true" />
-            <marker date="1478185243563" expanded="true" signature="3863:3964" ph="INSERT INTO mozilla... " />
-            <marker date="1478185243563" expanded="true" signature="4049:4138" ph="INSERT INTO mozilla... " />
-          </folding>
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://$PROJECT_DIR$/getdata/Mozilla/CrawlerForGit.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="234">
-          <caret line="118" column="25" selection-start-line="118" selection-start-column="11" selection-end-line="118" selection-end-column="25" />
-          <folding />
         </state>
       </provider>
     </entry>
     <entry file="file://$PROJECT_DIR$/getdata/Mozilla/UpdateData.py">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="251">
-          <caret line="96" column="47" selection-start-line="96" selection-start-column="47" selection-end-line="96" selection-end-column="47" />
+        <state relative-caret-position="2196">
+          <caret line="125" column="14" selection-start-line="125" selection-start-column="14" selection-end-line="125" selection-end-column="14" />
           <folding>
             <element signature="e#104#118#0" expanded="true" />
             <marker date="1478406973193" expanded="true" signature="310:331" ph="select * fro... aspectj" />
@@ -839,6 +919,59 @@
             <marker date="1478406973193" expanded="true" signature="3949:4034" ph="select * fro... mozilla" />
             <marker date="1478406973193" expanded="true" signature="3949:4037" ph="update mozil... " />
           </folding>
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/getdata/Mozilla/CrawlerForBugs.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="-1453">
+          <caret line="18" column="17" selection-start-line="18" selection-start-column="17" selection-end-line="18" selection-end-column="17" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/getdata/Aspectj/shell/getAllHistory.sh">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="0">
+          <caret line="0" column="0" selection-start-line="0" selection-start-column="0" selection-end-line="0" selection-end-column="0" />
+          <folding />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/getdata/Aspectj/aspectj.sql">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="509">
+          <caret line="2616" column="0" selection-start-line="2616" selection-start-column="0" selection-end-line="2616" selection-end-column="0" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/getdata/Aspectj/assist.sql">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="18">
+          <caret line="23" column="37" selection-start-line="23" selection-start-column="37" selection-end-line="23" selection-end-column="37" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/getdata/Mozilla/CrawlerForGit.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="1692">
+          <caret line="97" column="27" selection-start-line="97" selection-start-column="27" selection-end-line="97" selection-end-column="27" />
+          <folding />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/getdata/Mozilla/test.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="108">
+          <caret line="6" column="19" selection-start-line="6" selection-start-column="19" selection-end-line="6" selection-end-column="19" />
+          <folding />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/getdata/Mozilla/shell/getAllHistory.sh">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="306">
+          <caret line="17" column="8" selection-start-line="17" selection-start-column="8" selection-end-line="17" selection-end-column="8" />
+          <folding />
         </state>
       </provider>
     </entry>

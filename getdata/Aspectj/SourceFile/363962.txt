@@ -1,7 +1,0 @@
--rw-r--r--org.aspectj.matcher/src/org/aspectj/weaver/WeakClassLoaderReference.java12
-
-
-
-diff --git a/org.aspectj.matcher/src/org/aspectj/weaver/WeakClassLoaderReference.java b/org.aspectj.matcher/src/org/aspectj/weaver/WeakClassLoaderReference.java
-index bcf6502..ddca932 100644
---- a/

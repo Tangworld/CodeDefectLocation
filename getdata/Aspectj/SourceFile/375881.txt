@@ -1,9 +1,0 @@
--rw-r--r--loadtime/src/org/aspectj/weaver/loadtime/ConcreteAspectCodeGen.java291
--rw-r--r--org.aspectj.matcher/src/org/aspectj/weaver/patterns/BasicTokenSource.java2
--rw-r--r--tests/bugs170/xmldefs/Anno.classbin
-
-
-
-diff --git a/loadtime/src/org/aspectj/weaver/loadtime/ConcreteAspectCodeGen.java b/loadtime/src/org/aspectj/weaver/loadtime/ConcreteAspectCodeGen.java
-index bab2766..bc6695e 100644
---- a/

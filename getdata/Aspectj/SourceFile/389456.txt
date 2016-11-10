@@ -1,7 +1,0 @@
--rw-r--r--org.aspectj.ajdt.core/src/org/aspectj/ajdt/internal/compiler/lookup/EclipseTypeMunger.java14
-
-
-
-diff --git a/org.aspectj.ajdt.core/src/org/aspectj/ajdt/internal/compiler/lookup/EclipseTypeMunger.java b/org.aspectj.ajdt.core/src/org/aspectj/ajdt/internal/compiler/lookup/EclipseTypeMunger.java
-index e77c20a..f1dea73 100644
---- a/

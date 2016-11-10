@@ -1,7 +1,0 @@
--rw-r--r--weaver/src/org/aspectj/weaver/bcel/LazyClassGen.java2
-
-
-
-diff --git a/weaver/src/org/aspectj/weaver/bcel/LazyClassGen.java b/weaver/src/org/aspectj/weaver/bcel/LazyClassGen.java
-index 8e2b098..bc465a2 100644
---- a/

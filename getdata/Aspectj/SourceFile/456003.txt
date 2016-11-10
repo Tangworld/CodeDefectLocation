@@ -1,7 +1,0 @@
--rw-r--r--org.aspectj.matcher/src/org/aspectj/weaver/patterns/WildAnnotationTypePattern.java16
-
-
-
-diff --git a/org.aspectj.matcher/src/org/aspectj/weaver/patterns/WildAnnotationTypePattern.java b/org.aspectj.matcher/src/org/aspectj/weaver/patterns/WildAnnotationTypePattern.java
-index 984b4ee..10cce62 100644
---- a/

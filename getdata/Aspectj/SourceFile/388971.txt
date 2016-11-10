@@ -1,7 +1,0 @@
--rw-r--r--weaver/src/org/aspectj/weaver/bcel/LazyMethodGen.java20
-
-
-
-diff --git a/weaver/src/org/aspectj/weaver/bcel/LazyMethodGen.java b/weaver/src/org/aspectj/weaver/bcel/LazyMethodGen.java
-index 84ba6c0..b66c610 100644
---- a/

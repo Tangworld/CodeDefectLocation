@@ -1,7 +1,0 @@
--rw-r--r--org.aspectj.ajdt.core/src/org/aspectj/ajdt/internal/compiler/lookup/EclipseSourceType.java42
-
-
-
-diff --git a/org.aspectj.ajdt.core/src/org/aspectj/ajdt/internal/compiler/lookup/EclipseSourceType.java b/org.aspectj.ajdt.core/src/org/aspectj/ajdt/internal/compiler/lookup/EclipseSourceType.java
-index ab74317..a7ebf44 100644
---- a/

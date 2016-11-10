@@ -1,7 +1,0 @@
--rw-r--r--loadtime/src/org/aspectj/weaver/loadtime/Aj.java18
-
-
-
-diff --git a/loadtime/src/org/aspectj/weaver/loadtime/Aj.java b/loadtime/src/org/aspectj/weaver/loadtime/Aj.java
-index 42d7a25..03715b6 100644
---- a/

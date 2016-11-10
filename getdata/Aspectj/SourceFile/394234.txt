@@ -1,7 +1,0 @@
--rw-r--r--weaver/src/org/aspectj/weaver/bcel/asm/StackMapAdder.java2
-
-
-
-diff --git a/weaver/src/org/aspectj/weaver/bcel/asm/StackMapAdder.java b/weaver/src/org/aspectj/weaver/bcel/asm/StackMapAdder.java
-index 2455a73..607aed1 100644
---- a/

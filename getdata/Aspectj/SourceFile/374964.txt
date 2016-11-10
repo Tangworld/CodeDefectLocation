@@ -1,8 +1,0 @@
--rw-r--r--org.aspectj.matcher/src/org/aspectj/weaver/patterns/PointcutEvaluationExpenseComparator.java24
--rw-r--r--tests/src/org/aspectj/systemtest/ajc170/Ajc170Tests.java37
-
-
-
-diff --git a/org.aspectj.matcher/src/org/aspectj/weaver/patterns/PointcutEvaluationExpenseComparator.java b/org.aspectj.matcher/src/org/aspectj/weaver/patterns/PointcutEvaluationExpenseComparator.java
-index 18cdfa3..5f3a329 100644
---- a/

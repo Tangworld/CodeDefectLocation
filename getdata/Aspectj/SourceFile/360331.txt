@@ -1,7 +1,0 @@
--rw-r--r--weaver/src/org/aspectj/weaver/loadtime/definition/DocumentParser.java9
-
-
-
-diff --git a/weaver/src/org/aspectj/weaver/loadtime/definition/DocumentParser.java b/weaver/src/org/aspectj/weaver/loadtime/definition/DocumentParser.java
-index 5be9057..13968a6 100644
---- a/

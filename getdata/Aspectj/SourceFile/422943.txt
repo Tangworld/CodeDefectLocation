@@ -1,7 +1,0 @@
--rw-r--r--org.aspectj.ajdt.core/src/org/aspectj/ajdt/internal/core/builder/AjState.java343
-
-
-
-diff --git a/org.aspectj.ajdt.core/src/org/aspectj/ajdt/internal/core/builder/AjState.java b/org.aspectj.ajdt.core/src/org/aspectj/ajdt/internal/core/builder/AjState.java
-index ca9d533..76f6de5 100644
---- a/

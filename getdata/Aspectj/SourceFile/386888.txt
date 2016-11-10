@@ -1,9 +1,0 @@
--rw-r--r--org.aspectj.ajdt.core/src/org/aspectj/ajdt/internal/compiler/lookup/AjLookupEnvironment.java73
--rw-r--r--org.aspectj.ajdt.core/src/org/aspectj/ajdt/internal/compiler/lookup/EclipseFactory.java6
--rw-r--r--org.aspectj.matcher/src/org/aspectj/weaver/ResolvedMemberImpl.java5
-
-
-
-diff --git a/org.aspectj.ajdt.core/src/org/aspectj/ajdt/internal/compiler/lookup/AjLookupEnvironment.java b/org.aspectj.ajdt.core/src/org/aspectj/ajdt/internal/compiler/lookup/AjLookupEnvironment.java
-index 64f1005..22e8fdf 100644
---- a/

@@ -1,7 +1,0 @@
--rw-r--r--tests/src/org/aspectj/systemtest/ajc1612/Ajc1612Tests.java32
-
-
-
-diff --git a/tests/src/org/aspectj/systemtest/ajc1612/Ajc1612Tests.java b/tests/src/org/aspectj/systemtest/ajc1612/Ajc1612Tests.java
-index 43c6387..2e6ed3e 100644
---- a/

@@ -1,7 +1,0 @@
--rw-r--r--bridge/src/org/aspectj/bridge/context/CompilationAndWeavingContext.java34
-
-
-
-diff --git a/bridge/src/org/aspectj/bridge/context/CompilationAndWeavingContext.java b/bridge/src/org/aspectj/bridge/context/CompilationAndWeavingContext.java
-index f011572..28a414a 100644
---- a/

@@ -1,8 +1,0 @@
--rw-r--r--bcel-builder/src/org/aspectj/apache/bcel/classfile/MethodParameters.java16
--rw-r--r--lib/bcel/bcel-src.zipbin
-
-
-
-diff --git a/bcel-builder/src/org/aspectj/apache/bcel/classfile/MethodParameters.java b/bcel-builder/src/org/aspectj/apache/bcel/classfile/MethodParameters.java
-index 9cbbbf7..76f1642 100644
---- a/

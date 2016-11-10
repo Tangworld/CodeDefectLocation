@@ -1,9 +1,0 @@
--rw-r--r--org.aspectj.ajdt.core/src/org/aspectj/ajdt/internal/compiler/lookup/AjLookupEnvironment.java3
--rw-r--r--org.aspectj.matcher/src/org/aspectj/weaver/ReferenceType.java7
--rw-r--r--org.aspectj.matcher/src/org/aspectj/weaver/ResolvedType.java2
-
-
-
-diff --git a/org.aspectj.ajdt.core/src/org/aspectj/ajdt/internal/compiler/lookup/AjLookupEnvironment.java b/org.aspectj.ajdt.core/src/org/aspectj/ajdt/internal/compiler/lookup/AjLookupEnvironment.java
-index 2c5e06f..64f1005 100644
---- a/

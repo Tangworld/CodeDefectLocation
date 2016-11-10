@@ -1,7 +1,0 @@
--rw-r--r--taskdefs/src/org/aspectj/tools/ant/taskdefs/AjcTask.java4
-
-
-
-diff --git a/taskdefs/src/org/aspectj/tools/ant/taskdefs/AjcTask.java b/taskdefs/src/org/aspectj/tools/ant/taskdefs/AjcTask.java
-index 0b36599..84bc8e5 100644
---- a/

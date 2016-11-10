@@ -1,9 +1,0 @@
--rw-r--r--org.aspectj.matcher/src/org/aspectj/weaver/ResolvedMember.java2
--rw-r--r--org.aspectj.matcher/src/org/aspectj/weaver/ResolvedMemberImpl.java23
--rw-r--r--weaver/src/org/aspectj/weaver/bcel/BcelClassWeaver.java57
-
-
-
-diff --git a/org.aspectj.matcher/src/org/aspectj/weaver/ResolvedMember.java b/org.aspectj.matcher/src/org/aspectj/weaver/ResolvedMember.java
-index 60d3224..0b5def2 100644
---- a/
