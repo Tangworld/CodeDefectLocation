@@ -12,7 +12,7 @@ do
 	    else 
 	       if [ "${file2##*.}" = "java" ]; then
 		  sudo cp $1/$file2 /home/tsj/IdeaProjects/latest
-		  git log -p $1/$file2 >> /home/tsj/IdeaProjects/history/$file2.txt
+		  git log -p $1/$file2 > /home/tsj/IdeaProjects/history/$file2.txt
 	       fi
         fi  
     fi  

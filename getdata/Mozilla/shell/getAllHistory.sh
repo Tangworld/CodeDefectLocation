@@ -12,7 +12,7 @@ do                       # for循环的循环体
 	    else                                             #如果是文件
 	      if [ -f"$file2" ]; then
               sudo cp $1/$file2 /home/tsj/PycharmProjects/latest                       #文件复制
-              git log -p $1/$file2 >> /home/tsj/PycharmProjects/history/$file2.txt     #执行git log 并将结果重定向到txt文件中
+              git log -p $1/$file2 > /home/tsj/PycharmProjects/history/$file2.txt     #执行git log 并将结果重定向到txt文件中
 	       fi
         fi  
     fi  
