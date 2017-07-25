@@ -103,7 +103,7 @@ def tfidf(word, count, count_list):
     return tf(word, count) * idf(word, count_list)
 
 def get_tf_idf(countlist):
-    # reports = open('reports.txt', 'w')
+    reports = open('reports.txt', 'w')
     for i, count in enumerate(countlist):
         keywords = []
         print("Top words in document {}".format(i + 1))
@@ -114,8 +114,8 @@ def get_tf_idf(countlist):
             allwords.append(word)
             print word
             # print("\tWord: {}, TF-IDF: {}".format(word, round(score, 5)))
-        # print >> reports, keywords, 'aspectj', 'compiler'
-    # reports.close()
+        print >> reports, keywords
+    reports.close()
     # wordmap = open('WordMap.txt', 'w')
     # for allword in allwords:
     #     print >> wordmap, allword
