@@ -2,7 +2,8 @@
 <project version="4">
   <component name="ChangeListManager">
     <list default="true" id="33cfeda7-3181-4d5e-a7ff-12787469554c" name="Default" comment="">
-      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/getdata/datadeal/create_wordmap.py" afterPath="$PROJECT_DIR$/getdata/datadeal/create_wordmap.py" />
+      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/getdata/datadeal/CreateSource.py" afterPath="$PROJECT_DIR$/getdata/datadeal/CreateSource.py" />
+      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/getdata/datadeal/source.txt" afterPath="$PROJECT_DIR$/getdata/datadeal/source.txt" />
     </list>
     <ignored path="CodeDefectLocation.iws" />
     <ignored path=".idea/workspace.xml" />
@@ -16,7 +17,7 @@
   </component>
   <component name="CoverageDataManager">
     <SUITE FILE_PATH="coverage/CodeDefectLocation$create_wordmap.coverage" NAME="create_wordmap Coverage Results" MODIFIED="1500985279051" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/getdata/datadeal" />
-    <SUITE FILE_PATH="coverage/CodeDefectLocation$CreateSource.coverage" NAME="CreateSource Coverage Results" MODIFIED="1493033132099" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/getdata/datadeal" />
+    <SUITE FILE_PATH="coverage/CodeDefectLocation$CreateSource.coverage" NAME="CreateSource Coverage Results" MODIFIED="1500986727271" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/getdata/datadeal" />
     <SUITE FILE_PATH="coverage/CodeDefectLocation$CreateReports.coverage" NAME="CreateReports Coverage Results" MODIFIED="1492691451887" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/getdata/datadeal" />
     <SUITE FILE_PATH="coverage/CodeDefectLocation$Help.coverage" NAME="Help Coverage Results" MODIFIED="1500980246692" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/getdata/datadeal" />
     <SUITE FILE_PATH="coverage/CodeDefectLocation$suggest.coverage" NAME="suggest Coverage Results" MODIFIED="1500947428752" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/keyAlgorithm" />
@@ -53,18 +54,18 @@
       <file leaf-file-name="source_tf_idf.py" pinned="false" current-in-tab="false">
         <entry file="file://$PROJECT_DIR$/getdata/datadeal/source_tf_idf.py">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="215">
-              <caret line="23" column="37" selection-start-line="23" selection-start-column="8" selection-end-line="23" selection-end-column="37" />
+            <state relative-caret-position="251">
+              <caret line="103" column="38" selection-start-line="103" selection-start-column="38" selection-end-line="103" selection-end-column="38" />
               <folding />
             </state>
           </provider>
         </entry>
       </file>
-      <file leaf-file-name="create_wordmap.py" pinned="false" current-in-tab="true">
+      <file leaf-file-name="create_wordmap.py" pinned="false" current-in-tab="false">
         <entry file="file://$PROJECT_DIR$/getdata/datadeal/create_wordmap.py">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="702">
-              <caret line="39" column="22" selection-start-line="39" selection-start-column="22" selection-end-line="39" selection-end-column="22" />
+            <state relative-caret-position="306">
+              <caret line="29" column="14" selection-start-line="19" selection-start-column="4" selection-end-line="29" selection-end-column="14" />
               <folding>
                 <marker date="1500985279004" expanded="true" signature="1046:1094" ph="insert into wordmap... " />
                 <marker date="1500985279004" expanded="true" signature="1903:1954" ph="insert into filemap... " />
@@ -98,28 +99,21 @@
       <file leaf-file-name="CreateSource.py" pinned="false" current-in-tab="false">
         <entry file="file://$PROJECT_DIR$/getdata/datadeal/CreateSource.py">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="144">
-              <caret line="22" column="17" selection-start-line="22" selection-start-column="17" selection-end-line="22" selection-end-column="17" />
-              <folding />
+            <state relative-caret-position="147">
+              <caret line="26" column="18" selection-start-line="26" selection-start-column="18" selection-end-line="26" selection-end-column="18" />
+              <folding>
+                <element signature="e#0#11#0" expanded="true" />
+                <marker date="1500986727236" expanded="true" signature="898:936" ph="select id fr... wordmap" />
+              </folding>
             </state>
           </provider>
         </entry>
       </file>
-      <file leaf-file-name="CreateSourceLen.py" pinned="false" current-in-tab="false">
-        <entry file="file://$PROJECT_DIR$/getdata/datadeal/CreateSourceLen.py">
+      <file leaf-file-name="aspectjSourcesNLTK.txt" pinned="false" current-in-tab="false">
+        <entry file="file://$PROJECT_DIR$/keyAlgorithm/aspectjSourcesNLTK.txt">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="198">
-              <caret line="11" column="30" selection-start-line="11" selection-start-column="30" selection-end-line="11" selection-end-column="30" />
-              <folding />
-            </state>
-          </provider>
-        </entry>
-      </file>
-      <file leaf-file-name="CreateReports.py" pinned="false" current-in-tab="false">
-        <entry file="file://$PROJECT_DIR$/getdata/datadeal/CreateReports.py">
-          <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="252">
-              <caret line="19" column="19" selection-start-line="19" selection-start-column="19" selection-end-line="19" selection-end-column="19" />
+            <state relative-caret-position="143">
+              <caret line="757" column="24" selection-start-line="757" selection-start-column="24" selection-end-line="757" selection-end-column="24" />
               <folding />
             </state>
           </provider>
@@ -137,11 +131,21 @@
           </provider>
         </entry>
       </file>
-      <file leaf-file-name="source.txt" pinned="false" current-in-tab="false">
+      <file leaf-file-name="sourceLen.txt" pinned="false" current-in-tab="false">
+        <entry file="file://$PROJECT_DIR$/getdata/datadeal/sourceLen.txt">
+          <provider selected="true" editor-type-id="text-editor">
+            <state relative-caret-position="0">
+              <caret line="0" column="17" selection-start-line="0" selection-start-column="17" selection-end-line="0" selection-end-column="17" />
+              <folding />
+            </state>
+          </provider>
+        </entry>
+      </file>
+      <file leaf-file-name="source.txt" pinned="false" current-in-tab="true">
         <entry file="file://$PROJECT_DIR$/getdata/datadeal/source.txt">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="129">
-              <caret line="1053" column="32" selection-start-line="1053" selection-start-column="32" selection-end-line="1053" selection-end-column="32" />
+            <state relative-caret-position="162">
+              <caret line="9" column="22" selection-start-line="9" selection-start-column="22" selection-end-line="9" selection-end-column="22" />
               <folding />
             </state>
           </provider>
@@ -193,7 +197,6 @@
         <option value="$PROJECT_DIR$/getdata/datadeal/reports.txt" />
         <option value="$PROJECT_DIR$/getdata/datadeal/CreateReports.py" />
         <option value="$PROJECT_DIR$/getdata/datadeal/source.txt" />
-        <option value="$PROJECT_DIR$/getdata/datadeal/CreateSource.py" />
         <option value="$PROJECT_DIR$/keyAlgorithm/ASPECTJoutput.txt" />
         <option value="$PROJECT_DIR$/keyAlgorithm/suggest.py" />
         <option value="$PROJECT_DIR$/keyAlgorithm/aspectjtf.txt" />
@@ -203,6 +206,7 @@
         <option value="$PROJECT_DIR$/getdata/datadeal/source_tf_idf.py" />
         <option value="$PROJECT_DIR$/getdata/datadeal/WordMap.txt" />
         <option value="$PROJECT_DIR$/getdata/datadeal/create_wordmap.py" />
+        <option value="$PROJECT_DIR$/getdata/datadeal/CreateSource.py" />
       </list>
     </option>
   </component>
@@ -502,7 +506,7 @@
       <recent name="$PROJECT_DIR$/getdata/Aspectj" />
     </key>
   </component>
-  <component name="RunManager" selected="Python.create_wordmap">
+  <component name="RunManager" selected="Python.CreateSource">
     <configuration default="false" name="CreateData" type="PythonConfigurationType" factoryName="Python" temporary="true">
       <option name="INTERPRETER_OPTIONS" value="" />
       <option name="PARENT_ENVS" value="true" />
@@ -517,24 +521,6 @@
       <module name="CodeDefectLocation" />
       <EXTENSION ID="PythonCoverageRunConfigurationExtension" enabled="false" sample_coverage="true" runner="coverage.py" />
       <option name="SCRIPT_NAME" value="$PROJECT_DIR$/getdata/datadeal/CreateData.py" />
-      <option name="PARAMETERS" value="" />
-      <option name="SHOW_COMMAND_LINE" value="false" />
-      <method />
-    </configuration>
-    <configuration default="false" name="pretreat" type="PythonConfigurationType" factoryName="Python" temporary="true">
-      <option name="INTERPRETER_OPTIONS" value="" />
-      <option name="PARENT_ENVS" value="true" />
-      <envs>
-        <env name="PYTHONUNBUFFERED" value="1" />
-      </envs>
-      <option name="SDK_HOME" value="" />
-      <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$/keyAlgorithm" />
-      <option name="IS_MODULE_SDK" value="true" />
-      <option name="ADD_CONTENT_ROOTS" value="true" />
-      <option name="ADD_SOURCE_ROOTS" value="true" />
-      <module name="CodeDefectLocation" />
-      <EXTENSION ID="PythonCoverageRunConfigurationExtension" enabled="false" sample_coverage="true" runner="coverage.py" />
-      <option name="SCRIPT_NAME" value="$PROJECT_DIR$/keyAlgorithm/pretreat.py" />
       <option name="PARAMETERS" value="" />
       <option name="SHOW_COMMAND_LINE" value="false" />
       <method />
@@ -589,6 +575,24 @@
       <module name="CodeDefectLocation" />
       <EXTENSION ID="PythonCoverageRunConfigurationExtension" enabled="false" sample_coverage="true" runner="coverage.py" />
       <option name="SCRIPT_NAME" value="$PROJECT_DIR$/getdata/datadeal/create_wordmap.py" />
+      <option name="PARAMETERS" value="" />
+      <option name="SHOW_COMMAND_LINE" value="false" />
+      <method />
+    </configuration>
+    <configuration default="false" name="CreateSource" type="PythonConfigurationType" factoryName="Python" temporary="true">
+      <option name="INTERPRETER_OPTIONS" value="" />
+      <option name="PARENT_ENVS" value="true" />
+      <envs>
+        <env name="PYTHONUNBUFFERED" value="1" />
+      </envs>
+      <option name="SDK_HOME" value="" />
+      <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$/getdata/datadeal" />
+      <option name="IS_MODULE_SDK" value="true" />
+      <option name="ADD_CONTENT_ROOTS" value="true" />
+      <option name="ADD_SOURCE_ROOTS" value="true" />
+      <module name="CodeDefectLocation" />
+      <EXTENSION ID="PythonCoverageRunConfigurationExtension" enabled="false" sample_coverage="true" runner="coverage.py" />
+      <option name="SCRIPT_NAME" value="$PROJECT_DIR$/getdata/datadeal/CreateSource.py" />
       <option name="PARAMETERS" value="" />
       <option name="SHOW_COMMAND_LINE" value="false" />
       <method />
@@ -803,18 +807,18 @@
     </configuration>
     <list size="5">
       <item index="0" class="java.lang.String" itemvalue="Python.CreateData" />
-      <item index="1" class="java.lang.String" itemvalue="Python.pretreat" />
-      <item index="2" class="java.lang.String" itemvalue="Python.Help" />
-      <item index="3" class="java.lang.String" itemvalue="Python.source_tf_idf" />
-      <item index="4" class="java.lang.String" itemvalue="Python.create_wordmap" />
+      <item index="1" class="java.lang.String" itemvalue="Python.Help" />
+      <item index="2" class="java.lang.String" itemvalue="Python.source_tf_idf" />
+      <item index="3" class="java.lang.String" itemvalue="Python.create_wordmap" />
+      <item index="4" class="java.lang.String" itemvalue="Python.CreateSource" />
     </list>
     <recent_temporary>
       <list size="5">
-        <item index="0" class="java.lang.String" itemvalue="Python.create_wordmap" />
-        <item index="1" class="java.lang.String" itemvalue="Python.source_tf_idf" />
-        <item index="2" class="java.lang.String" itemvalue="Python.Help" />
-        <item index="3" class="java.lang.String" itemvalue="Python.CreateData" />
-        <item index="4" class="java.lang.String" itemvalue="Python.pretreat" />
+        <item index="0" class="java.lang.String" itemvalue="Python.CreateSource" />
+        <item index="1" class="java.lang.String" itemvalue="Python.create_wordmap" />
+        <item index="2" class="java.lang.String" itemvalue="Python.source_tf_idf" />
+        <item index="3" class="java.lang.String" itemvalue="Python.Help" />
+        <item index="4" class="java.lang.String" itemvalue="Python.CreateData" />
       </list>
     </recent_temporary>
   </component>
@@ -1029,26 +1033,10 @@
         </state>
       </provider>
     </entry>
-    <entry file="file://$PROJECT_DIR$/getdata/datadeal/sourceLen.txt">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="0">
-          <caret line="0" column="17" selection-start-line="0" selection-start-column="17" selection-end-line="0" selection-end-column="17" />
-          <folding />
-        </state>
-      </provider>
-    </entry>
     <entry file="file://$PROJECT_DIR$/keyAlgorithm/aspectjSourceLen.txt">
       <provider selected="true" editor-type-id="text-editor">
         <state relative-caret-position="0">
           <caret line="0" column="36" selection-start-line="0" selection-start-column="36" selection-end-line="0" selection-end-column="36" />
-          <folding />
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://$PROJECT_DIR$/keyAlgorithm/aspectjSourcesNLTK.txt">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="1781">
-          <caret line="773" column="18" selection-start-line="773" selection-start-column="18" selection-end-line="773" selection-end-column="18" />
           <folding />
         </state>
       </provider>
@@ -1135,14 +1123,6 @@
         </state>
       </provider>
     </entry>
-    <entry file="file://$PROJECT_DIR$/getdata/datadeal/CreateSource.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="144">
-          <caret line="22" column="17" selection-start-line="22" selection-start-column="17" selection-end-line="22" selection-end-column="17" />
-          <folding />
-        </state>
-      </provider>
-    </entry>
     <entry file="file://$PROJECT_DIR$/getdata/datadeal/report_tf_idf.py">
       <provider selected="true" editor-type-id="text-editor">
         <state relative-caret-position="234">
@@ -1150,22 +1130,6 @@
           <folding>
             <element signature="e#14#37#0" expanded="true" />
           </folding>
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://$PROJECT_DIR$/getdata/datadeal/source.txt">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="129">
-          <caret line="1053" column="32" selection-start-line="1053" selection-start-column="32" selection-end-line="1053" selection-end-column="32" />
-          <folding />
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://$PROJECT_DIR$/getdata/datadeal/source_tf_idf.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="215">
-          <caret line="23" column="37" selection-start-line="23" selection-start-column="8" selection-end-line="23" selection-end-column="37" />
-          <folding />
         </state>
       </provider>
     </entry>
@@ -1195,14 +1159,57 @@
         </state>
       </provider>
     </entry>
+    <entry file="file://$PROJECT_DIR$/getdata/datadeal/source_tf_idf.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="251">
+          <caret line="103" column="38" selection-start-line="103" selection-start-column="38" selection-end-line="103" selection-end-column="38" />
+          <folding />
+        </state>
+      </provider>
+    </entry>
     <entry file="file://$PROJECT_DIR$/getdata/datadeal/create_wordmap.py">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="702">
-          <caret line="39" column="22" selection-start-line="39" selection-start-column="22" selection-end-line="39" selection-end-column="22" />
+        <state relative-caret-position="306">
+          <caret line="29" column="14" selection-start-line="19" selection-start-column="4" selection-end-line="29" selection-end-column="14" />
           <folding>
             <marker date="1500985279004" expanded="true" signature="1046:1094" ph="insert into wordmap... " />
             <marker date="1500985279004" expanded="true" signature="1903:1954" ph="insert into filemap... " />
           </folding>
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/getdata/datadeal/sourceLen.txt">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="0">
+          <caret line="0" column="17" selection-start-line="0" selection-start-column="17" selection-end-line="0" selection-end-column="17" />
+          <folding />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/keyAlgorithm/aspectjSourcesNLTK.txt">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="143">
+          <caret line="757" column="24" selection-start-line="757" selection-start-column="24" selection-end-line="757" selection-end-column="24" />
+          <folding />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/getdata/datadeal/CreateSource.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="147">
+          <caret line="26" column="18" selection-start-line="26" selection-start-column="18" selection-end-line="26" selection-end-column="18" />
+          <folding>
+            <element signature="e#0#11#0" expanded="true" />
+            <marker date="1500986727236" expanded="true" signature="898:936" ph="select id fr... wordmap" />
+          </folding>
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/getdata/datadeal/source.txt">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="162">
+          <caret line="9" column="22" selection-start-line="9" selection-start-column="22" selection-end-line="9" selection-end-column="22" />
+          <folding />
         </state>
       </provider>
     </entry>
