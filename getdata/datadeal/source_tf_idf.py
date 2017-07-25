@@ -12,60 +12,43 @@ from nltk.stem.porter import *
 import sys
 reload(sys)
 sys.setdefaultencoding('utf-8')
-#用来将数据集AspectJBugRepository.xml中的数据插入到Bugzilla的数据库中
 allwords = []
 countlist = []
 
 def main():
 
-    #打开xml文档
-    dom = xml.dom.minidom.parse('AspectJBugRepository.xml')
-
-    #得到文档元素对象
-    root = dom.documentElement
-    bugidwrite = []
-    filewrite = []
-    words = []
-
-    bugs = root.getElementsByTagName('bug')
-    summaries = root.getElementsByTagName('summary')
-    descriptions = root.getElementsByTagName('description')
-    files = root.getElementsByTagName('file')
-    print len(bugs)
-    print len(summaries)
-    print len(descriptions)
-    print len(files)
-    # errorid=[]
-    #
-    # filenum = 0
-    for i in range(0, 286, 1):
+    filemap = open('FileMap.txt', 'r')
+    files = filemap.readlines()
+    pre = "/var/www/html/bugzilla/"
+    for line in files:
+        line = line.replace('\n', '')
+        filename = pre + line
         try:
-            id = int(bugs[i].getAttribute("id"))
-            bugidwrite.append(id)
-            opendate = bugs[i].getAttribute("opendate")
-            fixdate = bugs[i].getAttribute("fixdate")
-            summary = summaries[i].firstChild.data
-            summary = summary.lower()
-            description = descriptions[i].firstChild.data
-            description = description.lower()
-            content = summary + description
-            print id
-            print
-            count = test_tokens(content)
-            countlist.append(count)
-
+            source = open(filename, 'r')
         except Exception, e:
             print e
+            fill = unicode('None')
+            count = test_tokens(fill)
+            countlist.append(count)
+            continue
+
+        content = ''
+        slines = source.readlines()
+        for sl in slines:
+            sl = sl.replace('\n', '')
+            content += sl
+        content = content.decode("utf-8")
+        count = test_tokens(content)
+        countlist.append(count)
+
 
     get_tf_idf(countlist)
 
 
 def get_tokens(text):
     lowers = text.lower()
-    print type(lowers)
     #remove the punctuation using the character deletion step of translate
     remove_punctuation_map = dict((ord(char), None) for char in string.punctuation)
-    print type(remove_punctuation_map)
     no_punctuation = lowers.translate(remove_punctuation_map)
     tokens = nltk.word_tokenize(no_punctuation)
     return tokens
@@ -88,6 +71,7 @@ def stem_tokens(tokens, stemmer):
 
 
 def tf(word, count):
+    print count, '  ', word, ' ', type(count), ' ', type(word)
     return count[word] / sum(count.values())
 
 
@@ -103,7 +87,7 @@ def tfidf(word, count, count_list):
     return tf(word, count) * idf(word, count_list)
 
 def get_tf_idf(countlist):
-    # reports = open('reports.txt', 'w')
+    reports = open('source.txt', 'w')
     for i, count in enumerate(countlist):
         keywords = []
         print("Top words in document {}".format(i + 1))
@@ -114,12 +98,15 @@ def get_tf_idf(countlist):
             allwords.append(word)
             print word
             # print("\tWord: {}, TF-IDF: {}".format(word, round(score, 5)))
-        # print >> reports, keywords, 'aspectj', 'compiler'
-    # reports.close()
-    # wordmap = open('WordMap.txt', 'w')
-    # for allword in allwords:
-    #     print >> wordmap, allword
-    # wordmap.close()
+        realkeywords = []
+        for keyw in keywords:
+            realkeywords.append((keyw, 100))
+        print >> reports, realkeywords
+    reports.close()
+    wordmap = open('WordMap.txt', 'a')
+    for allword in allwords:
+        print >> wordmap, allword
+    wordmap.close()
 
 if __name__ == '__main__':
     main()
