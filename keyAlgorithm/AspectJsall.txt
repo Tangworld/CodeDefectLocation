@@ -1,0 +1,23 @@
+fold 0 train time is 4.80625605583
+fold 0 predict time is 0.692887067795
+fold 1 train time is 4.45924782753
+fold 1 predict time is 0.360175132751
+fold 2 train time is 3.84537315369
+fold 2 predict time is 0.26428604126
+fold 3 train time is 4.21710896492
+fold 3 predict time is 0.327892065048
+fold 4 train time is 4.31509995461
+fold 4 predict time is 0.153643846512
+fold 5 train time is 4.26669406891
+fold 5 predict time is 0.10773897171
+fold 6 train time is 4.36356210709
+fold 6 predict time is 0.209462881088
+fold 7 train time is 4.28507089615
+fold 7 predict time is 0.28555893898
+fold 8 train time is 4.11457896233
+fold 8 predict time is 0.154307842255
+fold 9 train time is 4.29469013214
+fold 9 predict time is 0.147311925888
+---avg---
+0.00000	0.00000	0.00000	0.00000	0.00000	0.00000
+avg time 4.29676821232 0.270326471329

@@ -1,0 +1,66 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2 Final//EN">
+<html> <head>
+<title>The BCEL-builder module</title>
+</head>
+
+<body>
+<h1>The BCEL-builder module</h1>
+
+This module includes a modified form of BCEL - with some fixes in *and* support for Java5.
+
+<hr>
+
+<h3>Java 5 support</h3>
+<p>The best way to see how it works is look in the testcases.  The only feature that
+	is definetly not implemented yet is package level annotations.  What is working is:</p>
+	
+<ul>
+	<li>You can ask a type: are you an annotation type? are you an enum type?</li>
+	<li>You can ask a method: were you defined with varargs? Are you a bridge method?</li>
+	<li>All annotation values types are supported (primitive, string, array, enum, annotation, class).</li>
+	<li>Runtime visible and invisible annotations are supported.</li>
+	<li>Annotations are accessible on types, methods, fields.</li>
+	<li>Parameter annotations are accessible on methods.</li>
+	<li>You can programmatically construct annotations and attach them to types, methods, fields.</li>
+    <li>You can construct parameter annotations and add them to methods.</li>
+	<li>The EnclosingMethod attribute is supported (it is used to let you know the containing method for local/anonymous types)</li>
+	<li>The LocalVariableTypeTable attribute is supported (used for generics to tell you the original variable signature)</li>
+</ul>
+<p>All this is implemented without using any Java 5 APIs.</p>
+<hr>
+<p> The contents of this directory are:
+</p>
+
+<ul>
+  <li>This file</li>
+  <li>src -- contains the source for BCEL, a modified variant of BCEL 5.1 that includes bug fixes and Java 5 support</li>
+  <li>verifier-src -- contains the source for the bcel verifier package, something used by tests but not packaged
+      and distributed (at the moment).
+  <li>testsrc -- JUnit test cases for the Java 5 support</li>
+  <li>testdata -- Java5 testcode that can be built using the build.xml script in the testdata directory (see note on this below)</li>
+  <li>build.xml -- an ant script for manipulating the src folder, possibly useful if ever merging a base BCEL version</li>
+</ul>
+
+<hr>
+<h3>Development Process</h3>
+<p>
+We can now follow normal TDD for this.  Add a JUnit testcase to the testsrc folder, plus any
+associated test materials into the testdata directory.  Then change BCEL to get your test passing,
+when you are happy with the result (i.e. all the tests in the bcel-builder module are passing), you
+should execute the build.xml script whose default target will package up bcel (and bcel src) and
+deliver it into the lib module, the rest of AspectJ is driven off the version of bcel in the lib/bcel
+folder - it is *not* driven off the bcel-builder code (we could choose to change that sometime later).
+<p>
+Once you have done this execute all the tests for AspectJ, if they all pass you can check in your
+mods for bcel-builder and to the lib project.
+
+<hr>
+<h3>testdata</h3>
+The testdata folder includes a load of Java5 code, it needs to be built with a Java5 compiler.  There
+is an ant script in there (build.xml) that builds all the source code into a testcode.jar which is
+then used by the testcases - so if you do change the testdata code then you should run build.xml
+to rebuild testcode.jar.
+
+<hr>
+
+</body> </html>

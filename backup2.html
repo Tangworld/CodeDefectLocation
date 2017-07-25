@@ -1,0 +1,235 @@
+[% PROCESS global/header.html.tmpl
+title = "$terms.Bugzilla Main Page"
+header = "Main Page"
+header_addl_info = "version $constants.BUGZILLA_VERSION"
+%]
+
+
+<html lang="en-US" xmlns="http://www.w3.org/1999/xhtml" dir="ltr">
+<head>
+    <title>Free CSS template Collect from www.Cssmoban.com</title>
+    <meta http-equiv="Content-type" content="text/html; charset=utf-8"/>
+    <link rel="shortcut icon" href="css/images/favicon.ico?cb=1"/>
+    <link rel="stylesheet" href="css/style.css" type="text/css" media="all"/>
+    <!--[if IE 6]>
+    <link rel="stylesheet" href="css/ie6.css" type="text/css" media="all"/>
+    <![endif]-->
+    <link rel="stylesheet" href="js/fancybox/jquery.fancybox-1.3.1.css" type="text/css" media="screen"/>
+
+    <script type="text/javascript" src="js/jquery-1.4.2.min.js"></script>
+    <script type="text/javascript" src="js/jquery.jcarousel.js"></script>
+    <script type="text/javascript" src="js/fancybox/jquery.fancybox-1.3.1.js"></script>
+    <script type="text/javascript" src="js/jquery-func.js"></script>
+</head>
+<body onload="prettyPrint()">
+<!-- Shell -->
+<div id="shell">
+    <!-- Header -->
+    <div id="header" class="big-box">
+        <div class="bg-bottom">
+            <!-- Logo -->
+            <h1>Bug修改建议</h1>
+
+            <div class="cl">&nbsp;</div>
+        </div>
+    </div>
+    <!-- /Header -->
+
+    <!-- Main -->
+    <div id="main" class="big-box">
+        <div class="bg-top">
+            <div class="bg-bottom">
+
+                <!-- /Big Slider -->
+                <!-- Top Text Block -->
+
+                <!--第一块-->
+                <div style="float:left;width:200px;height:500px;background-color:red">
+                    <div id="top" class="text-block">
+                        <!-- Content -->
+                        <div id="content" class="box">
+                            <h3>Bug [% bugid FILTER html %] ([% summary FILTER html %]):<br/></h3>
+
+                            <p>[% description FILTER html %]<br/></p>
+                        </div>
+
+                        <div class="cl">&nbsp;</div>
+                    </div>
+                </div>
+
+                <!-- Bottom Text Block -->
+                <div class="cl">&nbsp;</div>
+                <div id="bottom" class="text-block">
+                    <!-- Box -->
+
+                    <div style="float:left;width:700px;height:200px;background-color:green">
+                        <div class="box">
+                            [% FOREACH file = files %]
+                            <h3><a href="javascript:;" onclick="js_method('[%file.loc%]')">[%file.loc%]</a><br/></h3>
+                            [% END %]
+                        </div>
+                    </div>
+
+                    <div style="float:left;width:700px;height:300px;background-color:blue">
+                        <div class="cl">&nbsp;</div>
+                        [% FOREACH file = files %]
+                        <pre id="[%file.loc%]" class="prettyprint" style="display:none">
+								<code>[%file.source%]</code>
+							</pre>
+                        [%END%]
+                    </div>
+                </div>
+                <!-- /Bottom Text Block -->
+
+
+            </div>
+        </div>
+    </div>
+
+</div>
+<!-- /Shell -->
+</body>
+[% PROCESS global/footer.html.tmpl %]
+</html>
+
+<script type="text/javascript">
+    function js_method(fileloc) {
+        var aBox = document.getElementsByTagName("pre");
+        for (var i = 0; i < aBox.length; i++) {
+            aBox[i].style.display = "none";
+        }
+        document.getElementById(fileloc).style.display = "block";
+    }
+</script>
+
+<link type="text/css" rel="stylesheet" href="js/prettify.css"/>
+<script type="text/javascript" src="js/prettify.js"></script>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+[% PROCESS global/header.html.tmpl
+   title = "$terms.Bugzilla Main Page"
+   header = "Main Page"
+   header_addl_info = "version $constants.BUGZILLA_VERSION"
+%]
+
+
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+
+<html lang="en-US" xmlns="http://www.w3.org/1999/xhtml" dir="ltr">
+<head>
+	<title>Free CSS template Collect from www.Cssmoban.com</title>
+	<meta http-equiv="Content-type" content="text/html; charset=utf-8" />
+	<link rel="shortcut icon" href="css/images/favicon.ico?cb=1" />
+	<link rel="stylesheet" href="css/style.css" type="text/css" media="all" />
+	<!--[if IE 6]>
+		<link rel="stylesheet" href="css/ie6.css" type="text/css" media="all" />
+	<![endif]-->
+	<link rel="stylesheet" href="js/fancybox/jquery.fancybox-1.3.1.css" type="text/css" media="screen" />
+
+	<script type="text/javascript" src="js/jquery-1.4.2.min.js"></script>
+	<script type="text/javascript" src="js/jquery.jcarousel.js"></script>
+	<script type="text/javascript" src="js/fancybox/jquery.fancybox-1.3.1.js"></script>
+	<script type="text/javascript" src="js/jquery-func.js"></script>
+</head>
+<body onload="prettyPrint()">
+<!-- Shell -->
+<div id="shell">
+	<!-- Header -->
+	<div id="header" class="big-box">
+		<div class="bg-bottom">
+			<!-- Logo -->
+			<h1 >Bug修改建议</h1>
+
+			<div class="cl">&nbsp;</div>
+		</div>
+	</div>
+	<!-- /Header -->
+
+	<!-- Main -->
+	<div id="main" class="big-box">
+		<div class="bg-top">
+			<div class="bg-bottom">
+
+				<!-- /Big Slider -->
+				<!-- Top Text Block -->
+				<div id="top" class="text-block">
+					<!-- Content -->
+					<div id="content" class="box">
+						<h3>Bug [% bugid FILTER html %] ([% summary FILTER html %]):<br/></h3>
+
+						<p>[% description FILTER html %]<br/></p>
+					</div>
+
+					<div class="cl">&nbsp;</div>
+				</div>
+
+				<!-- Bottom Text Block -->
+				<div class="cl">&nbsp;</div>
+				<div id="bottom" class="text-block">
+					<!-- Box -->
+					<div class="box">
+						[% FOREACH file = files %]
+						<h3><a  href="javascript:;" onclick="js_method('[%file.loc%]')">[%file.loc%]</a><br/></h3>
+						[% END %]
+					</div>
+
+					<div class="cl">&nbsp;</div>
+					[% FOREACH file = files %]
+							<pre id="[%file.loc%]" class="prettyprint" style="display:none">
+								<code>[%file.source%]</code>
+							</pre>
+					[%END%]
+				</div>
+				<!-- /Bottom Text Block -->
+
+
+			</div>
+		</div>
+	</div>
+
+</div>
+<!-- /Shell -->
+</body>
+[% PROCESS global/footer.html.tmpl %]
+</html>
+
+<script type="text/javascript">
+function js_method(fileloc){
+	var aBox = document.getElementsByTagName("pre");
+	for(var i=0;i<aBox.length;i++){
+		aBox[i].style.display="none";
+    }
+	document.getElementById(fileloc).style.display="block";
+}
+</script>
+
+<link type="text/css" rel="stylesheet" href="js/prettify.css"/>
+<script type="text/javascript" src="js/prettify.js"></script>
