@@ -21,38 +21,39 @@ words = []
 bugs = root.getElementsByTagName('bug')
 summaries = root.getElementsByTagName('summary')
 descriptions = root.getElementsByTagName('description')
+files = root.getElementsByTagName('file')
 print len(bugs)
 print len(summaries)
 print len(descriptions)
-
-errorid=[]
-
-filenum = 0
-for i in range(0, 286, 1):
-    try:
-        id = int(bugs[i].getAttribute("id"))
-        bugidwrite.append(id)
-        opendate = bugs[i].getAttribute("opendate")
-        fixdate = bugs[i].getAttribute("fixdate")
-        summary = summaries[i].firstChild.data
-        summary = summary.lower()
-        description = descriptions[i].firstChild.data
-        description = description.lower()
-        content = summary + description
-        delset = string.punctuation
-        for c in delset:
-            content = content.replace(c," ")
-        sens = nltk.sent_tokenize(content)
-        for sent in sens:
-            words.append(nltk.word_tokenize(sent))
-        fileloc = ""
-        textfile = bugs[i].childNodes[3]
-        files = textfile.childNodes
-        for file in files:
-            if file.nodeName == "file":
-                filenum += 1
-                fileloc += "$"+file.firstChild.data
-                filewrite.append(file.firstChild.data)
+print len(files)
+# errorid=[]
+#
+# filenum = 0
+# for i in range(0, 286, 1):
+#     try:
+#         id = int(bugs[i].getAttribute("id"))
+#         bugidwrite.append(id)
+#         opendate = bugs[i].getAttribute("opendate")
+#         fixdate = bugs[i].getAttribute("fixdate")
+#         summary = summaries[i].firstChild.data
+#         summary = summary.lower()
+#         description = descriptions[i].firstChild.data
+#         description = description.lower()
+#         content = summary + description
+#         delset = string.punctuation
+#         for c in delset:
+#             content = content.replace(c," ")
+#         sens = nltk.sent_tokenize(content)
+#         for sent in sens:
+#             words.append(nltk.word_tokenize(sent))
+#         fileloc = ""
+#         textfile = bugs[i].childNodes[3]
+#         files = textfile.childNodes
+#         for file in files:
+#             if file.nodeName == "file":
+#                 filenum += 1
+#                 fileloc += "$"+file.firstChild.data
+#                 filewrite.append(file.firstChild.data)
 
         # print id
         # print opendate
@@ -68,21 +69,21 @@ for i in range(0, 286, 1):
         # cursor.close()
         # db.close()
         # print "finish"
-    except Exception, ex:
-        print ex
-        errorid.append(id)
-        continue
-realword = []
-output = open("WordMap.txt","w")
-for w in words:
-    for ww in w:
-        if ww not in realword:
-            realword.append(ww)
-
-for r in realword:
-    print >> output, r
-
-output.close()
+#     except Exception, ex:
+#         print ex
+#         errorid.append(id)
+#         continue
+# realword = []
+# output = open("WordMap.txt","w")
+# for w in words:
+#     for ww in w:
+#         if ww not in realword:
+#             realword.append(ww)
+#
+# for r in realword:
+#     print >> output, r
+#
+# output.close()
 # print "filenum:"
 # print filenum
 # for i in bugidwrite:
