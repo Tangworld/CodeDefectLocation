@@ -1,4 +1,6 @@
-
+'''
+    创建BugidMap文件
+'''
 def main():
     resource = open('data/aspectj.csv', 'r')
     lines = resource.readlines()
