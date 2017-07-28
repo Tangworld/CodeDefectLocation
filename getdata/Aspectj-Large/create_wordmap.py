@@ -9,10 +9,11 @@ from nltk.corpus import stopwords
 from collections import Counter
 from nltk.stem.porter import *
 
-contentlist = []
 
 
-def main():
+
+def sourcefile():
+    contentlist = []
     filemap = open('data/FileMap.txt', 'r')
     files = filemap.readlines()
     filemap.close()
@@ -35,6 +36,62 @@ def main():
             continue
 
     get_tf_idf(contentlist)
+
+def report():
+    contentlist = []
+    resource = open('data/aspectj.csv', 'r')
+    lines = resource.readlines()
+    resource.close()
+
+    descriptions = []
+    for line in lines:
+        temp = line.split(',')[4:-1]
+        r_temp = str(temp)
+        r_temp = r_temp.replace('Summary', '')
+        print r_temp
+        descriptions.append(r_temp)
+    print len(descriptions)
+    print type(descriptions)
+    descriptions = list(set(descriptions))
+    print len(descriptions)
+    for d in descriptions:
+        print type(d)
+        count = test_tokens(d.decode('utf-8'))
+        contentlist.append(count)
+
+    get_tf_idf(contentlist)
+
+def rm_duplicate():
+    wordmap = open('data/WordMap.txt', 'r')
+    lines = wordmap.readlines()
+    print len(lines)
+    wordmap.close()
+
+    lines = list(set(lines))
+    print len(lines)
+    wordmap = open('data/WordMap.txt', 'w')
+    for line in lines:
+        print >> wordmap, line
+    wordmap.close()
+
+def rm_n():
+    wordmap = open('data/WordMap.txt', 'r')
+    lines = wordmap.readlines()
+    wordmap.close()
+
+    words = []
+    r_words = []
+    for line in lines:
+        line = line.replace('\n', '')
+        words.append(line)
+    print words
+    for w in words:
+        if not w == '':
+            r_words.append(w)
+    wordmap = open('data/WordMap.txt', 'w')
+    for r in r_words:
+        print >> wordmap, r
+    wordmap.close()
 
 
 def get_tokens(text):
@@ -94,4 +151,4 @@ def get_tf_idf(countlist):
     wordmap.close()
 
 if __name__ == '__main__':
-    main()
+    rm_n()
