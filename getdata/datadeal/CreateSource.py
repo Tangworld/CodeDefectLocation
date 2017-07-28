@@ -1,115 +1,40 @@
 import nltk
 import string
 from nltk.corpus import stopwords
-def main():
-    pre = "/var/www/html/bugzilla/"
-    input = open("FileMap.txt", "r")
-    wordmap = open("WordMap.txt","r")
-    dictionary = wordmap.readlines()
-    lines = input.readlines()
-    input.close()
-    wordmap.close()
-    print len(lines)
-
-    realword = []
-
-    for line in lines:
-        try:
-            words = []
-            num = []
-            line = line.replace('\n', '')
-            filename = pre + line
-            myfile = open(filename, "r")
-            linenum = myfile.readlines()
-            print line
-
-            delset = string.punctuation
-            for l in linenum:
-                l = l.lower()
-                for c in delset:
-                    l = l.replace(c, " ")
-                sens = nltk.sent_tokenize(l)
-                for sent in sens:
-                    words.append(nltk.word_tokenize(sent))
-            for w in words:
-                for ww in w:
-                    if ww not in realword:
-                        realword.append(ww)
-            # print num
-        except Exception,ex:
-            print ex
-            continue
-    for r in realword:
-        print r
-    output = open("WordMap.txt","a")
-    for r in realword:
-        if r not in dictionary:
-            print >> output,r
-    output.close()
-
-
+import MySQLdb
 def createSourceTXT():
-    pre = "/var/www/html/bugzilla/"
-    wordmap = open("WordMap.txt", "r")
-    input = open("FileMap.txt", "r")
-    keywords = open("keywords.txt","r")
-    remove = keywords.readlines()
-    lines = input.readlines()
-    dictionary = wordmap.readlines()
-    print len(dictionary)
-    source = open("source.txt","w")
-    delset = string.punctuation
-    mystopwords = stopwords.words('english')
-    finalremove = []
-    for my in mystopwords:
-        finalremove.append(my)
-    for rem in remove:
-        finalremove.append(rem)
-    indexl = 0
-    print len(lines)
+    data = []
+    source = open('source.txt', 'r')
+    lines = source.readlines()
+    source.close()
+    db = MySQLdb.connect("localhost", "bugs", "bugs", "bugs")
+    cursor = db.cursor()
     for line in lines:
-        try:
-            #print line
-            words = []
-            num = []
-            line = line.replace('\n', '')
-            filename = pre + line
-            myfile = open(filename, "r")
-            linenum = myfile.readlines()
+        temp = []
+        line = eval(line)
 
-            for l in linenum:
-                l = l.lower()
-                for c in delset:
-                    l = l.replace(c, " ")
-                sens = nltk.sent_tokenize(l)
-                for sent in sens:
-                    words.append(nltk.word_tokenize(sent))
-            for i in range(0,len(dictionary)):
-                dictionary[i] = dictionary[i].replace('\n', "")
-                for w in words:
-                    for ww in w:
-                        if ww == dictionary[i]:
-                            if ww not in finalremove:
-                                #print ww
-                                num.append(i)
-            realnum = []
-            for p in range(0,len(num)):
-                cnt = 0
-                for q in range(p+1,len(num)):
-                    if num[q] == num[p]:
-                        cnt += 1
-                if cnt > 39:
-                    if num[p] not in realnum:
-                        realnum.append(num[p])
-            finalnum = []
-            for n in realnum:
-                finalnum.append((n,100))
-            print finalnum
-            print >> source,finalnum
-        except Exception, ex:
-            print ex
-            print >> source, [(0, 100)]
-            continue
+        for l in line:
+            try:
+                l = l.replace('\n', '')
+                # print l
+                # cursor.execute("insert into bugs(bug_id,assigned_to,bug_file_loc,bug_severity,bug_status,creation_ts,delta_ts,short_desc,op_sys,priority,product_id,rep_platform,reporter,version,component_id,everconfirmed) values(%d,%d,'%s','%s','%s','%s','%s','%s','%s','%s',%d,'%s',%d,'%s',%d,%d)" % (id,1,fileloc,"enhancement","CONFIRMED",opendate,fixdate,summary,"Linux","Normal",2,"PC",2,"0.1",2,1))
+                cursor.execute("select id from wordmap where word='%s'" % (l))
+                result = cursor.fetchone()
+                temp.append((int(result[0]), 100))
+            except Exception, e:
+                print e
+                continue
+        print temp
+        data.append(temp)
+
+    db.commit()  # Commit the transaction
+    cursor.close()
+    db.close()
+    source = open('source.txt', 'w')
+    for d in data:
+        print >> source, d
+    source.close()
+    print len(data)
 
 if __name__ == "__main__":
     # main()

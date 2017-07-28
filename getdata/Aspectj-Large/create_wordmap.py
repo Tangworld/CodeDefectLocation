@@ -9,10 +9,11 @@ from nltk.corpus import stopwords
 from collections import Counter
 from nltk.stem.porter import *
 
-contentlist = []
 
 
-def main():
+
+def sourcefile():
+    contentlist = []
     filemap = open('data/FileMap.txt', 'r')
     files = filemap.readlines()
     filemap.close()
@@ -26,15 +27,73 @@ def main():
             for line in lines:
                 line = line.replace('\n', '')
                 content += line
-            print content
-            print type(content)
+            # print content
+            # print type(content)
             count = test_tokens(content.decode('utf-8'))
             contentlist.append(count)
         except Exception, e:
             print e
+            count = ''
+            contentlist.append(count)
             continue
 
     get_tf_idf(contentlist)
+
+def report():
+    contentlist = []
+    resource = open('data/aspectj.csv', 'r')
+    lines = resource.readlines()
+    resource.close()
+
+    descriptions = []
+    for line in lines:
+        temp = line.split(',')[4:-1]
+        r_temp = str(temp)
+        r_temp = r_temp.replace('Summary', '')
+        print r_temp
+        descriptions.append(r_temp)
+    print len(descriptions)
+    print type(descriptions)
+    descriptions = list(set(descriptions))
+    print len(descriptions)
+    for d in descriptions:
+        print type(d)
+        count = test_tokens(d.decode('utf-8'))
+        contentlist.append(count)
+
+    get_tf_idf(contentlist)
+
+def rm_duplicate():
+    wordmap = open('data/WordMap.txt', 'r')
+    lines = wordmap.readlines()
+    print len(lines)
+    wordmap.close()
+
+    lines = list(set(lines))
+    print len(lines)
+    wordmap = open('data/WordMap.txt', 'w')
+    for line in lines:
+        print >> wordmap, line
+    wordmap.close()
+
+def rm_n():
+    wordmap = open('data/WordMap.txt', 'r')
+    lines = wordmap.readlines()
+    wordmap.close()
+
+    words = []
+    r_words = []
+    for line in lines:
+        line = line.replace('\n', '')
+        words.append(line)
+    print words
+    for w in words:
+        if not w == '':
+            r_words.append(w)
+    wordmap = open('data/WordMap.txt', 'w')
+    for r in r_words:
+        print >> wordmap, r
+    wordmap.close()
 
 
 def get_tokens(text):
@@ -78,20 +137,35 @@ def tfidf(word, count, count_list):
     return tf(word, count) * idf(word, count_list)
 
 def get_tf_idf(countlist):
-    words = []
+    # words = []
+    data = []
+    wordmap = open('data/WordMap.txt', 'r')
+    dictionary = wordmap.readlines()
+    r_dictionary = []
+    for d in dictionary:
+        r_dictionary.append(d.replace('\n', ''))
     for i, count in enumerate(countlist):
         print("Top words in document {}".format(i + 1))
         scores = {word: tfidf(word, count, countlist) for word in count}
         sorted_words = sorted(scores.items(), key=lambda x: x[1], reverse=True)
+        onefile = []
         for word, score in sorted_words[:15]:
-            words.append(word)
-            print word
+            # words.append(word)
+            for i in range(0,len(r_dictionary)):
+                if word == r_dictionary[i]:
+                    onefile.append((i, 100))
+        data.append(onefile)
+    source = open('data/Source.txt', 'w')
+    for d in data:
+        print >> source, d
+    source.close()
+            # print word
             # print("\tWord: {}, TF-IDF: {}".format(word, round(score, 5)))
-    words = list(set(words))
-    wordmap = open('data/WordMap.txt', 'a')
-    for w in words:
-        print >> wordmap, w
-    wordmap.close()
+    # words = list(set(words))
+    # wordmap = open('data/WordMap.txt', 'a')
+    # for w in words:
+    #     print >> wordmap, w
+    # wordmap.close()
 
 if __name__ == '__main__':
-    main()
+    sourcefile()
