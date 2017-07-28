@@ -135,20 +135,35 @@ def tfidf(word, count, count_list):
     return tf(word, count) * idf(word, count_list)
 
 def get_tf_idf(countlist):
-    words = []
+    # words = []
+    data = []
+    wordmap = open('data/WordMap.txt', 'r')
+    dictionary = wordmap.readlines()
+    r_dictionary = []
+    for d in dictionary:
+        r_dictionary.append(d.replace('\n', ''))
     for i, count in enumerate(countlist):
         print("Top words in document {}".format(i + 1))
         scores = {word: tfidf(word, count, countlist) for word in count}
         sorted_words = sorted(scores.items(), key=lambda x: x[1], reverse=True)
+        onefile = []
         for word, score in sorted_words[:15]:
-            words.append(word)
-            print word
+            # words.append(word)
+            for i in range(0,len(r_dictionary)):
+                if word == r_dictionary[i]:
+                    onefile.append((i, 100))
+        data.append(onefile)
+    source = open('data/Source.txt', 'w')
+    for d in data:
+        print >> source, d
+    source.close()
+            # print word
             # print("\tWord: {}, TF-IDF: {}".format(word, round(score, 5)))
-    words = list(set(words))
-    wordmap = open('data/WordMap.txt', 'a')
-    for w in words:
-        print >> wordmap, w
-    wordmap.close()
+    # words = list(set(words))
+    # wordmap = open('data/WordMap.txt', 'a')
+    # for w in words:
+    #     print >> wordmap, w
+    # wordmap.close()
 
 if __name__ == '__main__':
-    rm_n()
+    sourcefile()
