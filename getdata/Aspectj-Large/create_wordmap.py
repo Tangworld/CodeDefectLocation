@@ -88,7 +88,7 @@ def get_tf_idf(countlist):
             print word
             # print("\tWord: {}, TF-IDF: {}".format(word, round(score, 5)))
     words = list(set(words))
-    wordmap = open('WordMap.txt', 'a')
+    wordmap = open('data/WordMap.txt', 'a')
     for w in words:
         print >> wordmap, w
     wordmap.close()
