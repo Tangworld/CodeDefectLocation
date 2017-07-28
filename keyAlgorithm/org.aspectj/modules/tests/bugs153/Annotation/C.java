@@ -1,3 +1,0 @@
-// import
-public class C {
-}

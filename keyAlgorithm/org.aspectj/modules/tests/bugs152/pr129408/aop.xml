@@ -1,6 +1,0 @@
-<aspectj>
- <weaver options=""/>
-    <aspects>
-      <aspect name="AtAj"/>
-    </aspects>
-</aspectj>

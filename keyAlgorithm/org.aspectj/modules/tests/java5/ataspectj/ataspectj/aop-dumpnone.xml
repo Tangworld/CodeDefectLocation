@@ -1,5 +1,0 @@
-<?xml version="1.0"?>
-<aspectj>
-    <weaver options="-XmessageHandlerClass:ataspectj.TestHelper">
-    </weaver>
-</aspectj>

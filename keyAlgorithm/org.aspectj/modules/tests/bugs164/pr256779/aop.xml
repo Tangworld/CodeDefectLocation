@@ -1,7 +1,0 @@
-<aspectj>
-<aspects>
-<aspect name="com.OtherAspect"/>
-<aspect name="com.ThisAspect"/>
-</aspects>
-</aspectj>
-

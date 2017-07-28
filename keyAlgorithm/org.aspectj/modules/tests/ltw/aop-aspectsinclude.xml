@@ -1,5 +1,0 @@
-<aspectj>
-	<aspects>
-		<include within="pakkage.*"/>
-	</aspects>
-</aspectj>

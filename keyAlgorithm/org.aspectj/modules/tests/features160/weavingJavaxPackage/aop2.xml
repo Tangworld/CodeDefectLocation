@@ -1,6 +1,0 @@
-<aspectj>
-    <aspects>
-         <aspect name="X"/>
-    </aspects>
-    <weaver options="-verbose -Xset:weaveJavaxPackages=true"/>
-</aspectj>

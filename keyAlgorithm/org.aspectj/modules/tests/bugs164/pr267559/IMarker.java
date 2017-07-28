@@ -1,3 +1,0 @@
-public interface IMarker<H>
-{
-}

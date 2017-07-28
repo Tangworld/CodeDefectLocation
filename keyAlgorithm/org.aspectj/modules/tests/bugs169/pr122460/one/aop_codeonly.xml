@@ -1,7 +1,0 @@
-<aspectj>
-<aspects>
- <aspect name="a.A" scope="!runner.Runner AND code.Code"/>
-</aspects>
-<weaver>
-</weaver>
-</aspectj>

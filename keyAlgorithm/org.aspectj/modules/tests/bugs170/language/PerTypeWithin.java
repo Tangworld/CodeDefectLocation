@@ -1,1 +1,0 @@
-aspect PerTypeWithin pertypewithin(PerTypeWithin) { }

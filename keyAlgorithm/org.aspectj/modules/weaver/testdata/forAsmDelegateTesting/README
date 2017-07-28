@@ -1,5 +1,0 @@
-Rebuilding?
-
-Just do this:
-
-ajc -1.5 *.java -outjar stuff.jar

@@ -1,9 +1,0 @@
-<aspectj>
-	<aspects>
-	    <aspect name="PointcutLibrary"/>
-	    <aspect name="Tracing"/>
-	</aspects>
-	
-	<weaver options="-1.5"/>
-</aspectj>
-

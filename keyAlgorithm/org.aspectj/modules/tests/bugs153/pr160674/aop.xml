@@ -1,7 +1,0 @@
-<aspectj>
-    <weaver options="-Xset:bcelRepositoryCaching=false -verbose">
-    </weaver>
-    <aspects>
-         <aspect name="a.MyAspect"/> 
-    </aspects>
-</aspectj>

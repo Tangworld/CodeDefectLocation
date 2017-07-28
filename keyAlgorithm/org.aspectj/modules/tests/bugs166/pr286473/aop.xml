@@ -1,6 +1,0 @@
-<aspectj>
- <aspects>
-  <aspect name="Mark"/>
- </aspects>
- <weaver options="-showWeaveInfo -Xset:completeBinaryTypes=true"/>
-</aspectj>

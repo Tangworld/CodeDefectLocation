@@ -1,1 +1,0 @@
-Basic case, where type T needs munging with a declare parents before the join point in A.method() are matched.

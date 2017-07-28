@@ -1,1 +1,0 @@
-public aspect Aspect pertypewithin(*){}

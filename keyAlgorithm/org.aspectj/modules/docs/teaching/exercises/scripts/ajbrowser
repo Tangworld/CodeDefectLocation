@@ -1,3 +1,0 @@
-#!/bin/sh
-
-"$JAVA_HOME/bin/java" -classpath "$ASPECTJ_HOME/lib/aspectjtools.jar:$JAVA_HOME/lib/tools.jar:$CLASSPATH" -Xmx64M org.aspectj.tools.ajbrowser.Main "$@"

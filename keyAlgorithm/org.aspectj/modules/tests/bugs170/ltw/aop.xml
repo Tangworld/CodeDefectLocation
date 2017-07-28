@@ -1,7 +1,0 @@
-<aspectj>
-<aspects>
-<aspect name="ch.aspects.TriggerAll"/>
-</aspects>
-<weaver options="-Xset:completeBinaryTypes=true"/>
-</aspectj>
-

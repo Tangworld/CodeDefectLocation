@@ -1,9 +1,0 @@
-<aspectj>
-<aspects>
-  <aspect name="X"/>
-  <aspect name="com.andy.A"/>
-</aspects>
-<weaver options="-verbose -Xset:overWeaving=true -debug">
-</weaver>
-
-</aspectj>

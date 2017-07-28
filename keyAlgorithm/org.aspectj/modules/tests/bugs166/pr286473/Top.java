@@ -1,5 +1,0 @@
-
-@Anno
-public class Top {
-
-}

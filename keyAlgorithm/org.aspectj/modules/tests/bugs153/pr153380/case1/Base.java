@@ -1,2 +1,0 @@
-@Ann
-public interface Base {}

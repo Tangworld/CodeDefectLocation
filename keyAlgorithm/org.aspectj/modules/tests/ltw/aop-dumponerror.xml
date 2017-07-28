@@ -1,7 +1,0 @@
-<aspectj>
-	<aspects>
-        <concrete-aspect name="SubAspect" extends="MissingAspect">
-        	<pointcut name="scope" expression=""/>
-        </concrete-aspect>
-	</aspects>
-</aspectj>

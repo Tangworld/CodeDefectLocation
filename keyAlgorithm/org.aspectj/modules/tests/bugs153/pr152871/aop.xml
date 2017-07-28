@@ -1,8 +1,0 @@
-<aspectj>
-    <weaver>
-      <exclude within="a..MyAspect"/>
-    </weaver>
-    <aspects>
-         <aspect name="a.MyAspect"/> 
-    </aspects>
-</aspectj>

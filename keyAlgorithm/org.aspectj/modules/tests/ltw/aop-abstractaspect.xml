@@ -1,8 +1,0 @@
-<aspectj>
-	<aspects>
-	    <aspect name="AbstractAspect"/>
-	</aspects>
-    
-    <weaver options="-showWeaveInfo"/>
-</aspectj>
-

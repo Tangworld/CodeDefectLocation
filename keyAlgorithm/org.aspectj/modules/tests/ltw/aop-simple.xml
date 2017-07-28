@@ -1,4 +1,0 @@
-<aspectj>
-	<weaver options="-verbose">
-	</weaver>
-</aspectj>

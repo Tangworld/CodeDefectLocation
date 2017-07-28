@@ -1,5 +1,0 @@
-AspectDeclaration.buildInterTypeAndPerClause
-
-EclipseTypeMunger.mungeNewInnerClass
-
-EclipseTypeMunger.findOrCreateInterTypeMemberClassFinder

@@ -1,5 +1,0 @@
-<aspectj>
- <aspects>
-  <aspect name="test.Aspect"/>
- </aspects>
-</aspectj>

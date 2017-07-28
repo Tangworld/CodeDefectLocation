@@ -1,4 +1,0 @@
-BROKEN
-class C {
-
-}

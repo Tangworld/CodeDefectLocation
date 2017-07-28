@@ -1,7 +1,0 @@
-<aspectj>
-<aspects>
- <aspect name="a.A"/>
-</aspects>
-<weaver>
-</weaver>
-</aspectj>

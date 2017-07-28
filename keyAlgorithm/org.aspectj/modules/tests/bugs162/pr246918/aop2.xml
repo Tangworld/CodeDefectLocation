@@ -1,9 +1,0 @@
-<aspectj>
-  <aspects>
-    <concrete-aspect name="SubAspect" extends="Base" perclause="pertypewithin(D*)">
-    
-    </concrete-aspect>
-  </aspects>
-  <weaver>
-  </weaver>
-</aspectj>

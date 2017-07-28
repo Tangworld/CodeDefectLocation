@@ -1,1 +1,0 @@
-Now type T needs munging with a declare annotation 

@@ -1,5 +1,0 @@
-
-class Mumble {
-
-	this fails
-}

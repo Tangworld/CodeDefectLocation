@@ -1,8 +1,0 @@
-
-
-
-@NeedsXYZ
-public class YetAnotherClass
-{
-    
-}

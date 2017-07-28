@@ -1,1 +1,0 @@
-public aspect Simple14Aspect {}

@@ -1,5 +1,0 @@
-
-@LinkedListItem
-public class AnotherItem {
-
-}
