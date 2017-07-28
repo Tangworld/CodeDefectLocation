@@ -27,12 +27,14 @@ def sourcefile():
             for line in lines:
                 line = line.replace('\n', '')
                 content += line
-            print content
-            print type(content)
+            # print content
+            # print type(content)
             count = test_tokens(content.decode('utf-8'))
             contentlist.append(count)
         except Exception, e:
             print e
+            count = ''
+            contentlist.append(count)
             continue
 
     get_tf_idf(contentlist)
