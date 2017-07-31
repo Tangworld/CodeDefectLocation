@@ -13,7 +13,7 @@ $Id: javadom.py,v 1.7 2001/02/19 15:21:50 fdrake Exp $
 """
 
 # Todo:
-# - extend test suite
+# - extend test.txt suite
 # - start using _set_up_attributes, or give up as too slow?
 # - support level 2
 
@@ -674,7 +674,7 @@ NODE_CLASS_MAP = {
     NOTATION_NODE : Notation
     }
 
-# ===== Self-test
+# ===== Self-test.txt
 
 if __name__ == "__main__":
     impl = BrownellDomImplementation() #XercesDomImplementation()  #SunDomImplementation()

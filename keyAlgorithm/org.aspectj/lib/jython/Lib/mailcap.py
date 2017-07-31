@@ -140,15 +140,15 @@ def findmatch(caps, MIMEtype, key='view', filename="/dev/null", plist=[]):
 
     Return a tuple containing the command line, and the mailcap entry
     used; (None, None) if no match is found.  This may invoke the
-    'test' command of several matching entries before deciding which
+    'test.txt' command of several matching entries before deciding which
     entry to use.
 
     """
     entries = lookup(caps, MIMEtype, key)
     # XXX This code should somehow check for the needsterminal flag.
     for e in entries:
-        if e.has_key('test'):
-            test = subst(e['test'], filename, plist)
+        if e.has_key('test.txt'):
+            test = subst(e['test.txt'], filename, plist)
             if test and os.system(test) != 0:
                 continue
         command = subst(e[key], MIMEtype, filename, plist)
@@ -208,7 +208,7 @@ def findparam(name, plist):
     return ''
 
 
-# Part 4: test program.
+# Part 4: test.txt program.
 
 def test():
     import sys

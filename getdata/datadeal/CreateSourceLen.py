@@ -13,7 +13,7 @@ def main():
         # while line:
             cnt += 1
             line = line.replace('\n','')
-            # print >> test,line
+            # print >> test.txt,line
             # print line
             filename = pre + line
             myfile = open(filename,"r")
@@ -37,14 +37,14 @@ if __name__ == "__main__":
     test.close()
     print len(result)
     # arr = []
-    # test = open("sourceLen.txt","r")
-    # test2 = open("test.txt","w")
-    # temp = test.readlines()
+    # test.txt = open("sourceLen.txt","r")
+    # test2 = open("test.txt.txt","w")
+    # temp = test.txt.readlines()
     # for t in temp:
     #     num = int(t)
     #     arr.append(num)
     # print >> test2,arr
-    # test.close()
+    # test.txt.close()
     # test2.close()
     # test3 = open("sourceLen.txt","w")
     # print >> test3,arr

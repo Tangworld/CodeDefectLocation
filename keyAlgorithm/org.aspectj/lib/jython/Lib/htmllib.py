@@ -396,7 +396,7 @@ def test(args = None):
     if args:
         file = args[0]
     else:
-        file = 'test.html'
+        file = 'test.txt.html'
 
     if file == '-':
         f = sys.stdin

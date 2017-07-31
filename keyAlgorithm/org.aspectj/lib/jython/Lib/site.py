@@ -269,7 +269,7 @@ except ImportError:
 
 #
 # Remove sys.setdefaultencoding() so that users cannot change the
-# encoding after initialization.  The test for presence is needed when
+# encoding after initialization.  The test.txt for presence is needed when
 # this module is run as a script, because this code is executed twice.
 #
 if hasattr(sys, "setdefaultencoding"):

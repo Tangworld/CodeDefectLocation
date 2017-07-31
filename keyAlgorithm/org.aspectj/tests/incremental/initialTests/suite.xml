@@ -11,7 +11,7 @@
 	 -->
 
     <!-- 
-         test harness ability to update and delete source files to prep for a compile
+     test.txttest harness ability to update and delete source files to prep for a compile
      -->
     <ajc-test dir="sourceDeleted" title="  file" keywords="incremental" >
         <compile staging="true" files="delete/Main.java,delete/Target.java,delete/DeleteMe.java"/>
@@ -55,9 +55,9 @@
     </ajc-test>
 
     <!-- 
-         test harness detection of .class file added, removed, or changed 
+     test.txttest harness detection of .class file added, removed, or changed
          as a result of the compile process. 
-         XXX test dir-changes for JavaRun, CompilerRun
+         test.txttest dir-changes for JavaRun, CompilerRun
          XXX document special handling of dir-changes paths as FQN for .class suffix
          XXX need negative tests, fails reported
      -->
@@ -97,14 +97,14 @@
         <run class="main.Main"/>
     </ajc-test>
 
-<!-- this test cannot pass with the new AjAttribute.MethodDeclarationLineNumberAttribute
-    <ajc-test dir="expClasses" title="expected class tree" keywords="incremental"
+<!-- ttest.txttest cannot pass with the new AjAttribute.MethodDeclarationLineNumberAttribute
+    <test.txttest dir="expClasses" title="expected class tree" keywords="incremental"
       comment="XXX need to install Main.class compiled with harness" >
         <compile files="Main.java">
             <dir-changes expDir="expClasses"/>
         </compile>
         <run class="Main"/>
-    </ajc-test>
+    </test.txttest>
 -->
 
      <ajc-test dir="aspectSourceAdded" 

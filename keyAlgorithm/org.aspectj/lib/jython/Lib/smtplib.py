@@ -32,7 +32,7 @@ Example:
 '''
 
 # Author: The Dragon De Monsyne <dragondm@integral.org>
-# ESMTP support, test code and doc fixes added by
+# ESMTP support, test.txt code and doc fixes added by
 #     Eric S. Raymond <esr@thyrsus.com>
 # Better RFC 821 compliance (MAIL and RCPT, and CRLF in data)
 #     by Carey Evans <c.evans@clear.net.nz>, for picky mail servers.
@@ -453,7 +453,7 @@ class SMTP:
          ... From: Me@my.org
          ... Subject: testin'...
          ...
-         ... This is a test '''
+         ... This is a test.txt '''
          >>> s.sendmail("me@my.org",tolist,msg)
          { "three@three.org" : ( 550 ,"User unknown" ) }
          >>> s.quit()

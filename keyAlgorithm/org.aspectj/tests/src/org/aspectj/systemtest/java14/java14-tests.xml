@@ -40,7 +40,7 @@
         <run class="IntroducedAssertion" vm="1.4"/>
     </ajc-test>
 
-    <!-- This test case requires bytecode generated according to the declaring type
+    <!-- Ttest.txttest case requires bytecode generated according to the declaring type
         rules in JLS 2nd edition.  -1.4 must be passed to the eclipse compiler for
         this behavior. -->
     <ajc-test dir="new"
@@ -50,7 +50,7 @@
         <run class="MethodSignatures" vm="1.4"/>
     </ajc-test>  
 
-    <!-- This test case requires bytecode generated according to the declaring type
+    <!-- Ttest.txttest case requires bytecode generated according to the declaring type
         rules in JLS 2nd edition.  -1.4 must be passed to the eclipse compiler for
         this behavior. -->
     <ajc-test dir="new" title="correct types of parameters at call-sites"
@@ -59,7 +59,7 @@
         <run class="CallTypes" vm="1.4"/>
     </ajc-test>
 
-    <!-- This test case requires bytecode generated according to the declaring type
+    <!-- Ttest.txttest case requires bytecode generated according to the declaring type
         rules in JLS 2nd edition.  -1.4 must be passed to the eclipse compiler for
         this behavior.  That means that this case will only work under 1.4.  -->
     <ajc-test dir="new"

@@ -574,7 +574,7 @@
         </ant>
     </ajc-test>
 <!--    
-	<ajc-test dir="ltw" title="TestServer with Parent and Child" keywords="ltw,server">
+	<test.txttest dir="ltw" title="TestServer with Parent and Child" keywords="ltw,server">
         <compile files="Parent.java" options="-outjar parent.jar"/>
         <compile files="Child.java" options="-classpath parent.jar -outjar child.jar"/>
         <ant file="ant-server.xml" target="TestServer with Parent and Child" verbose="true">
@@ -586,7 +586,7 @@
             	<line text="Stopping ..."/>
         	</stdout>
         </ant>
-    </ajc-test>
+    </test.txttest>
 -->    
 	<ajc-test dir="ltw" title="TestServer with Parent and Child" keywords="ltw,server">
         <compile files="HelloWorldWithException.java" options="-outjar child.jar"/>

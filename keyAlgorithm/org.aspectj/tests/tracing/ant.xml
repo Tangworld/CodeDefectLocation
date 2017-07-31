@@ -10,7 +10,7 @@
         <java fork="yes" classname="TracingTest" failonerror="yes">
             <classpath refid="aj.path"/>
             <!-- use META-INF/aop.xml style -->
-<!--            <jvmarg value="-javaagent:${aj.root}/lib/test/loadtime5.jar"/>-->
+<!--            <jvmarg value="-javaagent:${aj.root}/test.txttest/loadtime5.jar"/>-->
 <!--            <jvmarg line="${jdwp}"/>-->
         </java>
     </target>
@@ -19,7 +19,7 @@
         <java fork="yes" classname="DefaultTracingTest" failonerror="yes">
             <classpath refid="aj.path"/>
             <!-- use META-INF/aop.xml style -->
-<!--            <jvmarg value="-javaagent:${aj.root}/lib/test/loadtime5.jar"/>-->
+<!--            <jvmarg value="-javaagent:${aj.root}/test.txttest/loadtime5.jar"/>-->
 <!--            <jvmarg line="${jdwp}"/>-->
         </java>
     </target>

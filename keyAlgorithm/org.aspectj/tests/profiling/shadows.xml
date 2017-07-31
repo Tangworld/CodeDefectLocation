@@ -60,7 +60,7 @@
 				     includes="**/*.java,**/*.aj"/>
 			<fileset dir="${spring.install.dir}/tiger/src"
 				     includes="**/*.java,**/*.aj"/>
-			<fileset dir="${test.aspects.src.dir}"
+			<fileset dirtest.txttest.aspects.src.dir}"
 				     includes="**/*.java,**/*.aj"/>
 		</copy>
 	</target>-->

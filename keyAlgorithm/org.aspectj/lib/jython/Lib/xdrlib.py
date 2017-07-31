@@ -223,7 +223,7 @@ class Unpacker:
         return self.unpack_farray(n, unpack_item)
 
 
-# test suite
+# test.txt suite
 def _test():
     p = Packer()
     packtest = [
@@ -240,7 +240,7 @@ def _test():
     succeedlist = [1] * len(packtest)
     count = 0
     for method, args in packtest:
-        print 'pack test', count,
+        print 'pack test.txt', count,
         try:
             apply(method, args)
             print 'succeeded'
@@ -265,7 +265,7 @@ def _test():
         ]
     count = 0
     for method, args, pred in unpacktest:
-        print 'unpack test', count,
+        print 'unpack test.txt', count,
         try:
             if succeedlist[count]:
                 x = apply(method, args)

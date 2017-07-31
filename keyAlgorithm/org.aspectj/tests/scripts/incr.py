@@ -182,7 +182,7 @@ def deleteType(className):
 
 
 def test(batch=0, couldChange=[], changed=[], deleted=[], errors=[]):
-	print ">>>>test changed=%s, couldChange=%s, deleted=%s, errors=%s<<<<" % (changed, couldChange, deleted, errors)
+	print ">>>>test.txt changed=%s, couldChange=%s, deleted=%s, errors=%s<<<<" % (changed, couldChange, deleted, errors)
 	
 	start = snapshot(outdir)
 	#print start

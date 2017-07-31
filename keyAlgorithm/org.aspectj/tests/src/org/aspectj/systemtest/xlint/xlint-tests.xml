@@ -237,7 +237,7 @@
 	</ajc-test>
 
 <!--	
-   <ajc-test dir="bugs/seven/lint" title="7 lint warnings" pr="91719">
+   <test.txttest dir="bugs/seven/lint" title="7 lint warnings" pr="91719">
   <compile options="-1.5" files="Main.java">
    <message kind="warning" line="31"  text="no match for this type name: java.xxx.Object [Xlint:invalidAbsoluteTypeName]">
    </message> 
@@ -254,7 +254,7 @@
    <message kind="warning" line="157"  text="no interface constructor-execution join point - use java.util.List+ for implementing classes [Xlint:noInterfaceCtorJoinpoint]">
    </message>
   </compile>
-  </ajc-test>
+  </test.txttest>
 -->
 
     <ajc-test dir="harness" 

@@ -35,7 +35,7 @@ if swing is not None:
 	import pawt, sys
 	pawt.swing = swing
 	sys.modules['pawt.swing'] = swing
-	swing.__dict__['test'] = test
+	swing.__dict__['test.txt'] = test
 	
 	#These two lines help out jpythonc to figure out this very strange module
 	swing.__dict__['__file__'] = __file__

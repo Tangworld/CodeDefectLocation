@@ -352,7 +352,7 @@ class Folder:
         # - 'prev', 'next' as count
         # - Sequence-Negation option
         all = self.listmessages()
-        # Observed behavior: test for empty folder is done first
+        # Observed behavior: test.txt for empty folder is done first
         if not all:
             raise Error, "no messages in %s" % self.name
         # Common case first: all is frequently the default
@@ -958,18 +958,18 @@ def updateline(file, key, value, casefold = 1):
 
 def test():
     global mh, f
-    os.system('rm -rf $HOME/Mail/@test')
+    os.system('rm -rf $HOME/Mail/@test.txt')
     mh = MH()
     def do(s): print s; print eval(s)
     do('mh.listfolders()')
     do('mh.listallfolders()')
-    testfolders = ['@test', '@test/test1', '@test/test2',
-                   '@test/test1/test11', '@test/test1/test12',
-                   '@test/test1/test11/test111']
+    testfolders = ['@test.txt', '@test.txt/test1', '@test.txt/test2',
+                   '@test.txt/test1/test11', '@test.txt/test1/test12',
+                   '@test.txt/test1/test11/test111']
     for t in testfolders: do('mh.makefolder(%s)' % `t`)
-    do('mh.listsubfolders(\'@test\')')
-    do('mh.listallsubfolders(\'@test\')')
-    f = mh.openfolder('@test')
+    do('mh.listsubfolders(\'@test.txt\')')
+    do('mh.listallsubfolders(\'@test.txt\')')
+    f = mh.openfolder('@test.txt')
     do('f.listsubfolders()')
     do('f.listallsubfolders()')
     do('f.getsequences()')

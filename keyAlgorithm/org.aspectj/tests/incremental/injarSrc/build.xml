@@ -1,5 +1,5 @@
 
-<!-- to test incremental task, run setup then test -->
+<!--test.txttest incremental task, run setup ttest.txttest -->
 <project default="setup" basedir=".">
 	<target name="init">
 		<property name="test.dir"

@@ -53,10 +53,10 @@
 	 -->
 
     <!-- 
-         test harness ability to update and delete source files to prep for a compile
+     test.txttest harness ability to update and delete source files to prep for a compile
      -->
     <!-- 
-         test harness ability to detect directory changes
+     test.txttest harness ability to detect directory changes
      -->
     <ajc-test title="report dir-changes fail when expected added class not added"
     	dir="classAdded" keywords="incremental" >

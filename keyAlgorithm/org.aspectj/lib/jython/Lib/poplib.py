@@ -6,9 +6,9 @@ Based on the J. Myers POP3 draft, Jan. 96
 # Author: David Ascher <david_ascher@brown.edu>
 #         [heavily stealing from nntplib.py]
 # Updated: Piers Lauder <piers@cs.su.oz.au> [Jul '97]
-# String method conversion and test jig improvements by ESR, February 2001.
+# String method conversion and test.txt jig improvements by ESR, February 2001.
 
-# Example (see the test function at the end of this file)
+# Example (see the test.txt function at the end of this file)
 
 # Imports
 

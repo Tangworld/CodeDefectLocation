@@ -395,7 +395,7 @@ def llda_test(data, k_vocab_total, pl, phi, omega, ptw, fold):
             if len(list(set([sCom]) & sourceCom[t])) > 0:
                 pzd_f[t] = pzd[t]
 
-        # test one record
+        # test.txt one record
         s_ptd = sorted(pzd_f.items(), lambda x, y: cmp(x[1], y[1]), reverse=True)
         return_ptd.append(s_ptd[:20])
     return return_ptd

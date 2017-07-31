@@ -10,8 +10,8 @@
    	    !verbose
    	    -eclipse
    	  
-   	  This is used by a JUnit test HarnessSelectionTest.	  
-   	  Do not change the outcome or attributes without passing that test.
+   	  This is used by a JUtest.txttest HarnessSelectionTest.
+   	  Do not change the outcome or attributes without passing ttest.txttest.
     -->
     
     <ajc-test dir="." title="run and pass" 

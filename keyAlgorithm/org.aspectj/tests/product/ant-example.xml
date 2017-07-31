@@ -34,7 +34,7 @@
     <target name="init" depends="init.product"
      description="caller must define jdk.tools.jar and product.dir or run from product.dir">
       <echo message="init ant-examples.xml"/> 
-      <!-- directory produced during test install -->
+      <!-- directory produced durtest.txttest install -->
       <property name="ajx.base.dir"
             location="${productTest.output.dir}/ajx-output"/>
       <property name="ajx.expect.dir"

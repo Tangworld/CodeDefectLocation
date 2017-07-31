@@ -834,7 +834,7 @@ class FormContent(FormContentDict):
 # ===============
 
 def test(environ=os.environ):
-    """Robust test CGI script, usable as main program.
+    """Robust test.txt CGI script, usable as main program.
 
     Write minimal HTTP headers and dump all information provided to
     the script in HTML form.
@@ -845,7 +845,7 @@ def test(environ=os.environ):
     print
     sys.stderr = sys.stdout
     try:
-        form = FieldStorage()   # Replace with other classes to test those
+        form = FieldStorage()   # Replace with other classes to test.txt those
         print_directory()
         print_arguments()
         print_form(form)
@@ -855,7 +855,7 @@ def test(environ=os.environ):
             exec "testing print_exception() -- <I>italics?</I>"
         def g(f=f):
             f()
-        print "<H3>What follows is a test, not an actual exception:</H3>"
+        print "<H3>What follows is a test.txt, not an actual exception:</H3>"
         g()
     except:
         print_exception()
@@ -865,7 +865,7 @@ def test(environ=os.environ):
     global maxlen
     maxlen = 50
     try:
-        form = FieldStorage()   # Replace with other classes to test those
+        form = FieldStorage()   # Replace with other classes to test.txt those
         print_directory()
         print_arguments()
         print_form(form)
@@ -995,6 +995,6 @@ def escape(s, quote=None):
 # Invoke mainline
 # ===============
 
-# Call test() when this file is run as a script (not imported as a module)
+# Call test.txt() when this file is run as a script (not imported as a module)
 if __name__ == '__main__':
     test()

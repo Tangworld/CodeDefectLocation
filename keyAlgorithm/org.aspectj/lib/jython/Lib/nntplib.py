@@ -539,7 +539,7 @@ class NNTP:
 
 
 def _test():
-    """Minimal test function."""
+    """Minimal test.txt function."""
     s = NNTP('news', readermode='reader')
     resp, count, first, last, name = s.group('comp.lang.python')
     print resp
@@ -552,6 +552,6 @@ def _test():
     print resp
 
 
-# Run the test when run as a script
+# Run the test.txt when run as a script
 if __name__ == '__main__':
     _test()

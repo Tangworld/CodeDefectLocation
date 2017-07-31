@@ -162,7 +162,7 @@ def get_alt_binary(f, func, blocksize):
         func(data)
 
 def test():
-    """Trivial test program."""
+    """Trivial test.txt program."""
     import sys
     import getopt
     opts, args = getopt.getopt(sys.argv[1:], '')
@@ -201,6 +201,6 @@ def test():
         data = get_binary(f)
         print 'binary data:', len(data), 'bytes:', `data[:100]`[:40]
 
-# Run the test when run as script
+# Run the test.txt when run as script
 if __name__ == '__main__':
     test()

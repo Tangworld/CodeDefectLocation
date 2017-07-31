@@ -1,5 +1,5 @@
 
-<!-- to test incremental task, run setup then test -->
+<!--test.txttest incremental task, run setup ttest.txttest -->
 <project default="test" basedir=".">
 
   <path id="aspectjrt.path">
@@ -131,7 +131,7 @@
 			tagFile="${tag.file}"
             verbose="on"/>      
             <!--
-			destDir="${test.dir}/output/classes"
+			destDirtest.txttest.dir}/output/classes"
 			incremental="true"
 			-->
 	</target>

@@ -155,7 +155,7 @@ class Profile:
                 self.dispatcher = self.trace_dispatch_i
         else:
             self.timer = timer
-            t = self.timer() # test out timer function
+            t = self.timer() # test.txt out timer function
             try:
                 if len(t) == 2:
                     self.dispatcher = self.trace_dispatch

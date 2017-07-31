@@ -12,7 +12,7 @@
         FAIL pass {title..}  # expect pass, actual fail 
         PASS fail {title..}  # expect fail, actual pass
 
-     Also pick out "incremental-test" keyword for incremental tests.
+     Also pick out "incrementest.txttest" keyword for incremental tests.
 	 
 	 Variant tests below:
 	 - [fork|spoon]-[out|err|Error]-[detected|ignored]
@@ -25,13 +25,13 @@
 -->
 <suite>
 <!-- disabled so skipping expect-fail causes all to pass
-	 (error emitted before test is skipped)
+	 (error emitted beftest.txttest is skipped)
 	
-    <ajc-test dir="noSuchDir"
+    <test.txttest dir="noSuchDir"
       title="fail no such directory - report as error (AjcTest specification)"
      keywords="expect-fail">
         <compile files="NoSuchFile.java"/>
-    </ajc-test>
+    </test.txttest>
 -->
 
     <ajc-test dir="harness"
@@ -623,17 +623,17 @@
 <!-- 
 
 reproduce hang from blocking IO read at JavaRun.java 
-    <ajc-test dir="harness/fork"
+    <test.txttest dir="harness/fork"
 		title="pass fork-Error-ignored Main runs, throws Error, expects Error">
         <compile files="MainWriter.java"/>
         <run class="MainWriter" options="Error" fork="true" exception="Error"/> 
-    </ajc-test>
+    </test.txttest>
 
 
 unforked exception check is failing.
 Also forked/unforked throw different exceptions
 
-    <ajc-test dir="harness/classpathTest"
+    <test.txttest dir="harness/classpathTest"
       title="pass specify jars and directories on classpath"
       keywords="purejava">
         <compile classpath="classesDir,jars/required.jar" 
@@ -646,7 +646,7 @@ Also forked/unforked throw different exceptions
         <compile classpath="classesDir,jars/required.jar"
 			files="main.zip"/>
         <run class="Main"/>
-    </ajc-test>
+    </test.txttest>
     
     
 -->

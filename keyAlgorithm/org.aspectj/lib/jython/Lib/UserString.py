@@ -161,12 +161,12 @@ class MutableString(UserString):
         return UserString(self.data)
 
 if __name__ == "__main__":
-    # execute the regression test to stdout, if called as a script:
+    # execute the regression test.txt to stdout, if called as a script:
     import os
     called_in_dir, called_as = os.path.split(sys.argv[0])
     called_in_dir = os.path.abspath(called_in_dir)
     called_as, py = os.path.splitext(called_as)
-    sys.path.append(os.path.join(called_in_dir, 'test'))
+    sys.path.append(os.path.join(called_in_dir, 'test.txt'))
     if '-q' in sys.argv:
         import test_support
         test_support.verbose = 0

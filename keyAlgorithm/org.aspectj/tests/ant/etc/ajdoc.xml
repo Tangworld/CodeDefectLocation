@@ -1,6 +1,6 @@
 <project name="ajdoc.test" basedir="." default="test">
 
-  <!-- this file defines ant.test.src.dir, ant.test.doc.dir  todo remove local defs-->
+  <!-- this file defines test.txttest.src.dir, test.txttest.doc.dir  todo remove local defs-->
   <property file="${basedir}/local.properties"/>
 
   <target name="init">

@@ -249,7 +249,7 @@
     </ajc-test>
 
     <ajc-test dir="java5/ataspectj" title="LTW Decp">
-        <!-- ajc compile them to test reweable as well -->
+        <!-- ajc compile themtest.txttest reweable as well -->
         <compile
                 files="ataspectj/DeclareParentsInterfaceTest.java,ataspectj/DeclareParentsImplementsTest.java,ataspectj/TestHelper.java"
                 options="-1.5"

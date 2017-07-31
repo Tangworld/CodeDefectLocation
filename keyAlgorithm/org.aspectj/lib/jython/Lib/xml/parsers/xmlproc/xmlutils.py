@@ -141,7 +141,7 @@ class EntityParser:
     def reset(self):
         """Resets the parser, losing all unprocessed data."""
         self.ent_stack=[]
-        self.open_ents=[]  # Used to test for entity recursion
+        self.open_ents=[]  # Used to test.txt for entity recursion
         self.current_sysID="Unknown"
         self.first_feed=1
 
@@ -691,8 +691,8 @@ else:
 # --- Some useful regexps
 
 namestart="ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz_:"+\
-          "ÀÁÂÃÄÅÆÇÈÉÊËÌÍÎÏĞÑÒÓÔÕÖØÙÚÛÜİŞßàáâãäåæçèéêëìíîïğñòóôõöøùúûüışÿ"
-namechars=namestart+"0123456789.·-"
+          "ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½"
+namechars=namestart+"0123456789.ï¿½-"
 whitespace="\n\t \r"
 
 reg_ws=re.compile("[\n\t \r]+")

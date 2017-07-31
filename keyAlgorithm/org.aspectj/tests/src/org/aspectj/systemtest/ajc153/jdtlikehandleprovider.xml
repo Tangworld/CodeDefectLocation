@@ -136,9 +136,9 @@
       <compile files="C.java" options="-emacssym -Xset:minimalModel=false"/>
     </ajc-test>
 
-<!--    <ajc-test dir="features153/jdtlikehandleprovider" title="package declaration same as jdt">
+<!--    <test.txttest dir="features153/jdtlikehandleprovider" title="package declaration same as jdt">
       <compile files="Demo.java" options="-emacssym"/>
-    </ajc-test>
+    </test.txttest>
 -->
     <ajc-test dir="features153/jdtlikehandleprovider" title="import declaration same as jdt">
       <compile files="Demo.java" options="-emacssym -Xset:minimalModel=false"/>

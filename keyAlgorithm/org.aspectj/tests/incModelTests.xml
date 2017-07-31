@@ -12,7 +12,7 @@
 -->
 
 <!-- 
-     These tests utilise the inc-compile test harness option but I've extended it
+     These tests utilise the inc-comptest.txttest harness option but I've extended it
      with a checkModel option which enables me to check information about the model
      after a incremental compilation step.
 -->
@@ -36,7 +36,7 @@
 	number in every attribute we can make the compiler more robust to coping with 'old' attributes
 	that might be missing certain options or values.
 	
-	Hence the first test here is not complete...
+	Hence the fitest.txttest here is not complete...
 	
 -->
     <ajc-test dir="incremental/model/introduction" 

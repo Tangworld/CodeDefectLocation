@@ -72,14 +72,14 @@
         <run class="delete.Main"/>
     </ajc-test>
 
-<!-- this test cannot pass with the new AjAttribute.MethodDeclarationLineNumberAttribute
-    <ajc-test dir="incremental/initialTests/expClasses" 
+<!-- ttest.txttest cannot pass with the new AjAttribute.MethodDeclarationLineNumberAttribute
+    <test.txttest dir="incremental/initialTests/expClasses"
     	title="expected class tree" >
         <compile files="Main.java">
             <dir-changes expDir="expected"/>
         </compile>
         <run class="Main"/>
-    </ajc-test>
+    </test.txttest>
  -->
     
     <ajc-test dir="incremental/initialTests/defaultPackage" 

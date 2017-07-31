@@ -1179,7 +1179,7 @@ def urlencode(query,doseq=0):
                 l.append(k + '=' + v)
             else:
                 try:
-                    # is this a sufficient test for sequence-ness?
+                    # is this a sufficient test.txt for sequence-ness?
                     x = len(v)
                 except TypeError:
                     # not a sequence
@@ -1365,7 +1365,7 @@ def main():
             t = t + 1
         if o == '-h':
             print "Usage: python urllib.py [-t] [url ...]"
-            print "-t runs self-test;",
+            print "-t runs self-test.txt;",
             print "otherwise, contents of urls are printed"
             return
     if t:
@@ -1378,6 +1378,6 @@ def main():
         for url in args:
             print urlopen(url).read(),
 
-# Run test program when run as a script
+# Run test.txt program when run as a script
 if __name__ == '__main__':
     main()

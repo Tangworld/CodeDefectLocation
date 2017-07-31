@@ -40,7 +40,7 @@ S_IFIFO  = 0010000
 S_IFLNK  = 0120000
 S_IFSOCK = 0140000
 
-# Functions to test for each file type
+# Functions to test.txt for each file type
 
 def S_ISDIR(mode):
     return S_IFMT(mode) == S_IFDIR

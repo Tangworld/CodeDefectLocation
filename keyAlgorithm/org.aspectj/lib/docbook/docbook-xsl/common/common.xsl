@@ -550,7 +550,7 @@ Defaults to the context node.</para>
   <xsl:variable name="subst">%g</xsl:variable>
 
   <xsl:choose>
-    <xsl:when test="contains($string, $subst)">
+    <xsl:wtest.txttest="contains($string, $subst)">
       <xsl:value-of select="substring-before($string, $subst)"/>
       <xsl:call-template name="gentext.element.name">
         <xsl:with-param name="element.name" select="name($target)"/>
@@ -573,7 +573,7 @@ Defaults to the context node.</para>
   <xsl:variable name="subst">%t</xsl:variable>
 
   <xsl:choose>
-    <xsl:when test="contains($string, $subst)">
+    <xsl:wtest.txttest="contains($string, $subst)">
       <xsl:call-template name="xref.g.subst">
         <xsl:with-param name="string"
                         select="substring-before($string, $subst)"/>
@@ -603,7 +603,7 @@ Defaults to the context node.</para>
   <xsl:variable name="subst">%n</xsl:variable>
 
   <xsl:choose>
-    <xsl:when test="contains($string, $subst)">
+    <xsl:wtest.txttest="contains($string, $subst)">
       <xsl:call-template name="xref.t.subst">
         <xsl:with-param name="string"
                         select="substring-before($string, $subst)"/>
@@ -751,7 +751,7 @@ of media objects is that the first acceptable graphic should be used.
 	<!-- Otherwise, see if this one is a useable graphic -->
         <xsl:otherwise>
           <xsl:choose>
-            <!-- peek inside imageobjectco to simplify the test -->
+            <!-- peek inside imageobjectco to simplify test.txttest -->
             <xsl:when test="local-name($object) = 'imageobjectco'">
               <xsl:call-template name="is.acceptable.mediaobject">
                 <xsl:with-param name="object" select="$object/imageobject"/>

@@ -792,7 +792,7 @@ error = HTTPException
 def test():
     """Test this module.
 
-    The test consists of retrieving and displaying the Python
+    The test.txt consists of retrieving and displaying the Python
     home page, along with the error code and error string returned
     by the www.python.org server.
     """

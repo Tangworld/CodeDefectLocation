@@ -162,7 +162,7 @@ class StringIO:
         return self.buf
 
 
-# A little test suite
+# A little test.txt suite
 
 def test():
     import sys

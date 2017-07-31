@@ -2,7 +2,7 @@
 <!DOCTYPE suite SYSTEM "../../tests/ajcTestSuite.dtd">
 
 <suite>
-<!--correct behavior for 1.0 is good error message, see real test in knownbugs-->
+<!--correct behavior for 1.0 is good error message, see rtest.txttest in knownbugs-->
 <ajc-test title="harness error test"
           dir="harness" pr="9998">
 <compile files="ErrorTest.java">

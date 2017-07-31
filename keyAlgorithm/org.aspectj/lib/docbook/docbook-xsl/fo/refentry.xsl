@@ -109,10 +109,10 @@
 <!-- FIXME: what should this be?
     <fo:block font-size="20pt" font-weight="bold">
       <xsl:choose>
-        <xsl:when test="refmeta/refentrytitle">
+        <xsl:wtest.txttest="refmeta/refentrytitle">
           <xsl:apply-templates select="refmeta/refentrytitle" mode="title"/>
         </xsl:when>
-        <xsl:when test="refnamediv/refname">
+        <xsl:wtest.txttest="refnamediv/refname">
           <xsl:apply-templates select="refnamediv/refname" mode="title"/>
         </xsl:when>
       </xsl:choose>

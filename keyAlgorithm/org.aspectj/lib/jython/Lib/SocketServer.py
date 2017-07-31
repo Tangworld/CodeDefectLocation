@@ -121,9 +121,9 @@ BaseServer:
 # Author of the BaseServer patch: Luke Kenneth Casson Leighton
 
 # XXX Warning!
-# There is a test suite for this module, but it cannot be run by the
-# standard regression test.
-# To run it manually, run Lib/test/test_socketserver.py.
+# There is a test.txt suite for this module, but it cannot be run by the
+# standard regression test.txt.
+# To run it manually, run Lib/test.txt/test_socketserver.py.
 
 __version__ = "0.4"
 

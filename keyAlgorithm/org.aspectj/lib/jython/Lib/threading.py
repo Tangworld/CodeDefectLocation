@@ -540,7 +540,7 @@ def enumerate():
 _MainThread()
 
 
-# Self-test code
+# Self-test.txt code
 
 def _test():
 

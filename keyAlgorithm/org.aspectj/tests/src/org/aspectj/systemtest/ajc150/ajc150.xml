@@ -664,7 +664,7 @@
 
     <!-- Currently a warning doesn't occur if the annotation is already on the field
          (see bug 113029). If this is fixed, need to add check for this warning to this
-         test as in test "declare annotation on non existent type - 4" -->
+     test.txttest astest.txttest "declare annotation on non existent type - 4" -->
     <ajc-test dir="bugs150/pr99191" title="declare annotation on non existent type - 2">
         <compile files="pr99191_2.java" options="-1.5">
         </compile>
@@ -3166,7 +3166,7 @@
     </ajc-test>
     
     
-    <!--ajc-test dir="java5/annotations/declare" title="declare @type - annotations with different targets - binary weaving">
+    <!--test.txttest dir="java5/annotations/declare" title="declare @type - annotations with different targets - binary weaving">
         <weave classesFiles="BaseTypes.java" aspectsFiles="DecaTypeBin5.aj" options="-1.5"  xlintfile="ignoreTypeNotExposed.properties">
             <message kind="error" line="15" text="The annotation @ColorM is disallowed for this location"/>
             <message kind="error" line="16" text="The annotation @ColorC is disallowed for this location"/>
@@ -3183,7 +3183,7 @@
         		<line text="A.m() running"/>
         	</stderr>
         </run>
-    </ajc-test-->
+    </test.txttest-->
     
     <ajc-test dir="java5/annotations/declare" title="declare @type - annotations with different targets - source weaving">
         <compile files="BaseTypes.java,DecaTypeBin5.aj" options="-1.5"  xlintfile="ignoreTypeNotExposed.properties">
@@ -3197,7 +3197,7 @@
         </compile>
     </ajc-test>
     
-    <!--ajc-test dir="java5/annotations/declare" title="declare @type - annotations with different targets (using type patterns) - binary weaving">
+    <!--test.txttest dir="java5/annotations/declare" title="declare @type - annotations with different targets (using type patterns) - binary weaving">
         <weave classesFiles="BaseTypes.java" aspectsFiles="DecaTypeBin6.aj" options="-1.5" xlintfile="ignoreTypeNotExposed.properties">
           <message kind="warning" line="15" text="A is not a valid target for annotation ColorM"/>
           <message kind="warning" line="16" text="A is not a valid target for annotation ColorC"/>        
@@ -3215,7 +3215,7 @@
         		<line text="A.m() running"/>
         	</stderr>
         </run>
-    </ajc-test-->
+    </test.txttest-->
     
     <ajc-test dir="java5/annotations/declare" title="declare @type - annotations with different targets (using type patterns) - source weaving">
         <compile files="BaseTypes.java,DecaTypeBin6.aj" options="-1.5" xlintfile="ignoreTypeNotExposed.properties">

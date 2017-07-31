@@ -283,7 +283,7 @@ def quote(file):
     return '"' + res + '"'
 
 
-# Small test program and example
+# Small test.txt program and example
 
 def test():
     print 'Testing...'

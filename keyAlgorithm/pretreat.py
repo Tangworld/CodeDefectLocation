@@ -463,7 +463,7 @@ def main():
     bug.nltkMatrix()
 
     bug.doTest()
-    # bug.test()
+    # bug.test.txt()
 
 
 if __name__ == '__main__':

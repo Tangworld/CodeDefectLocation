@@ -220,7 +220,7 @@ if __name__ == '__main__':
       xmlns:xsi="http://www.w3.org/2001/XMLSchemaInstance"
       xmlns:xsd="http://www.w3.org/2001/XMLSchemaZ" xmlns:spare='foo'
       SOAP-ENV:encodingStyle="http://schemas.xmlsoap.org/soap/encoding/">
-	<SOAP-ENV:Body xmlns='test-uri'><?MYPI spenser?>
+	<SOAP-ENV:Body xmlns='test.txt-uri'><?MYPI spenser?>
 	    <zzz xsd:foo='xsdfoo' xsi:a='xsi:a'/>
 	    <SOAP-ENC:byte>44</SOAP-ENC:byte>        <!-- 1 -->
 	    <Name xml:lang='en-GB'>This is the name</Name>Some

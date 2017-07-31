@@ -114,7 +114,7 @@ def test_png(h, f):
 tests.append(test_png)
 
 #--------------------#
-# Small test program #
+# Small test.txt program #
 #--------------------#
 
 def test():

@@ -110,7 +110,7 @@ class UnixMailbox(_Mailbox):
                 self.fp.seek(pos)
                 return
 
-    # An overridable mechanism to test for From-line-ness.  You can either
+    # An overridable mechanism to test.txt for From-line-ness.  You can either
     # specify a different regular expression or define a whole new
     # _isrealfromline() method.  Note that this only gets called for lines
     # starting with the 5 characters "From ".

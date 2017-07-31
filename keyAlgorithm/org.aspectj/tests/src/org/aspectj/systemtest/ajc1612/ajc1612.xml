@@ -735,7 +735,7 @@
 <!--  
 
   
-  <ajc-test dir="bugs1611/pr336136" title="itit">
+  <test.txttest dir="bugs1611/pr336136" title="itit">
     <compile files="Country_Roo_Op4j.java">
     <message kind="error" text="The import com.foo cannot be resolved" line="1"/>
     <message kind="error" text="The import org.javaruntype cannot be resolved" line="3"/>
@@ -745,7 +745,7 @@
     <message kind="error" text="Function cannot be resolved to a type" line="11"/>
     <message kind="error" text="can't determine modifiers of missing type Country_Roo_Op4j$Keys"/>
     </compile>"
-  </ajc-test>
+  </test.txttest>
   
   -->
   

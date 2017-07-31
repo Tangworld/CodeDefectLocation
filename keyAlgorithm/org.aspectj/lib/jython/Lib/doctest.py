@@ -61,7 +61,7 @@ WHICH DOCSTRINGS ARE EXAMINED?
   appears with name
       <name of M>.__test__.K
 
-Any classes found are recursively searched similarly, to test docstrings in
+Any classes found are recursively searched similarly, to test.txt docstrings in
 their contained methods and nested classes.  Private names reached from M's
 globals are skipped, but all names reached from M.__test__ are searched.
 
@@ -70,7 +70,7 @@ underscore (like "_my_func") but doesn't both begin and end with (at least)
 two underscores (like "__init__").  You can change the default by passing
 your own "isprivate" function to testmod.
 
-If you want to test docstrings in objects with private names too, stuff
+If you want to test.txt docstrings in objects with private names too, stuff
 them into an M.__test__ dict, or see ADVANCED USAGE below (e.g., pass your
 own isprivate function to Tester's constructor, or call the rundoc method
 of a Tester instance).
@@ -99,10 +99,10 @@ prefer the method in the next section.
 
 WHAT'S THE EXECUTION CONTEXT?
 
-By default, each time testmod finds a docstring to test, it uses a *copy*
+By default, each time testmod finds a docstring to test.txt, it uses a *copy*
 of M's globals (so that running tests on a module doesn't change the
-module's real globals, and so that one test in M can't leave behind crumbs
-that accidentally allow another test to work).  This means examples can
+module's real globals, and so that one test.txt in M can't leave behind crumbs
+that accidentally allow another test.txt to work).  This means examples can
 freely use any names defined at top-level in M.  It also means that sloppy
 imports (see above) can cause examples in external docstrings to use
 globals inappropriate for them.
@@ -115,7 +115,7 @@ M.__dict__ merged with the globals from other imported modules.
 WHAT IF I WANT TO TEST A WHOLE PACKAGE?
 
 Piece o' cake, provided the modules do their testing from docstrings.
-Here's the test.py I use for the world's most elaborate Rational/
+Here's the test.txt.py I use for the world's most elaborate Rational/
 floating-base-conversion pkg (which I'll distribute some day):
 
 from Rational import Cvt
@@ -624,7 +624,7 @@ Methods:
         (#failures, #tries).
 
     merge(other)
-        Merge in the test results from Tester instance "other".
+        Merge in the test.txt results from Tester instance "other".
 
 >>> from doctest import Tester
 >>> t = Tester(globs={'x': 42}, verbose=0)
@@ -712,13 +712,13 @@ see its docs for details.
         Return (#failures, #examples).
 
         >>> t = Tester(globs={}, verbose=1)
-        >>> test = r'''
+        >>> test.txt = r'''
         ...    # just an example
         ...    >>> x = 1 + 2
         ...    >>> x
         ...    3
         ... '''
-        >>> t.runstring(test, "Example")
+        >>> t.runstring(test.txt, "Example")
         Running string Example
         Trying: x = 1 + 2
         Expecting: nothing
@@ -862,7 +862,7 @@ see its docs for details.
         """
         verbose=None -> summarize results, return (#failures, #tests).
 
-        Print summary of test results to stdout.
+        Print summary of test.txt results to stdout.
         Optional arg 'verbose' controls how wordy this is.  By
         default, use the verbose setting established by the
         constructor.
@@ -913,9 +913,9 @@ see its docs for details.
 
     def merge(self, other):
         """
-        other -> merge in test results from the other Tester instance.
+        other -> merge in test.txt results from the other Tester instance.
 
-        If self and other both have a test result for something
+        If self and other both have a test.txt result for something
         with the same name, the (#failures, #tests) results are
         summed, and a warning is printed to stdout.
 
@@ -992,7 +992,7 @@ def testmod(m, name=None, globs=None, verbose=None, isprivate=None,
     Test examples in docstrings in functions and classes reachable from
     module m, starting with m.__doc__.  Private names are skipped.
 
-    Also test examples reachable from dict m.__test__ if it exists and is
+    Also test.txt examples reachable from dict m.__test__ if it exists and is
     not None.  m.__dict__ maps names to functions, classes and strings;
     function and class docstrings are tested even if the name is private;
     strings are tested directly, as if they were docstrings.

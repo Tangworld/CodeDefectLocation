@@ -357,7 +357,7 @@ getenv = environ.__getitem__
 # provide system
 system = _shellEnv.system
 
-########## test code
+########## test.txt code
 def _testGetOsType():
     testVals = {
         "Windows NT": "nt",
@@ -369,13 +369,13 @@ def _testGetOsType():
         }
 
     msgFmt = "_getOsType( '%s' ) should return '%s', not '%s'"
-    # test basic mappings
+    # test.txt basic mappings
     for key, val in testVals.items():
         got = _getOsType( key )
         assert got == val, msgFmt % ( key, val, got )
 
 def _testCmds( _shellEnv, testCmds, whichEnv ):
-    # test commands (key) and compare output to expected output (value).
+    # test.txt commands (key) and compare output to expected output (value).
     # this actually executes all the commands twice, testing the return
     # code by calling system(), and testing some of the output by calling
     # execute()
@@ -389,11 +389,11 @@ def _testCmds( _shellEnv, testCmds, whichEnv ):
                 "expected match for %s, got %s" % ( pattern, line )
     
 def _testSystem( shellEnv=_shellEnv ):
-    # test system and environment functionality
+    # test.txt system and environment functionality
     key, value = "testKey", "testValue"
     org = environ
     testCmds = [
-        # test commands and regexes to match first line of expected
+        # test.txt commands and regexes to match first line of expected
         # output on first and second runs
         # Note that the validation is incomplete for several of these
         # - they should validate depending on platform and pre-post, but
@@ -439,7 +439,7 @@ def _testSystem( shellEnv=_shellEnv ):
     assert environ.get( key, None ) == value, \
             "expected real environment to have %s set" % key
 
-    # test system using the non-default environment
+    # test.txt system using the non-default environment
     _testCmds( _shellEnv, testCmds, "initialized" )
     
     assert environ.has_key( "PATH" ), \

@@ -18,7 +18,7 @@
 -->            
             <jvmarg value="-Dorg.aspectj.tracing.debug=true"/>
             <!-- use META-INF/aop.xml style -->
-<!--            <jvmarg value="-javaagent:${aj.root}/lib/test/loadtime5.jar"/>-->
+<!--            <jvmarg value="-javaagent:${aj.root}/test.txttest/loadtime5.jar"/>-->
 <!--            <jvmarg line="${jdwp}"/>-->
         </java>
     </target>
@@ -35,7 +35,7 @@
 -->            
             <jvmarg value="-Dorg.aspectj.tracing.debug=true"/>
             <!-- use META-INF/aop.xml style -->
-<!--            <jvmarg value="-javaagent:${aj.root}/lib/test/loadtime5.jar"/>-->
+<!--            <jvmarg value="-javaagent:${aj.root}/test.txttest/loadtime5.jar"/>-->
 <!--            <jvmarg line="${jdwp}"/>-->
         </java>
     </target>

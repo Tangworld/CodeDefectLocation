@@ -572,7 +572,7 @@ class Random:
         u = self.random()
         return alpha * pow(-_log(u), 1.0/beta)
 
-## -------------------- test program --------------------
+## -------------------- test.txt program --------------------
 
 def _test_generator(n, funccall):
     import time
@@ -628,7 +628,7 @@ def _test(N=200):
         random()
     r2 = random()
     if r1 != r2:
-        raise ValueError("jumpahead test failed " + `(N, r1, r2)`)
+        raise ValueError("jumpahead test.txt failed " + `(N, r1, r2)`)
 
 # Create one instance, seeded from current time, and export its methods
 # as module-level functions.  The functions are not threadsafe, and state
