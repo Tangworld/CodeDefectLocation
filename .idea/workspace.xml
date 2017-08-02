@@ -1,7 +1,25 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project version="4">
   <component name="ChangeListManager">
-    <list default="true" id="33cfeda7-3181-4d5e-a7ff-12787469554c" name="Default" comment="" />
+    <list default="true" id="33cfeda7-3181-4d5e-a7ff-12787469554c" name="Default" comment="">
+      <change type="MOVED" beforePath="$PROJECT_DIR$/getdata/Aspectj-Large/create_bugidmap.py" afterPath="$PROJECT_DIR$/getdata/Aspectj-Large/bughunter/create_bugidmap.py" />
+      <change type="MOVED" beforePath="$PROJECT_DIR$/getdata/Aspectj-Large/create_filemap.py" afterPath="$PROJECT_DIR$/getdata/Aspectj-Large/bughunter/create_filemap.py" />
+      <change type="MOVED" beforePath="$PROJECT_DIR$/getdata/Aspectj-Large/create_reports.py" afterPath="$PROJECT_DIR$/getdata/Aspectj-Large/bughunter/create_reports.py" />
+      <change type="MOVED" beforePath="$PROJECT_DIR$/getdata/Aspectj-Large/create_source.py" afterPath="$PROJECT_DIR$/getdata/Aspectj-Large/bughunter/create_source.py" />
+      <change type="MOVED" beforePath="$PROJECT_DIR$/getdata/Aspectj-Large/create_sourcelen.py" afterPath="$PROJECT_DIR$/getdata/Aspectj-Large/bughunter/create_sourcelen.py" />
+      <change type="MOVED" beforePath="$PROJECT_DIR$/getdata/Aspectj-Large/create_wordmap.py" afterPath="$PROJECT_DIR$/getdata/Aspectj-Large/bughunter/create_wordmap.py" />
+      <change type="MOVED" beforePath="$PROJECT_DIR$/getdata/Aspectj-Large/data/BugidMap.txt" afterPath="$PROJECT_DIR$/getdata/Aspectj-Large/data/bughunter/BugidMap.txt" />
+      <change type="MOVED" beforePath="$PROJECT_DIR$/getdata/Aspectj-Large/data/FileMap.txt" afterPath="$PROJECT_DIR$/getdata/Aspectj-Large/data/bughunter/FileMap.txt" />
+      <change type="MOVED" beforePath="$PROJECT_DIR$/getdata/Aspectj-Large/data/Reports.txt" afterPath="$PROJECT_DIR$/getdata/Aspectj-Large/data/bughunter/Reports.txt" />
+      <change type="MOVED" beforePath="$PROJECT_DIR$/getdata/Aspectj-Large/data/Source.txt" afterPath="$PROJECT_DIR$/getdata/Aspectj-Large/data/bughunter/Source.txt" />
+      <change type="MOVED" beforePath="$PROJECT_DIR$/getdata/Aspectj-Large/data/SourceLen.txt" afterPath="$PROJECT_DIR$/getdata/Aspectj-Large/data/bughunter/SourceLen.txt" />
+      <change type="MOVED" beforePath="$PROJECT_DIR$/getdata/Aspectj-Large/data/WordMap.txt" afterPath="$PROJECT_DIR$/getdata/Aspectj-Large/data/bughunter/WordMap.txt" />
+      <change type="MOVED" beforePath="$PROJECT_DIR$/getdata/Aspectj-Large/data/aspectj.csv" afterPath="$PROJECT_DIR$/getdata/Aspectj-Large/data/bughunter/aspectj.csv" />
+      <change type="MOVED" beforePath="$PROJECT_DIR$/getdata/Aspectj-Large/persistence.py" afterPath="$PROJECT_DIR$/getdata/Aspectj-Large/bughunter/persistence.py" />
+      <change type="MOVED" beforePath="$PROJECT_DIR$/getdata/Aspectj-Large/test.py" afterPath="$PROJECT_DIR$/getdata/Aspectj-Large/bughunter/test.py" />
+      <change type="MOVED" beforePath="$PROJECT_DIR$/getdata/Aspectj-Large/test.txt" afterPath="$PROJECT_DIR$/getdata/Aspectj-Large/bughunter/test.txt" />
+      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/.idea/workspace.xml" afterPath="$PROJECT_DIR$/.idea/workspace.xml" />
+    </list>
     <ignored path="CodeDefectLocation.iws" />
     <ignored path=".idea/workspace.xml" />
     <ignored path=".idea/dataSources.local.xml" />
@@ -39,117 +57,21 @@
   </component>
   <component name="FileEditorManager">
     <leaf SIDE_TABS_SIZE_LIMIT_KEY="300">
-      <file leaf-file-name="create_wordmap.py" pinned="false" current-in-tab="false">
-        <entry file="file://$PROJECT_DIR$/getdata/Aspectj-Large/create_wordmap.py">
-          <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="2980">
-              <caret line="149" column="42" lean-forward="true" selection-start-line="149" selection-start-column="42" selection-end-line="149" selection-end-column="42" />
-              <folding>
-                <element signature="e#14#37#0" expanded="true" />
-              </folding>
-            </state>
-          </provider>
-        </entry>
-      </file>
-      <file leaf-file-name="UpdateData.py" pinned="false" current-in-tab="false">
-        <entry file="file://$PROJECT_DIR$/getdata/Aspectj/core/UpdateData.py">
-          <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="220">
-              <caret line="11" column="24" lean-forward="true" selection-start-line="11" selection-start-column="24" selection-end-line="11" selection-end-column="24" />
-              <folding>
-                <marker date="1501151922145" expanded="true" signature="256:277" ph="select * fro... aspectj" />
-                <marker date="1501151922145" expanded="true" signature="358:378" ph="select * fro... assist" />
-                <marker date="1501151922145" expanded="true" signature="746:827" ph="update assis... " />
-                <marker date="1501151922145" expanded="true" signature="1042:1062" ph="select * fro... assist" />
-                <marker date="1501151922145" expanded="true" signature="1779:1827" ph="update assis... " />
-              </folding>
-            </state>
-          </provider>
-        </entry>
-      </file>
-      <file leaf-file-name="create_reports.py" pinned="false" current-in-tab="false">
-        <entry file="file://$PROJECT_DIR$/getdata/Aspectj-Large/create_reports.py">
-          <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="-1063">
-              <caret line="59" column="34" lean-forward="true" selection-start-line="59" selection-start-column="34" selection-end-line="59" selection-end-column="34" />
-              <folding />
-            </state>
-          </provider>
-        </entry>
-      </file>
-      <file leaf-file-name="create_source.py" pinned="false" current-in-tab="false">
-        <entry file="file://$PROJECT_DIR$/getdata/Aspectj-Large/create_source.py">
-          <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="0">
-              <caret line="0" column="0" lean-forward="false" selection-start-line="0" selection-start-column="0" selection-end-line="0" selection-end-column="0" />
-              <folding />
-            </state>
-          </provider>
-        </entry>
-      </file>
-      <file leaf-file-name="persistence.py" pinned="false" current-in-tab="true">
-        <entry file="file://$PROJECT_DIR$/getdata/Aspectj-Large/persistence.py">
-          <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="317">
-              <caret line="47" column="125" lean-forward="true" selection-start-line="47" selection-start-column="125" selection-end-line="47" selection-end-column="125" />
-              <folding>
-                <marker date="1501498772554" expanded="true" signature="324:354" ph="select * fro... locator_bugidmap" />
-                <marker date="1501498772554" expanded="true" signature="381:464" ph="insert into locator_bugidmap... " />
-                <marker date="1501498772554" expanded="true" signature="381:1718" ph="insert into locator_bugidmap... " />
-                <marker date="1501498772554" expanded="true" signature="429:464" ph="update assis... " />
-                <marker date="1501498772554" expanded="true" signature="922:1014" ph="insert into locator_bugidmap... " />
-                <marker date="1501498772554" expanded="true" signature="1476:1555" ph="insert into reports... " />
-                <marker date="1501498772554" expanded="true" signature="1476:1575" ph="insert into reports... " />
-              </folding>
-            </state>
-          </provider>
-        </entry>
-      </file>
-      <file leaf-file-name="Reports.txt" pinned="false" current-in-tab="false">
-        <entry file="file://$PROJECT_DIR$/getdata/Aspectj-Large/data/Reports.txt">
-          <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="345">
-              <caret line="1545" column="23" lean-forward="false" selection-start-line="1545" selection-start-column="23" selection-end-line="1545" selection-end-column="23" />
-              <folding />
-            </state>
-          </provider>
-        </entry>
-      </file>
-      <file leaf-file-name="connections.py" pinned="false" current-in-tab="false">
-        <entry file="file:///usr/lib/python2.7/dist-packages/MySQLdb/connections.py">
-          <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="399">
-              <caret line="35" column="24" lean-forward="true" selection-start-line="35" selection-start-column="24" selection-end-line="35" selection-end-column="24" />
-              <folding />
-            </state>
-          </provider>
-        </entry>
-      </file>
-      <file leaf-file-name="create_bugidmap.py" pinned="false" current-in-tab="false">
-        <entry file="file://$PROJECT_DIR$/getdata/Aspectj-Large/create_bugidmap.py">
-          <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="180">
-              <caret line="9" column="34" lean-forward="true" selection-start-line="9" selection-start-column="34" selection-end-line="9" selection-end-column="34" />
-              <folding />
-            </state>
-          </provider>
-        </entry>
-      </file>
-      <file leaf-file-name="create_sourcelen.py" pinned="false" current-in-tab="false">
-        <entry file="file://$PROJECT_DIR$/getdata/Aspectj-Large/create_sourcelen.py">
-          <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="237">
-              <caret line="16" column="26" lean-forward="true" selection-start-line="16" selection-start-column="26" selection-end-line="16" selection-end-column="26" />
-              <folding />
-            </state>
-          </provider>
-        </entry>
-      </file>
-      <file leaf-file-name="create_filemap.py" pinned="false" current-in-tab="false">
-        <entry file="file://$PROJECT_DIR$/getdata/Aspectj-Large/create_filemap.py">
+      <file leaf-file-name="aspectj.txt" pinned="false" current-in-tab="false">
+        <entry file="file://$PROJECT_DIR$/getdata/Aspectj-Large/data/l2ss/aspectj.txt">
           <provider selected="true" editor-type-id="text-editor">
             <state relative-caret-position="280">
-              <caret line="14" column="20" lean-forward="true" selection-start-line="14" selection-start-column="20" selection-end-line="14" selection-end-column="20" />
+              <caret line="1" column="44" lean-forward="false" selection-start-line="1" selection-start-column="44" selection-end-line="1" selection-end-column="44" />
+              <folding />
+            </state>
+          </provider>
+        </entry>
+      </file>
+      <file leaf-file-name="dealData.py" pinned="false" current-in-tab="true">
+        <entry file="file://$PROJECT_DIR$/getdata/Aspectj-Large/l2ss/dealData.py">
+          <provider selected="true" editor-type-id="text-editor">
+            <state relative-caret-position="280">
+              <caret line="14" column="34" lean-forward="true" selection-start-line="14" selection-start-column="34" selection-end-line="14" selection-end-column="34" />
               <folding />
             </state>
           </provider>
@@ -249,6 +171,8 @@
       <foldersAlwaysOnTop value="true" />
     </navigator>
     <panes>
+      <pane id="Scratches" />
+      <pane id="Scope" />
       <pane id="ProjectPane">
         <subPane>
           <PATH>
@@ -286,6 +210,24 @@
             </PATH_ELEMENT>
             <PATH_ELEMENT>
               <option name="myItemId" value="getdata" />
+              <option name="myItemType" value="com.intellij.ide.projectView.impl.nodes.PsiDirectoryNode" />
+            </PATH_ELEMENT>
+          </PATH>
+          <PATH>
+            <PATH_ELEMENT>
+              <option name="myItemId" value="CodeDefectLocation" />
+              <option name="myItemType" value="com.intellij.ide.projectView.impl.nodes.ProjectViewProjectNode" />
+            </PATH_ELEMENT>
+            <PATH_ELEMENT>
+              <option name="myItemId" value="CodeDefectLocation" />
+              <option name="myItemType" value="com.intellij.ide.projectView.impl.nodes.PsiDirectoryNode" />
+            </PATH_ELEMENT>
+            <PATH_ELEMENT>
+              <option name="myItemId" value="getdata" />
+              <option name="myItemType" value="com.intellij.ide.projectView.impl.nodes.PsiDirectoryNode" />
+            </PATH_ELEMENT>
+            <PATH_ELEMENT>
+              <option name="myItemId" value="datadeal" />
               <option name="myItemType" value="com.intellij.ide.projectView.impl.nodes.PsiDirectoryNode" />
             </PATH_ELEMENT>
           </PATH>
@@ -371,30 +313,28 @@
           </PATH>
         </subPane>
       </pane>
-      <pane id="Scratches" />
-      <pane id="Scope" />
     </panes>
   </component>
   <component name="PropertiesComponent">
     <property name="WebServerToolWindowFactoryState" value="false" />
-    <property name="last_opened_file_path" value="$PROJECT_DIR$/../buglocator" />
+    <property name="last_opened_file_path" value="$PROJECT_DIR$" />
     <property name="DefaultHtmlFileTemplate" value="HTML File" />
     <property name="ignore_missing_gitignore" value="true" />
   </component>
   <component name="RecentsManager">
     <key name="CopyFile.RECENT_KEYS">
+      <recent name="$PROJECT_DIR$/getdata/Aspectj-Large/l2ss" />
+      <recent name="$PROJECT_DIR$/getdata/Aspectj-Large/data/l2ss" />
       <recent name="$PROJECT_DIR$/getdata/Aspectj-Large/data" />
       <recent name="$PROJECT_DIR$/getdata/datadeal" />
       <recent name="$PROJECT_DIR$/keyAlgorithm" />
-      <recent name="$PROJECT_DIR$" />
-      <recent name="$PROJECT_DIR$/getdata/Mozilla" />
     </key>
     <key name="MoveFile.RECENT_KEYS">
+      <recent name="$PROJECT_DIR$/getdata/Aspectj-Large/bughunter" />
+      <recent name="$PROJECT_DIR$/getdata/Aspectj-Large/data/bughunter" />
       <recent name="$PROJECT_DIR$/keyAlgorithm/org.aspectj" />
       <recent name="$PROJECT_DIR$/getdata/Aspectj-Large/data" />
       <recent name="$PROJECT_DIR$/getdata/Mozilla/core" />
-      <recent name="$PROJECT_DIR$/getdata/Mozilla/sql" />
-      <recent name="$PROJECT_DIR$/getdata/Aspectj/core" />
     </key>
   </component>
   <component name="RunDashboard">
@@ -423,7 +363,7 @@
       <option name="ADD_SOURCE_ROOTS" value="true" />
       <module name="CodeDefectLocation" />
       <EXTENSION ID="PythonCoverageRunConfigurationExtension" enabled="false" sample_coverage="true" runner="coverage.py" />
-      <option name="SCRIPT_NAME" value="$PROJECT_DIR$/getdata/Aspectj-Large/create_filemap.py" />
+      <option name="SCRIPT_NAME" value="$PROJECT_DIR$/getdata/Aspectj-Large/bughunter/create_filemap.py" />
       <option name="PARAMETERS" value="" />
       <option name="SHOW_COMMAND_LINE" value="false" />
       <option name="EMULATE_TERMINAL" value="false" />
@@ -442,7 +382,7 @@
       <option name="ADD_SOURCE_ROOTS" value="true" />
       <module name="CodeDefectLocation" />
       <EXTENSION ID="PythonCoverageRunConfigurationExtension" enabled="false" sample_coverage="true" runner="coverage.py" />
-      <option name="SCRIPT_NAME" value="$PROJECT_DIR$/getdata/Aspectj-Large/create_sourcelen.py" />
+      <option name="SCRIPT_NAME" value="$PROJECT_DIR$/getdata/Aspectj-Large/bughunter/create_sourcelen.py" />
       <option name="PARAMETERS" value="" />
       <option name="SHOW_COMMAND_LINE" value="false" />
       <option name="EMULATE_TERMINAL" value="false" />
@@ -461,7 +401,7 @@
       <EXTENSION ID="PythonCoverageRunConfigurationExtension" enabled="false" sample_coverage="true" runner="coverage.py" />
       <option name="_new_pattern" value="&quot;&quot;" />
       <option name="_new_additionalArguments" value="&quot;&quot;" />
-      <option name="_new_target" value="&quot;$PROJECT_DIR$/getdata/Aspectj-Large/create_wordmap.py&quot;" />
+      <option name="_new_target" value="&quot;$PROJECT_DIR$/getdata/Aspectj-Large/bughunter/create_wordmap.py&quot;" />
       <option name="_new_targetType" value="&quot;PATH&quot;" />
       <method />
     </configuration>
@@ -478,7 +418,7 @@
       <option name="ADD_SOURCE_ROOTS" value="true" />
       <module name="CodeDefectLocation" />
       <EXTENSION ID="PythonCoverageRunConfigurationExtension" enabled="false" sample_coverage="true" runner="coverage.py" />
-      <option name="SCRIPT_NAME" value="$PROJECT_DIR$/getdata/Aspectj-Large/test.py" />
+      <option name="SCRIPT_NAME" value="$PROJECT_DIR$/getdata/Aspectj-Large/bughunter/test.py" />
       <option name="PARAMETERS" value="" />
       <option name="SHOW_COMMAND_LINE" value="false" />
       <option name="EMULATE_TERMINAL" value="false" />
@@ -497,7 +437,7 @@
       <option name="ADD_SOURCE_ROOTS" value="true" />
       <module name="CodeDefectLocation" />
       <EXTENSION ID="PythonCoverageRunConfigurationExtension" enabled="false" sample_coverage="true" runner="coverage.py" />
-      <option name="SCRIPT_NAME" value="$PROJECT_DIR$/getdata/Aspectj-Large/persistence.py" />
+      <option name="SCRIPT_NAME" value="$PROJECT_DIR$/getdata/Aspectj-Large/bughunter/persistence.py" />
       <option name="PARAMETERS" value="" />
       <option name="SHOW_COMMAND_LINE" value="false" />
       <option name="EMULATE_TERMINAL" value="false" />
@@ -698,7 +638,7 @@
       <option name="ADD_SOURCE_ROOTS" value="true" />
       <module name="CodeDefectLocation" />
       <EXTENSION ID="PythonCoverageRunConfigurationExtension" enabled="false" sample_coverage="true" runner="coverage.py" />
-      <option name="SCRIPT_NAME" value="$PROJECT_DIR$/getdata/Aspectj-Large/create_wordmap.py" />
+      <option name="SCRIPT_NAME" value="$PROJECT_DIR$/getdata/Aspectj-Large/bughunter/create_wordmap.py" />
       <option name="PARAMETERS" value="" />
       <option name="SHOW_COMMAND_LINE" value="false" />
       <option name="EMULATE_TERMINAL" value="false" />
@@ -776,16 +716,15 @@
     <frame x="65" y="-4" width="1855" height="1084" extended-state="6" />
     <editor active="true" />
     <layout>
+      <window_info id="Project" active="false" anchor="left" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="true" show_stripe_button="true" weight="0.24097034" sideWeight="0.5" order="0" side_tool="false" content_ui="combo" />
       <window_info id="TODO" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.33" sideWeight="0.5" order="6" side_tool="false" content_ui="tabs" />
       <window_info id="Event Log" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.6696833" sideWeight="0.50883937" order="7" side_tool="true" content_ui="tabs" />
-      <window_info id="Run" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="true" show_stripe_button="true" weight="0.2918808" sideWeight="0.49116063" order="2" side_tool="false" content_ui="tabs" />
+      <window_info id="Database" active="false" anchor="right" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.33" sideWeight="0.5" order="3" side_tool="false" content_ui="tabs" />
+      <window_info id="Run" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.2918808" sideWeight="0.49116063" order="2" side_tool="false" content_ui="tabs" />
       <window_info id="Version Control" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.33" sideWeight="0.5" order="10" side_tool="false" content_ui="tabs" />
       <window_info id="Python Console" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.33" sideWeight="0.5" order="8" side_tool="false" content_ui="tabs" />
-      <window_info id="Terminal" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.33" sideWeight="0.5" order="9" side_tool="false" content_ui="tabs" />
-      <window_info id="Project" active="false" anchor="left" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="true" show_stripe_button="true" weight="0.24097034" sideWeight="0.5" order="0" side_tool="false" content_ui="combo" />
-      <window_info id="Database" active="false" anchor="right" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.33" sideWeight="0.5" order="3" side_tool="false" content_ui="tabs" />
-      <window_info id="Find" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.327852" sideWeight="0.5" order="1" side_tool="false" content_ui="tabs" />
       <window_info id="Structure" active="false" anchor="left" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.25" sideWeight="0.5" order="1" side_tool="false" content_ui="tabs" />
+      <window_info id="Terminal" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.33" sideWeight="0.5" order="9" side_tool="false" content_ui="tabs" />
       <window_info id="Debug" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.39969835" sideWeight="0.5" order="3" side_tool="false" content_ui="tabs" />
       <window_info id="Favorites" active="false" anchor="left" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.33" sideWeight="0.5" order="2" side_tool="true" content_ui="tabs" />
       <window_info id="Data View" active="false" anchor="right" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.33" sideWeight="0.5" order="4" side_tool="false" content_ui="tabs" />
@@ -794,6 +733,7 @@
       <window_info id="Commander" active="false" anchor="right" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.4" sideWeight="0.5" order="0" side_tool="false" content_ui="tabs" />
       <window_info id="Inspection" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.4" sideWeight="0.5" order="5" side_tool="false" content_ui="tabs" />
       <window_info id="Hierarchy" active="false" anchor="right" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.25" sideWeight="0.5" order="2" side_tool="false" content_ui="combo" />
+      <window_info id="Find" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.327852" sideWeight="0.5" order="1" side_tool="false" content_ui="tabs" />
       <window_info id="Ant Build" active="false" anchor="right" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.25" sideWeight="0.5" order="1" side_tool="false" content_ui="tabs" />
     </layout>
   </component>
@@ -810,55 +750,6 @@
     <watches-manager />
   </component>
   <component name="editorHistoryManager">
-    <entry file="file://$PROJECT_DIR$/getdata/datadeal/words-by-frequency.txt">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="144">
-          <caret line="8" column="2" lean-forward="false" selection-start-line="8" selection-start-column="2" selection-end-line="8" selection-end-column="2" />
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://$PROJECT_DIR$/keyAlgorithm/ASPECToutput.txt">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="0">
-          <caret line="0" column="0" lean-forward="false" selection-start-line="0" selection-start-column="0" selection-end-line="0" selection-end-column="0" />
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://$PROJECT_DIR$/keyAlgorithm/tsj.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="383">
-          <caret line="487" column="73" lean-forward="false" selection-start-line="487" selection-start-column="73" selection-end-line="487" selection-end-column="73" />
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://$PROJECT_DIR$/keyAlgorithm/aspectjtf.txt">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="80">
-          <caret line="281" column="1124" lean-forward="false" selection-start-line="281" selection-start-column="1124" selection-end-line="281" selection-end-column="1124" />
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://$PROJECT_DIR$/keyAlgorithm/AspectJsall.txt">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="270">
-          <caret line="15" column="34" lean-forward="false" selection-start-line="15" selection-start-column="34" selection-end-line="15" selection-end-column="34" />
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://$PROJECT_DIR$/keyAlgorithm/ASPECTJoutput.txt">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="0">
-          <caret line="0" column="0" lean-forward="false" selection-start-line="0" selection-start-column="0" selection-end-line="0" selection-end-column="0" />
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://$PROJECT_DIR$/getdata/datadeal/source.txt">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="216">
-          <caret line="27" column="2" lean-forward="false" selection-start-line="27" selection-start-column="2" selection-end-line="27" selection-end-column="2" />
-        </state>
-      </provider>
-    </entry>
     <entry file="file://$PROJECT_DIR$/getdata/datadeal/test.txt">
       <provider selected="true" editor-type-id="text-editor">
         <state relative-caret-position="18">
@@ -873,13 +764,6 @@
         </state>
       </provider>
     </entry>
-    <entry file="file://$PROJECT_DIR$/keyAlgorithm/keywords.txt">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="522">
-          <caret line="29" column="6" lean-forward="false" selection-start-line="29" selection-start-column="6" selection-end-line="29" selection-end-column="6" />
-        </state>
-      </provider>
-    </entry>
     <entry file="file://$PROJECT_DIR$/getdata/datadeal/sourceLen.txt">
       <provider selected="true" editor-type-id="text-editor">
         <state relative-caret-position="0">
@@ -891,27 +775,6 @@
       <provider selected="true" editor-type-id="text-editor">
         <state relative-caret-position="157">
           <caret line="7276" column="29" lean-forward="false" selection-start-line="7276" selection-start-column="29" selection-end-line="7276" selection-end-column="29" />
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://$PROJECT_DIR$/keyAlgorithm/aspectjSourceLen.txt">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="0">
-          <caret line="0" column="36" lean-forward="false" selection-start-line="0" selection-start-column="36" selection-end-line="0" selection-end-column="36" />
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://$PROJECT_DIR$/keyAlgorithm/aspectjSourcesNLTK.txt">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="1781">
-          <caret line="773" column="18" lean-forward="false" selection-start-line="773" selection-start-column="18" selection-end-line="773" selection-end-column="18" />
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://$PROJECT_DIR$/keyAlgorithm/words-by-frequency.txt">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="341">
-          <caret line="125547" column="12" lean-forward="false" selection-start-line="125547" selection-start-column="12" selection-end-line="125547" selection-end-column="12" />
         </state>
       </provider>
     </entry>
@@ -940,7 +803,6 @@
       <provider selected="true" editor-type-id="text-editor">
         <state relative-caret-position="9980">
           <caret line="500" column="11" lean-forward="false" selection-start-line="500" selection-start-column="11" selection-end-line="500" selection-end-column="11" />
-          <folding />
         </state>
       </provider>
     </entry>
@@ -948,13 +810,6 @@
       <provider selected="true" editor-type-id="text-editor">
         <state relative-caret-position="0">
           <caret line="0" column="5" lean-forward="false" selection-start-line="0" selection-start-column="5" selection-end-line="0" selection-end-column="5" />
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://$PROJECT_DIR$/keyAlgorithm/aspectjReportsNLTK.txt">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="3860">
-          <caret line="193" column="0" lean-forward="false" selection-start-line="193" selection-start-column="0" selection-end-line="193" selection-end-column="0" />
         </state>
       </provider>
     </entry>
@@ -973,7 +828,7 @@
       </provider>
     </entry>
     <entry file="file://$PROJECT_DIR$/getdata/Aspectj-Large/BugidMap.txt" />
-    <entry file="file://$PROJECT_DIR$/getdata/Aspectj-Large/data/aspectj.csv">
+    <entry file="file://$PROJECT_DIR$/getdata/Aspectj-Large/data/bughunter/aspectj.csv">
       <provider selected="true" editor-type-id="text-editor">
         <state relative-caret-position="40">
           <caret line="2" column="326" lean-forward="false" selection-start-line="2" selection-start-column="326" selection-end-line="2" selection-end-column="326" />
@@ -1030,19 +885,10 @@
         </state>
       </provider>
     </entry>
-    <entry file="file://$PROJECT_DIR$/getdata/Aspectj-Large/test.txt">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="180">
-          <caret line="9" column="2" lean-forward="false" selection-start-line="9" selection-start-column="2" selection-end-line="9" selection-end-column="2" />
-          <folding />
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://$PROJECT_DIR$/getdata/Aspectj-Large/test.py">
+    <entry file="file://$PROJECT_DIR$/getdata/Aspectj-Large/bughunter/test.py">
       <provider selected="true" editor-type-id="text-editor">
         <state relative-caret-position="20">
           <caret line="1" column="23" lean-forward="true" selection-start-line="1" selection-start-column="23" selection-end-line="1" selection-end-column="23" />
-          <folding />
         </state>
       </provider>
     </entry>
@@ -1050,75 +896,69 @@
       <provider selected="true" editor-type-id="text-editor">
         <state relative-caret-position="300">
           <caret line="25" column="67" lean-forward="false" selection-start-line="25" selection-start-column="67" selection-end-line="25" selection-end-column="67" />
-          <folding />
         </state>
       </provider>
     </entry>
-    <entry file="file://$PROJECT_DIR$/getdata/Aspectj-Large/data/BugidMap.txt">
+    <entry file="file://$PROJECT_DIR$/getdata/Aspectj-Large/data/bughunter/BugidMap.txt">
       <provider selected="true" editor-type-id="text-editor">
         <state relative-caret-position="499">
           <caret line="1651" column="6" lean-forward="true" selection-start-line="1651" selection-start-column="6" selection-end-line="1651" selection-end-column="6" />
-          <folding />
         </state>
       </provider>
     </entry>
-    <entry file="file://$PROJECT_DIR$/getdata/Aspectj-Large/data/FileMap.txt">
+    <entry file="file://$PROJECT_DIR$/getdata/Aspectj-Large/data/bughunter/FileMap.txt">
       <provider selected="true" editor-type-id="text-editor">
         <state relative-caret-position="325">
           <caret line="3025" column="72" lean-forward="false" selection-start-line="3025" selection-start-column="72" selection-end-line="3025" selection-end-column="72" />
-          <folding />
         </state>
       </provider>
     </entry>
-    <entry file="file://$PROJECT_DIR$/getdata/Aspectj-Large/data/Source.txt">
+    <entry file="file://$PROJECT_DIR$/getdata/Aspectj-Large/data/bughunter/Source.txt">
       <provider selected="true" editor-type-id="text-editor">
         <state relative-caret-position="280">
           <caret line="14" column="26" lean-forward="true" selection-start-line="14" selection-start-column="26" selection-end-line="14" selection-end-column="26" />
-          <folding />
         </state>
       </provider>
     </entry>
-    <entry file="file://$PROJECT_DIR$/getdata/Aspectj-Large/data/SourceLen.txt">
+    <entry file="file://$PROJECT_DIR$/getdata/Aspectj-Large/data/bughunter/SourceLen.txt">
       <provider selected="true" editor-type-id="text-editor">
         <state relative-caret-position="225">
           <caret line="0" column="10116" lean-forward="true" selection-start-line="0" selection-start-column="10116" selection-end-line="0" selection-end-column="10116" />
-          <folding />
         </state>
       </provider>
     </entry>
-    <entry file="file://$PROJECT_DIR$/getdata/Aspectj-Large/data/WordMap.txt">
+    <entry file="file://$PROJECT_DIR$/getdata/Aspectj-Large/data/bughunter/WordMap.txt">
       <provider selected="true" editor-type-id="text-editor">
         <state relative-caret-position="340">
           <caret line="17" column="33" lean-forward="true" selection-start-line="17" selection-start-column="33" selection-end-line="17" selection-end-column="33" />
-          <folding />
         </state>
       </provider>
     </entry>
-    <entry file="file://$PROJECT_DIR$/getdata/Aspectj-Large/create_bugidmap.py">
+    <entry file="file://$PROJECT_DIR$/getdata/Aspectj-Large/bughunter/create_bugidmap.py">
       <provider selected="true" editor-type-id="text-editor">
         <state relative-caret-position="180">
-          <caret line="9" column="34" lean-forward="true" selection-start-line="9" selection-start-column="34" selection-end-line="9" selection-end-column="34" />
+          <caret line="9" column="34" lean-forward="false" selection-start-line="9" selection-start-column="34" selection-end-line="9" selection-end-column="34" />
           <folding />
         </state>
       </provider>
     </entry>
-    <entry file="file://$PROJECT_DIR$/getdata/Aspectj-Large/create_filemap.py">
+    <entry file="file://$PROJECT_DIR$/getdata/Aspectj-Large/bughunter/create_filemap.py">
       <provider selected="true" editor-type-id="text-editor">
         <state relative-caret-position="280">
-          <caret line="14" column="20" lean-forward="true" selection-start-line="14" selection-start-column="20" selection-end-line="14" selection-end-column="20" />
+          <caret line="14" column="20" lean-forward="false" selection-start-line="14" selection-start-column="20" selection-end-line="14" selection-end-column="20" />
           <folding />
         </state>
       </provider>
     </entry>
-    <entry file="file://$PROJECT_DIR$/getdata/Aspectj-Large/create_reports.py">
+    <entry file="file://$PROJECT_DIR$/getdata/Aspectj-Large/bughunter/create_reports.py">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="-1063">
-          <caret line="59" column="34" lean-forward="true" selection-start-line="59" selection-start-column="34" selection-end-line="59" selection-end-column="34" />
+        <state relative-caret-position="1080">
+          <caret line="59" column="34" lean-forward="false" selection-start-line="59" selection-start-column="34" selection-end-line="59" selection-end-column="34" />
           <folding />
         </state>
       </provider>
     </entry>
-    <entry file="file://$PROJECT_DIR$/getdata/Aspectj-Large/create_source.py">
+    <entry file="file://$PROJECT_DIR$/getdata/Aspectj-Large/bughunter/create_source.py">
       <provider selected="true" editor-type-id="text-editor">
         <state relative-caret-position="0">
           <caret line="0" column="0" lean-forward="false" selection-start-line="0" selection-start-column="0" selection-end-line="0" selection-end-column="0" />
@@ -1126,36 +966,35 @@
         </state>
       </provider>
     </entry>
-    <entry file="file://$PROJECT_DIR$/getdata/Aspectj-Large/create_sourcelen.py">
+    <entry file="file://$PROJECT_DIR$/getdata/Aspectj-Large/bughunter/create_sourcelen.py">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="237">
-          <caret line="16" column="26" lean-forward="true" selection-start-line="16" selection-start-column="26" selection-end-line="16" selection-end-column="26" />
+        <state relative-caret-position="320">
+          <caret line="16" column="26" lean-forward="false" selection-start-line="16" selection-start-column="26" selection-end-line="16" selection-end-column="26" />
           <folding />
         </state>
       </provider>
     </entry>
-    <entry file="file://$PROJECT_DIR$/getdata/Aspectj-Large/create_wordmap.py">
+    <entry file="file://$PROJECT_DIR$/getdata/Aspectj-Large/bughunter/create_wordmap.py">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="2980">
-          <caret line="149" column="42" lean-forward="true" selection-start-line="149" selection-start-column="42" selection-end-line="149" selection-end-column="42" />
+        <state relative-caret-position="2820">
+          <caret line="149" column="42" lean-forward="false" selection-start-line="149" selection-start-column="42" selection-end-line="149" selection-end-column="42" />
           <folding>
-            <element signature="e#14#37#0" expanded="true" />
+            <element signature="e#14#37#0" expanded="false" />
           </folding>
         </state>
       </provider>
     </entry>
     <entry file="file:///usr/lib/python2.7/dist-packages/MySQLdb/connections.py">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="399">
-          <caret line="35" column="24" lean-forward="true" selection-start-line="35" selection-start-column="24" selection-end-line="35" selection-end-column="24" />
-          <folding />
+        <state relative-caret-position="580">
+          <caret line="35" column="24" lean-forward="false" selection-start-line="35" selection-start-column="24" selection-end-line="35" selection-end-column="24" />
         </state>
       </provider>
     </entry>
     <entry file="file://$PROJECT_DIR$/getdata/Aspectj/core/UpdateData.py">
       <provider selected="true" editor-type-id="text-editor">
         <state relative-caret-position="220">
-          <caret line="11" column="24" lean-forward="true" selection-start-line="11" selection-start-column="24" selection-end-line="11" selection-end-column="24" />
+          <caret line="11" column="24" lean-forward="false" selection-start-line="11" selection-start-column="24" selection-end-line="11" selection-end-column="24" />
           <folding>
             <marker date="1501151922145" expanded="true" signature="256:277" ph="select * fro... aspectj" />
             <marker date="1501151922145" expanded="true" signature="358:378" ph="select * fro... assist" />
@@ -1166,27 +1005,128 @@
         </state>
       </provider>
     </entry>
-    <entry file="file://$PROJECT_DIR$/getdata/Aspectj-Large/data/Reports.txt">
+    <entry file="file://$PROJECT_DIR$/getdata/Aspectj-Large/data/bughunter/Reports.txt">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="345">
+        <state relative-caret-position="30900">
           <caret line="1545" column="23" lean-forward="false" selection-start-line="1545" selection-start-column="23" selection-end-line="1545" selection-end-column="23" />
-          <folding />
         </state>
       </provider>
     </entry>
-    <entry file="file://$PROJECT_DIR$/getdata/Aspectj-Large/persistence.py">
+    <entry file="file://$PROJECT_DIR$/getdata/Aspectj-Large/bughunter/persistence.py">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="317">
-          <caret line="47" column="125" lean-forward="true" selection-start-line="47" selection-start-column="125" selection-end-line="47" selection-end-column="125" />
+        <state relative-caret-position="357">
+          <caret line="31" column="0" lean-forward="false" selection-start-line="31" selection-start-column="0" selection-end-line="31" selection-end-column="0" />
           <folding>
             <marker date="1501498772554" expanded="true" signature="324:354" ph="select * fro... locator_bugidmap" />
             <marker date="1501498772554" expanded="true" signature="381:464" ph="insert into locator_bugidmap... " />
-            <marker date="1501498772554" expanded="true" signature="381:1718" ph="insert into locator_bugidmap... " />
             <marker date="1501498772554" expanded="true" signature="429:464" ph="update assis... " />
             <marker date="1501498772554" expanded="true" signature="922:1014" ph="insert into locator_bugidmap... " />
             <marker date="1501498772554" expanded="true" signature="1476:1555" ph="insert into reports... " />
             <marker date="1501498772554" expanded="true" signature="1476:1575" ph="insert into reports... " />
           </folding>
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/keyAlgorithm/ASPECTJoutput.txt">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="0">
+          <caret line="0" column="0" lean-forward="false" selection-start-line="0" selection-start-column="0" selection-end-line="0" selection-end-column="0" />
+          <folding />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/keyAlgorithm/aspectjReportsNLTK.txt">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="28840">
+          <caret line="1442" column="23" lean-forward="false" selection-start-line="1442" selection-start-column="23" selection-end-line="1442" selection-end-column="23" />
+          <folding />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/keyAlgorithm/AspectJsall.txt">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="300">
+          <caret line="15" column="34" lean-forward="false" selection-start-line="15" selection-start-column="34" selection-end-line="15" selection-end-column="34" />
+          <folding />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/keyAlgorithm/aspectjSourceLen.txt">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="0">
+          <caret line="0" column="36" lean-forward="false" selection-start-line="0" selection-start-column="36" selection-end-line="0" selection-end-column="36" />
+          <folding />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/keyAlgorithm/aspectjSourcesNLTK.txt">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="15280">
+          <caret line="764" column="46" lean-forward="true" selection-start-line="764" selection-start-column="46" selection-end-line="764" selection-end-column="46" />
+          <folding />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/keyAlgorithm/aspectjtf.txt">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="5620">
+          <caret line="281" column="1442" lean-forward="true" selection-start-line="281" selection-start-column="1442" selection-end-line="281" selection-end-column="1442" />
+          <folding />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/keyAlgorithm/ASPECToutput.txt">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="0">
+          <caret line="0" column="0" lean-forward="false" selection-start-line="0" selection-start-column="0" selection-end-line="0" selection-end-column="0" />
+          <folding />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/getdata/Aspectj-Large/data/bughunter/File2Word.txt">
+      <provider selected="true" editor-type-id="LargeFileEditor">
+        <state relative-caret-position="402">
+          <caret line="0" column="1277492" lean-forward="false" selection-start-line="0" selection-start-column="1277492" selection-end-line="0" selection-end-column="1277492" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/keyAlgorithm/words-by-frequency.txt">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="400">
+          <caret line="20" column="4" lean-forward="true" selection-start-line="20" selection-start-column="4" selection-end-line="20" selection-end-column="4" />
+          <folding />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/keyAlgorithm/keywords.txt">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="823">
+          <caret line="91" column="4" lean-forward="true" selection-start-line="91" selection-start-column="4" selection-end-line="91" selection-end-column="4" />
+          <folding />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/getdata/Aspectj-Large/bughunter/test.txt">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="180">
+          <caret line="9" column="2" lean-forward="false" selection-start-line="9" selection-start-column="2" selection-end-line="9" selection-end-column="2" />
+          <folding />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/getdata/Aspectj-Large/data/l2ss/aspectj.txt">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="280">
+          <caret line="1" column="44" lean-forward="false" selection-start-line="1" selection-start-column="44" selection-end-line="1" selection-end-column="44" />
+          <folding />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/getdata/Aspectj-Large/l2ss/dealData.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="280">
+          <caret line="14" column="34" lean-forward="true" selection-start-line="14" selection-start-column="34" selection-end-line="14" selection-end-column="34" />
+          <folding />
         </state>
       </provider>
     </entry>
