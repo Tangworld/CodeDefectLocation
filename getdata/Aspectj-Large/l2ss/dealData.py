@@ -75,12 +75,14 @@ def update():
             currentid = currentid.replace('\n', '')
             if d == currentid:
                 temp = data[i].split(',')[4:-1]
-                r_temp = str(temp)
-                r_temp = r_temp.replace('Summary:    ', '')
-                r_temp = r_temp.replace("'", "''")
-                print d
-                print r_temp
-                cursor.execute("update locator_report set description = '"+r_temp+"'where bugid='"+d+"'")
+                summary = temp[0]
+                description = temp[1]
+                summary = summary.replace('Summary:    ', '')
+                summary = summary.replace("'", "''")
+                description = description.replace("'", "''")
+                print summary
+                print description
+                cursor.execute("update locator_report set summary = '"+summary+"' , description = '"+description+"'where bugid='"+d+"'")
     db.commit()  # Commit the transaction
     cursor.close()
     db.close()
