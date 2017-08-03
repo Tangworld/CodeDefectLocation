@@ -507,7 +507,7 @@ def l2ss_test(data, epl, pl, phi, phi2, ptw, tr_dis):
 
 
 def main():
-    data = load_data('../data/' + PROJECT + 'fullfilter.txt')
+    data = load_data(PROJECT + 'fullfilter2.txt')
     fold = 10
 
     beta_0 = 0.1

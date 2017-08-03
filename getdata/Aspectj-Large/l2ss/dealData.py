@@ -2,6 +2,7 @@
 import MySQLdb
 
 def main():
+    data = []
     input = open("../data/l2ss/aspectj.txt")
     lines = input.readlines()
     input.close()
@@ -34,15 +35,78 @@ def main():
         os = str(temp['os'])
         bugid = str(temp['id'])
         if bugid in dictionary:
+            data.append(bugid)
             print reporter, opendate, component, version, platform, os, priority, severity,bugid
             cnt += 1
-            cursor.execute("INSERT INTO locator_report(reporter,opendate,component,version,platform,os,priority,severity,bugid)"
-                        " VALUES('"+reporter+"','"+opendate+"','"+component+"','"+version+"','"+platform+"','"+os+"','"+priority+"','"+severity+"','"+bugid+"')")
+            # cursor.execute("INSERT INTO locator_report(reporter,opendate,component,version,platform,os,priority,severity,bugid)"
+            #             " VALUES('"+reporter+"','"+opendate+"','"+component+"','"+version+"','"+platform+"','"+os+"','"+priority+"','"+severity+"','"+bugid+"')")
 
     db.commit()  # Commit the transaction
     cursor.close()
     db.close()
     print cnt
+    print len(data)
+    data = list(set(data))
+    common = open('../data/l2ss/common.txt', 'w')
+    for d in data:
+        print >> common, d
+    common.close()
+
+def update():
+    dictionary = []
+    input = open("../data/l2ss/common.txt", 'r')
+    lines = input.readlines()
+    input.close()
+    for line in lines:
+        line = line.replace('\n', '')
+        dictionary.append(line)
+
+    aspectj = open("../data/bughunter/aspectj.csv", 'r')
+    data = aspectj.readlines()
+    aspectj.close()
+
+    db = MySQLdb.connect("localhost", "root", "root", "locator")
+    db.set_character_set('utf8')
+    cursor = db.cursor()
+
+    for d in dictionary:
+        for i in range(1, len(data)):
+            currentid = data[i].split(',')[0]
+            currentid = currentid.replace('\n', '')
+            if d == currentid:
+                temp = data[i].split(',')[4:-1]
+                print temp
+                r_temp = str(temp)
+                r_temp = r_temp.replace('Summary', '')
+                print r_temp
+                cursor.execute("update locator_report set description = '"+r_temp+"'where bugid='"+d+"'")
+    db.commit()  # Commit the transaction
+    cursor.close()
+    db.close()
+
+def update_fullfilter():
+    r_filter = []
+    dictionary = []
+    input = open("../data/l2ss/common.txt", 'r')
+    lines = input.readlines()
+    input.close()
+    for line in lines:
+        line = line.replace('\n', '')
+        dictionary.append(line)
+
+    aspectj = open("../data/l2ss/aspectjfullfilter.txt", 'r')
+    data = aspectj.readlines()
+    aspectj.close()
+    for d in data:
+        temp = eval(d)
+        bugid = str(temp['id'])
+        if bugid in dictionary:
+            r_filter.append(d.replace('\n', ''))
+
+    output = open('../data/l2ss/aspectjfullfilter2.txt', 'w')
+    for r in r_filter:
+        print >> output, r
+    output.close()
 
 if __name__ == "__main__":
-    main()
+    update_fullfilter()
