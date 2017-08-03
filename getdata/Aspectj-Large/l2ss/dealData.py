@@ -75,9 +75,10 @@ def update():
             currentid = currentid.replace('\n', '')
             if d == currentid:
                 temp = data[i].split(',')[4:-1]
-                print temp
                 r_temp = str(temp)
-                r_temp = r_temp.replace('Summary', '')
+                r_temp = r_temp.replace('Summary:    ', '')
+                r_temp = r_temp.replace("'", "''")
+                print d
                 print r_temp
                 cursor.execute("update locator_report set description = '"+r_temp+"'where bugid='"+d+"'")
     db.commit()  # Commit the transaction
@@ -109,4 +110,4 @@ def update_fullfilter():
     output.close()
 
 if __name__ == "__main__":
-    update_fullfilter()
+    update()

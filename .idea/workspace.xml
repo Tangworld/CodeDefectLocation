@@ -1,7 +1,10 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project version="4">
   <component name="ChangeListManager">
-    <list default="true" id="33cfeda7-3181-4d5e-a7ff-12787469554c" name="Default" comment="" />
+    <list default="true" id="33cfeda7-3181-4d5e-a7ff-12787469554c" name="Default" comment="">
+      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/.idea/workspace.xml" afterPath="$PROJECT_DIR$/.idea/workspace.xml" />
+      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/getdata/Aspectj-Large/l2ss/dealData.py" afterPath="$PROJECT_DIR$/getdata/Aspectj-Large/l2ss/dealData.py" />
+    </list>
     <ignored path="CodeDefectLocation.iws" />
     <ignored path=".idea/workspace.xml" />
     <ignored path=".idea/dataSources.local.xml" />
@@ -14,7 +17,7 @@
   </component>
   <component name="CoverageDataManager">
     <SUITE FILE_PATH="coverage/CodeDefectLocation$persistence.coverage" NAME="persistence Coverage Results" MODIFIED="1501499502758" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/getdata/Aspectj-Large" />
-    <SUITE FILE_PATH="coverage/CodeDefectLocation$dealData.coverage" NAME="dealData Coverage Results" MODIFIED="1501722989419" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/getdata/Aspectj-Large/l2ss" />
+    <SUITE FILE_PATH="coverage/CodeDefectLocation$dealData.coverage" NAME="dealData Coverage Results" MODIFIED="1501741856481" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/getdata/Aspectj-Large/l2ss" />
     <SUITE FILE_PATH="coverage/CodeDefectLocation$UpdateData.coverage" NAME="UpdateData Coverage Results" MODIFIED="1477134657280" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/getdata/Aspectj" />
     <SUITE FILE_PATH="coverage/CodeDefectLocation$create_filemap.coverage" NAME="create_filemap Coverage Results" MODIFIED="1501154295974" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/getdata/Aspectj-Large" />
     <SUITE FILE_PATH="coverage/CodeDefectLocation$CreateReports.coverage" NAME="CreateReports Coverage Results" MODIFIED="1492691451887" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/getdata/datadeal" />
@@ -44,27 +47,17 @@
   </component>
   <component name="FileEditorManager">
     <leaf SIDE_TABS_SIZE_LIMIT_KEY="300">
-      <file leaf-file-name="aspectj.txt" pinned="false" current-in-tab="false">
-        <entry file="file://$PROJECT_DIR$/getdata/Aspectj-Large/data/l2ss/aspectj.txt">
-          <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="19840">
-              <caret line="992" column="1010" lean-forward="false" selection-start-line="992" selection-start-column="1010" selection-end-line="992" selection-end-column="1010" />
-              <folding />
-            </state>
-          </provider>
-        </entry>
-      </file>
-      <file leaf-file-name="dealData.py" pinned="false" current-in-tab="false">
+      <file leaf-file-name="dealData.py" pinned="false" current-in-tab="true">
         <entry file="file://$PROJECT_DIR$/getdata/Aspectj-Large/l2ss/dealData.py">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="360">
-              <caret line="84" column="14" lean-forward="true" selection-start-line="81" selection-start-column="16" selection-end-line="84" selection-end-column="14" />
+            <state relative-caret-position="250">
+              <caret line="74" column="39" lean-forward="true" selection-start-line="74" selection-start-column="39" selection-end-line="74" selection-end-column="39" />
               <folding>
-                <marker date="1501722989370" expanded="true" signature="2588:2627" ph="update locat... " />
-                <marker date="1501722989370" expanded="true" signature="2588:2628" ph="update locat... " />
-                <marker date="1501722989370" expanded="true" signature="2588:2652" ph="update locat... " />
-                <marker date="1501722989370" expanded="true" signature="2588:2653" ph="update locat... " />
-                <marker date="1501722989370" expanded="true" signature="2588:2659" ph="update locat... " />
+                <marker date="1501741856421" expanded="true" signature="2641:2680" ph="update locat... " />
+                <marker date="1501741856421" expanded="true" signature="2641:2681" ph="update locat... " />
+                <marker date="1501741856421" expanded="true" signature="2641:2705" ph="update locat... " />
+                <marker date="1501741856421" expanded="true" signature="2641:2706" ph="update locat... " />
+                <marker date="1501741856421" expanded="true" signature="2641:2712" ph="update locat... " />
               </folding>
             </state>
           </provider>
@@ -105,15 +98,35 @@
           </provider>
         </entry>
       </file>
-      <file leaf-file-name="create_assignee.py" pinned="false" current-in-tab="true">
+      <file leaf-file-name="create_assignee.py" pinned="false" current-in-tab="false">
         <entry file="file://$PROJECT_DIR$/getdata/Aspectj-Large/createdata/create_assignee.py">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="300">
-              <caret line="15" column="18" lean-forward="true" selection-start-line="15" selection-start-column="18" selection-end-line="15" selection-end-column="18" />
+            <state relative-caret-position="360">
+              <caret line="18" column="26" lean-forward="true" selection-start-line="18" selection-start-column="26" selection-end-line="18" selection-end-column="26" />
               <folding>
                 <element signature="e#0#13#0" expanded="true" />
                 <marker date="1501727129907" expanded="true" signature="395:467" ph="update locat... " />
               </folding>
+            </state>
+          </provider>
+        </entry>
+      </file>
+      <file leaf-file-name="aspectj.csv" pinned="false" current-in-tab="false">
+        <entry file="file://$PROJECT_DIR$/getdata/Aspectj-Large/data/bughunter/aspectj.csv">
+          <provider selected="true" editor-type-id="text-editor">
+            <state relative-caret-position="140">
+              <caret line="3" column="58" lean-forward="false" selection-start-line="3" selection-start-column="46" selection-end-line="3" selection-end-column="58" />
+              <folding />
+            </state>
+          </provider>
+        </entry>
+      </file>
+      <file leaf-file-name="aspectjfullfilter.txt" pinned="false" current-in-tab="false">
+        <entry file="file://$PROJECT_DIR$/getdata/Aspectj-Large/data/l2ss/aspectjfullfilter.txt">
+          <provider selected="true" editor-type-id="text-editor">
+            <state relative-caret-position="320">
+              <caret line="1" column="320" lean-forward="false" selection-start-line="1" selection-start-column="320" selection-end-line="1" selection-end-column="320" />
+              <folding />
             </state>
           </provider>
         </entry>
@@ -136,8 +149,8 @@
       <file leaf-file-name="persistence.py" pinned="false" current-in-tab="false">
         <entry file="file://$PROJECT_DIR$/getdata/Aspectj-Large/bughunter/persistence.py">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="-250">
-              <caret line="17" column="14" lean-forward="true" selection-start-line="17" selection-start-column="14" selection-end-line="17" selection-end-column="14" />
+            <state relative-caret-position="980">
+              <caret line="49" column="0" lean-forward="true" selection-start-line="49" selection-start-column="0" selection-end-line="49" selection-end-column="0" />
               <folding>
                 <marker date="1501498772554" expanded="true" signature="324:354" ph="select * fro... locator_bugidmap" />
                 <marker date="1501498772554" expanded="true" signature="381:464" ph="insert into locator_bugidmap... " />
@@ -219,11 +232,11 @@
         <option value="$PROJECT_DIR$/getdata/Aspectj-Large/persistence.py" />
         <option value="$PROJECT_DIR$/getdata/Aspectj-Large/data/l2ss/aspectj.txt" />
         <option value="$PROJECT_DIR$/getdata/Aspectj-Large/data/bughunter/aspectj.csv" />
-        <option value="$PROJECT_DIR$/getdata/Aspectj-Large/l2ss/dealData.py" />
         <option value="$PROJECT_DIR$/getdata/Aspectj-Large/data/l2ss/L2SS all.py" />
         <option value="$PROJECT_DIR$/getdata/Aspectj-Large/createdata/create_fixdate.py" />
         <option value="$PROJECT_DIR$/getdata/Aspectj-Large/createdata/create_status.py" />
         <option value="$PROJECT_DIR$/getdata/Aspectj-Large/createdata/create_assignee.py" />
+        <option value="$PROJECT_DIR$/getdata/Aspectj-Large/l2ss/dealData.py" />
       </list>
     </option>
   </component>
@@ -399,6 +412,10 @@
               <option name="myItemId" value="data" />
               <option name="myItemType" value="com.intellij.ide.projectView.impl.nodes.PsiDirectoryNode" />
             </PATH_ELEMENT>
+            <PATH_ELEMENT>
+              <option name="myItemId" value="bughunter" />
+              <option name="myItemType" value="com.intellij.ide.projectView.impl.nodes.PsiDirectoryNode" />
+            </PATH_ELEMENT>
           </PATH>
           <PATH>
             <PATH_ELEMENT>
@@ -525,7 +542,7 @@
       </list>
     </option>
   </component>
-  <component name="RunManager" selected="Python.create_assignee">
+  <component name="RunManager" selected="Python.dealData">
     <configuration default="false" name="dealData" type="PythonConfigurationType" factoryName="Python" temporary="true">
       <option name="INTERPRETER_OPTIONS" value="" />
       <option name="PARENT_ENVS" value="true" />
@@ -832,11 +849,11 @@
     </list>
     <recent_temporary>
       <list size="5">
-        <item index="0" class="java.lang.String" itemvalue="Python.create_assignee" />
-        <item index="1" class="java.lang.String" itemvalue="Python.create_status" />
-        <item index="2" class="java.lang.String" itemvalue="Python.create_fixdate" />
-        <item index="3" class="java.lang.String" itemvalue="Python.L2SS all" />
-        <item index="4" class="java.lang.String" itemvalue="Python.dealData" />
+        <item index="0" class="java.lang.String" itemvalue="Python.dealData" />
+        <item index="1" class="java.lang.String" itemvalue="Python.create_assignee" />
+        <item index="2" class="java.lang.String" itemvalue="Python.create_status" />
+        <item index="3" class="java.lang.String" itemvalue="Python.create_fixdate" />
+        <item index="4" class="java.lang.String" itemvalue="Python.L2SS all" />
       </list>
     </recent_temporary>
     <configuration default="true" type="tests" factoryName="Attests">
@@ -892,9 +909,8 @@
   </component>
   <component name="ToolWindowManager">
     <frame x="65" y="-4" width="1855" height="1084" extended-state="6" />
-    <editor active="true" />
     <layout>
-      <window_info id="Project" active="false" anchor="left" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="true" show_stripe_button="true" weight="0.24097034" sideWeight="0.5" order="0" side_tool="false" content_ui="combo" />
+      <window_info id="Project" active="true" anchor="left" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="true" show_stripe_button="true" weight="0.24097034" sideWeight="0.5" order="0" side_tool="false" content_ui="combo" />
       <window_info id="TODO" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.33" sideWeight="0.5" order="6" side_tool="false" content_ui="tabs" />
       <window_info id="Event Log" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.6696833" sideWeight="0.50883937" order="7" side_tool="true" content_ui="tabs" />
       <window_info id="Database" active="false" anchor="right" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.33" sideWeight="0.5" order="3" side_tool="false" content_ui="tabs" />
@@ -1063,13 +1079,6 @@
         </state>
       </provider>
     </entry>
-    <entry file="file:///usr/lib/python2.7/dist-packages/MySQLdb/connections.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="580">
-          <caret line="35" column="24" lean-forward="false" selection-start-line="35" selection-start-column="24" selection-end-line="35" selection-end-column="24" />
-        </state>
-      </provider>
-    </entry>
     <entry file="file://$PROJECT_DIR$/getdata/Aspectj-Large/data/bughunter/Reports.txt">
       <provider selected="true" editor-type-id="text-editor">
         <state relative-caret-position="30900">
@@ -1205,14 +1214,6 @@
         </state>
       </provider>
     </entry>
-    <entry file="file://$PROJECT_DIR$/getdata/Aspectj-Large/data/bughunter/aspectj.csv">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="69480">
-          <caret line="3474" column="1639" lean-forward="false" selection-start-line="3474" selection-start-column="1639" selection-end-line="3474" selection-end-column="1639" />
-          <folding />
-        </state>
-      </provider>
-    </entry>
     <entry file="file://$PROJECT_DIR$/getdata/Aspectj-Large/data/l2ss/common.txt">
       <provider selected="true" editor-type-id="text-editor">
         <state relative-caret-position="1803">
@@ -1233,43 +1234,6 @@
       <provider selected="true" editor-type-id="text-editor">
         <state relative-caret-position="-600">
           <caret line="0" column="1292" lean-forward="false" selection-start-line="0" selection-start-column="1292" selection-end-line="0" selection-end-column="1292" />
-          <folding />
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://$PROJECT_DIR$/getdata/Aspectj-Large/bughunter/persistence.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="-250">
-          <caret line="17" column="14" lean-forward="true" selection-start-line="17" selection-start-column="14" selection-end-line="17" selection-end-column="14" />
-          <folding>
-            <marker date="1501498772554" expanded="true" signature="324:354" ph="select * fro... locator_bugidmap" />
-            <marker date="1501498772554" expanded="true" signature="381:464" ph="insert into locator_bugidmap... " />
-            <marker date="1501498772554" expanded="true" signature="429:464" ph="update assis... " />
-            <marker date="1501498772554" expanded="true" signature="922:1014" ph="insert into locator_bugidmap... " />
-            <marker date="1501498772554" expanded="true" signature="1476:1555" ph="insert into reports... " />
-            <marker date="1501498772554" expanded="true" signature="1476:1575" ph="insert into reports... " />
-          </folding>
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://$PROJECT_DIR$/getdata/Aspectj-Large/l2ss/dealData.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="360">
-          <caret line="84" column="14" lean-forward="true" selection-start-line="81" selection-start-column="16" selection-end-line="84" selection-end-column="14" />
-          <folding>
-            <marker date="1501722989370" expanded="true" signature="2588:2627" ph="update locat... " />
-            <marker date="1501722989370" expanded="true" signature="2588:2628" ph="update locat... " />
-            <marker date="1501722989370" expanded="true" signature="2588:2652" ph="update locat... " />
-            <marker date="1501722989370" expanded="true" signature="2588:2653" ph="update locat... " />
-            <marker date="1501722989370" expanded="true" signature="2588:2659" ph="update locat... " />
-          </folding>
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://$PROJECT_DIR$/getdata/Aspectj-Large/data/l2ss/aspectjfullfilter.txt">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="240">
-          <caret line="380" column="1013" lean-forward="true" selection-start-line="380" selection-start-column="1013" selection-end-line="380" selection-end-column="1013" />
           <folding />
         </state>
       </provider>
@@ -1310,11 +1274,64 @@
     </entry>
     <entry file="file://$PROJECT_DIR$/getdata/Aspectj-Large/createdata/create_assignee.py">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="300">
-          <caret line="15" column="18" lean-forward="true" selection-start-line="15" selection-start-column="18" selection-end-line="15" selection-end-column="18" />
+        <state relative-caret-position="360">
+          <caret line="18" column="26" lean-forward="true" selection-start-line="18" selection-start-column="26" selection-end-line="18" selection-end-column="26" />
           <folding>
             <element signature="e#0#13#0" expanded="true" />
             <marker date="1501727129907" expanded="true" signature="395:467" ph="update locat... " />
+          </folding>
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/getdata/Aspectj-Large/bughunter/persistence.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="980">
+          <caret line="49" column="0" lean-forward="true" selection-start-line="49" selection-start-column="0" selection-end-line="49" selection-end-column="0" />
+          <folding>
+            <marker date="1501498772554" expanded="true" signature="324:354" ph="select * fro... locator_bugidmap" />
+            <marker date="1501498772554" expanded="true" signature="381:464" ph="insert into locator_bugidmap... " />
+            <marker date="1501498772554" expanded="true" signature="429:464" ph="update assis... " />
+            <marker date="1501498772554" expanded="true" signature="922:1014" ph="insert into locator_bugidmap... " />
+            <marker date="1501498772554" expanded="true" signature="1476:1555" ph="insert into reports... " />
+            <marker date="1501498772554" expanded="true" signature="1476:1575" ph="insert into reports... " />
+          </folding>
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/getdata/Aspectj-Large/data/l2ss/aspectjfullfilter.txt">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="320">
+          <caret line="1" column="320" lean-forward="false" selection-start-line="1" selection-start-column="320" selection-end-line="1" selection-end-column="320" />
+          <folding />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file:///usr/lib/python2.7/dist-packages/MySQLdb/connections.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="-60">
+          <caret line="45" column="52" lean-forward="true" selection-start-line="45" selection-start-column="52" selection-end-line="45" selection-end-column="52" />
+          <folding />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/getdata/Aspectj-Large/data/bughunter/aspectj.csv">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="140">
+          <caret line="3" column="58" lean-forward="false" selection-start-line="3" selection-start-column="46" selection-end-line="3" selection-end-column="58" />
+          <folding />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/getdata/Aspectj-Large/l2ss/dealData.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="250">
+          <caret line="74" column="39" lean-forward="true" selection-start-line="74" selection-start-column="39" selection-end-line="74" selection-end-column="39" />
+          <folding>
+            <marker date="1501741856421" expanded="true" signature="2641:2680" ph="update locat... " />
+            <marker date="1501741856421" expanded="true" signature="2641:2681" ph="update locat... " />
+            <marker date="1501741856421" expanded="true" signature="2641:2705" ph="update locat... " />
+            <marker date="1501741856421" expanded="true" signature="2641:2706" ph="update locat... " />
+            <marker date="1501741856421" expanded="true" signature="2641:2712" ph="update locat... " />
           </folding>
         </state>
       </provider>
