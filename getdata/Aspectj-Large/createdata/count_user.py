@@ -8,7 +8,7 @@ def main():
     cursor = db.cursor()
 
     count = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
-    cursor.execute("select fixdate from locator_report where assignee='" + assignee[5] + "'")
+    cursor.execute("select fixdate from locator_report where assignee='" + assignee[5] + "' and status = 'fixed'")
     dataset = cursor.fetchall()
     print len(dataset)
     for data in dataset:

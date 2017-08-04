@@ -1,5 +1,6 @@
 import MySQLdb
 
+
 def bugidinsert():
     db = MySQLdb.connect("localhost", "root", "root", "locator")
     cursor = db.cursor()
@@ -17,6 +18,7 @@ def bugidinsert():
     cursor.close()
     db.close()
 
+
 def fileinsert():
     db = MySQLdb.connect("localhost", "root", "root", "locator")
     cursor = db.cursor()
@@ -33,6 +35,7 @@ def fileinsert():
     db.commit()  # Commit the transaction
     cursor.close()
     db.close()
+
 
 def reportinsert():
     db = MySQLdb.connect("localhost", "root", "root", "locator")
