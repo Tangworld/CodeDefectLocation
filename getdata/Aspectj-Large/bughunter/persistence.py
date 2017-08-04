@@ -3,7 +3,7 @@ import MySQLdb
 def bugidinsert():
     db = MySQLdb.connect("localhost", "root", "root", "locator")
     cursor = db.cursor()
-    bugidmap = open('data/BugidMap.txt', 'r')
+    bugidmap = open('../data/bughunter/BugidMap.txt', 'r')
     lines = bugidmap.readlines()
     bugidmap.close()
     cnt = 0
@@ -20,7 +20,7 @@ def bugidinsert():
 def fileinsert():
     db = MySQLdb.connect("localhost", "root", "root", "locator")
     cursor = db.cursor()
-    filemap = open('data/FileMap.txt', 'r')
+    filemap = open('../data/bughunter/FileMap.txt', 'r')
     lines = filemap.readlines()
     filemap.close()
     cnt = 0
@@ -37,7 +37,7 @@ def fileinsert():
 def reportinsert():
     db = MySQLdb.connect("localhost", "root", "root", "locator")
     cursor = db.cursor()
-    reports = open('data/Reports.txt', 'r')
+    reports = open('../data/bughunter/Reports.txt', 'r')
     lines = reports.readlines()
     reports.close()
     cnt = 0
@@ -53,4 +53,6 @@ def reportinsert():
     db.close()
 
 if __name__ == '__main__':
+    bugidinsert()
+    fileinsert()
     reportinsert()

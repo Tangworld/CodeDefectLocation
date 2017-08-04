@@ -7,7 +7,7 @@ def main():
     db = MySQLdb.connect("localhost", "root", "root", "locator")
     cursor = db.cursor()
 
-    count = [0,0,0,0,0,0,0,0,0,0,0,0]
+    count = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
     cursor.execute("select fixdate from locator_report where assignee='" + assignee[5] + "'")
     dataset = cursor.fetchall()
     print len(dataset)
