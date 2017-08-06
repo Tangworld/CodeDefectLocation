@@ -1,4 +1,11 @@
+# -*- coding: utf-8 -*-
 import MySQLdb
+import urllib
+import re
+from bs4 import BeautifulSoup
+import sys
+reload(sys)
+sys.setdefaultencoding('utf-8')
 
 
 def bugidinsert():
@@ -74,5 +81,43 @@ def wordinsert():
     cursor.close()
     db.close()
 
+
+def update_description():
+    prefix = "https://bugs.eclipse.org/bugs/show_bug.cgi?id="
+    common = open('../data/l2ss/common.txt', 'r')
+    lines = common.readlines()
+    common.close()
+    db = MySQLdb.connect("localhost", "root", "root", "locator")
+    cursor = db.cursor()
+
+    for line in lines:
+        line = line.replace('\n', '')
+        current_url = prefix + line
+        # 得到html页面
+        html = urllib.urlopen(current_url).read()
+        print 'get'
+        soup = BeautifulSoup(html, 'html.parser')
+        first_div = soup.find(name='div', attrs={"class": re.compile(r'^bz_first_comment_head$')})
+        # print first_div
+        # if first_div is not None:
+        #     first_div = first_div.string.encode("utf-8").strip()
+        #     print first_div
+        des = first_div.next_sibling.next_sibling.children
+        for d in des:
+            print d
+            description = str(d)
+            print description
+            description = description.replace("'", "''")
+            try:
+                cursor.execute("update locator_report set description = '" + description + "'where bugid='" + line + "'")
+            except Exception, e:
+                print e
+                continue
+
+    db.commit()  # Commit the transaction
+    cursor.close()
+    db.close()
+
+
 if __name__ == '__main__':
-    wordinsert()
+    update_description()
