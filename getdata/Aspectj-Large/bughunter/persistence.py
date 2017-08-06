@@ -55,7 +55,24 @@ def reportinsert():
     cursor.close()
     db.close()
 
+
+def wordinsert():
+    db = MySQLdb.connect("localhost", "root", "root", "locator")
+    cursor = db.cursor()
+    wordmap = open('../data/bughunter/WordMap.txt', 'r')
+    lines = wordmap.readlines()
+    wordmap.close()
+    cnt = 0
+    for line in lines:
+        line = line.replace('\n', '')
+        print line
+        # cursor.execute("select * from locator_bugidmap")
+        cursor.execute("insert into locator_wordmap(wordID, word) values('" + str(cnt) + "', '" + line + "')")
+        cnt += 1
+
+    db.commit()  # Commit the transaction
+    cursor.close()
+    db.close()
+
 if __name__ == '__main__':
-    bugidinsert()
-    fileinsert()
-    reportinsert()
+    wordinsert()
